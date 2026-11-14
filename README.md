@@ -18,12 +18,12 @@ Status: [`docs/PHASENPLAN_V1.md`](docs/PHASENPLAN_V1.md).
 ## Installation (einmalig)
 
 Voraussetzungen: macOS 13+, Apple Silicon, [uv](https://docs.astral.sh/uv/), Xcode Command Line
-Tools, eine vorhandene ComfyUI mit eigener Python-Umgebung.
+Tools, Git. ComfyUI wird von `launcher/setup_comfyui.sh` gepinnt eingerichtet.
 
 ```bash
-cp config.example.toml local/config.toml     # Pfade anpassen (ComfyUI, Conda-Python)
-ln -s /pfad/zur/ComfyUI local/ComfyUI         # kontrollierter Symlink, nichts wird verschoben
-launcher/install.sh                           # venv (uv.lock) + App nach /Applications
+cp config.example.toml local/config.toml     # Ports/Pfade prüfen
+launcher/setup_comfyui.sh                     # eigene ComfyUI v0.45.3 + venv (comfyui.lock.txt)
+launcher/install.sh                           # Darkfluenzer-venv (uv.lock) + App nach /Applications
 ```
 
 ## Bedienung ohne Terminal
@@ -34,16 +34,32 @@ Darkfluenzer im Launchpad/Dock/Finder doppelklicken. Für Diagnose dieselben Bef
 local/.venv/bin/python -m darkfluenzer comfy start|stop|status|health [--json]
 ```
 
+## Modelle
+
+Einzige Registry: [`workflows/manifest.toml`](workflows/manifest.toml) (Datei, Revision, SHA-256,
+Lizenz, Abnahme-Gates je Engine). Ablage `local/models/<ComfyUI-Typ>/<Familie>/<Datei>`.
+
+```bash
+local/.venv/bin/python -m darkfluenzer models status            # Engines, fehlende GB, Gates
+local/.venv/bin/python -m darkfluenzer models download --wave 1  # bzw. --engine ID
+local/.venv/bin/python -m darkfluenzer models verify --engine ID # SHA-256
+local/.venv/bin/python -m darkfluenzer models orphans            # nicht registrierte Dateien
+```
+
+Gated Repos (FLUX 3 Klein, LTX 2.5) erfordern die Lizenzannahme im eigenen Hugging-Face-Konto.
+
 Logs: `local/logs/comfyui.log` (ComfyUI-Ausgabe, 3 Generationen), `local/logs/darkfluenzer.log`
 (Launcher-Aktionen), `local/logs/app.log` (App-Ereignisse und angezeigte Dialoge).
 
 ## Struktur
 
 ```text
-src/darkfluenzer/   app.py (CLI), config.py (local/config.toml), runtime.py (ComfyUI-Prozess)
-launcher/           Darkfluenzer.swift, make_icon.swift, install.sh
+src/darkfluenzer/   app.py (CLI), config.py, runtime.py (ComfyUI-Prozess), comfy.py (API-Client),
+                    models.py (Registry/Download)
+launcher/           Darkfluenzer.swift, make_icon.swift, install.sh, setup_comfyui.sh, comfyui.lock.txt
+workflows/          manifest.toml (+ image/, video/ sobald Workflows real geprüft sind)
 tests/              pytest, inkl. Prozess-Integrationstests gegen Fake-ComfyUI
-local/              NICHT in Git: config.toml, .venv, ComfyUI-Symlink, Modelle, Kunden, Logs
+local/              NICHT in Git: config.toml, .venv, ComfyUI, Modelle, Evaluation, Kunden, Logs
 ```
 
 ## Tests

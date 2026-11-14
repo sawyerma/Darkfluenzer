@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Lokaler Darkfluenzer-Dienst: ComfyUI-Laufzeit, Workflows, Kundenakte"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "huggingface-hub>=1.7",
+]
 
 [project.scripts]
 darkfluenzer = "darkfluenzer.app:main"

@@ -1,0 +1,337 @@
+# DARKFLUENZER – zentrale Engine-, Modell- und Workflow-Registry (Phasenplan §4).
+# Einzige Quelle für: welche Modelldatei wo liegt, welche Engine sie nutzt, welcher Workflow die
+# Engine ausführt und welche Abnahme-Gates bestanden sind.
+#
+# Ablage:  local/models/<ComfyUI-Typ>/<Familie>/<Datei>   (ComfyUI sieht sie als "<Familie>/<Datei>")
+# Pflege:  darkfluenzer models status | download --wave N | --engine ID | verify | orphans
+#          Neue Datei: [files.*] mit Revision + SHA-256 eintragen, Engine referenziert den Schlüssel.
+#          Engine entfernen: Eintrag löschen, dann "models orphans" listet nicht mehr benutzte Dateien.
+# Gates:   OFFEN | PASS | FAIL | GESPERRT   (load, render, quality, license_pass)
+# usage:   "evaluation" (Forschung/A-B-Test) – "production" nur wenn ALLE vier Gates PASS sind.
+
+schema = 1
+reserve_gb = 30   # Downloads verweigern, wenn danach weniger frei bliebe
+
+[roles]
+# Produktive Rollen werden erst nach A/B-Vergleich und LICENSE_PASS gesetzt.
+image_master = ""
+image_edit = ""
+video_i2v = ""
+
+# ------------------------------------------------------------------------------------ Engines
+
+[engines.flux3_klein_base]
+title = "FLUX 3 Image Klein Base (BF16, undestilliert)"
+kind = "image"
+role = "master"
+arch = "flux3"
+precision = "bf16"
+wave = 1
+files = ["flux3_klein_base_bf16", "qwen3vl_4b_bf16", "flux2_vae"]
+license = "FLUX Kommunity License v1.0 – nicht-kommerziell; kommerzieller Output nur für Qualifying Users < 5 Mio. US$ Umsatz"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Modellkarte: 50 Schritte, Guidance 3,5, Prompt-Upsampling empfohlen. Repo gated – Lizenz auf HF akzeptieren."
+
+[engines.flux2_dev]
+title = "FLUX.2 Dev 32B (BF16) – Qualitätsbenchmark"
+kind = "image"
+role = "master_benchmark"
+arch = "flux2"
+precision = "bf16"
+wave = 2
+files = ["flux2_dev_bf16", "mistral3_small_flux2_bf16", "flux2_vae"]
+license = "FLUX Non-Commercial License (BFL)"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Transformer im BFL-Originalformat (64,5 GB); Text-Encoder Mistral Small 3 (35,6 GB)."
+
+[engines.qwen_image_20b]
+title = "Qwen-Image (Original, 20B, BF16)"
+kind = "image"
+role = "master_benchmark"
+arch = "qwen_image"
+precision = "bf16"
+wave = 1
+files = ["qwen_image_bf16", "qwen25vl_7b_bf16", "qwen_image_vae"]
+license = "Apache-2.0"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = ""
+
+[engines.qwen_image_21]
+title = "Qwen-Image 2.1 (BF16) – Forschungsbenchmark"
+kind = "image"
+role = "master_benchmark"
+arch = "qwen_image_21"
+precision = "bf16"
+wave = 1
+files = ["qwen_image_21_bf16", "qwen3vl_8b_bf16", "qwen_image_21_vae"]
+license = "Qwen Research License (qwen-research)"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Forschungslizenz: nur Evaluation."
+
+[engines.lustify_sdxl]
+title = "LUSTIFY! v2.0 (SDXL) – maskiertes Spezial-Inpainting"
+kind = "image"
+role = "edit"
+arch = "sdxl"
+precision = "fp16"
+wave = 1
+files = ["lustify_v20"]
+license = "unbekannt – HF-Spiegel ohne Lizenzangabe (Original auf Civitai prüfen)"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Bearbeitet ausschließlich maskierte Regionen des Master-PNG."
+
+[engines.realcore_illustrious]
+title = "RealCore Illustrious v1.0 (SDXL/Illustrious)"
+kind = "image"
+role = "edit_benchmark"
+arch = "illustrious"
+precision = "fp16"
+wave = 1
+files = ["realcore_illustrious_v10"]
+license = "CreativeML Open RAIL++-M (laut Modellkarte); Illustrious-Basis gesondert prüfen"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Illustrious-LoRAs nicht automatisch mit SDXL-LoRAs kompatibel."
+
+[engines.wan22_i2v]
+title = "Wan 2.2 I2V 14B (offiziell, FP16) – Referenz"
+kind = "video"
+role = "video_reference"
+arch = "wan22"
+precision = "fp16"
+wave = 3
+files = ["wan22_i2v_high_fp16", "wan22_i2v_low_fp16", "umt5_xxl_fp16", "wan21_vae"]
+license = "Apache-2.0"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "High-/Low-Noise-Paar."
+
+[engines.wan22_remix_v30]
+title = "Wan 2.2 Remix NSFW I2V v3.0 (FP8 e4m3fn)"
+kind = "video"
+role = "video_main"
+arch = "wan22"
+precision = "fp8_e4m3fn"
+wave = 3
+files = ["wan22_remix_i2v_high_v30_fp8", "wan22_remix_i2v_low_v30_fp8", "umt5_xxl_fp16", "wan21_vae"]
+license = "unbekannt (Repo: license other)"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "v3.0 existiert nur als FP8; FP8-Tensoren sind auf MPS nicht nativ nutzbar (geprüft 14.11.2026) – Ladeweg separat testen."
+
+[engines.ltx25_fast]
+title = "LTX 2.5 22B distilliert (BF16) – Video-Ersatzpfad"
+kind = "video"
+role = "video_alternative"
+arch = "ltx25"
+precision = "bf16"
+wave = 3
+files = ["ltx25_distilled_bf16", "gemma4_12b_ltx25_bf16", "ltx25_video_vae", "ltx25_audio_vae", "ltx25_spatial_upscaler"]
+license = "LTX-2.x Community License Agreement"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "'Fast' = distillierte Variante. Repo gated – Lizenz auf HF akzeptieren."
+
+# ------------------------------------------------------------------------------------ Workflows
+# Nur reale, vorhandene Workflows werden registriert (UI-Export + API-Export).
+
+# ------------------------------------------------------------------------------------ Dateien
+# Jede Datei genau einmal. size in Byte, sha256 = HF-LFS-Hash (beim Download geprüft).
+
+[files.flux3_klein_base_bf16]
+repo = "black-forest-labs/flux-3-image-klein-comfy"
+revision = "9d36114cf7a2e03a45c28f5cc4987d20ebfdb6c1"
+source = "diffusion_models/flux3-image-klein-base-bf16.safetensors"
+target = "diffusion_models/flux3/flux3-image-klein-base-bf16.safetensors"
+size = 11076957072
+sha256 = "5c921759dc03663dbb67df11d8e3d317d2d5b893b31b969c95dc77ebf861b19c"
+
+[files.qwen3vl_4b_bf16]
+repo = "black-forest-labs/flux-3-image-klein-comfy"
+revision = "9d36114cf7a2e03a45c28f5cc4987d20ebfdb6c1"
+source = "text_encoders/qwen3vl_4b_bf16.safetensors"
+target = "text_encoders/qwen3vl/qwen3vl_4b_bf16.safetensors"
+size = 8875719408
+sha256 = "f0b24fc5c8d7c0ea6ca909da14c20af5cac53f22506be942c6c956f838b9630f"
+
+[files.flux2_vae]
+repo = "black-forest-labs/FLUX.2-dev"
+revision = "26afe3a78bb242c0a8bb181dcc8937bb16e5c66c"
+source = "ae.safetensors"
+target = "vae/flux2/flux2-vae.safetensors"
+size = 336211292
+sha256 = "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3"
+
+[files.flux2_dev_bf16]
+repo = "black-forest-labs/FLUX.2-dev"
+revision = "26afe3a78bb242c0a8bb181dcc8937bb16e5c66c"
+source = "flux2-dev.safetensors"
+target = "diffusion_models/flux2/flux2-dev-bf16.safetensors"
+size = 64446596128
+sha256 = "6159a3f19f829c8e84ba6e9996b7afaf7c0a5f3428677f5b37445778a320d275"
+
+[files.mistral3_small_flux2_bf16]
+repo = "Comfy-Org/Flux-2-Dev"
+revision = "9630c1b4b6e690497ae0c19bb6b1b35d4ebedcb7"
+source = "split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors"
+target = "text_encoders/mistral3/mistral_3_small_flux2_bf16.safetensors"
+size = 35584897447
+sha256 = "7d79902f60b1aeb3a6de2cfad02f4367b5e300a1387de3d03ac717cfa3df117c"
+
+[files.qwen_image_bf16]
+repo = "Comfy-Org/Qwen-Image_ComfyUI"
+revision = "1f12b17be14c89b026c51a91d67c32f84bb047bc"
+source = "split_files/diffusion_models/qwen_image_bf16.safetensors"
+target = "diffusion_models/qwen-image/qwen_image_bf16.safetensors"
+size = 40861031488
+sha256 = "d08fb5d68026c0d87325f9a7b3ad6454061113a2bc73cc883114dae172937ae7"
+
+[files.qwen25vl_7b_bf16]
+repo = "Comfy-Org/Qwen-Image_ComfyUI"
+revision = "1f12b17be14c89b026c51a91d67c32f84bb047bc"
+source = "split_files/text_encoders/qwen_2.5_vl_7b.safetensors"
+target = "text_encoders/qwen2.5vl/qwen_2.5_vl_7b.safetensors"
+size = 16584415576
+sha256 = "cfafd739459bc86257397259f612a9aee88e5b98e85b5c0d0d1717e898b3463a"
+
+[files.qwen_image_vae]
+repo = "Comfy-Org/Qwen-Image_ComfyUI"
+revision = "1f12b17be14c89b026c51a91d67c32f84bb047bc"
+source = "split_files/vae/qwen_image_vae.safetensors"
+target = "vae/qwen-image/qwen_image_vae.safetensors"
+size = 253806246
+sha256 = "a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f"
+
+[files.qwen_image_21_bf16]
+repo = "Comfy-Org/Qwen-Image-2.1"
+revision = "aacf31a6d48e707f352ecba714cee0680da3479b"
+source = "diffusion_models/qwen_image_2.1_bf16.safetensors"
+target = "diffusion_models/qwen-image/qwen_image_2.1_bf16.safetensors"
+size = 14230280616
+sha256 = "89f4158d066cc33906a199fca85634f766892dd78f49b6698dabf187ac86c4bc"
+
+[files.qwen3vl_8b_bf16]
+repo = "Comfy-Org/Qwen-Image-2.1"
+revision = "aacf31a6d48e707f352ecba714cee0680da3479b"
+source = "text_encoders/qwen3vl_8b_bf16.safetensors"
+target = "text_encoders/qwen3vl/qwen3vl_8b_bf16.safetensors"
+size = 17534334616
+sha256 = "68bdc82bc1b66851162ae656225e7e2068166b603db19bd5d5a3b90eb12669a9"
+
+[files.qwen_image_21_vae]
+repo = "Comfy-Org/Qwen-Image-2.1"
+revision = "aacf31a6d48e707f352ecba714cee0680da3479b"
+source = "vae/qwen_image_2.1_vae_bf16.safetensors"
+target = "vae/qwen-image/qwen_image_2.1_vae_bf16.safetensors"
+size = 675509688
+sha256 = "bb21f7473051e1ac368515dd3f2e15cd44d7a11748ee8823e1ddca3e4876b7c9"
+
+[files.lustify_v20]
+repo = "asertvc/LUSTIFY-v2.0"
+revision = "50b7486d60aa236e4d478a7045033782e593580e"
+source = "lustifySDXLNSFWSFW_v20.safetensors"
+target = "checkpoints/sdxl/lustifySDXLNSFWSFW_v20.safetensors"
+size = 6938043264
+sha256 = "34caf7f4fccf4456545d9628248a6f833b7c4f5ac4778edf3f4b912fb25da329"
+
+[files.realcore_illustrious_v10]
+repo = "rityak/RealCore_Illustrious"
+revision = "e717530895ec00e881e04bc215d7d0be8ad9c10f"
+source = "RealCore_Illustrious_v10.safetensors"
+target = "checkpoints/illustrious/RealCore_Illustrious_v10.safetensors"
+size = 6938144018
+sha256 = "a31a339e9cc34ac12ab96180ed04e4017b53d5f8f8b42a39e2b70175c33bc817"
+
+[files.wan22_i2v_high_fp16]
+repo = "Comfy-Org/Wan_2.2_ComfyUI_Repackaged"
+revision = "ee6f4a40737a995bf5818954cfce6d59443b0f04"
+source = "split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp16.safetensors"
+target = "diffusion_models/wan22/wan2.2_i2v_high_noise_14B_fp16.safetensors"
+size = 28577914792
+sha256 = "c21c21efa368d529a982a7d89dd11d86608b5937cae9a125d0ffe5491918a100"
+
+[files.wan22_i2v_low_fp16]
+repo = "Comfy-Org/Wan_2.2_ComfyUI_Repackaged"
+revision = "ee6f4a40737a995bf5818954cfce6d59443b0f04"
+source = "split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp16.safetensors"
+target = "diffusion_models/wan22/wan2.2_i2v_low_noise_14B_fp16.safetensors"
+size = 28577914792
+sha256 = "edb89340c8a6fbf1a70e76a839ae01eaf7d289f05ea1ebd6b1a3fc6f533826e9"
+
+[files.wan22_remix_i2v_high_v30_fp8]
+repo = "FX-FeiHou/wan2.2-Remix"
+revision = "4369125a0f1157c6b8768df18b7e81bacd5fdc1f"
+source = "NSFW/Wan2.2_Remix_NSFW_i2v_14b_high_lighting_fp8_e4m3fn_v3.0.safetensors"
+target = "diffusion_models/wan22/Wan2.2_Remix_NSFW_i2v_14b_high_lighting_fp8_e4m3fn_v3.0.safetensors"
+size = 14291272136
+sha256 = "2ac60c97ca6911090cdbdf055b685af3646b7bd93c19c9aae0f86f4ea018e97d"
+
+[files.wan22_remix_i2v_low_v30_fp8]
+repo = "FX-FeiHou/wan2.2-Remix"
+revision = "4369125a0f1157c6b8768df18b7e81bacd5fdc1f"
+source = "NSFW/Wan2.2_Remix_NSFW_i2v_14b_low_lighting_fp8_e4m3fn_v3.0.safetensors"
+target = "diffusion_models/wan22/Wan2.2_Remix_NSFW_i2v_14b_low_lighting_fp8_e4m3fn_v3.0.safetensors"
+size = 14291272136
+sha256 = "a239063c377e530229c4e5b1fecdcbe9de1201a30126dd42297435287e713229"
+
+[files.umt5_xxl_fp16]
+repo = "Comfy-Org/Wan_2.2_ComfyUI_Repackaged"
+revision = "ee6f4a40737a995bf5818954cfce6d59443b0f04"
+source = "split_files/text_encoders/umt5_xxl_fp16.safetensors"
+target = "text_encoders/umt5/umt5_xxl_fp16.safetensors"
+size = 11366399385
+sha256 = "7b8850f1961e1cf8a77cca4c964a358d303f490833c6c087d0cff4b2f99db2af"
+
+[files.wan21_vae]
+repo = "Comfy-Org/Wan_2.2_ComfyUI_Repackaged"
+revision = "ee6f4a40737a995bf5818954cfce6d59443b0f04"
+source = "split_files/vae/wan_2.1_vae.safetensors"
+target = "vae/wan/wan_2.1_vae.safetensors"
+size = 253815318
+sha256 = "2fc39d31359a4b0a64f55876d8ff7fa8d780956ae2cb13463b0223e15148976b"
+
+[files.ltx25_distilled_bf16]
+repo = "Lightricks/LTX-2.5"
+revision = "49b093a39c19169a8a81721dcc541e07e945232f"
+source = "diffusion_models/ltx-2.5-22b-distilled-transformer-bf16.safetensors"
+target = "diffusion_models/ltx25/ltx-2.5-22b-distilled-transformer-bf16.safetensors"
+size = 42018190584
+sha256 = "31eb3cad89b9e54e99dd3baf286f70825ac4f6c660a70d9184d895be76d7bff4"
+
+[files.gemma4_12b_ltx25_bf16]
+repo = "Lightricks/LTX-2.5"
+revision = "49b093a39c19169a8a81721dcc541e07e945232f"
+source = "text_encoders/gemma4-12b-with-proj-ltx-2.5-bf16.safetensors"
+target = "text_encoders/gemma4/gemma4-12b-with-proj-ltx-2.5-bf16.safetensors"
+size = 26263858182
+sha256 = "ef7243612fdae7a75cb4d5cee9433e81380675fb6c213bd98ae74a9cd16561d1"
+
+[files.ltx25_video_vae]
+repo = "Lightricks/LTX-2.5"
+revision = "49b093a39c19169a8a81721dcc541e07e945232f"
+source = "vae/ltx-2.5-video-vae-bf16.safetensors"
+target = "vae/ltx25/ltx-2.5-video-vae-bf16.safetensors"
+size = 1472223346
+sha256 = "847e14ca7f3355debca0cea4eaa24ac0fbcdf0061da054ac89ca638a869ddba3"
+
+[files.ltx25_audio_vae]
+repo = "Lightricks/LTX-2.5"
+revision = "49b093a39c19169a8a81721dcc541e07e945232f"
+source = "vae/ltx-2.5-audio-vae-bf16.safetensors"
+target = "vae/ltx25/ltx-2.5-audio-vae-bf16.safetensors"
+size = 364866540
+sha256 = "c52733d37f6a7fb7949c3dc0fb468c6cb2169e4d836983a73babb9f0d54837a5"
+
+[files.ltx25_spatial_upscaler]
+repo = "Lightricks/LTX-2.5"
+revision = "49b093a39c19169a8a81721dcc541e07e945232f"
+source = "latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors"
+target = "latent_upscale_models/ltx25/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors"
+size = 995778752
+sha256 = "eb5a71fe4068ee87ccdb1c3aa635e547ca76bd2d30ae20ae889f2c325c0677e8"
+

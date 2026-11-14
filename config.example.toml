@@ -3,10 +3,10 @@
 # Relative Pfade gelten ab Projektordner.
 
 [comfyui]
-# ComfyUI-Checkout mit main.py. Empfohlen: kontrollierter Symlink local/ComfyUI -> echte Installation.
+# Eigener, gepinnter ComfyUI-Checkout (launcher/setup_comfyui.sh) mit main.py.
 path = "local/ComfyUI"
-# Python der ComfyUI-Umgebung (Conda-Env). Wird direkt ausgeführt, kein "conda activate" nötig.
-python = "/opt/homebrew/Caskroom/miniconda/base/envs/comfyui/bin/python"
+# Eigene venv der ComfyUI (launcher/setup_comfyui.sh). Wird direkt ausgeführt, ohne Aktivierung.
+python = "local/ComfyUI/.venv/bin/python"
 # Nur Loopback-Adressen sind zulässig.
 host = "127.0.0.1"
 port = 8188

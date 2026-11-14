@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN V1
 
-**Version:** 1.5 — SIMPLIFY + DROP-TO-TRAIN (S1 abgenommen)  
+**Version:** 1.5.1 — SIMPLIFY + DROP-TO-TRAIN (S1 abgenommen, S2 in Arbeit)  
 **Stand:** 14.11.2026  
 **Status:** Zielarchitektur verabschiedet, technische Implementierung und Mac-Abnahme überwiegend OFFEN  
 **Repository:** `sawyerma/Darkfluenzer`, Branch `main`  
@@ -71,6 +71,7 @@ Nur **fünf aktive Hauptbereiche** neben `README.md` und erforderlichen Projektd
 │   ├── config.py                # EINZIGE Konfigurationsquelle local/config.toml, Logging
 │   ├── runtime.py               # ComfyUI-Prozessstart/stop
 │   ├── comfy.py                 # ComfyUI-API und Workflow-Queue
+│   ├── models.py                # Registry workflows/manifest.toml: Ablage, Download, Prüfung
 │   ├── pipeline.py              # Bild-/Videoroute, 3 Kandidaten
 │   ├── llm.py                   # Kundentext → Intent und Prompt
 │   ├── telegram.py              # Kunden-/Betreiber-Nachrichten
@@ -78,32 +79,25 @@ Nur **fünf aktive Hauptbereiche** neben `README.md` und erforderlichen Projektd
 │   ├── payments.py              # Anbieterbestätigung, Erstattung
 │   ├── approval.py              # Betreiberfreigabe und Versand-Gates
 │   └── store.py                 # SQLite, Artefakte, Kunden-IDs
-├── launcher/                    # macOS-.app, pinkes C, Installer
+├── launcher/                    # macOS-.app, pinkes C, Installer, ComfyUI-Setup + Lock
 ├── workflows/
-│   ├── manifest.toml            # ZENTRALE Engine-/Workflow-Registry
-│   ├── image/
-│   │   ├── master.ui.json       # ComfyUI-Editoransicht
-│   │   ├── master.api.json      # API-Aufruf
-│   │   ├── edit.ui.json
-│   │   ├── edit.api.json
-│   │   ├── refine.ui.json
-│   │   └── refine.api.json
-│   └── video/
-│       ├── wan.ui.json
-│       ├── wan.api.json
-│       ├── ltx.ui.json
-│       └── ltx.api.json
+│   ├── manifest.toml            # ZENTRALE Engine-/Modell-/Workflow-Registry
+│   ├── image/                   # je Engine+Aufgabe: <engine>_<aufgabe>.ui.json + .api.json
+│   │   ├── flux3_klein_base_t2i.ui.json / .api.json     # Master (Beispiel)
+│   │   └── lustify_sdxl_inpaint.ui.json / .api.json     # maskierte Spezialbearbeitung
+│   └── video/                   # z. B. wan22_i2v.ui.json / .api.json, ltx25_fast_i2v.*
 ├── tests/                       # Reproduzierbare Unit-/Integration-/Mac-Tests
 └── local/                       # VOLLSTÄNDIG .gitignore; niemals Git-Upload
     ├── config.toml              # Maschinenpfade/Ports (Vorlage: config.example.toml im Repo)
     ├── comfyui.json             # Identität der verwalteten ComfyUI (PID, Startzeit, Kommando)
     ├── .venv/                   # Darkfluenzer-Python (uv.lock), getrennt von ComfyUI-Conda
-    ├── ComfyUI/                 # Vorhandener Checkout oder kontrollierter Symlink
+    ├── ComfyUI/                 # EIGENER gepinnter Checkout (launcher/setup_comfyui.sh) + .venv
     ├── character/
     │   ├── photos/            # Trainingsbilder einfach hier ablegen
     │   ├── dataset/           # Vom System vorbereitete Daten
     │   └── previews/          # Trainingsvergleich und Identitätsprüfung
-    ├── models/                  # Große Gewichte und LoRAs
+    ├── models/                  # <ComfyUI-Typ>/<Familie>/<Datei>, z. B. diffusion_models/flux3/…
+    ├── evaluation/              # A/B-Testrenders je Engine (kein Kundenbezug)
     ├── darkfluenzer.sqlite3     # EINE zentrale Datenbank
     ├── customers/
     │   └── DF-C-000001/
@@ -120,7 +114,7 @@ Nur **fünf aktive Hauptbereiche** neben `README.md` und erforderlichen Projektd
 **Nicht mehr zulässig:** weitere parallele `local/data`-Datenbanken, `artifacts`-Spiegel, doppelte Statusdateien, pro Workflow `v001/`-Unterordner mit identischen Manifests, zehn kleine Verzeichnisse nur für jeweils eine Backend-Datei.
 
 **Praktische Regeln:**
-- `ComfyUI` wird beim Bestandstest lokalisiert; eine bestehende Installation wird nicht blind verschoben.
+- `ComfyUI` wird beim Bestandstest lokalisiert; eine bestehende Installation wird nicht blind verschoben. Darkfluenzer betreibt eine **eigene, gepinnte** ComfyUI (`launcher/setup_comfyui.sh`, Abhängigkeiten exakt aus `launcher/comfyui.lock.txt`), damit Updates keine fremden Projekte brechen.
 - Der Git-Commit versioniert Workflows. `manifest.toml` hält pro Workflow nur Engine, Basis-/LoRA-Architektur, benötigte Dateien/Nodes, Status und Freigabe. Kein zusätzlicher Versionsbaum.
 - Jeder Kunde erhält bei der ersten Bot-Nachricht einmalig eine **stabile Kundennummer** `DF-C-000001`, dann fortlaufend. Jede Bestellung hat `DF-O-000001`. Niemals Telegram-Nutzername als Dateipfad.
 - Kundendaten werden über SQLite gesucht. Die Ordner sind nur Ablage/Export, **keine zweite Wahrheit**.
@@ -131,16 +125,28 @@ Nur **fünf aktive Hauptbereiche** neben `README.md` und erforderlichen Projektd
 
 | Rolle | Auswahl | Verbindlicher Stand |
 |---|---|---|
-| Medienlaufzeit | **ComfyUI** über `127.0.0.1:8188` | Architektur FIX; lokaler Startertest offen |
-| Master-Fotografie | **FLUX 3 Image Klein Base** | Primärer Kandidat, noch kein M4-/Qualitäts-/Lizenz-PASS |
-| Bild-Konkurrent | **Qwen-Image 2.1** | Nur A/B-Kandidat; kein paralleler Dauerbetrieb |
-| Gezielte Spezialbearbeitung | **LUSTIFY! v2.0** (SDXL), maskiertes Inpainting | Testkandidat, nicht garantiert bester Editor |
+| Medienlaufzeit | **ComfyUI v0.45.3** (eigene Instanz) über `127.0.0.1:8188` | S1 PASS |
+| Master-Fotografie | **FLUX 3 Image Klein Base** (BF16) | Primärer Kandidat; Repo gated, kein M4-/Qualitäts-/Lizenz-PASS |
+| Master-Benchmarks | **FLUX.2 Dev 32B** (BF16), **Qwen-Image 20B** (BF16), **Qwen-Image 2.1** (BF16) | Nur A/B-Vergleich; kein paralleler Dauerbetrieb |
+| Gezielte Spezialbearbeitung | **LUSTIFY! v2.0** (SDXL), maskiertes Inpainting; Vergleich **RealCore Illustrious** | Testkandidaten, nicht garantiert beste Editoren |
 | Bild-Nachbearbeitung | Regionale Detailer, Tiled Refine/Upscale | Optional innerhalb eines Refinement-Workflows |
-| Video Hauptpfad | **Wan 2.2 Remix I2V**, passendes High-/Low-Noise-Paar | Experimentell; FP8/Apple-MPS-Abnahme offen |
-| Video Ersatzpfad | **LTX 2.5 Fast** | Lokale Alternative, getrennte Laufzeit/Abnahme |
+| Video Hauptpfad | **Wan 2.2 Remix NSFW I2V v3.0**, High-/Low-Noise-Paar (nur FP8 verfügbar) | Experimentell; FP8 auf MPS nicht nativ (geprüft) |
+| Video Referenz | **Wan 2.2 I2V 14B offiziell** (FP16) | Vergleichsbasis für Remix |
+| Video Ersatzpfad | **LTX 2.5 Fast** (22B distilliert, BF16) über ComfyUI | Repo gated; getrennte Abnahme |
 | Sprache | **Ein** lokales Textmodell über MLX oder llama.cpp | Checkpoint erst nach A/B-Test festlegen |
 | Kundendialog | Telegram Bot API | Festgelegt, noch nicht integriert |
 | Zahlungsprüfung | Provider-Adapter | Anbieter/Lizenz/Plattform-Freigabe vor LIVE offen |
+
+**Modellregeln (verbindlich):**
+1. **BF16/FP16 bevorzugt**, sofern auf MPS tatsächlich lauffähig. Quantisierte oder kleinere Varianten nur nach dokumentiertem Kompatibilitätstest und **nie stillschweigend als Ersatz**.
+2. **Nie alle Modelle gleichzeitig laden.** Pro Auftrag genau eine Engine; ComfyUI entlädt zwischen Engines.
+3. Modelle mit nicht-kommerzieller oder ungeklärter Lizenz laufen ausschließlich mit `usage = "evaluation"`. `production` verlangt alle vier Gates PASS (vom Code erzwungen) und deine gesonderte Freigabe.
+4. **Jede Datei genau einmal** in `manifest.toml` (Repo, Revision, SHA-256, Ziel). Engines referenzieren Dateien; gemeinsam genutzte Encoder/VAEs werden nie doppelt geladen (Loader verweigert Duplikate per SHA-256).
+5. Jede Engine bekommt einen vollständig verdrahteten ComfyUI-Workspace (UI + API) bzw. den unterstützten lokalen Videopfad, auswählbar zum eigenen Vergleich.
+6. **Jede Engine einzeln auf dem Mac testen:** Laden, Erzeugung, Dauer, Speicher, Qualität – Ergebnis in `manifest.toml` (Gates) und hier im Nachweis.
+7. Die produktive Master-Engine (`[roles] image_master`) ist das beste **technisch funktionierende und für den Zweck lizenzierte** Modell nach A/B-Vergleich auf denselben Prompts/Seeds.
+8. **Ablage und Pflege:** `local/models/<ComfyUI-Typ>/<Familie>/<Datei>`; `darkfluenzer models status | download --wave N | --engine ID | verify | orphans`. Entfernen: Engine aus dem Manifest streichen, `orphans` zeigt freiwerdende Dateien; gelöscht wird nur nach Betreiber-OK.
+9. Downloads verweigern, wenn danach weniger als `reserve_gb` (30 GB) frei bleiben. Reihenfolge: kleinste fehlende Engine zuerst.
 
 **Master-First:** Ein hochwertiges Master-PNG wird einmalig und unveränderlich gespeichert. Normale und spezialisierte Versionen stammen **vom selben Master**. LUSTIFY bearbeitet ausschließlich maskierte Bildregionen; außerhalb der freigegebenen Maske bleibt das zusammengesetzte Bild pixelidentisch. Eine optionale Farbmarkierung von Kleidung ist nur eine **Maskenhilfe**, keine feste Verpflichtung für die sichtbare Bildfarbe. **Kleidungsfarben allein** sind wegen Reflexionen/Überlappungen keine sichere Segmentierung.
 
@@ -224,7 +230,7 @@ Die bisherigen neun Phasen `P00–P08` werden **inhaltlich vollständig** in `S1
 | Phase | Status | Nachweis |
 |---|---|---|
 | S1 | PASS | Mac-Abnahme 14.11.2026, siehe „S1-Nachweis“ |
-| S2 | OFFEN | Keine reproduzierten Modell-Renderläufe |
+| S2 | IN_ARBEIT | API-Client, Registry, eigene ComfyUI 0.45.3 fertig; Modelle laden (Leitung ≈ 1,6–5 MB/s), FLUX 3 gated |
 | S3 | OFFEN | Wan-FP8/MPS nicht abgenommen |
 | S4 | OFFEN | Keine implementierte Telegram-/LLM-/SQLite-Kette |
 | S5 | OFFEN | Kein Payment-/Operator-Gate implementiert |
@@ -235,7 +241,9 @@ Die bisherigen neun Phasen `P00–P08` werden **inhaltlich vollständig** in `S1
 | Punkt | Befund |
 |---|---|
 | Hardware/OS | MacBook Pro Mac16,6, **Apple M4 Max** (16 CPU = 12P+4E, 40 GPU), 128 GB, macOS 15.6.1 (24G90), 240 GB frei |
-| ComfyUI | **0.14.1** (`v0.14.1-22-g602b2505`), Git-Checkout `…/2_DarkMa/0_HRDF/ComfyUI`, eingebunden als Symlink `local/ComfyUI`; unverändert |
+| ComfyUI (vorgefunden) | **0.14.1** (`v0.14.1-22-g602b2505`) unter `…/2_DarkMa/0_HRDF/ComfyUI` – unterstützt FLUX 3/Qwen-Image 2.1 nicht. Vom Betreiber am 14.11. nach `0_HRDF.zip` archiviert (Ordner 11:56 entfernt) |
+| ComfyUI (Darkfluenzer) | **0.45.3**, eigener Checkout `local/ComfyUI` + venv (Python 3.12.13, torch 2.15.0, torchaudio 2.11.1), Lock `launcher/comfyui.lock.txt`; keine Import-Fehler |
+| Netz | WLAN, gemessen ≈ 1,6 MB/s (networkQuality), Hugging Face ≈ 5 MB/s → volle Modellliste (393 GB) braucht Tage |
 | Python | Conda-Env `comfyui`: Python 3.11.14, torch 2.10.0 (Nightly), MPS verfügbar, FP16/BF16-Matmul OK, **FP8 auf MPS: nicht unterstützt** (geprüft) |
 | Manager | `--enable-manager` von 0.14.1 unterstützt, `comfyui-manager` 4.1b1 lädt |
 | Modelle | Nur VAEs (flux1/flux2/SeedVR2), `clip_l`, SAM ViT-B. **Keine Checkpoints/Diffusionsmodelle, keine LoRAs** |
@@ -258,6 +266,8 @@ Start über `Finder → open /Applications/Darkfluenzer.app` (LaunchServices, id
 | Fehlgeschlagener Start | PASS – ungültiges ComfyUI-Argument → Exit 4 mit Logauszug, Zustand gelöscht, kein Restprozess |
 | Kein Terminal nötig | PASS – Installation einmalig per `launcher/install.sh`, danach nur Doppelklick |
 | Automatisierte Tests | 17/17 `pytest` (Prozess-Integration gegen Fake-ComfyUI: Idempotenz, fremde Instanz, PID-Wiederverwendung, Timeout, Crash) |
+
+**Regression auf ComfyUI 0.45.3 (eigene Instanz):** CLI-Start 32,8 s (Erststart), App-Start per Finder 10,7 s → Browser danach, Reopen `already_running`, eine Instanz – PASS.
 
 Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen-Berechtigung angefordert); sie rufen ausschließlich die oben geprüften CLI-Befehle auf.
 
@@ -285,4 +295,6 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 
 **V1.4.1 — S1 (14.11.2026):** Mac-Bestand erfasst; Launcher-App, `runtime.py`, `config.py` (einzige Konfigurationsquelle `local/config.toml`), CLI und Tests umgesetzt und auf dem Mac abgenommen. Strukturbaum um `config.py` und die `local/`-Laufzeitdateien ergänzt. Die MPS-High-Watermark bleibt auf PyTorch-Standard.
 
-**Nächste Umsetzung:** ComfyUI-API-Client (`comfy.py`), danach S2-Masterbild – blockiert, bis ein Master-Modell lokal liegt.
+**V1.5.1 — Modelle (14.11.2026):** Eigene ComfyUI 0.45.3 statt 0.14.1 (FLUX 3/Qwen-Image 2.1 benötigen ≥ 0.4x). Engine-Liste nach Betreibervorgabe erweitert (FLUX.2 Dev, Qwen-Image 20B, RealCore, Wan offiziell); verbindliche Modellregeln §4; Workflow-Namensschema `<engine>_<aufgabe>`; `models.py` und `local/evaluation/` ergänzt. ComfyUI-API-Client (`comfy.py`) mit Parameter-Whitelist, gezieltem Abbruch und Herkunftsdaten.
+
+**Nächste Umsetzung:** S2 – erste reale Renders mit vollständig geladenen Engines (LUSTIFY zuerst), dann FLUX 3 nach Lizenzannahme; parallel Paket 5 (SQLite).
