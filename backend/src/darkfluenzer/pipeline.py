@@ -86,7 +86,7 @@ def render_evaluation(
         job_id = store.create_job(None, wf.engine, workflow_key, prompt, values, seeds)
         store.set_job_status(job_id, "running")
         try:
-            result, outputs = _render(cfg, man, wf, workflow_key, dict(values), uploads, timeout_s)
+            result, outputs = _render(cfg, man, wf, job_id, dict(values), uploads, timeout_s)
         except BaseException as exc:
             store.set_job_status(job_id, "failed", error=str(exc) or type(exc).__name__)
             raise
@@ -106,11 +106,12 @@ def _render(
     cfg: Config,
     man: Manifest,
     wf: Workflow,
-    workflow_key: str,
+    job_id: int,
     values: dict,
     uploads: dict[str, Path],
     timeout_s: float,
 ) -> tuple[comfy.RenderResult, list[dict]]:
+    workflow_key = wf.key
     from . import runtime
 
     runtime.start(cfg)
@@ -120,7 +121,14 @@ def _render(
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     dest = evaluation_dir(cfg, wf.engine)
     result = comfy.run_workflow(
-        cfg, man, workflow_key, values, dest, stem=f"{workflow_key}_{stamp}", timeout_s=timeout_s
+        cfg,
+        man,
+        workflow_key,
+        values,
+        dest,
+        stem=f"{workflow_key}_{stamp}",
+        timeout_s=timeout_s,
+        job_id=job_id,
     )
     checks: dict = {}
     if {"image", "mask"} <= set(uploads):

@@ -11,6 +11,8 @@ package darkfluenzer.v1;
 enum Topic {
   TOPIC_UNSPECIFIED = 0;
   TOPIC_COMFY_STATUS = 1; // STATE darkfluenzer.v1.ComfyStatus
+  TOPIC_JOBS_ACTIVE = 2; // STATE darkfluenzer.v1.JobsActive
+  TOPIC_COMFY_WORKFLOWS = 3; // STATE darkfluenzer.v1.Workflows
   TOPIC_JOB_COMPLETED = 20; // EVENT darkfluenzer.v1.JobCompleted
 }
 

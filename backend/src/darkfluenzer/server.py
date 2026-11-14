@@ -19,7 +19,7 @@ from pathlib import Path
 from aiohttp import web
 from google.protobuf.message import DecodeError
 
-from . import runtime
+from . import comfy, models, runtime
 from .config import Config
 from .store import Store
 from .stream import Hub, schema_id
@@ -37,21 +37,26 @@ MAX_COMMAND_BYTES = 64 * 1024
 
 
 class Cockpit:
-    """Projektionen und Befehle: ComfyUI-Zustand (STATE) und abgeschlossene Jobs (EVENT)."""
+    """Projektionen und Befehle: ComfyUI-Zustand, Warteschlange und Workflows (STATE),
+    abgeschlossene Jobs (EVENT)."""
 
     def __init__(self, cfg: Config, hub: Hub, store: Store) -> None:
         self.cfg = cfg
         self.hub = hub
         self.store = store
+        self.manifest = models.load_manifest(cfg.root)  # Manifeständerung: Backend neu starten
         self._busy = ""  # "start" | "stop", solange ein ComfyUI-Befehl läuft
         self._error = ""
         self._status: dict = {}
+        self._queue: list[tuple[int, bool]] = []  # (Job-ID oder 0, läuft?)
         self._tasks: set[asyncio.Task] = set()
 
     async def observe(self) -> None:
-        """Beobachtet ComfyUI-Prozess und Job-Journal; gepusht wird nur bei Änderung."""
+        """Beobachtet ComfyUI, Modelldateien und Job-Journal; gepusht wird nur bei Änderung."""
         while True:
             await self.refresh_comfy()
+            workflows = await asyncio.to_thread(self._workflows)
+            self.hub.set_state(spb.TOPIC_COMFY_WORKFLOWS, workflows)
             self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
             await asyncio.sleep(self.cfg.server.observe_s)
 
@@ -61,17 +66,54 @@ class Cockpit:
         except runtime.RuntimeFailure as exc:
             self._status = {"state": "error", "managed": False}
             self._error = str(exc)
+        self._queue = (
+            await asyncio.to_thread(self._read_queue) if self._status.get("health") else []
+        )
         self.hub.set_state(spb.TOPIC_COMFY_STATUS, self._comfy_status().SerializeToString())
+        self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
+
+    def _read_queue(self) -> list[tuple[int, bool]]:
+        client = comfy.ComfyClient(self.cfg.comfyui.url, timeout=self.cfg.server.observe_s)
+        try:
+            return client.queued_jobs()
+        except comfy.ComfyError:
+            return []
+
+    def _jobs_active(self) -> bytes:
+        ids = [job_id for job_id, _ in self._queue if job_id]
+        names = self.store.job_workflows(ids) if ids else {}
+        msg = comfy_pb2.JobsActive()
+        for job_id, running in self._queue:
+            msg.jobs.add(job_id=job_id, workflow=names.get(job_id, ""), running=running)
+        return msg.SerializeToString()
+
+    def _workflows(self) -> bytes:
+        engines = models.status(self.manifest, models.models_dir(self.cfg.root))["engines"]
+        msg = comfy_pb2.Workflows()
+        for key, wf in self.manifest.workflows.items():
+            eng, ready = self.manifest.engines[wf.engine], engines[wf.engine]
+            msg.workflows.add(
+                key=key,
+                engine=wf.engine,
+                engine_title=eng.title,
+                kind=eng.kind,
+                status=wf.status,
+                models_ready=ready["ready"],
+                missing_gb=ready["missing_gb"],
+                usage=eng.usage,
+            )
+        return msg.SerializeToString()
 
     def _comfy_status(self) -> comfy_pb2.ComfyStatus:
         st = self._status
         health = st.get("health") or {}
+        running = sum(1 for _, r in self._queue if r)
         if self._busy == "start":
             state = comfy_pb2.COMFY_STATE_STARTING
         elif self._busy == "stop":
             state = comfy_pb2.COMFY_STATE_STOPPING
-        elif st.get("state") == "running" or (st.get("state") == "foreign" and health):
-            state = comfy_pb2.COMFY_STATE_READY
+        elif health and st.get("state") in ("running", "foreign"):
+            state = comfy_pb2.COMFY_STATE_BUSY if running else comfy_pb2.COMFY_STATE_READY
             self._error = ""
         elif st.get("state") == "starting":
             state = comfy_pb2.COMFY_STATE_STARTING
@@ -86,6 +128,8 @@ class Cockpit:
             version=health.get("comfyui_version") or "",
             device=health.get("device_type") or "",
             error=self._error,
+            queue_running=running,
+            queue_pending=len(self._queue) - running,
         )
 
     def command(self, req: commands_pb2.CommandRequest) -> str:
@@ -254,6 +298,24 @@ def _command_response(request_id: str, reason: str) -> web.Response:
     return web.Response(body=msg.SerializeToString(), content_type=PROTOBUF)
 
 
+def _media(local: Path):
+    """Ausgabedateien der Renderungen (nur unter local/evaluation), nur mit gültiger Sitzung.
+    Pfade sind relativ zu local/, wie in JobCompleted.outputs; Dateien werden nie überschrieben."""
+    allowed = (local / "evaluation").resolve()
+
+    async def media(request: web.Request) -> web.StreamResponse:
+        if request.app[GUARD_KEY].csrf_of(request) is None:
+            return web.Response(status=401, text="Keine gültige Sitzung")
+        path = (local / request.match_info["path"]).resolve()
+        if not path.is_relative_to(allowed) or not path.is_file():
+            raise web.HTTPNotFound()
+        return web.FileResponse(
+            path, headers={"Cache-Control": "private, max-age=31536000, immutable"}
+        )
+
+    return media
+
+
 def _static(dist: Path):
     """index.html stets revalidieren, gehashte Vite-Assets unveränderlich cachen."""
     assets = dist / "assets"
@@ -285,6 +347,8 @@ def create_app(cfg: Config) -> web.Application:
     )
     cockpit = Cockpit(cfg, hub, store)
     hub.offer_state(spb.TOPIC_COMFY_STATUS, comfy_pb2.ComfyStatus.DESCRIPTOR.full_name)
+    hub.offer_state(spb.TOPIC_JOBS_ACTIVE, comfy_pb2.JobsActive.DESCRIPTOR.full_name)
+    hub.offer_state(spb.TOPIC_COMFY_WORKFLOWS, comfy_pb2.Workflows.DESCRIPTOR.full_name)
     hub.offer_events(
         spb.TOPIC_JOB_COMPLETED, comfy_pb2.JobCompleted.DESCRIPTOR.full_name, cockpit.read_jobs
     )
@@ -300,6 +364,7 @@ def create_app(cfg: Config) -> web.Application:
     app.router.add_get("/api/v1/session", _session)
     app.router.add_post("/api/v1/command", _command)
     app.router.add_get("/ws/v1/stream", _stream)
+    app.router.add_get("/api/v1/media/{path:.+}", _media(cfg.local))
 
     async def lifecycle(_: web.Application):
         observer = asyncio.create_task(cockpit.observe())

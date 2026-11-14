@@ -12,10 +12,14 @@ const STATE_LABEL: Record<ComfyState, [string, Tone]> = {
   [ComfyState.STOPPED]: ["GESTOPPT", "neutral"],
   [ComfyState.STARTING]: ["STARTET", "warn"],
   [ComfyState.READY]: ["BEREIT", "ok"],
+  [ComfyState.BUSY]: ["ARBEITET", "ok"],
   [ComfyState.STOPPING]: ["STOPPT", "warn"],
   [ComfyState.UNREACHABLE]: ["NICHT ERREICHBAR", "bad"],
   [ComfyState.FAILED]: ["FEHLER", "bad"],
 };
+
+const WORKFLOW_TONE: Record<string, Tone> = { PASS: "ok", OFFEN: "neutral", GESPERRT: "bad" };
+const IMAGE = /\.(png|jpe?g|webp)$/i;
 
 export function clock(ms: number): string {
   return new Date(ms).toLocaleTimeString("de-DE");
@@ -38,14 +42,18 @@ export function ComfyBadge({ comfy }: { comfy: StateValue<ComfyStatus> | undefin
 
 export function ComfyUI() {
   const comfy = useStateTopic(Topic.COMFY_STATUS);
-  const jobs = useEventTopic(Topic.JOB_COMPLETED);
+  const active = useStateTopic(Topic.JOBS_ACTIVE)?.value.jobs ?? [];
+  const workflows = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
+  const results = useEventTopic(Topic.JOB_COMPLETED);
   const connection = useConnection();
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState("");
 
   const s = comfy?.value;
-  const usable = connection.status === "OPEN" && comfy?.staleSince === null && !pending;
+  const current = connection.status === "OPEN" && comfy?.staleSince === null;
+  const ready = current && (s?.state === ComfyState.READY || s?.state === ComfyState.BUSY);
   const showStart = s?.state === ComfyState.STOPPED || s?.state === ComfyState.FAILED;
+  // Stoppen nur ohne laufenden Auftrag und nur die eigene Instanz
   const showStop = s?.managed === true && (s.state === ComfyState.READY || s.state === ComfyState.UNREACHABLE);
 
   async function run(command: Parameters<typeof sendCommand>[0]) {
@@ -68,6 +76,11 @@ export function ComfyUI() {
         <div className="g-line">
           <span>Instanz</span>
           <span className="g-value">
+            {s && s.queueRunning + s.queuePending > 0 ? (
+              <small>
+                {s.queueRunning} läuft · {s.queuePending} wartet
+              </small>
+            ) : null}
             <ComfyBadge comfy={comfy} />
           </span>
         </div>
@@ -87,16 +100,26 @@ export function ComfyUI() {
         ) : null}
         <div className="g-actions">
           {showStart ? (
-            <button type="button" className="g-button g-primary" disabled={!usable} onClick={() => run({ case: "comfyStart", value: {} })}>
+            <button
+              type="button"
+              className="g-button g-primary"
+              disabled={!current || pending}
+              onClick={() => run({ case: "comfyStart", value: {} })}
+            >
               Starten
             </button>
           ) : null}
           {showStop ? (
-            <button type="button" className="g-button" disabled={!usable} onClick={() => run({ case: "comfyStop", value: {} })}>
+            <button
+              type="button"
+              className="g-button"
+              disabled={!current || pending}
+              onClick={() => run({ case: "comfyStop", value: {} })}
+            >
               Stoppen
             </button>
           ) : null}
-          {s?.state === ComfyState.READY && comfy?.staleSince === null ? (
+          {ready && s ? (
             <a className="g-button" href={s.url} target="_blank" rel="noreferrer">
               ComfyUI öffnen
             </a>
@@ -109,15 +132,36 @@ export function ComfyUI() {
         ) : null}
       </div>
 
+      {active.length > 0 ? (
+        <div className="g-section">
+          <h2>Warteschlange</h2>
+          {active.map((job, i) => (
+            <div className="g-line" key={`${job.jobId}-${i}`}>
+              <span>{job.jobId ? job.workflow : "Auftrag aus der ComfyUI-Oberfläche"}</span>
+              <span className="g-value">{job.running ? "läuft" : "wartet"}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <div className="g-section">
         <h2>Ergebnisse</h2>
-        {jobs?.gap ? <p className="g-note">Ältere Ergebnisse nicht nachgeladen.</p> : null}
-        {jobs && jobs.items.length > 0 ? (
-          [...jobs.items].reverse().map(({ cursor, committedMs, value: job }) => (
+        {results?.gap ? <p className="g-note">Ältere Ergebnisse nicht nachgeladen.</p> : null}
+        {results && results.items.length > 0 ? (
+          [...results.items].reverse().map(({ cursor, committedMs, value: job }) => (
             <div className="g-line" key={String(cursor)}>
-              <span>{job.workflow}</span>
               <span className="g-value">
-                {clock(committedMs)} · {job.durationS.toFixed(1)} s · {job.outputs.length} Datei(en)
+                {job.outputs
+                  .filter((o) => IMAGE.test(o.path))
+                  .map((o) => (
+                    <a key={o.path} href={`/api/v1/media/${encodeURI(o.path)}`} target="_blank" rel="noreferrer">
+                      <img className="g-thumb" src={`/api/v1/media/${encodeURI(o.path)}`} alt={job.workflow} loading="lazy" />
+                    </a>
+                  ))}
+                <span>{job.workflow}</span>
+              </span>
+              <span className="g-value">
+                {clock(committedMs)} · {job.durationS.toFixed(1)} s
                 <span className="g-badge" data-tone={job.result === JobResult.DONE ? "ok" : "bad"} title={job.error || undefined}>
                   {job.result === JobResult.DONE ? "FERTIG" : "FEHLER"}
                 </span>
@@ -126,7 +170,7 @@ export function ComfyUI() {
           ))
         ) : (
           <p className="g-note">
-            {jobs?.live
+            {results?.live
               ? "Noch keine Renderung über Darkfluenzer."
               : connection.status === "OPEN"
                 ? "Lädt …"
@@ -134,6 +178,24 @@ export function ComfyUI() {
           </p>
         )}
       </div>
+
+      {workflows.length > 0 ? (
+        <div className="g-section">
+          <h2>Workflows</h2>
+          {workflows.map((w) => (
+            <div className="g-line" key={w.key}>
+              <span>{w.key}</span>
+              <span className="g-value">
+                {w.engineTitle} · {w.modelsReady ? "Modelle bereit" : `fehlt ${w.missingGb.toFixed(1)} GB`}
+                {w.usage === "production" ? "" : " · nur Evaluation"}
+                <span className="g-badge" data-tone={WORKFLOW_TONE[w.status] ?? "neutral"}>
+                  {w.status}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/comfy.proto.
  */
 export const file_darkfluenzer_v1_comfy: GenFile = /*@__PURE__*/
-  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvY29tZnkucHJvdG8SD2RhcmtmbHVlbnplci52MSKHAQoLQ29tZnlTdGF0dXMSKgoFc3RhdGUYASABKA4yGy5kYXJrZmx1ZW56ZXIudjEuQ29tZnlTdGF0ZRIPCgdtYW5hZ2VkGAIgASgIEgsKA3VybBgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJEg4KBmRldmljZRgFIAEoCRINCgVlcnJvchgGIAEoCSI3CglKb2JPdXRwdXQSDAoEcGF0aBgBIAEoCRIOCgZzaGEyNTYYAiABKAkSDAoEc2l6ZRgDIAEoBCLOAQoMSm9iQ29tcGxldGVkEg4KBmpvYl9pZBgBIAEoBBIQCgh3b3JrZmxvdxgCIAEoCRIOCgZlbmdpbmUYAyABKAkSKgoGcmVzdWx0GAQgASgOMhouZGFya2ZsdWVuemVyLnYxLkpvYlJlc3VsdBINCgVlcnJvchgFIAEoCRISCgpkdXJhdGlvbl9zGAYgASgBEisKB291dHB1dHMYByADKAsyGi5kYXJrZmx1ZW56ZXIudjEuSm9iT3V0cHV0EhAKCG9yZGVyX25vGAggASgJKsIBCgpDb21meVN0YXRlEhsKF0NPTUZZX1NUQVRFX1VOU1BFQ0lGSUVEEAASFwoTQ09NRllfU1RBVEVfU1RPUFBFRBABEhgKFENPTUZZX1NUQVRFX1NUQVJUSU5HEAISFQoRQ09NRllfU1RBVEVfUkVBRFkQAxIYChRDT01GWV9TVEFURV9TVE9QUElORxAEEhsKF0NPTUZZX1NUQVRFX1VOUkVBQ0hBQkxFEAUSFgoSQ09NRllfU1RBVEVfRkFJTEVEEAYqUwoJSm9iUmVzdWx0EhoKFkpPQl9SRVNVTFRfVU5TUEVDSUZJRUQQABITCg9KT0JfUkVTVUxUX0RPTkUQARIVChFKT0JfUkVTVUxUX0ZBSUxFRBACYgZwcm90bzM");
+  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvY29tZnkucHJvdG8SD2RhcmtmbHVlbnplci52MSK1AQoLQ29tZnlTdGF0dXMSKgoFc3RhdGUYASABKA4yGy5kYXJrZmx1ZW56ZXIudjEuQ29tZnlTdGF0ZRIPCgdtYW5hZ2VkGAIgASgIEgsKA3VybBgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJEg4KBmRldmljZRgFIAEoCRINCgVlcnJvchgGIAEoCRIVCg1xdWV1ZV9ydW5uaW5nGAcgASgNEhUKDXF1ZXVlX3BlbmRpbmcYCCABKA0iPgoJQWN0aXZlSm9iEg4KBmpvYl9pZBgBIAEoBBIQCgh3b3JrZmxvdxgCIAEoCRIPCgdydW5uaW5nGAMgASgIIjYKCkpvYnNBY3RpdmUSKAoEam9icxgBIAMoCzIaLmRhcmtmbHVlbnplci52MS5BY3RpdmVKb2IimAEKDFdvcmtmbG93SW5mbxILCgNrZXkYASABKAkSDgoGZW5naW5lGAIgASgJEhQKDGVuZ2luZV90aXRsZRgDIAEoCRIMCgRraW5kGAQgASgJEg4KBnN0YXR1cxgFIAEoCRIUCgxtb2RlbHNfcmVhZHkYBiABKAgSEgoKbWlzc2luZ19nYhgHIAEoARINCgV1c2FnZRgIIAEoCSI9CglXb3JrZmxvd3MSMAoJd29ya2Zsb3dzGAEgAygLMh0uZGFya2ZsdWVuemVyLnYxLldvcmtmbG93SW5mbyI3CglKb2JPdXRwdXQSDAoEcGF0aBgBIAEoCRIOCgZzaGEyNTYYAiABKAkSDAoEc2l6ZRgDIAEoBCLOAQoMSm9iQ29tcGxldGVkEg4KBmpvYl9pZBgBIAEoBBIQCgh3b3JrZmxvdxgCIAEoCRIOCgZlbmdpbmUYAyABKAkSKgoGcmVzdWx0GAQgASgOMhouZGFya2ZsdWVuemVyLnYxLkpvYlJlc3VsdBINCgVlcnJvchgFIAEoCRISCgpkdXJhdGlvbl9zGAYgASgBEisKB291dHB1dHMYByADKAsyGi5kYXJrZmx1ZW56ZXIudjEuSm9iT3V0cHV0EhAKCG9yZGVyX25vGAggASgJKtgBCgpDb21meVN0YXRlEhsKF0NPTUZZX1NUQVRFX1VOU1BFQ0lGSUVEEAASFwoTQ09NRllfU1RBVEVfU1RPUFBFRBABEhgKFENPTUZZX1NUQVRFX1NUQVJUSU5HEAISFQoRQ09NRllfU1RBVEVfUkVBRFkQAxIYChRDT01GWV9TVEFURV9TVE9QUElORxAEEhsKF0NPTUZZX1NUQVRFX1VOUkVBQ0hBQkxFEAUSFgoSQ09NRllfU1RBVEVfRkFJTEVEEAYSFAoQQ09NRllfU1RBVEVfQlVTWRAHKlMKCUpvYlJlc3VsdBIaChZKT0JfUkVTVUxUX1VOU1BFQ0lGSUVEEAASEwoPSk9CX1JFU1VMVF9ET05FEAESFQoRSk9CX1JFU1VMVF9GQUlMRUQQAmIGcHJvdG8z");
 
 /**
  * STATE comfy.status
@@ -49,6 +49,16 @@ export type ComfyStatus = Message<"darkfluenzer.v1.ComfyStatus"> & {
    * @generated from field: string error = 6;
    */
   error: string;
+
+  /**
+   * @generated from field: uint32 queue_running = 7;
+   */
+  queueRunning: number;
+
+  /**
+   * @generated from field: uint32 queue_pending = 8;
+   */
+  queuePending: number;
 };
 
 /**
@@ -57,6 +67,137 @@ export type ComfyStatus = Message<"darkfluenzer.v1.ComfyStatus"> & {
  */
 export const ComfyStatusSchema: GenMessage<ComfyStatus> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_comfy, 0);
+
+/**
+ * Ein Auftrag in der ComfyUI-Warteschlange.
+ *
+ * @generated from message darkfluenzer.v1.ActiveJob
+ */
+export type ActiveJob = Message<"darkfluenzer.v1.ActiveJob"> & {
+  /**
+   * 0: nicht über Darkfluenzer eingereicht (z. B. direkt in der ComfyUI-Oberfläche).
+   *
+   * @generated from field: uint64 job_id = 1;
+   */
+  jobId: bigint;
+
+  /**
+   * @generated from field: string workflow = 2;
+   */
+  workflow: string;
+
+  /**
+   * false: wartet in der Warteschlange.
+   *
+   * @generated from field: bool running = 3;
+   */
+  running: boolean;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.ActiveJob.
+ * Use `create(ActiveJobSchema)` to create a new message.
+ */
+export const ActiveJobSchema: GenMessage<ActiveJob> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_comfy, 1);
+
+/**
+ * STATE jobs.active
+ *
+ * @generated from message darkfluenzer.v1.JobsActive
+ */
+export type JobsActive = Message<"darkfluenzer.v1.JobsActive"> & {
+  /**
+   * @generated from field: repeated darkfluenzer.v1.ActiveJob jobs = 1;
+   */
+  jobs: ActiveJob[];
+};
+
+/**
+ * Describes the message darkfluenzer.v1.JobsActive.
+ * Use `create(JobsActiveSchema)` to create a new message.
+ */
+export const JobsActiveSchema: GenMessage<JobsActive> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_comfy, 2);
+
+/**
+ * Registrierter Workflow (workflows/manifest.toml) und Bereitschaft seiner Modelldateien.
+ *
+ * @generated from message darkfluenzer.v1.WorkflowInfo
+ */
+export type WorkflowInfo = Message<"darkfluenzer.v1.WorkflowInfo"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string engine = 2;
+   */
+  engine: string;
+
+  /**
+   * @generated from field: string engine_title = 3;
+   */
+  engineTitle: string;
+
+  /**
+   * image | video
+   *
+   * @generated from field: string kind = 4;
+   */
+  kind: string;
+
+  /**
+   * PASS | OFFEN | GESPERRT
+   *
+   * @generated from field: string status = 5;
+   */
+  status: string;
+
+  /**
+   * @generated from field: bool models_ready = 6;
+   */
+  modelsReady: boolean;
+
+  /**
+   * @generated from field: double missing_gb = 7;
+   */
+  missingGb: number;
+
+  /**
+   * evaluation | production
+   *
+   * @generated from field: string usage = 8;
+   */
+  usage: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.WorkflowInfo.
+ * Use `create(WorkflowInfoSchema)` to create a new message.
+ */
+export const WorkflowInfoSchema: GenMessage<WorkflowInfo> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_comfy, 3);
+
+/**
+ * STATE comfy.workflows
+ *
+ * @generated from message darkfluenzer.v1.Workflows
+ */
+export type Workflows = Message<"darkfluenzer.v1.Workflows"> & {
+  /**
+   * @generated from field: repeated darkfluenzer.v1.WorkflowInfo workflows = 1;
+   */
+  workflows: WorkflowInfo[];
+};
+
+/**
+ * Describes the message darkfluenzer.v1.Workflows.
+ * Use `create(WorkflowsSchema)` to create a new message.
+ */
+export const WorkflowsSchema: GenMessage<Workflows> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_comfy, 4);
 
 /**
  * @generated from message darkfluenzer.v1.JobOutput
@@ -85,7 +226,7 @@ export type JobOutput = Message<"darkfluenzer.v1.JobOutput"> & {
  * Use `create(JobOutputSchema)` to create a new message.
  */
 export const JobOutputSchema: GenMessage<JobOutput> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 1);
+  messageDesc(file_darkfluenzer_v1_comfy, 5);
 
 /**
  * EVENT job.completed: eine abgeschlossene Renderung aus der jobs-Tabelle.
@@ -141,7 +282,7 @@ export type JobCompleted = Message<"darkfluenzer.v1.JobCompleted"> & {
  * Use `create(JobCompletedSchema)` to create a new message.
  */
 export const JobCompletedSchema: GenMessage<JobCompleted> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 2);
+  messageDesc(file_darkfluenzer_v1_comfy, 6);
 
 /**
  * @generated from enum darkfluenzer.v1.ComfyState
@@ -185,6 +326,13 @@ export enum ComfyState {
    * @generated from enum value: COMFY_STATE_FAILED = 6;
    */
   FAILED = 6,
+
+  /**
+   * Bereit und mit mindestens einem laufenden Auftrag beschäftigt.
+   *
+   * @generated from enum value: COMFY_STATE_BUSY = 7;
+   */
+  BUSY = 7,
 }
 
 /**

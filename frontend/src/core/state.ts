@@ -1,6 +1,11 @@
 import { fromBinary, type DescMessage, type MessageShape } from "@bufbuild/protobuf";
 import { useSyncExternalStore } from "react";
-import { ComfyStatusSchema, JobCompletedSchema } from "./generated/darkfluenzer/v1/comfy_pb";
+import {
+  ComfyStatusSchema,
+  JobCompletedSchema,
+  JobsActiveSchema,
+  WorkflowsSchema,
+} from "./generated/darkfluenzer/v1/comfy_pb";
 import {
   Topic,
   TopicClass,
@@ -13,6 +18,8 @@ import {
 // Topic-Bindung des Frontends; muss mit den Deskriptoren im Welcome übereinstimmen.
 const TOPICS = {
   [Topic.COMFY_STATUS]: { cls: TopicClass.STATE, schema: ComfyStatusSchema },
+  [Topic.JOBS_ACTIVE]: { cls: TopicClass.STATE, schema: JobsActiveSchema },
+  [Topic.COMFY_WORKFLOWS]: { cls: TopicClass.STATE, schema: WorkflowsSchema },
   [Topic.JOB_COMPLETED]: { cls: TopicClass.EVENT, schema: JobCompletedSchema },
 } as const;
 

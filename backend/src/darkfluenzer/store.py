@@ -509,6 +509,12 @@ class Store:
             )
             self._event("job", job_id, "status", status=status, error=error, **result)
 
+    def job_workflows(self, job_ids: list[int]) -> dict[int, str]:
+        """Workflow je Job-ID (unbekannte IDs fehlen im Ergebnis)."""
+        marks = ",".join("?" * len(job_ids))
+        rows = self.db.execute(f"SELECT id, workflow FROM jobs WHERE id IN ({marks})", job_ids)
+        return {r["id"]: r["workflow"] for r in rows}
+
     def finished_jobs(self, after: int, limit: int) -> tuple[list[dict], bool]:
         """Abgeschlossene Jobs aus dem Journal mit Cursor (events.id) > ``after``: höchstens die
         neuesten ``limit``, aufsteigend. Zweiter Wert: dazwischen wurden ältere ausgelassen."""

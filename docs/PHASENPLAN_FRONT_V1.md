@@ -122,7 +122,8 @@ Handshake `Hello/Welcome` prüft Major-/Minor-Kompatibilität und angebotene Top
 |---|---|---|
 | F1 | PASS | 14.11.2026: `npm run build` (tsc + Vite) grün; ein Stylesheet `src/shared/graphite.css`, vom Build erzwungen (zweite CSS-Datei, Farbe außerhalb `:root`, Inline-Style → Abbruch; beide CSS-Fälle geprüft); Playwright-Smoke 1/1: drei Bereiche, Wechsel, Neuladen, keine Browserfehler. Ansichten zeigen bis F2 nur ihren Titel. |
 | F2 | PASS | 14.11.2026: eigene Schemas `protocol/schemas/darkfluenzer/v1` (stream, comfy, commands), `buf lint`/`generate` für TS + Python; `core/realtime.ts`, `core/state.ts`, `core/commands.ts`. Gezielt getestet: Backend 3 Tests (Host/Origin/Sitzung/CSRF; Befehl idempotent je `request_id`; Handshake mit Schema-Konflikt, STATE-Snapshot, EVENT-Catch-up mit Lücke + Live aus echtem SQLite-Journal), Frontend 4 Tests (STATE-Reihenfolge/veraltet, EVENT-Dedupe/Lücke/Journal-Ersatz, Reconnect mit Resume-Cursor, Schema-Konflikt: einmal neu laden, dann BLOCKIERT); Playwright am echten Backend; echter Reconnect im Browser (Backend beendet → GETRENNT, Werte veraltet, Knöpfe gesperrt → Neustart → VERBUNDEN ohne Neuladen). |
-| F3–F6 | OFFEN | – |
+| F3 | PASS | 14.11.2026, echter Mac + Browser am laufenden Backend: Zustand aus Prozess + `/queue` (BEREIT/ARBEITET/GESTOPPT/STARTET/STOPPT/NICHT ERREICHBAR/FEHLER); Knopf „Stoppen“ → GESTOPPT nach 0,3 s, „Starten“ → BEREIT nach 5,3 s (nur eigene Instanz, Log belegt); echter LUSTIFY-Job (`lustify_sdxl_t2i`, Seed 20261114): ARBEITET + Warteschlange mit Workflow-Name (Job-ID über ComfyUI `extra_data`) + „Aktueller Job“ in der Übersicht, nach 61,0 s Ergebnis live mit Vorschaubild über sitzungsgeschützten Medienpfad; Workflows mit Modellbereitschaft aus der Registry (zeigt laufende Downloads); keine Browserfehler. Rendern aus dem Cockpit noch nicht angeboten (CLI `render`). |
+| F4–F6 | OFFEN | – |
 
 ## Migrationsauftrag
 

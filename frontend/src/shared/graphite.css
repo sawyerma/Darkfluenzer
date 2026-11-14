@@ -42,11 +42,13 @@
   --g-r-brand: 8px;
   --g-r-badge: 22px;
   --g-r-button: 18px;
+  --g-r-thumb: 6px;
 
   /* Abstände und Maße */
   --g-nav-min-h: 56px;
   --g-brand-size: 28px;
   --g-line-min-h: 34px;
+  --g-thumb-size: 44px;
   --g-gap-xs: 3px;
   --g-gap-sm: 9px;
   --g-gap-md: 12px;
@@ -131,6 +133,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-value {
   display: flex; align-items: center; gap: var(--g-gap-sm); min-width: 0;
   color: var(--g-muted); font-size: var(--g-fs-small); text-align: right; overflow-wrap: anywhere;
+}
+.g-thumb {
+  display: block; width: var(--g-thumb-size); height: var(--g-thumb-size); margin: var(--g-gap-xs) 0;
+  object-fit: cover; border: 1px solid var(--g-line); border-radius: var(--g-r-thumb);
 }
 .g-note { margin: var(--g-gap-md) 0 0; color: var(--g-muted); font-size: var(--g-fs-small); }
 .g-note[role="alert"] { color: var(--g-text-strong); }

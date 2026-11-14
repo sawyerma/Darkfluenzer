@@ -14,6 +14,8 @@ enum ComfyState {
   COMFY_STATE_UNREACHABLE = 5;
   // Letzter Start/Stop ist fehlgeschlagen; error enthält den Grund.
   COMFY_STATE_FAILED = 6;
+  // Bereit und mit mindestens einem laufenden Auftrag beschäftigt.
+  COMFY_STATE_BUSY = 7;
 }
 
 // STATE comfy.status
@@ -25,6 +27,42 @@ message ComfyStatus {
   string version = 4;
   string device = 5;
   string error = 6;
+  uint32 queue_running = 7;
+  uint32 queue_pending = 8;
+}
+
+// Ein Auftrag in der ComfyUI-Warteschlange.
+message ActiveJob {
+  // 0: nicht über Darkfluenzer eingereicht (z. B. direkt in der ComfyUI-Oberfläche).
+  uint64 job_id = 1;
+  string workflow = 2;
+  // false: wartet in der Warteschlange.
+  bool running = 3;
+}
+
+// STATE jobs.active
+message JobsActive {
+  repeated ActiveJob jobs = 1;
+}
+
+// Registrierter Workflow (workflows/manifest.toml) und Bereitschaft seiner Modelldateien.
+message WorkflowInfo {
+  string key = 1;
+  string engine = 2;
+  string engine_title = 3;
+  // image | video
+  string kind = 4;
+  // PASS | OFFEN | GESPERRT
+  string status = 5;
+  bool models_ready = 6;
+  double missing_gb = 7;
+  // evaluation | production
+  string usage = 8;
+}
+
+// STATE comfy.workflows
+message Workflows {
+  repeated WorkflowInfo workflows = 1;
 }
 
 message JobOutput {

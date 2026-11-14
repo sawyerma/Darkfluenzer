@@ -26,6 +26,9 @@ from .models import Manifest, Workflow
 
 log = logging.getLogger("darkfluenzer.comfy")
 
+# Schlüssel in ComfyUIs extra_data, unter dem ein Auftrag seine Darkfluenzer-Job-ID trägt.
+JOB_KEY = "darkfluenzer_job_id"
+
 
 class ComfyError(Exception):
     """Fehler bei Übermittlung, Ausführung oder Ergebnisabruf. ``details`` maschinenlesbar."""
@@ -102,14 +105,15 @@ class ComfyClient:
     def object_info(self) -> dict:
         return self._json("GET", "/object_info")
 
-    def submit(self, graph: dict, prompt_id: str | None = None) -> str:
-        prompt_id = prompt_id or str(uuid.uuid4())  # ComfyUI verlangt UUID-Format
+    def submit(self, graph: dict, job_id: int | None = None) -> str:
+        """Auftrag einreichen; ``job_id`` (Darkfluenzer-Job) reist in ``extra_data`` mit und
+        macht den Auftrag in ``/queue`` zuordenbar (siehe ``queued_jobs``)."""
+        prompt_id = str(uuid.uuid4())  # ComfyUI verlangt UUID-Format
+        body: dict = {"prompt": graph, "client_id": self.client_id, "prompt_id": prompt_id}
+        if job_id is not None:
+            body["extra_data"] = {JOB_KEY: job_id}
         try:
-            res = self._json(
-                "POST",
-                "/prompt",
-                {"prompt": graph, "client_id": self.client_id, "prompt_id": prompt_id},
-            )
+            res = self._json("POST", "/prompt", body)
         except ComfyError as exc:
             if "status" not in exc.details:  # Netzwerkfehler, keine Antwort von ComfyUI
                 raise
@@ -128,6 +132,18 @@ class ComfyClient:
 
     def queue(self) -> dict:
         return self._json("GET", "/queue")
+
+    def queued_jobs(self) -> list[tuple[int, bool]]:
+        """(Darkfluenzer-Job-ID oder 0, läuft?) für alle Aufträge in der Warteschlange."""
+        q = self.queue()
+        return [
+            (int((item[3] or {}).get(JOB_KEY) or 0), running)
+            for running, items in (
+                (True, q.get("queue_running", [])),
+                (False, q.get("queue_pending", [])),
+            )
+            for item in items
+        ]
 
     def cancel(self, prompt_id: str) -> None:
         """Nur den eigenen Auftrag abbrechen: wartend -> aus Queue löschen, laufend -> gezielt."""
@@ -266,6 +282,7 @@ def run_workflow(
     *,
     stem: str,
     timeout_s: float = 1800.0,
+    job_id: int | None = None,
 ) -> RenderResult:
     """Server sicherstellen, Workflow ausführen, alle Ausgabedateien unter ``dest`` sichern.
 
@@ -280,7 +297,7 @@ def run_workflow(
     runtime.start(cfg)  # einzige Startlogik; idempotent
     client = ComfyClient(cfg.comfyui.url)
     t0 = time.monotonic()
-    prompt_id = client.submit(graph)
+    prompt_id = client.submit(graph, job_id)
     log.info("Auftrag %s: Workflow %s übermittelt", prompt_id, workflow_key)
     entry = client.wait(prompt_id, timeout_s)
     dest.mkdir(parents=True, exist_ok=True)

@@ -24,21 +24,29 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x64\x61rkfluenzer/v1/comfy.proto\x12\x0f\x64\x61rkfluenzer.v1\"\xb4\x01\n\x0b\x43omfyStatus\x12\x31\n\x05state\x18\x01 \x01(\x0e\x32\x1b.darkfluenzer.v1.ComfyStateR\x05state\x12\x18\n\x07managed\x18\x02 \x01(\x08R\x07managed\x12\x10\n\x03url\x18\x03 \x01(\tR\x03url\x12\x18\n\x07version\x18\x04 \x01(\tR\x07version\x12\x16\n\x06\x64\x65vice\x18\x05 \x01(\tR\x06\x64\x65vice\x12\x14\n\x05\x65rror\x18\x06 \x01(\tR\x05\x65rror\"K\n\tJobOutput\x12\x12\n\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n\x06sha256\x18\x02 \x01(\tR\x06sha256\x12\x12\n\x04size\x18\x03 \x01(\x04R\x04size\"\x93\x02\n\x0cJobCompleted\x12\x15\n\x06job_id\x18\x01 \x01(\x04R\x05jobId\x12\x1a\n\x08workflow\x18\x02 \x01(\tR\x08workflow\x12\x16\n\x06\x65ngine\x18\x03 \x01(\tR\x06\x65ngine\x12\x32\n\x06result\x18\x04 \x01(\x0e\x32\x1a.darkfluenzer.v1.JobResultR\x06result\x12\x14\n\x05\x65rror\x18\x05 \x01(\tR\x05\x65rror\x12\x1d\n\nduration_s\x18\x06 \x01(\x01R\tdurationS\x12\x34\n\x07outputs\x18\x07 \x03(\x0b\x32\x1a.darkfluenzer.v1.JobOutputR\x07outputs\x12\x19\n\x08order_no\x18\x08 \x01(\tR\x07orderNo*\xc2\x01\n\nComfyState\x12\x1b\n\x17\x43OMFY_STATE_UNSPECIFIED\x10\x00\x12\x17\n\x13\x43OMFY_STATE_STOPPED\x10\x01\x12\x18\n\x14\x43OMFY_STATE_STARTING\x10\x02\x12\x15\n\x11\x43OMFY_STATE_READY\x10\x03\x12\x18\n\x14\x43OMFY_STATE_STOPPING\x10\x04\x12\x1b\n\x17\x43OMFY_STATE_UNREACHABLE\x10\x05\x12\x16\n\x12\x43OMFY_STATE_FAILED\x10\x06*S\n\tJobResult\x12\x1a\n\x16JOB_RESULT_UNSPECIFIED\x10\x00\x12\x13\n\x0fJOB_RESULT_DONE\x10\x01\x12\x15\n\x11JOB_RESULT_FAILED\x10\x02\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x64\x61rkfluenzer/v1/comfy.proto\x12\x0f\x64\x61rkfluenzer.v1\"\xfe\x01\n\x0b\x43omfyStatus\x12\x31\n\x05state\x18\x01 \x01(\x0e\x32\x1b.darkfluenzer.v1.ComfyStateR\x05state\x12\x18\n\x07managed\x18\x02 \x01(\x08R\x07managed\x12\x10\n\x03url\x18\x03 \x01(\tR\x03url\x12\x18\n\x07version\x18\x04 \x01(\tR\x07version\x12\x16\n\x06\x64\x65vice\x18\x05 \x01(\tR\x06\x64\x65vice\x12\x14\n\x05\x65rror\x18\x06 \x01(\tR\x05\x65rror\x12#\n\rqueue_running\x18\x07 \x01(\rR\x0cqueueRunning\x12#\n\rqueue_pending\x18\x08 \x01(\rR\x0cqueuePending\"X\n\tActiveJob\x12\x15\n\x06job_id\x18\x01 \x01(\x04R\x05jobId\x12\x1a\n\x08workflow\x18\x02 \x01(\tR\x08workflow\x12\x18\n\x07running\x18\x03 \x01(\x08R\x07running\"<\n\nJobsActive\x12.\n\x04jobs\x18\x01 \x03(\x0b\x32\x1a.darkfluenzer.v1.ActiveJobR\x04jobs\"\xdf\x01\n\x0cWorkflowInfo\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x16\n\x06\x65ngine\x18\x02 \x01(\tR\x06\x65ngine\x12!\n\x0c\x65ngine_title\x18\x03 \x01(\tR\x0b\x65ngineTitle\x12\x12\n\x04kind\x18\x04 \x01(\tR\x04kind\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12!\n\x0cmodels_ready\x18\x06 \x01(\x08R\x0bmodelsReady\x12\x1d\n\nmissing_gb\x18\x07 \x01(\x01R\tmissingGb\x12\x14\n\x05usage\x18\x08 \x01(\tR\x05usage\"H\n\tWorkflows\x12;\n\tworkflows\x18\x01 \x03(\x0b\x32\x1d.darkfluenzer.v1.WorkflowInfoR\tworkflows\"K\n\tJobOutput\x12\x12\n\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n\x06sha256\x18\x02 \x01(\tR\x06sha256\x12\x12\n\x04size\x18\x03 \x01(\x04R\x04size\"\x93\x02\n\x0cJobCompleted\x12\x15\n\x06job_id\x18\x01 \x01(\x04R\x05jobId\x12\x1a\n\x08workflow\x18\x02 \x01(\tR\x08workflow\x12\x16\n\x06\x65ngine\x18\x03 \x01(\tR\x06\x65ngine\x12\x32\n\x06result\x18\x04 \x01(\x0e\x32\x1a.darkfluenzer.v1.JobResultR\x06result\x12\x14\n\x05\x65rror\x18\x05 \x01(\tR\x05\x65rror\x12\x1d\n\nduration_s\x18\x06 \x01(\x01R\tdurationS\x12\x34\n\x07outputs\x18\x07 \x03(\x0b\x32\x1a.darkfluenzer.v1.JobOutputR\x07outputs\x12\x19\n\x08order_no\x18\x08 \x01(\tR\x07orderNo*\xd8\x01\n\nComfyState\x12\x1b\n\x17\x43OMFY_STATE_UNSPECIFIED\x10\x00\x12\x17\n\x13\x43OMFY_STATE_STOPPED\x10\x01\x12\x18\n\x14\x43OMFY_STATE_STARTING\x10\x02\x12\x15\n\x11\x43OMFY_STATE_READY\x10\x03\x12\x18\n\x14\x43OMFY_STATE_STOPPING\x10\x04\x12\x1b\n\x17\x43OMFY_STATE_UNREACHABLE\x10\x05\x12\x16\n\x12\x43OMFY_STATE_FAILED\x10\x06\x12\x14\n\x10\x43OMFY_STATE_BUSY\x10\x07*S\n\tJobResult\x12\x1a\n\x16JOB_RESULT_UNSPECIFIED\x10\x00\x12\x13\n\x0fJOB_RESULT_DONE\x10\x01\x12\x15\n\x11JOB_RESULT_FAILED\x10\x02\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'darkfluenzer.v1.comfy_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_COMFYSTATE']._serialized_start=587
-  _globals['_COMFYSTATE']._serialized_end=781
-  _globals['_JOBRESULT']._serialized_start=783
-  _globals['_JOBRESULT']._serialized_end=866
+  _globals['_COMFYSTATE']._serialized_start=1113
+  _globals['_COMFYSTATE']._serialized_end=1329
+  _globals['_JOBRESULT']._serialized_start=1331
+  _globals['_JOBRESULT']._serialized_end=1414
   _globals['_COMFYSTATUS']._serialized_start=49
-  _globals['_COMFYSTATUS']._serialized_end=229
-  _globals['_JOBOUTPUT']._serialized_start=231
-  _globals['_JOBOUTPUT']._serialized_end=306
-  _globals['_JOBCOMPLETED']._serialized_start=309
-  _globals['_JOBCOMPLETED']._serialized_end=584
+  _globals['_COMFYSTATUS']._serialized_end=303
+  _globals['_ACTIVEJOB']._serialized_start=305
+  _globals['_ACTIVEJOB']._serialized_end=393
+  _globals['_JOBSACTIVE']._serialized_start=395
+  _globals['_JOBSACTIVE']._serialized_end=455
+  _globals['_WORKFLOWINFO']._serialized_start=458
+  _globals['_WORKFLOWINFO']._serialized_end=681
+  _globals['_WORKFLOWS']._serialized_start=683
+  _globals['_WORKFLOWS']._serialized_end=755
+  _globals['_JOBOUTPUT']._serialized_start=757
+  _globals['_JOBOUTPUT']._serialized_end=832
+  _globals['_JOBCOMPLETED']._serialized_start=835
+  _globals['_JOBCOMPLETED']._serialized_end=1110
 # @@protoc_insertion_point(module_scope)

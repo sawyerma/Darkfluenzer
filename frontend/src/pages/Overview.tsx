@@ -5,6 +5,7 @@ import { ComfyBadge, clock } from "./ComfyUI";
 
 export function Overview() {
   const comfy = useStateTopic(Topic.COMFY_STATUS);
+  const running = useStateTopic(Topic.JOBS_ACTIVE)?.value.jobs.find((j) => j.running);
   const last = useEventTopic(Topic.JOB_COMPLETED)?.items.at(-1);
 
   return (
@@ -17,6 +18,12 @@ export function Overview() {
             <ComfyBadge comfy={comfy} />
           </span>
         </div>
+        {running ? (
+          <div className="g-line">
+            <span>Aktueller Job</span>
+            <span className="g-value">{running.jobId ? running.workflow : "Auftrag aus der ComfyUI-Oberfläche"}</span>
+          </div>
+        ) : null}
         {last ? (
           <div className="g-line">
             <span>Letzte Renderung</span>

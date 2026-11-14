@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import shutil
 import uuid
 
 from aiohttp import WSServerHandshakeError
 from aiohttp.test_utils import TestClient, TestServer
 
 from darkfluenzer import server
+from darkfluenzer.config import project_root
 from darkfluenzer.store import Store
 from darkfluenzer.stream import PROTOCOL_MAJOR
 from darkfluenzer.v1 import comfy_pb2, commands_pb2
@@ -17,6 +19,9 @@ from darkfluenzer.v1 import stream_pb2 as pb
 
 
 def _run(cfg, scenario) -> None:
+    # Echte Registry; Modelldateien fehlen im Testprojekt (Workflows dann "nicht bereit").
+    shutil.copytree(project_root() / "workflows", cfg.root / "workflows", dirs_exist_ok=True)
+
     async def main() -> None:
         app = server.create_app(cfg)
         async with TestClient(TestServer(app, host="127.0.0.1", port=cfg.server.port)) as client:
@@ -66,6 +71,24 @@ def test_guards_reject_foreign_host_origin_and_missing_tokens(cfg):
         )
         assert (await _post(client, origin, None, req))[0] == 403
         assert (await _post(client, "http://evil.example", csrf, req))[0] == 403
+
+    _run(cfg, scenario)
+
+
+def test_media_only_with_session_and_only_render_outputs(cfg):
+    evaluation = cfg.local / "evaluation" / "lustify_sdxl"
+    evaluation.mkdir(parents=True)
+    (evaluation / "out.png").write_bytes(b"png")
+    (evaluation / "escape.png").symlink_to(cfg.local / "config.toml")
+
+    async def scenario(client, app, origin):
+        url = "/api/v1/media/evaluation/lustify_sdxl/out.png"
+        assert (await client.get(url)).status == 401
+        await _csrf(client)
+        resp = await client.get(url)
+        assert resp.status == 200 and await resp.read() == b"png"
+        assert (await client.get("/api/v1/media/evaluation/lustify_sdxl/escape.png")).status == 404
+        assert (await client.get("/api/v1/media/config.toml")).status == 404
 
     _run(cfg, scenario)
 
@@ -122,6 +145,8 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
         assert welcome.status == pb.WELCOME_STATUS_ACCEPTED
         assert {(d.topic, d.topic_class) for d in welcome.topics} == {
             (pb.TOPIC_COMFY_STATUS, pb.TOPIC_CLASS_STATE),
+            (pb.TOPIC_JOBS_ACTIVE, pb.TOPIC_CLASS_STATE),
+            (pb.TOPIC_COMFY_WORKFLOWS, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_JOB_COMPLETED, pb.TOPIC_CLASS_EVENT),
         }
 
