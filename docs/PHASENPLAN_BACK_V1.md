@@ -1,8 +1,8 @@
 # DARKFLUENZER — PHASENPLAN BACK V1
 
-**Version:** 1.7 — BACKEND + PROTOBUF (S1 abgenommen, S2 in Arbeit)
+**Version:** 1.8 — BACKEND + PROTOBUF + zwei ComfyUI-Instanzen (Architektur festgelegt, KI-Laufzeit noch nicht abgenommen)
 **Stand:** 14.11.2026  
-**Status:** Zielarchitektur verabschiedet, technische Implementierung und Mac-Abnahme überwiegend OFFEN  
+**Status:** Zielarchitektur verabschiedet; Medien-ComfyUI 1 vorhanden; KI-ComfyUI 2 verbindlich beschlossen, Implementierung und Mac-Abnahme OFFEN  
 **Repository:** `sawyerma/Darkfluenzer`, Branch `main`  
 **Lokal:** `/Users/sawyer_ma/Desktop/Firma/2_DarkMa/8_Darkfluenzer`  
 **System:** Apple-Silicon-Mac M4, 128 GB Unified Memory
@@ -85,7 +85,8 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
     ├── config.toml
     ├── comfyui.json
     ├── .venv/
-    ├── ComfyUI/
+    ├── ComfyUI/             # Instanz 1: unveränderte Medienlaufzeit
+    ├── comfyui_ai/          # Instanz 2: eigenes User-/Node-/Temp-/Output-Profil (geplante Laufzeitdaten)
     ├── character/
     │   ├── photos/
     │   ├── dataset/
@@ -106,7 +107,7 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
 
 **Quellstruktur und Laufzeit konsequent trennen:** Kein zweites Kunden-CRM, keine zweite SQLite-Datenbank, keine redundanten Modell-/Manifestdateien. **Migration durchgeführt (14.11.2026):** `pyproject.toml`, `uv.lock`, `src/` und `tests/` per `git mv` nach `backend/`; `project_root()`, `launcher/install.sh` (`--project backend`, `--inexact` erhält installierte Extras), Testaufrufe und README gemeinsam angepasst; `local/` unverändert. Nachweis im S1-Abschnitt.
 
-**Praktische Regeln:** ComfyUI besitzt einen separaten gepinnten Checkout in `local/ComfyUI`. Modellgewichte, Bilddaten, Kundendaten und Secrets gehören ausschließlich nach `local/`, niemals in Git. Workflowversionen stammen aus Git und einer einzigen `workflows/manifest.toml`; jeder Graph hat seine Native-UI- und API-Datei. Kunden und Aufträge erhalten stabile IDs; Kundendatenstatus liegt nur in SQLite, während `input/`, `work/` und `sent/` die zugehörigen Dateien enthalten. Keine Überschreibung freigegebener Artefakte.
+**Praktische Regeln:** Zwei unabhängig start-/stoppbare ComfyUI-Prozesse werden betrieben: bestehende Medieninstanz unter `local/ComfyUI` und eine eigene KI-Dialoginstanz mit separatem Laufzeit-/User-/Custom-Node-/Output-Profil unter `local/` (ein zweiter Quellcode-Checkout ist nur nötig, falls Isolation/Versionierung es verlangt). Beide erhalten eigene konfigurierbare Loopback-Ports, Client-IDs und Ausführungsqueues; **8188/8189 sind nur Vorschlagsdefaults, keine hart codierten Konstanten**. Modellgewichte, Kundendaten und Secrets gehören ausschließlich nach `local/`, niemals in Git. Workflowversionen beider Instanzen stammen aus Git und **einer** `workflows/manifest.toml`; jeder registrierte Graph hat UI- und API-Variante. Kunden und Aufträge erhalten stabile IDs; Kundendatenstatus liegt nur in SQLite, während `input/`, `work/` und `sent/` die zugehörigen Dateien enthalten. Keine Überschreibung freigegebener Artefakte.
 
 **Frontend-Vertrag:** [PHASENPLAN_FRONT_V1.md](PHASENPLAN_FRONT_V1.md) ist ausschließlich für sichtbare GUI, React-Code, Browserverhalten und UI-Protokollbindungsregeln maßgeblich. Dieses BACK-Dokument ist maßgeblich für Betrieb, ComfyUI, Modellinstallation, LoRA, Kundenstatus, Zahlungsprüfung, Persistenz, Plattform-Adapter und serverseitige Protobuf-Publikation.
 
@@ -114,7 +115,7 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
 
 | Rolle | Auswahl | Verbindlicher Stand |
 |---|---|---|
-| Medienlaufzeit | **ComfyUI v0.45.3** (eigene Instanz) über `127.0.0.1:8188` | S1 PASS |
+| Medienlaufzeit | **ComfyUI-Instanz 1**: bestehende v0.45.3, konfigurierbarer Loopback-Port, bisher `127.0.0.1:8188`; Fotos/Video/Inpainting | S1/F3a PASS, unverändert erhalten |
 | Master-Fotografie | **FLUX 3 Image Klein Base** (BF16) | Primärer Kandidat; Repo gated, kein M4-/Qualitäts-/Lizenz-PASS |
 | Master-Benchmarks | **FLUX.2 Dev 32B** (BF16), **Qwen-Image 20B** (BF16), **Qwen-Image 2.1** (BF16) | Nur A/B-Vergleich; kein paralleler Dauerbetrieb |
 | Gezielte Spezialbearbeitung | **LUSTIFY! v2.0** (SDXL), maskiertes Inpainting; Vergleich **RealCore Illustrious** | Testkandidaten, nicht garantiert beste Editoren |
@@ -122,8 +123,8 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
 | Video Hauptpfad | **Wan 2.2 Remix NSFW I2V v3.0**, High-/Low-Noise-Paar (nur FP8 verfügbar) | Experimentell; FP8 auf MPS nicht nativ (geprüft) |
 | Video Referenz | **Wan 2.2 I2V 14B offiziell** (FP16) | Vergleichsbasis für Remix |
 | Video Ersatzpfad | **LTX 2.5 Fast** (22B distilliert, BF16) über ComfyUI | Repo gated; getrennte Abnahme |
-| Sprache | **Ein** lokales Textmodell über MLX oder llama.cpp | Checkpoint erst nach A/B-Test festlegen |
-| Kundendialog | Telegram Bot API | Festgelegt, noch nicht integriert |
+| Text-/Sprach-KI | **ComfyUI-Instanz 2**: LLM, Dialog-, Prompt-, Prüf- und TTS-Workflows; Cydonia 24B v4.1 GGUF als erster Kandidat; llama.cpp/MLX ggf. als interne Modell-Laufzeit innerhalb von ComfyUI-Nodes, **kein konkurrierender eigenständiger Dialogpfad** | Verbindliche Architektur; Modell-/Node-/Apple-MPS-Test OFFEN |
+| Kundendialog | Chatwoot Community v4.19.1 als Kanal-Dienst (Telegram, Instagram, WhatsApp) → Darkfluenzer-Python → KI-ComfyUI 2 | ZIP vorhanden, Integration noch nicht abgenommen |
 | Zahlungsprüfung | Provider-Adapter | Anbieter/Lizenz/Plattform-Freigabe vor LIVE offen |
 
 **Modellregeln (verbindlich):**
@@ -142,6 +143,30 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
 **Kein LoRA-Mischen über Architekturen:** FLUX-/Qwen-/SDXL-LoRAs sind nicht austauschbar. Modellwechsel nur über genormte PNG-/Masken- oder Video-Dateien. LUSTIFY rekonstruiert unter Kleidung nichts „Echtes“, sondern generiert die verdeckte Region.
 
 **Keine unbelegten Qualitäts- oder Lizenzbehauptungen:** Ein Modell wird in `manifest.toml` erst nach **LOAD_PASS, RENDER_PASS, QUALITY_PASS, LICENSE_PASS** für die jeweilige Rolle freigegeben. MiniMax-H3-Gewichte gehören aufgrund der bekannten EU-Lizenzlage nicht zur Standardproduktion.
+
+## 4A. Verbindliche neue Architektur: zwei ComfyUI-Instanzen, alle KI-Abläufe grafisch (Beschluss 14.11.2026)
+
+**Architekturentscheidung — kein optionaler Alternativvorschlag:** Statt eines separaten, für Chatantworten obligatorischen MLX-/llama.cpp-HTTP-Dienstes wird eine **zweite, eigenständige ComfyUI-Instanz als primäre KI-Dialog- und Workflow-Laufzeit** eingeführt. Die erste, bereits funktionierende Medieninstanz bleibt unverändert zuständig für Bild-/Video-Produktion. ComfyUI 2 steuert Text-LLM, mehrstufige Dialoganalyse, Prompt-Erzeugung, optionale Zweit-KI-Prüfung und Sprachnachrichten/TTS über **in ComfyUI bearbeitbare Nodes und registrierte Graphen**. Cydonia 24B v4.1 GGUF ist der erste zu qualifizierende Kandidat, **nicht** als bereits laufend zu behaupten. Ein llama.cpp-Backend darf technisch **innerhalb** passender ComfyUI-Nodes arbeiten; es ist keine zweite, konkurrierende Anwendungslogik oder dritte fachliche Dialog-Pipeline. Installierte Custom Nodes/Loops/Conditionals nur nach realer Kompatibilitätsprüfung auf Mac/ComfyUI-Version einsetzen; ComfyUI selbst garantiert nicht jedes Schleifen-/Agentenfeature ohne Erweiterung.
+
+**Zwei getrennte Instanzen:**
+- **ComfyUI 1 – Medien:** bestehender Prozess und bisheriger Port (konfigurierter Default `127.0.0.1:8188`), bestehende Foto-/Video-/Inpainting-/Refinement-Workflows, bestehende **eine globale persistente Medien-FIFO** für sämtliche Kunden- und Test-Renderaufträge, unveränderte Medienablage, Artefakt- und Lizenzgates.
+- **ComfyUI 2 – KI:** zweiter Prozess auf anderem konfigurierbarem Port (Vorschlag `127.0.0.1:8189`), **eigene** Queue, WebSocket-/Client-ID, Nodes und nutzerbezogene Workflow-Graphen, unabhängig von Medien-FIFO. Dies umfasst Antwortgenerierung, Dialogklassifikation/Intent, strukturierte Wunschzusammenfassung, Kontextkompression, Promptbildung, konditionale Verzweigungen, ggf. begrenzte Feedbackschleifen/zweite LLM-Kontrolle, Vision-Bildprüfung und TTS, sofern die tatsächlich installierten Modelle/Nodes diese Funktionen unterstützen. Ein Medienjob **blockiert nicht die Warteschlange** von ComfyUI 2; GPU und Unified Memory bleiben physisch gemeinsam und müssen gleichzeitig belastungsgeprüft werden.
+- Der bestehende **eine Python-Backendprozess** verwaltet beide ComfyUI-Prozesse über **zwei gezielte Clients**, getrennte Health-/Queue-/Job-IDs, klare Lifecycle-Zuständigkeiten und sichere Starts/Stops. Der bestehende Launcher startet/überwacht auf Wunsch beide unabhängig, ohne laufende Renderungen zu unterbrechen oder fremde Prozesse zu beenden. Kein `pkill`, kein globaler Queue-Reset, keine unbeabsichtigten Neustarts bei laufenden Aufträgen.
+- Eine zentrale **SQLite** bleibt einzige Autorität für Kundenidentität, Influencerinnen, Nachrichten, Persona, gemeinsame plattformübergreifende Historie, Freigabemodus, Aufträge, Zahlungsbelege, Medienreferenzen und Zustellungen. ComfyUI 2 bekommt je Aufruf nur den **vom Python-Backend vorbereiteten, auf die gewählte Influencerin und den Kunden begrenzten Kontext** und liefert Ergebnisdaten zurück. **Keine direkte ComfyUI-Manipulation an SQLite, keine eigenständige CRM-/Payment-Autorität in Nodes.**
+- Der Python-Koordinator serialisiert Aufträge **derselben kanonischen Kundenakte kanalübergreifend**; andere Kunden laufen parallel, soweit KI-Queue/Ressourcen dies erlauben. Eingänge werden vor der KI-Übergabe in SQLite gespeichert und dedupliziert. Ergebnisse sind an `customer_id`, `influencer_id`, `channel_identity_id`, `conversation_id`, `message_id`, `workflow_id`, `workflow_version` und `request_id` gebunden; nach Operator-Handoff/Revision dürfen veraltete KI-Antworten nicht verschickt werden.
+- **ComfyUI 2 übergibt Vorschläge, keine Autorisierung:** Modell/Nodes können Textantwort, strukturierte Felder, Prompt, Qualitätsbewertung und TTS-Audio erzeugen. Ob eine Plattformnachricht gesendet wird, ob Zahlung bestätigt ist, welcher Auftrag versandt werden darf und ob Betreiber-/Zweit-KI-Freigabe gilt, entscheidet **ausschließlich der deterministische Python-/SQLite-Gatekeeper**. Keine LLM-generierten Shellbefehle, ungeprüften Zielkanalwechsel oder Zahlungs-/Freigabeänderungen.
+
+**Workflow-Nutzung und Bearbeitung:** Graphen für KI-Funktionen werden in **derselben bestehenden Registry `workflows/manifest.toml`** erfasst, mit eindeutigem Instanzziel (`media`/`ai`), Typ (`text`/`intent`/`vision`/`tts`), Modell-/Node-Abhängigkeiten, Ein-/Ausgabe-Verträgen, aktiviert/bereit-Status und versionierten **UI-/API-Graphen**. So können mehrere Influencerinnen unterschiedliche Persona-/LLM-/Stimm-/Prüfworkflows auswählen, ohne eigene Backend-Programmierung je Nodekette. **Loops, Bedingungen und Wiederholungen dürfen grafisch konfiguriert werden, aber mit Endbedingungen/Maximaliterationen und Fehlerzuständen.** Änderungen werden erst nach Graph-/Input-/Output-Validierung wirksam; laufende Aufträge behalten ihre zugewiesene Workflowversion. Profile und Kundenzuordnung stammen aus SQLite, nicht aus hardcodierten Node-Konstanten.
+
+**Wesentliche Laufzeit-/Abnahmekriterien (keine vorzeitigen PASS-Angaben):**
+1. Zwei gleichzeitig laufende ComfyUI-Prozesse auf dem Mac; separater Port, Client-ID, User-/Custom-Node- und Temp-Bereich sowie Queue; Medien-Health/Start/Stop/FIFO aus F3a weiterhin vollständig funktionsfähig.
+2. Ein echter Cydonia- bzw. ausdrücklich benannter verfügbarer LLM-Workflow in ComfyUI 2: deutscher mehrteiliger Dialog mit derselben Persona, kontextgebundene Antwort, strukturierter Intent, reproduzierbares Ergebnis und gültige Python-Korrelations-IDs. Cydonia nur als qualifiziert melden, wenn die echte Version und deren Last auf dem Mac geprüft wurde.
+3. Mindestens ein grafischer Zweig und eine begrenzte Korrekturschleife (sofern passende Nodes installiert) werden im echten ComfyUI-Editor bearbeitet, als API-Graph übernommen und durch Darkfluenzer ausgelöst; ohne Support den konkreten Node/Modell-BLOCKER dokumentieren, **keinen Mock**.
+4. Gleichzeitig einen langen echten Medien-Render und mindestens zwei Kundenchat-Aufträge starten: **keine gemeinsame Queue-Blockade**, Dialoge trotzdem sequenziell **pro Kunde**; LLM-Latenz p50/p95, CPU/GPU-/Unified-Memory-Auslastung und Render-Verlangsamung messen, statt Echtzeit-Leistung zu versprechen.
+5. ComfyUI-2-Ausfall/Neustart darf keine laufenden Medienaufträge abbrechen und keine Chatwoot-Doppelantworten erzeugen. Medieninstanz-Ausfall darf keinen anderen Kundenchat-/KI-Antwortpfad unterbrechen.
+6. Sprach-/Vision-/TTS-Pfade erst aktivieren, nachdem ihre echten Custom Nodes, Modelle, Dateitypen und Ergebnisse verifiziert sind. KI-Qualitätsentscheidung ersetzt niemals serverseitiges Zahlungs- oder Freigabegate.
+
+**Status:** `ComfyUI 1 = bestehend/abgenommen`; `ComfyUI 2 = BESCHLOSSEN, UMSETZUNG UND ECHTER TEST OFFEN`. Keine bestehenden Status oder PASS-Werte rückwirkend ändern.
 
 ## 5. Eine Datenbank, minimale Tabellen, vollständiger Nachweis
 
@@ -219,7 +244,7 @@ Das bestehende Python-Paket bleibt der einzige fachliche Owner. Es stellt beim A
 | **S1 — Starter** | Mac-Bestand erfassen; pinke `C`-App startet/stoppt ComfyUI | Doppelklick, Health, idempotenter Neustart; keine fremden Prozesse gekillt |
 | **S2 — Foto** | Masterbild + Identität + Masken/SDXL-Editing + Refinement | Drei reproduzierbare Fotos, Master-Herkunft, lokale Qualitätsbewertung |
 | **S3 — Video** | Wan-I2V und LTX-Vergleich, Motion/Temporal/Export | Real gerenderter Mac-Clip, FPS, Dauer, Speicher, Flicker/Identität geprüft |
-| **S4 — Dialog** | Lokales LLM + Telegram + stabile Kundennummer + SQLite + Drei-Anfragen-Angebot | Derselbe Kunde behält seine Nummer; Chat-/Intent- und Angebotsfälle getestet |
+| **S4 — Dialog** | Zweite ComfyUI-KI-Instanz mit grafischen LLM-/Intent-Workflows + Chatwoot-Adapter + stabile plattformübergreifende Kundennummer + SQLite | Zwei unabhängige ComfyUI-Prozesse, echter LLM-Dialog/Intent, getrennte Queues, korrekte Kunden-/Conversation-Zuordnung und gleichzeitiger Medienrender geprüft |
 | **S5 — Verkauf** | Verifizierte Zahlung + private Vorschau + manuelle Freigabe + Versand | Ohne Zahlung ODER Freigabe: null Lieferungen; korrekter Kunde/Hash |
 | **S6 — Betrieb** | Recovery, Backup, Sicherheit, Lizenzprüfung und Ende-zu-Ende-Abnahme | Neustart-/Dubletten-/Refund-Tests, vollständiger bezahlter Testauftrag |
 
@@ -293,7 +318,7 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 
 **Weniger, aber besser.** Einfachheit ist eine konkrete Entwicklungsanforderung, keine Reduktion der Bild-/Videoqualität oder der wirtschaftlichen Gates.
 
-1. Eine Backend-Anwendung, eine SQLite-Datenbank, ein Modell-/Workflow-Manifest, ein Protobuf-Vertrag, ein React-Frontend. Kein zusätzlicher Broker, separater Gateway-Prozess, Plugin-Framework oder zweiter eigener Produktionsdienst.
+1. Eine fachliche Python-Backend-Anwendung, eine SQLite-Datenbank, ein Modell-/Workflow-Manifest, ein Protobuf-Vertrag, ein React-Frontend; **zwei externe, unabhängig laufende ComfyUI-Worker** (Medien und KI) sowie der beschlossene Chatwoot-Kanaldienst. Kein zusätzlicher Broker, zweiter eigener Business-/CRM-Dienst, separater Gateway-Prozess oder Plugin-Framework.
 2. Erst reale Funktion, dann mögliche Abstraktion. Keine ungenutzten Interface-Schichten, leeren Module, doppelten State-Owner oder Aufteilung einer kleinen Funktion in zehn Dateien.
 3. **Wenige gezielte Tests statt Testmasse:** pro neuer Funktion Normalfall, relevanter Fehlerpfad und nur notwendige Regression; ein echter Mac-Test für ComfyUI und ein E2E-Test für die spätere Zahlungs-/Freigabekette. Keine pauschalen hohen Testzähler, großflächigen Mocks oder mehrfachen identischen Gate-Prüfungen ohne zusätzlichen Erkenntniswert.
 4. **Sicherheit nicht künstlich maximieren:** Die tatsächlich notwendigen Grenzen bleiben strikt: validierte Eingaben, lokal gebundene Server, geschützte Tokens, autorisierte Schreibbefehle, verifizierte Zahlung, persönliche Betreiberfreigabe, exakte Kunden-/Artefaktbindung. Keine zusätzlichen Security-Subsysteme, komplexen Rollensysteme oder Auditrituale ohne nachgewiesenes Risiko.
@@ -304,10 +329,10 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 
 
 1. **Single Source of Truth:** Diese Datei ist der einzige normative Masterplan. Technische Kommentare oder Tests dürfen Regeln präzisieren, nicht widersprechen.
-2. **Ein Programm, modulare Funktionen:** Ein lokaler Python-Dienst mit getrennten Modulen, kein selbstgebautes Microservice-System, kein zusätzlicher Message-Broker, kein Docker-Zwang.
+2. **Eine fachliche Anwendung, modulare Funktionen:** Ein lokaler Python-Dienst mit getrennten Modulen, zwei ComfyUI-Laufzeitprozessen und Chatwoot als externem Kanaldienst; kein selbstgebautes Microservice-System und kein zusätzlicher Message-Broker. Chatwoots bestehende PostgreSQL-/Redis-/Compose-Anforderungen bleiben davon unberührt.
 3. **Wenig Ordner, klare Eigentümer:** Ein Codepaket, ein Workflow-Verzeichnis, ein Kundenbaum, eine SQLite-Datenbank. Keine redundanten Kopien und konkurrierenden Statusdateien.
 4. **Workflow-Verträge:** ComfyUI braucht UI-JSON und separaten API-Export; nur registrierte und validierte API-Workflows dürfen vom Bot ausgeführt werden.
-5. **Kein globales `pkill`:** Launcher verwaltet nur die eigene Instanz; ComfyUI an `127.0.0.1:8188` und startet ohne Terminal. Python-/Conda-Pfad wird lokal konfiguriert, nicht im Code erzwungen.
+5. **Kein globales `pkill`:** Launcher verwaltet nur die beiden konkret zugeordneten ComfyUI-Instanzen, mit unabhängigen konfigurierbaren Loopback-Ports (Defaultvorschläge 8188/8189), ohne Terminal; laufende Medien-FIFO nie ungefragt abbrechen. Python-/Conda-Pfade lokal konfigurieren, nicht im Code erzwingen.
 6. **Sicherheit und Reproduzierbarkeit:** Secrets außerhalb Git (macOS Keychain oder geschützte lokale Konfiguration), alle privaten Daten in `local/`; Modell-Hashes, Seeds, Workflow-Git-Revisionen und Freigaben dokumentieren.
 7. **Deterministische kritische Regeln:** Zahlung, Sales-Zähler, Kundenzuordnung und Liefer-Gate werden durch Code/DB bestimmt, **nicht** durch den LLM-Wortlaut.
 8. **Tests statt Annahmen:** Apple-MPS-Backend, Custom Nodes, Quantisierung, Lizenz und Renderqualität müssen tatsächlich geprüft werden; Qualitätsverbesserung nur mit A/B-Vergleich.
@@ -315,6 +340,8 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 10. **Fiktive erwachsene Figur:** keine fremde Person imitieren; Transparenz über künstliche Identität, vereinbarte Inhalte und kommerzielle Rechte.
 
 ## 9. Änderungsprotokoll
+
+**V1.8 — ZWEI COMFYUI-INSTANZEN (14.11.2026):** Instanz 1 bleibt für Foto/Video/Medien-FIFO; Instanz 2 führt Text-/Dialog-/Prüf-/TTS-Workflows graphbasiert aus, eigene Queue/Port/Nodes, gemeinsamer Python-/SQLite-Gatekeeper; primär keine separate Pflicht-LLM-Serverpipeline. Architektur verbindlich, KI-Instanz noch OFFEN. Frontend-Vertrag entsprechend angepasst.
 
 **V1.7 — BACK/FRONT SPLIT (14.11.2026):** bisherigen Masterplan in `PHASENPLAN_BACK_V1.md` überführt; Frontend-Vertrag in `PHASENPLAN_FRONT_V1.md` getrennt. Eine browserbasierte React-GUI, ein Python-Backend, ein binärer Protobuf-WebSocket ohne Polling und ohne JSON-GUI-Payload, eigene statt DarkBot-gekoppelte Quellen. Rams-Prinzip „Weniger, aber besser“ für Oberfläche, Code, Testumfang und notwendige Sicherheit verbindlich. Bestehende S1-/S2-Nachweise erhalten.
 
