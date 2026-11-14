@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN V1
 
-**Version:** 1.4.1 — SIMPLIFY (S1 abgenommen)  
+**Version:** 1.5 — SIMPLIFY + DROP-TO-TRAIN (S1 abgenommen)  
 **Stand:** 14.11.2026  
 **Status:** Zielarchitektur verabschiedet, technische Implementierung und Mac-Abnahme überwiegend OFFEN  
 **Repository:** `sawyerma/Darkfluenzer`, Branch `main`  
@@ -99,6 +99,10 @@ Nur **fünf aktive Hauptbereiche** neben `README.md` und erforderlichen Projektd
     ├── comfyui.json             # Identität der verwalteten ComfyUI (PID, Startzeit, Kommando)
     ├── .venv/                   # Darkfluenzer-Python (uv.lock), getrennt von ComfyUI-Conda
     ├── ComfyUI/                 # Vorhandener Checkout oder kontrollierter Symlink
+    ├── character/
+    │   ├── photos/            # Trainingsbilder einfach hier ablegen
+    │   ├── dataset/           # Vom System vorbereitete Daten
+    │   └── previews/          # Trainingsvergleich und Identitätsprüfung
     ├── models/                  # Große Gewichte und LoRAs
     ├── darkfluenzer.sqlite3     # EINE zentrale Datenbank
     ├── customers/
@@ -174,6 +178,34 @@ Ein gesamter Kundenauftrag ist anhand seiner Kunden- und Bestellnummer wieder au
 - **Zustellungsgenauigkeit:** idempotente Versand-ID; keine Doppelzustellung bei Neustart/Timeout. Nicht lieferbare bezahlte Aufträge bekommen eine geregelte Überarbeitung/Erstattung.
 - **Trennung der Autoritäten:** Das Sprachmodell darf Kunden antworten und Prompts schreiben, aber keine Bestätigung von Zahlung/Freigabe oder freie Dateisystem-/Shellbefehle ausführen.
 
+## 6A. Character-LoRA — Drag-and-drop ohne Einrichtung
+
+**Nutzerinteraktion:** Einziger Eingabeordner `local/character/photos/`. Betreiber kopiert JPG-, PNG- oder WebP-Bilder der eigenen synthetischen erwachsenen Figur in diesen Ordner. **Keine manuellen Trainingsdateien, Caption-Texte, JSON-Konfigurationen oder ComfyUI-Node-Verdrahtung.** Ein Datei-Watcher erkennt abgeschlossene Kopiervorgänge und fasst die neuen Bilder zu **einem Datensatz-Batch** zusammen; er startet nicht nach jedem Bild ein neues Training.
+
+**Implementierung im bestehenden Python-Paket**, vorzugsweise `training.py`; nur wenn ein realer Bedarf nachgewiesen wird, zusätzliche Dateien/Unterordner schaffen:
+
+1. Dateibatch erkennen; unvollständige Dateien, Duplikate (SHA-256), defekte oder stark ungeeignete Bilder abweisen. Originaldateien unverändert lassen.
+2. Bildprüfung und Qualitäts-/Identitätskonsistenzcheck lokal; unterschiedliche Personen oder zweifelhafte Zuordnungen dem Betreiber anzeigen.
+3. Versionierten Trainingsdatensatz erzeugen und automatisch lokal beschriften; trainierte Identitätsmerkmale von Szenen-/Outfitdaten trennen, damit die LoRA flexibel bleibt.
+4. Lokale Trainingsengine **modellfamilienabhängig** wählen: Master-Modell-LoRA für den gewählten FLUX-/Qwen-Pfad; eine eigene **SDXL-LoRA** für LUSTIFY nur bei Bedarf. **Keine Architektur-fremde LoRA.**
+5. Training erst beginnen, wenn ausreichender, plausibler Datensatz vorliegt und die gewählte Trainingsengine nachweislich auf dem M4 läuft. Ansonsten eindeutig `DATASET_INCOMPLETE` oder `TRAINER_UNAVAILABLE`, keine Schein-Fertigmeldung.
+6. Training und Ergebnis als unveränderliche Version mit Datensatz-Hash/Modellhash/Trainingsparametern speichern. Trainingsergebnisse unter `local/models/`, Vorschauen unter `local/character/previews/`.
+7. Feste Vergleichsprompts erzeugen; Identität, Gesichtsvariationen und Generalisierung prüfen. **Aktivierung einer neuen LoRA nach Sichtfreigabe des Betreibers**, alte Version bleibt bis dahin aktiv.
+8. Spätere neue Fotos ergeben eine neue Datensatz-/LoRA-Version statt ein unkontrolliertes Nachlernen im laufenden Rendering. Keine parallelen GPU-intensiven Trainings- und Kunden-Renderjobs.
+
+**Apple-MPS-Verifikation:** Die gewählte Trainingssoftware muss mit dem konkreten Zielmodell real getestet werden. Keine Annahme, dass ein FLUX-3-Inferenzbackend auch FLUX-3-LoRA trainieren kann. Wenn dies auf dem Mac nicht unterstützt wird: den Engpass anzeigen und eine tatsächlich kompatible lokale Alternative prüfen, ohne die Ein-Ordner-Bedienung zu verändern.
+
+## 6B. Bedienoberfläche — bewusst minimal
+
+Darkfluenzer bekommt eine **kompakte, lokale Steuerseite in derselben App**, kein zweites Dashboard-Produkt und keine zusätzliche Backend-Infrastruktur. Die Bild-/Videographen bleiben in ComfyUI.
+
+- **Charakter:** Ordnerpfad öffnen, Anzahl geprüfter Bilder, laufende Trainerphase/Fortschritt, aktuelle und neue LoRA, Ergebnisvorschauen, LoRA-Freigabe.
+- **Produktion:** ComfyUI starten/öffnen, Status der verfügbaren Engines und Workflows, Warteschlange, letzte Ergebnisse.
+- **Kunden:** Kundennummer, Chat-/Auftragsübersicht, Zahlungsstatus, drei private Vorschauen, manuelle Freigabe; die Freigabe per privatem Betreiber-Telegram ist weiterhin möglich.
+- **Keine separate App**, kein eigener Microservice, kein zweiter Datenspeicher. Bedienseite nutzt vorhandenen lokalen Backend-Prozess und SQLite.
+
+**S1 unverändert:** Das pinke C muss ComfyUI ohne Terminal starten. Die zusätzliche Steuerseite ist eine spätere Ergänzung; sie darf S1 nicht wieder öffnen oder seinen nachgewiesenen Status zurücksetzen.
+
 ## 7. Nur sechs Phasen
 
 | Phase | Ziel | Abnahme |
@@ -245,6 +277,9 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 10. **Fiktive erwachsene Figur:** keine fremde Person imitieren; Transparenz über künstliche Identität, vereinbarte Inhalte und kommerzielle Rechte.
 
 ## 9. Änderungsprotokoll
+
+**V1.5 — DROP-TO-TRAIN (14.11.2026):** Ein Ordner für Charakterbilder, automatische lokale Datensatzaufbereitung und passende LoRA-Trainingspipeline; kompakte Steuerseite in derselben App. Keine Reduktion der Modell- oder Trainingstests. Alle nachweislichen S1-Fortschritte aus V1.4.1 bleiben unverändert.
+
 
 **V1.4 — SIMPLIFY (14.11.2026):** Drei überlappende Architekturdokumente zu **einem** verbindlichen Plan konsolidiert; neun Phasen auf sechs zusammengeführt; die übertiefe Code-, Workflow- und Kundenverzeichnisstruktur reduziert; SQLite als einzige Kunden- und Zustandsautorität bestätigt. Bild-/Videotechnik, Zahlungsprüfung, manuelle Freigabe und alle Qualitätsanforderungen unverändert beibehalten.
 
