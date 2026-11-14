@@ -1,10 +1,11 @@
 # DARKFLUENZER — PHASENPLAN V1
 
 **Dokument:** `docs/PHASENPLAN_V1.md`  
-**Version:** 1.2  
+**Version:** 1.3  
 **Stand:** 14.11.2026  
 **Status:** Verbindlicher Architektur- und Umsetzungsplan; Implementierung und lokale Abnahme noch ausstehend  
 **Repository:** [sawyerma/Darkfluenzer](https://github.com/sawyerma/Darkfluenzer)  
+**Verbindliche Unterdokumente:** [ENGINES_WORKFLOWS_V1.md](ENGINES_WORKFLOWS_V1.md) · [KUNDEN_DATENMODELL_V1.md](KUNDEN_DATENMODELL_V1.md)  
 **Zielsystem:** Apple-Silicon-Mac M4, 128 GB Unified Memory, macOS  
 **Projektverzeichnis:** `/Users/sawyer_ma/Desktop/Firma/2_DarkMa/8_Darkfluenzer`
 
@@ -78,6 +79,8 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 │   ├── PHASENPLAN_V1.md             # Verbindlicher Masterplan
 │   ├── ARCHITEKTUR.md               # Komponenten, APIs, Zustandsübergänge
 │   ├── BETRIEB.md                   # Installieren, Starten, Stoppen, Fehlerdiagnose
+│   ├── ENGINES_WORKFLOWS_V1.md      # Engines, Workspace-Versionen, Registry
+│   ├── KUNDEN_DATENMODELL_V1.md     # Kunden-ID, SQLite, Aktenstruktur
 │   ├── MODELLE_LIZENZEN.md          # Modellstand, Hash, Lizenz, Apple-Abnahme
 │   ├── ZAHLUNG_UND_VERTRIEB.md      # Angebot, Zahlstatus, Erstattung, Plattformprüfung
 │   ├── TESTPLAN.md                  # Reproduzierbare Abnahmetests
@@ -124,7 +127,8 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
     ├── models/                      # Gewichte und LoRAs
     ├── envs/                        # Lokale Umgebungen
     ├── config/                      # Lokale Konfiguration und Secrets
-    ├── data/                        # Datenbank und Aufträge
+    ├── data/                        # Zentrale SQLite-Datenbank und Backups
+    ├── customers/                   # DF-C-000001: Chat, Aufträge, Medien
     ├── input/                       # Referenz- und Eingangsmedien
     ├── output/                      # Generierte Medien
     ├── previews/                    # Betreiber-Vorschauen
@@ -422,6 +426,16 @@ P01 wird **erst** als abgeschlossen markiert, wenn die `.app` auf dem realen Mac
 `docs/STATUS.md` enthält pro Phase: `OFFEN / IN_ARBEIT / BLOCKIERT / PASS`, Git-Commit, getestete Version, Testdatum, reproduzierbaren Nachweis und offene Befunde. Kein PASS auf Grundlage bloßer Datei-Existenz oder syntaktisch gültiger Workflows.
 
 Änderungen an der Architektur oder Qualitätspipeline erfolgen über einen dokumentierten Änderungsabschnitt im Plan und werden mit demselben Commit wie die Änderung umgesetzt.
+
+### Änderung V1.3 — Engines, Workspaces und Kundenakte (14.11.2026)
+
+- [ENGINES_WORKFLOWS_V1.md](ENGINES_WORKFLOWS_V1.md) ist der verbindliche Engine-/ComfyUI-Workspace-Vertrag. Engine-Rollen sind fixiert, konkrete Checkpoints bleiben bis zur Mac-, Lizenz- und Qualitätsabnahme Kandidaten.
+- [KUNDEN_DATENMODELL_V1.md](KUNDEN_DATENMODELL_V1.md) ist der verbindliche Kunden-/Auftrags-/Zahlungs-Datenvertrag. **SQLite** ist die alleinige Statusautorität; Medien und Exporte liegen in getrennten lokalen Kundenordnern.
+- Jeder Telegram-Kontakt erhält eine eindeutige Kundennummer im Format `DF-C-000001`. Technische Zuordnung über Telegram-User-ID und Bot-Konto, niemals ausschließlich Username.
+- Je Kunde: Chats, Angebote, Aufträge, Zahlungsereignisse, Masterbilder, Masken, drei Kandidaten, Freigaben, ausgelieferte Artefakte.
+- Jeder kostenpflichtige Auftrag: zugehörige verifizierte Zahlung + drei Kandidaten + Betreiberfreigabe + konkret autorisierte Lieferung. Bild und Video haben getrennte Workflows.
+- Workflows: versionierte UI-/API-Exporte, Manifest, Testnachweis und Modelldatei-/Node-Versionen.
+- Diese Kurzstruktur wird durch die beiden Fachkonzepte normativ präzisiert.
 
 ### Änderung V1.2 — Einheitliche Master-Bildpipeline (14.11.2026)
 
