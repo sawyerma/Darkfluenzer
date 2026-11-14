@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN V1
 
-**Version:** 1.6 — SIMPLIFY + CREATOR-COCKPIT (S1 abgenommen, S2 in Arbeit)
+**Version:** 1.6.1 — SIMPLIFY + CREATOR-COCKPIT (S1 abgenommen, S2 in Arbeit)  
 **Stand:** 14.11.2026  
 **Status:** Zielarchitektur verabschiedet, technische Implementierung und Mac-Abnahme überwiegend OFFEN  
 **Repository:** `sawyerma/Darkfluenzer`, Branch `main`  
@@ -292,7 +292,7 @@ Die bisherigen neun Phasen `P00–P08` werden **inhaltlich vollständig** in `S1
 | Phase | Status | Nachweis |
 |---|---|---|
 | S1 | PASS | Mac-Abnahme 14.11.2026, siehe „S1-Nachweis“ |
-| S2 | IN_ARBEIT | API-Client, Registry, eigene ComfyUI 0.45.3 fertig; Modelle laden (Leitung ≈ 1,6–5 MB/s), FLUX 3 gated |
+| S2 | IN_ARBEIT | Erste reale Renders (LUSTIFY): Text-zu-Bild + maskiertes Editing PASS, siehe „S2-Nachweis“; FLUX 3 gated, übrige Modelle laden |
 | S3 | OFFEN | Wan-FP8/MPS nicht abgenommen |
 | S4 | IN_ARBEIT | SQLite-Kundenakte + stabile, lückenlose Kundennummern getestet (inkl. 12 parallele Erstnachrichten); Telegram/LLM offen |
 | S5 | IN_ARBEIT | Liefer-Gate in `approval.py` + SQLite-Triggern isoliert getestet; keine echte Zahlung/Zustellung aktiv |
@@ -333,6 +333,17 @@ Start über `Finder → open /Applications/Darkfluenzer.app` (LaunchServices, id
 
 Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen-Berechtigung angefordert); sie rufen ausschließlich die oben geprüften CLI-Befehle auf.
 
+### S2-Nachweis (14.11.2026, echter Mac, ComfyUI 0.45.3, MPS)
+
+| Test | Ergebnis |
+|---|---|
+| Download + Prüfung | LUSTIFY v2.0, 6.938.043.264 Byte, SHA-256 = Manifest, Revision `50b7486d60aa` |
+| `lustify_sdxl_t2i` 896×1152, 36 Schritte, dpmpp_2m/karras, CFG 5,5 | PASS – 91,7 s (Kaltstart inkl. Laden), 125–139 s warm; Peak `phys_footprint` 13 GB |
+| Reproduzierbarkeit | PASS – Seed 102416 nach Cache-Verdrängung neu berechnet: SHA-256 bitidentisch (`bcff1ea2…`). Hinweis: identische Wiederholung ohne Verdrängung liefert ComfyUI aus dem Cache (0,0 s) – kein Nachweis |
+| `lustify_sdxl_inpaint` (Master + Maske 10,9 %) | PASS – 83,5 s; **0 Pixel außerhalb der Maske verändert** (automatische Prüfung); Herkunft: Master-/Masken-Hash, Workflow-Git-Revision |
+| Qualität (Sichtprüfung) | OFFEN – fotorealistische Haut/Licht gut; LUSTIFY neigt ohne Kleidungsangabe zu unbekleideten Motiven; Rechteckmaske erzeugt sichtbare Kanten und überschreibt hineinragende Haare → objektgenaue Segmentierungsmasken erforderlich |
+| UI-Exporte (Frontend 1.58.5, `graphToPrompt`) | 8 Workspaces 0 Abweichungen; Wan-Video: einzig Alt-Schlüssel `codec`, den das Frontend bei SaveVideo selbst ergänzt |
+
 **PASS nur nach realem Test auf dem Mac, reproduzierbarem Nachweis und Git-Commit.** Ein dokumentierter Plan oder importierbares Workflow-JSON ist noch kein Funktions-PASS. Kein `v1.0`-Release vor S6.
 
 ## 8. Strenge Regeln trotz reduzierter Struktur
@@ -368,4 +379,6 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 
 **V1.5.4 — Bild-Workspaces (14.11.2026):** Registrierte Workspaces für alle Bild-Engines der Welle 1 nach den offiziellen ComfyUI-0.45.3-Templates (vom Frontend selbst aus Subgraphen aufgelöst), jeweils mit BF16-Dateien statt der int8-Template-Varianten: `flux3_klein_base_t2i`, `qwen_image_21_t2i`, `qwen_image_20b_t2i` (ohne Lightning-LoRA), `realcore_illustrious_t2i` (ohne DMD2-Beschleuniger, Sampler wie LUSTIFY für faires A/B), `lustify_sdxl_t2i`, `lustify_sdxl_inpaint`. Frontend-Gegenprobe aller sechs UI-Exporte: 0 Abweichungen. Status je Workflow OFFEN bis zum realen Render.
 
-**Nächste Umsetzung:** S2 – erster realer Render mit LUSTIFY sobald geladen, dann FLUX 3 nach Lizenzannahme.
+**V1.6.1 — Erste reale Renders (14.11.2026):** LUSTIFY Text-zu-Bild und maskiertes Editing auf dem Mac PASS (Nachweis oben); Wan-2.2-I2V-Workspaces (offiziell FP16, Remix v3.0 FP8) aus dem offiziellen Template; ComfyUI-Vertragsfehler behoben (`prompt_id` muss UUID mit Bindestrichen sein).
+
+**Nächste Umsetzung:** FLUX 3 Klein Base nach Lizenzannahme rendern (Master-Rolle), A/B gegen Qwen-Image 2.1/20B auf identischen Prompts/Seeds; objektgenaue Masken (SAM) für das Editing; LTX-2.5-Workspace; danach S4 (LLM/Telegram).

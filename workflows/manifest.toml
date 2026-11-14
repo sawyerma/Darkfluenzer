@@ -82,8 +82,8 @@ wave = 1
 files = ["lustify_v20"]
 license = "unbekannt – HF-Spiegel ohne Lizenzangabe (Original auf Civitai prüfen)"
 usage = "evaluation"
-gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
-note = "Bearbeitet ausschließlich maskierte Regionen des Master-PNG."
+gates = { load = "PASS", render = "PASS", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Mac-Test 14.11.2026: 896×1152/36 Schritte 84–139 s, Peak 13 GB, Seed bitidentisch reproduzierbar; Inpaint 0 Pixel außerhalb der Maske verändert. Ohne Kleidungsangabe Tendenz zu unbekleideten Motiven; Rechteckmasken erzeugen sichtbare Kanten (Objektmasken nötig)."
 
 [engines.realcore_illustrious]
 title = "RealCore Illustrious v1.0 (SDXL/Illustrious)"
@@ -343,7 +343,7 @@ sha256 = "eb5a71fe4068ee87ccdb1c3aa635e547ca76bd2d30ae20ae889f2c325c0677e8"
 engine = "lustify_sdxl"
 ui = "image/lustify_sdxl_t2i.ui.json"
 api = "image/lustify_sdxl_t2i.api.json"
-status = "OFFEN"
+status = "PASS"
 
 [workflows.lustify_sdxl_t2i.params]
 prompt = { node = "2", input = "text", type = "str", required = true }
@@ -358,7 +358,7 @@ height = { node = "4", input = "height", type = "int", min = 512, max = 2048, mu
 engine = "lustify_sdxl"
 ui = "image/lustify_sdxl_inpaint.ui.json"
 api = "image/lustify_sdxl_inpaint.api.json"
-status = "OFFEN"
+status = "PASS"
 
 [workflows.lustify_sdxl_inpaint.params]
 image = { node = "2", input = "image", type = "str", required = true, upload = true }
@@ -427,3 +427,31 @@ steps = { node = "8", input = "steps", type = "int", min = 8, max = 80 }
 cfg = { node = "8", input = "cfg", type = "float", min = 1.0, max = 10.0 }
 width = { node = "7", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
 height = { node = "7", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
+
+[workflows.wan22_i2v]
+engine = "wan22_i2v"
+ui = "video/wan22_i2v.ui.json"
+api = "video/wan22_i2v.api.json"
+status = "OFFEN"
+
+[workflows.wan22_i2v.params]
+image = { node = "1", input = "image", type = "str", required = true, upload = true }
+prompt = { node = "5", input = "text", type = "str", required = true }
+negative_prompt = { node = "6", input = "text", type = "str" }
+seed = { node = "11", input = "noise_seed", type = "int", min = 0, max = 4294967295 }
+width = { node = "8", input = "width", type = "int", min = 320, max = 1280, multiple_of = 16 }
+height = { node = "8", input = "height", type = "int", min = 320, max = 1280, multiple_of = 16 }
+
+[workflows.wan22_remix_v30_i2v]
+engine = "wan22_remix_v30"
+ui = "video/wan22_remix_v30_i2v.ui.json"
+api = "video/wan22_remix_v30_i2v.api.json"
+status = "OFFEN"
+
+[workflows.wan22_remix_v30_i2v.params]
+image = { node = "1", input = "image", type = "str", required = true, upload = true }
+prompt = { node = "5", input = "text", type = "str", required = true }
+negative_prompt = { node = "6", input = "text", type = "str" }
+seed = { node = "11", input = "noise_seed", type = "int", min = 0, max = 4294967295 }
+width = { node = "8", input = "width", type = "int", min = 320, max = 1280, multiple_of = 16 }
+height = { node = "8", input = "height", type = "int", min = 320, max = 1280, multiple_of = 16 }

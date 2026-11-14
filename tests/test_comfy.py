@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -67,6 +68,11 @@ class FakeComfy:
                                 },
                             },
                         )
+                    try:  # wie ComfyUI 0.45.3: prompt_id muss eine gültige UUID sein
+                        uuid.UUID(body["prompt_id"], version=4)
+                        assert "-" in body["prompt_id"]
+                    except (ValueError, AssertionError):
+                        return self._send(400, {"error": "prompt_id must be a valid UUID"})
                     fake.prompts[body["prompt_id"]] = body["prompt"]
                     return self._send(200, {"prompt_id": body["prompt_id"], "node_errors": {}})
                 if self.path == "/queue":

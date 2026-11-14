@@ -103,7 +103,7 @@ class ComfyClient:
         return self._json("GET", "/object_info")
 
     def submit(self, graph: dict, prompt_id: str | None = None) -> str:
-        prompt_id = prompt_id or uuid.uuid4().hex
+        prompt_id = prompt_id or str(uuid.uuid4())  # ComfyUI verlangt UUID-Format
         try:
             res = self._json(
                 "POST",
@@ -373,6 +373,31 @@ def _default(spec: list) -> object:
     return values[0] if values else None
 
 
+def _is_dynamic_combo(spec: list) -> bool:
+    return isinstance(spec[0], str) and spec[0].startswith("COMFY_DYNAMICCOMBO")
+
+
+def _dynamic_widgets(name: str, spec: list, inputs: dict) -> list:
+    """Widget-Werte einer dynamischen Combo wie im ComfyUI-UI-Format: Wert, dann Unterwerte."""
+    options = _spec_options(spec).get("options", [])
+    value = inputs.get(
+        name, _spec_options(spec).get("default", options[0]["key"] if options else None)
+    )
+    values = [value]
+    option = next((o for o in options if o.get("key") == value), {})
+    sub_specs = {
+        **option.get("inputs", {}).get("required", {}),
+        **option.get("inputs", {}).get("optional", {}),
+    }
+    for sub, sub_spec in sub_specs.items():
+        key = f"{name}.{sub}"
+        if _is_dynamic_combo(sub_spec):
+            values += _dynamic_widgets(key, sub_spec, inputs)
+        elif _is_widget(sub_spec):
+            values.append(inputs.get(key, _default(sub_spec)))
+    return values
+
+
 def _node_spec(object_info: dict, class_type: str) -> dict:
     info = object_info.get(class_type)
     if info is None:
@@ -400,9 +425,12 @@ def check_graph(graph: dict, object_info: dict, runtime_inputs: set[tuple[str, s
             if name not in node["inputs"] and not dynamic:
                 problems.append(f"{nid} {node['class_type']}: Pflichteingang '{name}' fehlt")
         for name, value in node["inputs"].items():
-            if name not in spec:
+            base = name.split(".")[0]
+            if name not in spec and not (base in spec and _is_dynamic_combo(spec[base])):
                 problems.append(f"{nid} {node['class_type']}: unbekannter Eingang '{name}'")
                 continue
+            if name not in spec:
+                continue  # Unterwert einer dynamischen Combo
             if _is_link(value):
                 if value[0] not in graph:
                     problems.append(f"{nid}.{name}: Verweis auf fehlenden Node {value[0]}")
@@ -444,6 +472,9 @@ def api_to_ui(graph: dict, object_info: dict) -> dict:
         inputs, widgets = [], []
         for name, sp in spec.items():
             value = node["inputs"].get(name)
+            if _is_dynamic_combo(sp):
+                widgets += _dynamic_widgets(name, sp, node["inputs"])
+                continue
             if _is_widget(sp):
                 if _is_link(value):
                     typ = "COMBO" if _combo_values(sp) is not None else sp[0]
