@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN FRONT V1
 
-**Version:** 1.5 · **Stand:** 14.11.2026  
+**Version:** 1.6 · **Stand:** 15.11.2026  
 **Zuständigkeit:** ausschließlich React-Frontend, Bedienbarkeit und typisierter Frontend-/Backend-Vertrag  
 **Backend-Gegenstück:** [PHASENPLAN_BACK_V1.md](PHASENPLAN_BACK_V1.md)  
 **Status:** F1–F3b am Mac abgenommen (PASS); F4 Nachrichten fachlich spezifiziert, Implementierung/Abnahme OFFEN; F5–F6 OFFEN.
@@ -189,6 +189,15 @@ Handshake `Hello/Welcome` prüft Major-/Minor-Kompatibilität und angebotene Top
 - Backend-/Frontend-Protokoll zusammen versionieren und in einer Release-Einheit ausliefern; altes Release bleibt bei fehlerhaftem Update wieder startbar.
 - Plattform-API-Fehler betreffen ausschließlich den jeweiligen Adapter; UI zeigt `VERBINDUNG ERNEUERN` nur, wenn eine konkrete Aktion implementiert ist.
 - Die Swift-Starter-App öffnet die React-URL **erst nach erfolgreichem Backend-Health-Check**. Alte Start-/Stop-Logik nicht duplizieren oder beschädigen.
+
+### Native macOS-/M4-Max-Betriebszustände (verbindlicher Backend-Reuse)
+
+**Quelle und Realisierungsauftrag:** [Backend-Phasenplan §4B](PHASENPLAN_BACK_V1.md) ist für CPU, native Dienste und **exakte DarkBot-Quellpfade** allein maßgeblich. Der DarkBot-Quellroot lautet \`/Users/sawyer_ma/Desktop/Firma/2_DarkMa/6_DarkBot/DarkBot/\`, insbesondere \`ops/darkbotctl\`, \`project_0/native/crates/runtime/src/host.rs\`, \`project_0/native/crates/common/src/qos.rs\` und \`bsc/engine/crates/geth_ipc/src/host.rs\`; weitere Originalpfade und Übernahmegrenzen stehen vollständig in §4B. Kein Frontend-Import aus DarkBot und keine Wiederimplementierung der Host-Erkennung in TypeScript.
+
+- **Einfacher Betrieb:** Die pinke C-App und das bestehende React-Cockpit bleiben einzige Betreiberoberfläche. Der Backend-Dienstcontroller steuert native \`launchd\`-Prozesse, **kein Docker, Compose, Container, Linux-VM oder Rosetta**. Chatwoot Community v4.19.1 bleibt Ruby/Rails mit eigenem Puma, Sidekiq, PostgreSQL/pgvector und Redis; die Python-Bridge bleibt alleiniger Darkfluenzer-Zugang. Kein Chatwoot-Rewrite in Rust/Python und keine zweite Chatwoot-Vue-Oberfläche.
+- **Realer Zustand statt Scheinanzeige:** Bereits spezifizierte F3-ComfyUI-1-Zustände bleiben erhalten; F4 ergänzt die unabhängige ComfyUI-2- und Chatwoot-Anbindung. Für jeden betroffenen Dienst müssen \`NICHT EINGERICHTET\`, \`GESTOPPT\`, \`STARTET\`, \`BEREIT\`, \`FEHLER\` oder eine entsprechend tatsächliche Backend-Statusklasse klar unterscheidbar sein. Nicht alle neuen Dienste auf einen künstlichen Gesamt-\`BEREIT\`-Status reduzieren. Status ausschließlich aus eigenem Python-/Protobuf-State, kein Browser-Polling und keine neuen Hauptreiter.
+- **Host-/CPU-Diagnostik nur bei konkretem Bedarf:** ARM64/Rosetta, Host-Identität, CPU-/P-/E-Level, aktive Kerne, Thermal-/Low-Power-Zustand, QoS-Ist-/Fehlerwerte und ressourcenbezogene Kennzahlen werden im Backend gemessen. Keine dauerhafte technische Zahlenwand im Cockpit; gegebenenfalls vorhandenen Betriebsstatus um einen kompakten Diagnose-Detailzustand ergänzen, erst wenn echte Daten vorliegen. Keine GPU-Modellrechnung im Darkfluenzer-Backend behaupten: Diese gehört ausschließlich den beiden ComfyUI-Laufzeiten.
+- **Abnahme:** Bestand F1–F3b unverändert PASS. Native Chatwoot-Installation, der gemeinsame \`launchd\`-Betrieb und gemessene M4-CPU-Parameter sind gemäß \`NATIVE-01\` bis \`M4-CPU-03\` in Backend §4B **OFFEN**. Keine vorzeitige F4-/Betriebs-PASS-Meldung.
 
 ## F5 — Rams-Regeln auch für Code, Tests und Sicherheit
 
