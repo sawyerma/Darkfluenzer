@@ -1,7 +1,7 @@
 # DARKFLUENZER — PHASENPLAN V1
 
 **Dokument:** `docs/PHASENPLAN_V1.md`  
-**Version:** 1.0  
+**Version:** 1.1  
 **Stand:** 14.11.2026  
 **Status:** Verbindlicher Architektur- und Umsetzungsplan; Implementierung und lokale Abnahme noch ausstehend  
 **Repository:** [sawyerma/Darkfluenzer](https://github.com/sawyerma/Darkfluenzer)  
@@ -14,19 +14,20 @@
 
 Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienproduktionssystem** entwickelt. Zunächst startet ein macOS-App-Icon ComfyUI zuverlässig mit einem Doppelklick. Darauf aufbauend kann ein autonomer Agent Kundenanfragen über einen privaten Telegram-Kanal bzw. Telegram-Bot entgegennehmen, im Charakter einer eindeutig virtuellen erwachsenen Influencerin antworten, durch ein lokales Sprachmodell Produktionsaufträge formulieren, lokale Bild-/Video-Workflows über die ComfyUI-API ausführen, je Auftrag **drei Vorschläge** erzeugen und sie dem Betreiber zur Prüfung vorlegen.
 
-**Ohne ausdrückliche Betreiberfreigabe erfolgt keine Weiterleitung an den Kunden.** Nach Freigabe liefert das System ausschließlich die genehmigte Variante aus, protokolliert den Vorgang und hält die Unterhaltung getrennt vom Mediengenerator.
+**Ohne bestätigte Zahlung UND ausdrückliche Betreiberfreigabe erfolgt keine Auslieferung an den Kunden.** Der Betreiber genehmigt ein konkretes, unveränderliches Artefakt. Das Zahlungssystem und der Freigabedienst sind voneinander unabhängige Autoritäten; das LLM darf keines der beiden Gates übersteuern.
 
 ### 1.1 Zielablauf
 
-1. Kunde sendet Telegram-Nachricht an den Bot.
-2. Eingang wird validiert, dem Kundenkontext zugeordnet und als Auftrag erfasst.
-3. Lokales LLM erstellt eine normale Kundenantwort und einen strukturierten internen Medienauftrag; Prompt-/Workflow-Erzeugung ist nachvollziehbar.
-4. Orchestrator wählt einen freigegebenen Bild- oder Video-Workflow und startet bei Bedarf ComfyUI automatisch.
-5. ComfyUI generiert standardmäßig **drei** Varianten mit nachvollziehbaren Seeds/Parametern.
-6. Vorschauen werden ausschließlich dem Betreiber über einen privaten Freigabekanal und optional über ein lokales Dashboard zugestellt.
-7. Betreiber genehmigt genau eine Variante, lehnt ab oder fordert Überarbeitung an.
-8. Erst der autorisierte Freigabeentscheid erlaubt dem Versandmodul die Zustellung an den ursprünglichen Kunden.
-9. Status, Fehlermeldungen, Zeiten, Modellversionen und Auslieferung werden revisionsfähig protokolliert.
+1. Ein Kunde führt im privaten Telegram-Bot einen fortlaufenden Dialog mit der **als virtuell gekennzeichneten** Influencerin.
+2. Die lokale LLM-Schicht extrahiert aus dem Chat nur die zur Leistungserbringung nötigen Informationen: Bild/Video, Motiv, Pose, Gesichtsausschnitt, Kleidung, Perspektive, Stil, Format, bereits genannte Änderungswünsche.
+3. Ein deterministischer **Sales-Trigger** zählt je Kundenkonversation eindeutig zuordenbare, wiederholte Medienanfragen. **Konfigurierbare Vorgabe: nach der dritten qualifizierten Anfrage** unterbreitet der Bot ein klares kostenpflichtiges Angebot mit Leistung, Preis und Lieferbedingung. Eine explizite Kaufabsicht kann das Angebot früher auslösen; bloßes Smalltalk-Zählen ist unzulässig. Keine künstliche Dringlichkeit oder Täuschung über reale Identität.
+4. Kunde nimmt das Angebot an und erhält eine dem Auftrag eindeutig zugeordnete Zahlungsanforderung. **Kein Produktionsauftrag ohne bestätigten Zahlungseingang**, soweit keine ausdrücklich konfigurierte Test-/Gratisregel greift.
+5. Der Payment-Adapter validiert die finale Zahlung serverseitig und ordnet die Transaktions-ID genau einem Auftrag zu; eine Nachricht oder ein Screenshot des Kunden ist niemals ein Zahlungsnachweis.
+6. Das LLM erstellt aus dem gespeicherten Gespräch einen **strukturierten Medienauftrag und konkreten Bild- bzw. Videoprompt**. Der Orchestrator wählt **zwei strikt getrennte Produktionswege**: `image` → SDXL/LoRA/Inpainting/Refinement; `video` → Wan/LTX/Video-Refinement.
+7. ComfyUI wird bei Bedarf automatisch gestartet und erzeugt standardmäßig **drei Kandidaten** des bestellten Medientyps, mit nachvollziehbaren Modellversionen, Seeds und Parametern.
+8. Vorschauen und Auftragsbeschreibung werden ausschließlich dem Betreiber auf dem Handy (privater Betreiber-Chat) und optional am lokalen Operator-Dashboard angezeigt. Auswahl: **Freigeben / Ablehnen / Neu erstellen**.
+9. **Nur wenn `payment_confirmed = true` UND `operator_approved = true`** ist, darf der Delivery-Service ausschließlich das konkret genehmigte Bild oder Video an den zugehörigen Kunden versenden.
+10. Chat, Angebot, Auftrag, Zahlung, Generierung, Freigabe und Versand werden konsistent protokolliert; Ausfall-/Storno-/Erstattungsfälle haben definierte Zustände.
 
 ### 1.2 Qualitätsziel
 
@@ -40,7 +41,7 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 
 - Vollständige lokale Bild-/Videogenerierung; keine verpflichtende fremde Inferenz-API.
 - Modulare Architektur: Telegram, LLM, Orchestrator, ComfyUI, Freigabe und Versand unabhängig austauschbar.
-- Kein Versand an Kunden ohne nachweisbare, auftragsbezogene Freigabe.
+- Kein Versand an Kunden ohne **beides**: bestätigte, auftragsgebundene Zahlung **und** nachweisbare, auftragsbezogene Betreiberfreigabe.
 - Keine vorgetäuschte technische Funktionsfähigkeit; jede Phase benötigt Tests auf dem tatsächlichen Mac.
 - Keine Änderungen an anderen Projekten oder deren Laufzeitumgebungen.
 - Nutzung ausschließlich eigener bzw. hinreichend lizenzierter Modellgewichte, Daten und Medien. Für Adult-Angebote: nur eindeutig erwachsene, synthetische Figuren; erforderliche Alters-/Inhalts- und Plattformvorgaben vor der Produktivschaltung prüfen.
@@ -58,9 +59,12 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 7. **Robustheit:** Idempotente Starts, definierte Stopps, Health-Checks, Timeouts, Retry-Budgets, atomare Zustandsübergänge.
 8. **Tests vor Fertigmeldung:** Jede Phase hat messbare Abnahmekriterien, dokumentierten Nachweis und Git-Commit.
 9. **Keine Qualitätsbehauptung ohne A/B-Test:** Modellrankings, „professionell“ und „maximale Qualität“ gelten erst nach methodischer Prüfung als belegt.
-10. **Auslieferung als privilegierte Aktion:** Nur ein autorisierter Approval-Service kann die Versandfreigabe erteilen; die LLM-Ausgabe niemals direkt.
+10. **Auslieferung als privilegierte Aktion:** Ausschließlich der Delivery-Service mit zwei unabhängigen, serverseitig geprüften Gates (Payment-Service + Approval-Service) darf liefern; die LLM-Ausgabe niemals direkt.
 11. **Direkt auf `main`:** Solange nichts anderes beschlossen wird; pro abgeschlossenem Paket sauber committen und pushen.
-12. **Minimaler Initialumfang:** Zuerst der funktionierende Launcher. Telegram, LLM und Medienautomatisierung folgen erst in ihren vorgesehenen Phasen.
+12. **Minimaler Initialumfang:** Zuerst der funktionierende Launcher. Telegram, LLM, Zahlungsanbindung und Medienautomatisierung folgen erst in ihren vorgesehenen Phasen.
+13. **Nachvollziehbarer Verkauf:** Die festgelegte Grenze von drei qualifizierten Medienanfragen wird unabhängig vom LLM über einen zustandsbehafteten Sales-Service gezählt; ein abgelehntes Angebot darf nicht durch wiederholte ungefragte Verkaufsaufforderungen umgangen werden.
+14. **Zahlungsautorisierung:** Nur ein vom Zahlungsanbieter bestätigtes, idempotent verarbeitetes Ereignis darf den Auftrag als bezahlt markieren. Weder Nutzertext noch Modellantwort noch lokale UI dürfen dies simulieren.
+15. **Getrennte Medienwege:** Bild- und Videoworkflows teilen nur kontrollierte Auftrags-/Dateischnittstellen, niemals inkompatible Modellgewichte/LoRAs.
 
 ---
 
@@ -74,6 +78,7 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 │   ├── ARCHITEKTUR.md               # Komponenten, APIs, Zustandsübergänge
 │   ├── BETRIEB.md                   # Installieren, Starten, Stoppen, Fehlerdiagnose
 │   ├── MODELLE_LIZENZEN.md          # Modellstand, Hash, Lizenz, Apple-Abnahme
+│   ├── ZAHLUNG_UND_VERTRIEB.md      # Angebot, Zahlstatus, Erstattung, Plattformprüfung
 │   ├── TESTPLAN.md                  # Reproduzierbare Abnahmetests
 │   └── STATUS.md                    # Ist-Zustand, offene Punkte, Evidenz
 ├── apps/
@@ -86,6 +91,8 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 │   ├── llm/                         # Lokale Sprachmodell-Anbindung
 │   ├── identity/                    # Figuren-/Referenzprofile
 │   ├── jobs/                        # Auftragserzeugung, Orchestrierung
+│   ├── sales/                       # Qualifizierte Anfragen, Angebote, Preisliste
+│   ├── payments/                    # Zahlungs-Adapter, Bestätigungen, Erstattungen
 │   ├── review/                      # Freigabe, Reject, Revision
 │   ├── telegram/                    # Kunden- und Betreiberkanal getrennt
 │   ├── delivery/                    # Ausschließlich freigegebene Zustellung
@@ -213,14 +220,15 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 
 ### P04 — Lokales Sprachmodell und Auftragsinterpretation
 
-**Ziel:** Kundenwünsche in prüfbare, deterministische Produktionsaufträge übersetzen.
+**Ziel:** Kundenwünsche aus dem Gespräch extrahieren und nach bestätigter Zahlung in prüfbare, deterministische Medienaufträge übersetzen.
 
 **Arbeiten**
 - Lokalen LLM-Backend-Adapter (z. B. MLX/llama.cpp/Ollama) als austauschbare Schnittstelle erstellen.
 - Charakterprofil, Chatverlauf und Auftragsinformationen getrennt halten.
-- Freitext in typisierte Auftragseigenschaften umwandeln: Motiv, Kameraperspektive, Outfit, Format, Modellprofil, Variantenanzahl, Referenzen.
+- Freitext über mehrere Dialognachrichten hinweg in typisierte Auftragseigenschaften umwandeln: Medienart (`image`/`video`), Motiv, Pose, Kameraperspektive, Outfit, Format, Modellprofil, Variantenanzahl, Referenzen und Änderungswünsche.
 - Prompt-Validierung, zulässige Workflow-Parameter und Versionsverwaltung implementieren.
-- Das LLM darf **weder Systembefehle noch direkte Versandfreigaben** erteilen.
+- Das LLM darf **weder Systembefehle noch Zahlungserfolg noch direkte Versandfreigaben** erteilen.
+- Für `image` ausschließlich passende SDXL-/LoRA-/Inpainting-Workflows; für `video` ausschließlich passende Wan-/LTX-/Temporal-Workflows zuordnen.
 
 **Abnahme**
 - Derselbe Eingabevertrag wird ohne Telegram über Tests ausgeführt.
@@ -229,37 +237,48 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 
 **Status:** OFFEN.
 
-### P05 — Telegram-Eingang und Kundendialog
+### P05 — Telegram-Eingang, Kundendialog und Angebotslogik
 
-**Ziel:** Private Kundenkommunikation und Auftragserfassung.
+**Ziel:** Ein fortlaufender Kundendialog extrahiert Informationen, erkennt die wiederholte Kaufabsicht und bietet das konkret angefragte Medium kostenpflichtig an.
 
 **Arbeiten**
 - Telegram-Bot anbinden; private Betreiber- und Kunden-Chat-IDs strikt trennen.
 - Webhook oder Long-Polling mit Authentizität/Rate Limits, eindeutiger Nachrichten-ID und Deduplizierung.
-- Nachrichtenhistorie pro Kunde verwalten; Bildaufträge getrennt vom Dialog speichern.
+- Nachrichtenhistorie pro Kunde verwalten; Bild- und Videoaufträge getrennt vom Dialog speichern.
+- **Sales-Service:** qualifizierte, eindeutig abgegrenzte Medienanfragen zählen; Standard-Trigger beim **dritten** relevanten Wunsch; ausdrückliche Kaufbitte kann frühere Angebotslegung auslösen.
+- Angebot und Preis pro Bild/Video als versionierte Produktkonfiguration bereitstellen; Leistung und Kosten vor Annahme eindeutig benennen.
+- Ablehnungen und bereits beantwortete Angebote erkennen; keine aufdringlichen Wiederholungen; Bot ist als KI-Charakter erkennbar.
 - Eingangsbestätigung und Bearbeitungsstatus; keine automatische Medienauslieferung.
 - Gegebenenfalls transparent machen, dass die Figur eine KI ist; Adult-Angebote erst nach Prüfung der einschlägigen Telegram-Regeln und Altersanforderungen einschalten.
 
 **Abnahme**
-- Testnachricht erzeugt einen Job beim korrekten Kunden.
+- Testnachricht erzeugt eine kundenspezifische Dialog-/Intent-Erfassung; ein kostenpflichtiger Produktionsjob wird erst nach bestätigter Zahlung freigegeben.
+- Drei unterschiedliche qualifizierte Medienanfragen führen zu genau einem Angebot; Smalltalk, Dubletten und wiederholte Updates lösen keine zusätzlichen Angebote aus.
 - Dubletten erzeugen keine doppelten Aufträge.
 - Betreiber erhält keine Kundennachricht als versehentliche Kundenausgabe und umgekehrt.
 
 **Status:** OFFEN.
 
-### P06 — Betreiberfreigabe, Versionierung und kontrollierter Versand
+### P06 — Zahlungsabgleich, Betreiberfreigabe und kontrollierter Versand
 
-**Ziel:** Betreiber entscheidet über jedes einzelne Kundenmedium.
+**Ziel:** Kundenauslieferung ausschließlich nach erfolgreich verifizierter Zahlung und persönlicher Betreiberfreigabe.
 
 **Arbeiten**
+- Payment-Service als eigenständigen, austauschbaren Adapter integrieren: Angebot, Rechnung, `payment_pending`, signierte/verifizierte Zahlungsbestätigung, Refund, Storno, Timeout.
+- Telegram-Digitalverkäufe gemäß Telegram-Zahlungsdokumentation über Stars (`XTR`) prüfen; **PayPal ist für sexuell orientierte digitale Inhalte nach den PayPal-Regeln nicht zugelassen.** Anbieter/Verkauf dürfen erst nach inhaltlicher und kommerzieller Freigabe produktiv sein.
+- Zahlungs-ID mit `customer_id`, `order_id`, Betrag, Währung und eindeutigem Zahlungsstatus verknüpfen; Zahlungsereignisse idempotent verarbeiten.
 - Betreiber bekommt drei Vorschauen mit Auftrag, Seed, Modell, Zeitpunkt, Qualitätsstatus und Buttons **Freigeben**, **Ablehnen**, **Neu erstellen**.
 - Freigaben sind authentifiziert, einem konkreten Medienhash und Auftrag zugeordnet, protokolliert und nicht wiederverwendbar.
 - Medien nach Freigabe nicht mehr austauschbar; Zustellung nur des genehmigten Hashs.
 - Ablauf-/Storno-Logik, Zeitüberschreitungen und Fehlerpfade einrichten.
 - Versanddienst hat keine freie Generierungs- oder LLM-Berechtigung.
+- **Doppelte Lieferbedingung:** serverseitig bestätigte Zahlung plus gültige Betreiberfreigabe für exakt den unveränderlichen Medienhash.
+- Bereits bezahlte, aber abgelehnte oder nicht erfüllbare Bestellungen gehen in einen ausdrücklich geregelten Revision-/Refund-Prozess.
 
 **Abnahme**
 - Ohne Betreiberfreigabe: **0** Kundenlieferungen.
+- Ohne erfolgreich bestätigte Zahlung: **0** Kundenlieferungen.
+- Falsche, ausstehende, widerrufene, mehrfach gemeldete oder zu einem anderen Auftrag gehörende Zahlungen: **0** Freigaben zum Versand.
 - Ablehnung: **0** Kundenlieferungen.
 - Geänderte Bilddatei nach Freigabe wird nicht versendet.
 - Freigabe von Kunde A kann nicht Kunde B beliefern.
@@ -281,7 +300,7 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 **Abnahme**
 - Absturz-, Neustart-, Netzwerkfehler- und Mehrfachanfragen-Test bestehen.
 - Kein Token oder Kundenmedium in Git.
-- Keine Auslieferung ohne Freigabe auch bei Restart/Race Conditions.
+- Keine Auslieferung ohne **Zahlung und Freigabe** auch bei Restart/Race Conditions.
 - Recovery eines unterbrochenen Auftrags ohne unkontrollierte Doppelzustellung.
 
 **Status:** OFFEN.
@@ -297,7 +316,7 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 - Betriebshandbuch, Statusübersicht, Recovery-Anleitung und reproduzierbare Release-Artefakte.
 
 **Abnahme**
-- Eingang → LLM → drei Medien → Betreiberfreigabe → korrekte Zustellung nachweislich PASS.
+- Telegram-Dialog → dritter qualifizierter Medienwunsch → Angebot → bestätigte Zahlung → LLM-Prompt → passende Bild-/Videopipeline → drei Medien → Betreiberfreigabe → korrekte Zustellung nachweislich PASS.
 - Sämtliche Fehlerpfade getestet und mit Status versehen.
 - Lizenz-/Plattform-Freigabe für den geplanten kommerziellen Betrieb dokumentiert.
 - Versionsmarkierung `v1.0` erst nach vollständiger E2E-Abnahme.
@@ -311,22 +330,30 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 ### 5.1 Jobzustände (verbindlich)
 
 ```text
-RECEIVED
-  -> VALIDATED
+DIALOG_ACTIVE
+  -> INTENT_QUALIFIED
+  -> OFFERED
+  -> PAYMENT_PENDING
+  -> PAYMENT_CONFIRMED
   -> PROMPT_READY
   -> QUEUED
   -> GENERATING
   -> REVIEW_PENDING
   -> APPROVED | REJECTED | REVISION_REQUESTED
-APPROVED -> DELIVERY_QUEUED -> DELIVERED
-Alle aktiven Zustände -> FAILED oder CANCELLED (kontrolliert)
+APPROVED + PAYMENT_CONFIRMED -> DELIVERY_QUEUED -> DELIVERED
+REJECTED/FAILED nach Zahlung -> REVISION_PENDING oder REFUND_PENDING
+Alle zulässigen aktiven Zustände -> FAILED oder CANCELLED (kontrolliert)
 ```
 
-**Invariant A:** Nur `APPROVED` darf `DELIVERY_QUEUED` auslösen.  
+**Invariant A:** Nur **`APPROVED` UND `PAYMENT_CONFIRMED`** dürfen gemeinsam `DELIVERY_QUEUED` auslösen.  
 **Invariant B:** Die Freigabe referenziert `job_id`, `artifact_id`, `content_hash`, `operator_id`, `approved_at`.  
 **Invariant C:** Ein Medienartefakt ist nach der Freigabe unveränderlich.  
 **Invariant D:** Pro eindeutiger Versandfreigabe höchstens eine tatsächliche Zustellung; Wiederholungsversuche sind idempotent.  
-**Invariant E:** Keine Telegram-Antwort aus einem unvalidierten LLM-Toolaufruf oder Medienpfad.
+**Invariant E:** Keine Telegram-Antwort aus einem unvalidierten LLM-Toolaufruf oder Medienpfad.  
+**Invariant F:** `payment_confirmed` kann nur durch den Payment-Service mit verifiziertem Anbieterereignis gesetzt werden.  
+**Invariant G:** Eine bestätigte Zahlung gilt nur für den eindeutig zugeordneten Auftrag und vereinbarten Inhalt/Preis.  
+**Invariant H:** Bei unbekanntem Zahlungsstatus oder fehlender Betreiberfreigabe bleibt die Auslieferung gesperrt.  
+**Invariant I:** `image` und `video` wählen getrennte, versionierte, kompatible Workflows; Bilddateien dürfen als kontrollierte Übergabe an I2V dienen.
 
 ### 5.2 Prozess- und Netzgrenzen
 
@@ -335,7 +362,10 @@ Alle aktiven Zustände -> FAILED oder CANCELLED (kontrolliert)
 - Der Orchestrator nutzt die dokumentierte ComfyUI-HTTP-/WebSocket-API; keine Klick-Automation als Produktionsschnittstelle.
 - Kundeneingaben können keine Dateipfade, Shell-Kommandos oder beliebige ComfyUI-Nodes vorgeben.
 - Medienablage verwendet generierte interne IDs; kein direkter Zugriff aus Telegram auf das Dateisystem.
-- Telegram-Tokens und Betreiber-ID werden nicht in Git eingecheckt.
+- Telegram-Tokens, Zahlungs-Provider-Secrets und Betreiber-ID werden nicht in Git eingecheckt.
+- Der Sales-Service nimmt nur validierte Dialog-Intents entgegen; er führt keine Zahlungen aus.
+- Der Payment-Service akzeptiert ausschließlich authentifizierte Zahlungs-Provider-Ereignisse; keine manuell eingegebene `PAID`-Markierung im Kundenchat.
+- Der Delivery-Service holt Zahlung und Freigabe unabhängig aus ihren jeweiligen Autoritätsquellen.
 
 ### 5.3 Modell-/Workflow-Registry
 
@@ -359,12 +389,14 @@ Für jeden Eintrag sind vorzuhalten: eindeutiger Name, Architektur (SDXL/Wan/LTX
 - Launcher: Zeit bis Health-Ready, Doppelklick-Idempotenz, Stop-/Restart-Korrektheit.
 - Bot: Inbox-Deduplizierung, wartende Jobs, Abbruchquote, Fehlzustellungen.
 - Freigabe: **0** unautorisierte Lieferungen in sämtlichen automatisierten Tests.
+- Zahlung: **0** Lieferungen bei `PENDING`, `FAILED`, `CANCELLED`, falscher `order_id` oder unvalidiertem Zahlungsereignis.
+- Sales: Triggerschwelle von drei qualifizierten Anfragen sowie Dubletten-/Rücksetzregeln mit Tests abgedeckt.
 
 ---
 
 ## 7. Explizit nicht Teil von P01
 
-- Telegram-Kundendialog, LLM, Zahlungsabwicklung, Altersprüfungssystem, Kundenkonto und Versand.
+- Telegram-Kundendialog, LLM, Sales-Trigger, Zahlungsabwicklung, Altersprüfungssystem, Kundenkonto und Versand.
 - Training oder Download großer Bild-/Video-Modelle.
 - Öffnen von ComfyUI-Ports ins Internet.
 - Vollständige Bild-/Videoqualität für Werbe- oder Erwachsenencontent garantieren.
@@ -379,5 +411,14 @@ P01 wird **erst** als abgeschlossen markiert, wenn die `.app` auf dem realen Mac
 `docs/STATUS.md` enthält pro Phase: `OFFEN / IN_ARBEIT / BLOCKIERT / PASS`, Git-Commit, getestete Version, Testdatum, reproduzierbaren Nachweis und offene Befunde. Kein PASS auf Grundlage bloßer Datei-Existenz oder syntaktisch gültiger Workflows.
 
 Änderungen an der Architektur oder Qualitätspipeline erfolgen über einen dokumentierten Änderungsabschnitt im Plan und werden mit demselben Commit wie die Änderung umgesetzt.
+
+### Änderung V1.1 — Verkaufs- und Zahlungsgates (14.11.2026)
+
+- Wiederholte Medienanfragen (`3` qualifizierte Wünsche als konfigurierbare Standardschwelle), explizite Angebote und Auftragserstellung wurden verbindlich definiert.
+- **Zahlung vor automatischer Generierung** ist Standard; Lieferung ist ausnahmslos zusätzlich von der Betreiberfreigabe abhängig.
+- Medienart `image` oder `video` verzweigt in **getrennte** ComfyUI-Workflows mit eigenen Abnahmekriterien.
+- Zahlungsanbieter ist kein fest codierter Dienst. Für digitale Güter innerhalb von Telegram schreibt Telegram Stars vor: https://core.telegram.org/bots/payments-stars ; die Nutzung für konkret geplante Adult-Inhalte ist getrennt zu prüfen.
+- PayPal ist **nicht** als Standard für digitale XXX-Bilder/-Videos vorgesehen: https://www.paypal.com/de/legalhub/paypal/acceptableuse-full?locale.x=en_US und https://www.paypal.com/us/cshelp/article/what-is-paypal%E2%80%99s-policy-on-transactions-that-involve-sexually-oriented-goods-and-services-help384
+- Die Darstellung der virtuellen Figur darf den Käufer nicht über eine angeblich reale menschliche Identität täuschen; Angebot, Preis und Lieferbedingungen müssen klar sein.
 
 **Nächste verbindliche Umsetzung:** P00 Bestand feststellen, unmittelbar darauf P01 macOS-Launcher bauen und auf dem tatsächlichen Mac testen.
