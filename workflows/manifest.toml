@@ -369,3 +369,17 @@ seed = { node = "9", input = "seed", type = "int", min = 0, max = 4294967295 }
 steps = { node = "9", input = "steps", type = "int", min = 8, max = 80 }
 denoise = { node = "9", input = "denoise", type = "float", min = 0.2, max = 1.0 }
 mask_grow = { node = "4", input = "expand", type = "int", min = 0, max = 64 }
+
+[workflows.flux3_klein_base_t2i]
+engine = "flux3_klein_base"
+ui = "image/flux3_klein_base_t2i.ui.json"
+api = "image/flux3_klein_base_t2i.api.json"
+status = "OFFEN"
+
+[workflows.flux3_klein_base_t2i.params]
+prompt = { node = "4", input = "text", type = "str", required = true }
+seed = { node = "7", input = "seed", type = "int", min = 0, max = 4294967295 }
+steps = { node = "7", input = "steps", type = "int", min = 16, max = 80 }
+cfg = { node = "7", input = "cfg", type = "float", min = 1.0, max = 8.0 }
+width = { node = "6", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
+height = { node = "6", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }

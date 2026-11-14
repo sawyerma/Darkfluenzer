@@ -48,6 +48,21 @@ local/.venv/bin/python -m darkfluenzer models orphans            # nicht registr
 
 Gated Repos (FLUX 3 Klein, LTX 2.5) erfordern die Lizenzannahme im eigenen Hugging-Face-Konto.
 
+## Workflows
+
+Jeder registrierte Workflow liegt als `workflows/<image|video>/<engine>_<aufgabe>.ui.json`
+(in ComfyUI öffnen: Workflow → Öffnen) und `.api.json` (vom Backend ausgeführt) vor.
+
+```bash
+local/.venv/bin/python -m darkfluenzer workflows check       # gegen laufende ComfyUI prüfen
+local/.venv/bin/python -m darkfluenzer workflows export-ui   # UI-Exporte aus API neu erzeugen
+local/.venv/bin/python -m darkfluenzer render lustify_sdxl_t2i --set seed=1 --set prompt="…"
+local/.venv/bin/python -m darkfluenzer render lustify_sdxl_inpaint \
+    --input image=master.png --input mask=mask.png --set prompt="…"
+```
+
+Evaluationsläufe landen mit Herkunfts-JSON unter `local/evaluation/<engine>/`.
+
 Logs: `local/logs/comfyui.log` (ComfyUI-Ausgabe, 3 Generationen), `local/logs/darkfluenzer.log`
 (Launcher-Aktionen), `local/logs/app.log` (App-Ereignisse und angezeigte Dialoge).
 

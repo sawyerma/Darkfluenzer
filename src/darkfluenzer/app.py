@@ -121,7 +121,7 @@ def _workflows(action: str) -> tuple[dict, int]:
     """Prüft bzw. erzeugt UI-Exporte gegen die Node-Definitionen der laufenden ComfyUI."""
     cfg = load()
     setup_logging(cfg)
-    man = models.load_manifest(cfg.root)
+    man = models.load_manifest(cfg.root, require_ui=action != "export-ui")
     runtime.start(cfg)
     object_info = comfy.ComfyClient(cfg.comfyui.url, timeout=120).object_info()
     report: dict[str, list[str]] = {}
@@ -133,7 +133,7 @@ def _workflows(action: str) -> tuple[dict, int]:
             ui_path.write_text(json.dumps(ui, indent=1, ensure_ascii=False) + "\n")
         uploads = {(p.node, p.input) for p in wf.params.values() if p.upload}
         problems = comfy.check_graph(graph, object_info, uploads)
-        if json.loads(ui_path.read_text(encoding="utf-8")) != ui:
+        if not ui_path.is_file() or json.loads(ui_path.read_text(encoding="utf-8")) != ui:
             problems.append("UI-Export weicht vom API-Export ab (darkfluenzer workflows export-ui)")
         report[key] = problems
     ok = not any(report.values())
@@ -171,9 +171,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="darkfluenzer", description="Darkfluenzer-Dienst")
     parser.add_argument("--version", action="version", version=__version__)
     sub = parser.add_subparsers(dest="area", required=True)
-    comfy = sub.add_parser("comfy", help="verwaltete ComfyUI-Instanz")
-    comfy.add_argument("action", choices=["start", "stop", "status", "health"])
-    comfy.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
+    cmd = sub.add_parser("comfy", help="verwaltete ComfyUI-Instanz")
+    cmd.add_argument("action", choices=["start", "stop", "status", "health"])
+    cmd.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     mod = sub.add_parser("models", help="Modell-Registry workflows/manifest.toml")
     mod.add_argument("action", choices=["status", "download", "verify", "orphans"])
     mod.add_argument("--wave", type=int)

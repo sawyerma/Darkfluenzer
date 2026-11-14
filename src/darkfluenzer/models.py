@@ -135,7 +135,8 @@ def _str(table: dict, key: str, where: str) -> str:
     return value
 
 
-def load_manifest(root: Path) -> Manifest:
+def load_manifest(root: Path, *, require_ui: bool = True) -> Manifest:
+    """Lädt und validiert die Registry. ``require_ui=False`` nur für das Erzeugen der UI-Exporte."""
     path = root / MANIFEST_RELATIVE
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
@@ -242,7 +243,7 @@ def load_manifest(root: Path) -> Manifest:
             raise ManifestError(f"Manifest: {w}.engine '{wf.engine}' unbekannt.")
         if wf.status not in GATE_VALUES:
             raise ManifestError(f"Manifest: {w}.status muss {GATE_VALUES} sein.")
-        for rel in (wf.ui, wf.api):
+        for rel in (wf.ui, wf.api) if require_ui else (wf.api,):
             if not (root / "workflows" / rel).is_file():
                 raise ManifestError(f"Manifest: {w} verweist auf fehlende Datei workflows/{rel}.")
         graph = json.loads((root / "workflows" / wf.api).read_text(encoding="utf-8"))
