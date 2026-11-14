@@ -158,6 +158,31 @@ class ComfyClient:
                 )
             time.sleep(poll_s)
 
+    def upload_image(self, path: Path, subfolder: str = "darkfluenzer") -> str:
+        """Lädt eine Eingabedatei (Master/Maske) in ComfyUIs input-Ordner; liefert LoadImage-Namen.
+
+        Der Dateiname enthält den SHA-256-Präfix, damit gleiche Namen nie fremde Inhalte treffen.
+        """
+        data = path.read_bytes()
+        name = f"{hashlib.sha256(data).hexdigest()[:16]}_{path.name}"
+        boundary = uuid.uuid4().hex
+        parts = [
+            f'--{boundary}\r\nContent-Disposition: form-data; name="subfolder"\r\n\r\n'
+            f"{subfolder}\r\n",
+            f'--{boundary}\r\nContent-Disposition: form-data; name="overwrite"\r\n\r\ntrue\r\n',
+            f'--{boundary}\r\nContent-Disposition: form-data; name="image"; filename="{name}"'
+            "\r\nContent-Type: application/octet-stream\r\n\r\n",
+        ]
+        body = "".join(parts).encode() + data + f"\r\n--{boundary}--\r\n".encode()
+        req = urllib.request.Request(self.base + "/upload/image", data=body, method="POST")
+        req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+        try:
+            with self._opener.open(req, timeout=self.timeout) as resp:
+                res = json.loads(resp.read())
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            raise ComfyError(f"Upload von {path.name} fehlgeschlagen: {exc}") from exc
+        return f"{res['subfolder']}/{res['name']}" if res.get("subfolder") else res["name"]
+
     def fetch(self, image: dict) -> bytes:
         query = urllib.parse.urlencode(
             {
@@ -313,3 +338,169 @@ def _execution_error(status: dict) -> str:
         if kind == "execution_interrupted":
             return "abgebrochen"
     return "unbekannter Fehler"
+
+
+# -------------------------------------------------------------------- Workflow-Verträge
+
+_WIDGET_TYPES = {"INT", "FLOAT", "STRING", "BOOLEAN", "COMBO"}
+
+
+def _is_link(value: object) -> bool:
+    return isinstance(value, list) and len(value) == 2 and isinstance(value[1], int)
+
+
+def _spec_options(spec: list) -> dict:
+    return spec[1] if len(spec) > 1 and isinstance(spec[1], dict) else {}
+
+
+def _combo_values(spec: list) -> list | None:
+    if isinstance(spec[0], list):
+        return spec[0]
+    if spec[0] == "COMBO":
+        return _spec_options(spec).get("options")
+    return None
+
+
+def _is_widget(spec: list) -> bool:
+    return isinstance(spec[0], list) or spec[0] in _WIDGET_TYPES
+
+
+def _default(spec: list) -> object:
+    opts = _spec_options(spec)
+    if "default" in opts:
+        return opts["default"]
+    values = _combo_values(spec)
+    return values[0] if values else None
+
+
+def _node_spec(object_info: dict, class_type: str) -> dict:
+    info = object_info.get(class_type)
+    if info is None:
+        raise ComfyError(f"Node-Typ '{class_type}' ist in dieser ComfyUI nicht vorhanden.")
+    return {**info["input"].get("required", {}), **info["input"].get("optional", {})}
+
+
+def check_graph(graph: dict, object_info: dict, runtime_inputs: set[tuple[str, str]]) -> list[str]:
+    """Prüft einen API-Graphen gegen die echte Node-Definition der laufenden ComfyUI.
+
+    Findet unbekannte Nodes/Eingänge, fehlende Pflichteingänge, ungültige Verweise und
+    COMBO-Werte, die ComfyUI nicht kennt (z. B. fehlende Modelldatei). ``runtime_inputs``
+    (Node, Eingang) werden erst zur Laufzeit gesetzt und nicht als COMBO geprüft.
+    """
+    problems = []
+    for nid, node in graph.items():
+        try:
+            spec = _node_spec(object_info, node["class_type"])
+        except ComfyError as exc:
+            problems.append(f"{nid}: {exc}")
+            continue
+        required = object_info[node["class_type"]]["input"].get("required", {})
+        for name in required:
+            if name not in node["inputs"]:
+                problems.append(f"{nid} {node['class_type']}: Pflichteingang '{name}' fehlt")
+        for name, value in node["inputs"].items():
+            if name not in spec:
+                problems.append(f"{nid} {node['class_type']}: unbekannter Eingang '{name}'")
+                continue
+            if _is_link(value):
+                if value[0] not in graph:
+                    problems.append(f"{nid}.{name}: Verweis auf fehlenden Node {value[0]}")
+                continue
+            values = _combo_values(spec[name])
+            if values is not None and (nid, name) not in runtime_inputs and value not in values:
+                problems.append(f"{nid} {node['class_type']}.{name}: '{value}' nicht verfügbar")
+    return problems
+
+
+def api_to_ui(graph: dict, object_info: dict) -> dict:
+    """Erzeugt aus einem API-Graphen den ComfyUI-Editor-Workflow (gleiche Nodes, Werte, Links).
+
+    Widget-Reihenfolge und Ausgänge stammen aus ``/object_info`` der laufenden ComfyUI, damit
+    UI- und API-Export garantiert denselben Graphen beschreiben.
+    """
+    ids = sorted(graph, key=int)
+    depth: dict[str, int] = {}
+
+    def level(nid: str, trail: frozenset = frozenset()) -> int:
+        if nid in trail:
+            raise ComfyError(f"Zyklus im Graphen bei Node {nid}")
+        if nid not in depth:
+            ups = [v[0] for v in graph[nid]["inputs"].values() if _is_link(v)]
+            depth[nid] = 1 + max((level(u, trail | {nid}) for u in ups), default=-1)
+        return depth[nid]
+
+    for nid in ids:
+        level(nid)
+    rows: dict[int, int] = {}
+    nodes: dict[str, dict] = {}
+    for order, nid in enumerate(sorted(ids, key=lambda n: (depth[n], int(n)))):
+        node = graph[nid]
+        info = object_info.get(node["class_type"])
+        spec = _node_spec(object_info, node["class_type"])
+        unknown = set(node["inputs"]) - set(spec)
+        if unknown:
+            raise ComfyError(f"Node {nid}: unbekannte Eingänge {sorted(unknown)}")
+        inputs, widgets = [], []
+        for name, sp in spec.items():
+            value = node["inputs"].get(name)
+            if _is_widget(sp):
+                if _is_link(value):
+                    typ = "COMBO" if _combo_values(sp) is not None else sp[0]
+                    inputs.append(
+                        {"name": name, "type": typ, "link": None, "widget": {"name": name}}
+                    )
+                    widgets.append(_default(sp))
+                else:
+                    widgets.append(value if name in node["inputs"] else _default(sp))
+                if _spec_options(sp).get("control_after_generate"):
+                    widgets.append("fixed")
+            else:
+                inputs.append({"name": name, "type": sp[0], "link": None})
+        outputs = [
+            {"name": oname, "type": otype, "links": [], "slot_index": i}
+            for i, (otype, oname) in enumerate(
+                zip(info["output"], info["output_name"], strict=True)
+            )
+        ]
+        col = depth[nid]
+        y = rows.get(col, 0)
+        height = 46 + 24 * (len(inputs) + len(outputs) + len(widgets))
+        rows[col] = y + height + 60
+        nodes[nid] = {
+            "id": int(nid),
+            "type": node["class_type"],
+            "pos": [40 + col * 420, 40 + y],
+            "size": [360, height],
+            "flags": {},
+            "order": order,
+            "mode": 0,
+            "inputs": inputs,
+            "outputs": outputs,
+            "properties": {"Node name for S&R": node["class_type"]},
+            "widgets_values": widgets,
+        }
+        if title := (node.get("_meta") or {}).get("title"):
+            nodes[nid]["title"] = title
+    links = []
+    for nid in ids:
+        for slot, inp in enumerate(nodes[nid]["inputs"]):
+            value = graph[nid]["inputs"].get(inp["name"])
+            if _is_link(value):
+                src, src_slot = value
+                link_id = len(links) + 1
+                out = nodes[src]["outputs"][src_slot]
+                links.append([link_id, int(src), src_slot, int(nid), slot, out["type"]])
+                inp["link"] = link_id
+                out["links"].append(link_id)
+    return {
+        "id": str(uuid.uuid5(uuid.NAMESPACE_URL, json.dumps(graph, sort_keys=True))),
+        "revision": 0,
+        "last_node_id": max(int(n) for n in ids),
+        "last_link_id": len(links),
+        "nodes": [nodes[n] for n in ids],
+        "links": links,
+        "groups": [],
+        "config": {},
+        "extra": {"ds": {"scale": 0.75, "offset": [0, 0]}},
+        "version": 0.4,
+    }

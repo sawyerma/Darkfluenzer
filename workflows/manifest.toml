@@ -335,3 +335,37 @@ target = "latent_upscale_models/ltx25/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.
 size = 995778752
 sha256 = "eb5a71fe4068ee87ccdb1c3aa635e547ca76bd2d30ae20ae889f2c325c0677e8"
 
+
+# ------------------------------------------------------------------------------------ Workflows (registriert)
+# UI-Export wird mit `darkfluenzer workflows check` gegen den API-Export und die laufende ComfyUI geprüft.
+
+[workflows.lustify_sdxl_t2i]
+engine = "lustify_sdxl"
+ui = "image/lustify_sdxl_t2i.ui.json"
+api = "image/lustify_sdxl_t2i.api.json"
+status = "OFFEN"
+
+[workflows.lustify_sdxl_t2i.params]
+prompt = { node = "2", input = "text", type = "str", required = true }
+negative_prompt = { node = "3", input = "text", type = "str" }
+seed = { node = "5", input = "seed", type = "int", min = 0, max = 4294967295 }
+steps = { node = "5", input = "steps", type = "int", min = 8, max = 80 }
+cfg = { node = "5", input = "cfg", type = "float", min = 1.0, max = 12.0 }
+width = { node = "4", input = "width", type = "int", min = 512, max = 2048, multiple_of = 64 }
+height = { node = "4", input = "height", type = "int", min = 512, max = 2048, multiple_of = 64 }
+
+[workflows.lustify_sdxl_inpaint]
+engine = "lustify_sdxl"
+ui = "image/lustify_sdxl_inpaint.ui.json"
+api = "image/lustify_sdxl_inpaint.api.json"
+status = "OFFEN"
+
+[workflows.lustify_sdxl_inpaint.params]
+image = { node = "2", input = "image", type = "str", required = true, upload = true }
+mask = { node = "3", input = "image", type = "str", required = true, upload = true }
+prompt = { node = "5", input = "text", type = "str", required = true }
+negative_prompt = { node = "6", input = "text", type = "str" }
+seed = { node = "9", input = "seed", type = "int", min = 0, max = 4294967295 }
+steps = { node = "9", input = "steps", type = "int", min = 8, max = 80 }
+denoise = { node = "9", input = "denoise", type = "float", min = 0.2, max = 1.0 }
+mask_grow = { node = "4", input = "expand", type = "int", min = 0, max = 64 }

@@ -82,6 +82,7 @@ class Param:
     max: float | None = None
     choices: tuple[str, ...] = ()
     multiple_of: int | None = None
+    upload: bool = False  # Datei wird vor dem Lauf zu ComfyUI hochgeladen
 
     def coerce(self, name: str, value: object) -> object:
         typ = PARAM_TYPES[self.type]

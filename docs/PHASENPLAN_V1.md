@@ -299,4 +299,6 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 
 **V1.5.2 — Kundenakte (14.11.2026):** `store.py` (9 Tabellen, generierte Nummern `DF-C-`/`DF-O-`, erlaubte Statusübergänge, unveränderliche Artefakte/Freigaben/Ereignisse per Trigger, Artefakte 0444 + SHA-256) und `approval.py` (Gate im Code, zweite Schicht als Insert-/Versand-Trigger, idempotente Lieferung je Auftrag). Zahlungen werden nur mit passendem Betrag/Währung im Status `accepted` angenommen; Aufrufer ist künftig ausschließlich der verifizierende Provider-Adapter.
 
-**Nächste Umsetzung:** S2 – erster realer Render mit LUSTIFY (Download läuft), Workflows UI+API, danach FLUX 3 nach Lizenzannahme.
+**V1.5.3 — Workflows (14.11.2026):** Erste registrierte Workflows `lustify_sdxl_t2i` und `lustify_sdxl_inpaint` (VAEEncode → SetLatentNoiseMask → KSampler → ImageCompositeMasked; ersetzt das fehleranfällige VAEEncodeForInpaint+denoise<1 aus dem Entwurf A04). UI-Export wird aus dem API-Export mit den echten `/object_info`-Definitionen erzeugt; im ComfyUI-Frontend 1.58.5 per `loadGraphData → graphToPrompt` geprüft: 0 Abweichungen (7 bzw. 12 Nodes). `darkfluenzer workflows check|export-ui`, `darkfluenzer render`, `pipeline.py` mit Pixelprüfung außerhalb der Maske; Evaluationsläufe unter `local/evaluation/<engine>/` mit Herkunfts-JSON.
+
+**Nächste Umsetzung:** S2 – erster realer Render mit LUSTIFY sobald geladen, dann FLUX 3 nach Lizenzannahme.
