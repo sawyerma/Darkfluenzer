@@ -64,6 +64,21 @@ local/.venv/bin/python -m darkfluenzer render lustify_sdxl_inpaint \
 
 Evaluationsläufe landen mit Herkunfts-JSON unter `local/evaluation/<engine>/`.
 
+## Charakter-LoRA
+
+Bilder der eigenen, rein synthetischen Figur nach `local/character/photos/` kopieren (JPG/PNG/WebP,
+kurze Seite ≥ 768 px, besser ≥ 1024 px, mindestens 15 Bilder). Originale bleiben unverändert.
+
+```bash
+UV_PROJECT_ENVIRONMENT=local/.venv uv sync --extra train         # einmalig: Trainings-Abhängigkeiten
+local/.venv/bin/python -m darkfluenzer character scan            # Prüfung je Bild
+local/.venv/bin/python -m darkfluenzer character dataset         # versionierter Datensatz ds_…
+local/.venv/bin/python -m darkfluenzer character train-sdxl --dataset ds_…   # SDXL-LoRA (LUSTIFY)
+```
+
+Ergebnis: `local/models/loras/sdxl_character/<datensatz>_<engine>_r<rang>_s<schritte>.safetensors`
+mit Herkunfts-JSON, Status „trainiert, nicht freigegeben“ bis zur Sichtfreigabe.
+
 Logs: `local/logs/comfyui.log` (ComfyUI-Ausgabe, 3 Generationen), `local/logs/darkfluenzer.log`
 (Launcher-Aktionen), `local/logs/app.log` (App-Ereignisse und angezeigte Dialoge).
 

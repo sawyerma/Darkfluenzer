@@ -199,6 +199,8 @@ Ein gesamter Kundenauftrag ist anhand seiner Kunden- und Bestellnummer wieder au
 7. Feste Vergleichsprompts erzeugen; Identität, Gesichtsvariationen und Generalisierung prüfen. **Aktivierung einer neuen LoRA nach Sichtfreigabe des Betreibers**, alte Version bleibt bis dahin aktiv.
 8. Spätere neue Fotos ergeben eine neue Datensatz-/LoRA-Version statt ein unkontrolliertes Nachlernen im laufenden Rendering. Keine parallelen GPU-intensiven Trainings- und Kunden-Renderjobs.
 
+**Umsetzungsstand (14.11.2026):** `training.py` + CLI `darkfluenzer character scan|dataset|train-sdxl`: Eingangsprüfung (unvollständige Kopien, Formate, defekte Dateien, SHA-256-Dubletten, Mindestgröße), hash-versionierter Datensatz mit SDXL-Formatbuckets, Originale unverändert, `DATASET_INCOMPLETE` unter 15 Bildern; eigener SDXL-LoRA-Trainer (diffusers/peft, FP32 auf MPS, Attention-LoRA) mit Herkunfts-JSON und Status `trained_not_approved`; Architekturbindung (nur `arch = sdxl`) und Sperre bei laufenden ComfyUI-Renders. **Offen:** Betreiberbilder, Szenen-Captions per lokalem VLM, Gesichts-Identitätsprüfung, Datei-Watcher, Vorschau-/Freigabeschritt, Master-Modell-LoRA (FLUX 3/Qwen).
+
 **Apple-MPS-Verifikation:** Die gewählte Trainingssoftware muss mit dem konkreten Zielmodell real getestet werden. Keine Annahme, dass ein FLUX-3-Inferenzbackend auch FLUX-3-LoRA trainieren kann. Wenn dies auf dem Mac nicht unterstützt wird: den Engpass anzeigen und eine tatsächlich kompatible lokale Alternative prüfen, ohne die Ein-Ordner-Bedienung zu verändern.
 
 ## 6B. Bedienoberfläche — bewusst minimal
