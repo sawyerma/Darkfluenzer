@@ -27,3 +27,8 @@ dist/
 
 # macOS
 .DS_Store
+
+# Frontend (Abhängigkeiten, Build, Playwright-Ausgaben)
+node_modules/
+test-results/
+playwright-report/

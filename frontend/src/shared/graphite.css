@@ -1,0 +1,104 @@
+/* Darkfluenzer Graphite: das EINZIGE Stylesheet der App (PHASENPLAN_FRONT_V1 F1).
+   Farben, Maße und Schrift nur als Tokens in :root; alle Seiten verwenden ausschließlich
+   die Klassen dieser Datei. Neue Klassen erst, wenn eine Seite sie tatsächlich braucht. */
+
+:root {
+  /* Flächen */
+  --g-bg: #1b1b1b;
+  --g-panel: #303030;
+  --g-well: #262626;
+  --g-tab-selected: #1d1d1d;
+
+  /* Linien */
+  --g-line: #464646;
+  --g-line-panel: #424242;
+
+  /* Text */
+  --g-text: #f0f0f0;
+  --g-text-strong: #ffffff;
+  --g-tab: #b8b8b8;
+  --g-focus: #eeeeee;
+
+  /* Marke: pinkes C, identisch zum App-Icon (launcher/make_icon.swift) */
+  --g-brand: #ed2287;
+  --g-brand-text: #ffffff;
+
+  --g-shadow-panel: 0 10px 35px #0004;
+
+  /* Radien */
+  --g-r-panel: 18px;
+  --g-r-tabs: 28px;
+  --g-r-tab: 24px;
+  --g-r-brand: 8px;
+
+  /* Abstände und Maße */
+  --g-nav-min-h: 56px;
+  --g-brand-size: 28px;
+  --g-gap-xs: 3px;
+  --g-gap-md: 12px;
+  --g-pad-nav: 8px 20px;
+  --g-pad-tab: 8px 14px;
+  --g-pad-main: 18px 12px;
+  --g-pad-panel: 24px 26px;
+
+  /* Typografie */
+  --g-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  --g-fs-base: 14px;
+  --g-lh-base: 1.45;
+  --g-fs-h1: 20px;
+  --g-lh-h1: 1.25;
+  --g-fs-body: 13px;
+  --g-fw-brand: 800;
+  --g-fw-bold: 700;
+  --g-fw-semibold: 650;
+
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { min-height: 100%; margin: 0; }
+body {
+  background: var(--g-bg);
+  color: var(--g-text);
+  font: var(--g-fs-base) / var(--g-lh-base) var(--g-font);
+}
+a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outline-offset: 2px; }
+
+/* Shell */
+.g-app { min-height: 100dvh; display: flex; flex-direction: column; }
+.g-nav {
+  display: flex; align-items: center; gap: var(--g-gap-md);
+  min-height: var(--g-nav-min-h); padding: var(--g-pad-nav);
+  border-bottom: 1px solid var(--g-line);
+}
+.g-brand {
+  display: inline-grid; place-items: center;
+  width: var(--g-brand-size); height: var(--g-brand-size);
+  border-radius: var(--g-r-brand);
+  background: var(--g-brand); color: var(--g-brand-text); font-weight: var(--g-fw-brand);
+}
+.g-tabs {
+  display: flex; gap: var(--g-gap-xs); padding: var(--g-gap-xs);
+  background: var(--g-well); border-radius: var(--g-r-tabs);
+}
+.g-tabs a {
+  border-radius: var(--g-r-tab); padding: var(--g-pad-tab);
+  color: var(--g-tab); font-size: var(--g-fs-body); text-decoration: none; white-space: nowrap;
+}
+.g-tabs a:hover { color: var(--g-text-strong); }
+.g-tabs a[aria-current="page"] {
+  background: var(--g-tab-selected); color: var(--g-text-strong); font-weight: var(--g-fw-semibold);
+}
+.g-main { flex: 1; padding: var(--g-pad-main); }
+
+/* Panel */
+.g-panel {
+  border: 1px solid var(--g-line-panel); border-radius: var(--g-r-panel);
+  padding: var(--g-pad-panel); background: var(--g-panel); box-shadow: var(--g-shadow-panel);
+}
+.g-panel h1 { margin: 0; font-size: var(--g-fs-h1); line-height: var(--g-lh-h1); font-weight: var(--g-fw-bold); }
+
+@media (max-width: 650px) {
+  .g-nav { flex-wrap: wrap; }
+  .g-main { padding: var(--g-gap-xs) 0; }
+}

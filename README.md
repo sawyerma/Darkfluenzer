@@ -34,6 +34,16 @@ Darkfluenzer im Launchpad/Dock/Finder doppelklicken. Für Diagnose dieselben Bef
 local/.venv/bin/python -m darkfluenzer comfy start|stop|status|health [--json]
 ```
 
+## Cockpit (React, im Aufbau)
+
+Browser-Oberfläche mit den Bereichen Übersicht, Nachrichten, ComfyUI; ein einziges Stylesheet
+`frontend/src/shared/graphite.css` (der Build bricht bei jeder weiteren CSS-Datei ab).
+
+```bash
+cd frontend && npm ci && npm run build   # tsc + Vite
+npm run smoke                            # Browser-Smoke (Playwright)
+```
+
 ## Modelle
 
 Einzige Registry: [`workflows/manifest.toml`](workflows/manifest.toml) (Datei, Revision, SHA-256,

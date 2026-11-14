@@ -116,6 +116,13 @@ Handshake `Hello/Welcome` prüft Major-/Minor-Kompatibilität und angebotene Top
 
 **Kein funktionsloses F6-Menü vor funktionierender Anbindung.** Die Backend-Medienphasen S1–S6 bleiben in [PHASENPLAN_BACK_V1.md](PHASENPLAN_BACK_V1.md) maßgeblich.
 
+### Fortschritt
+
+| Phase | Status | Nachweis |
+|---|---|---|
+| F1 | PASS | 14.11.2026: `npm run build` (tsc + Vite) grün; ein Stylesheet `src/shared/graphite.css`, vom Build erzwungen (zweite CSS-Datei, Farbe außerhalb `:root`, Inline-Style → Abbruch; beide CSS-Fälle geprüft); Playwright-Smoke 1/1: drei Bereiche, Wechsel, Neuladen, keine Browserfehler. Ansichten zeigen bis F2 nur ihren Titel. |
+| F2–F6 | OFFEN | – |
+
 ## Migrationsauftrag
 
 Beim Umbau vom bisherigen Swift-ComfyUI-Starter:
