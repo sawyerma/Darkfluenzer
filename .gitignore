@@ -1,0 +1,29 @@
+# Alles Lokale: Kundendaten, Medien, Modellgewichte, venv, Logs, Secrets, Builds
+/local/
+
+# Bestehendes Fremdmaterial im Projektordner (vor Git-Integration vorhanden, nicht Teil des Repos)
+/1_ComfyUI */
+
+# Modellgewichte und Medien dürfen nirgends im Repo landen
+*.safetensors
+*.ckpt
+*.gguf
+*.pt
+*.pth
+*.bin
+*.onnx
+*.sqlite3
+*.sqlite3-*
+
+# Python / Werkzeuge
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+*.egg-info/
+build/
+dist/
+
+# macOS
+.DS_Store

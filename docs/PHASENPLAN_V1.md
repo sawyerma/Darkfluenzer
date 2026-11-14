@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN V1
 
-**Version:** 1.4 — SIMPLIFY  
+**Version:** 1.4.1 — SIMPLIFY (S1 abgenommen)  
 **Stand:** 14.11.2026  
 **Status:** Zielarchitektur verabschiedet, technische Implementierung und Mac-Abnahme überwiegend OFFEN  
 **Repository:** `sawyerma/Darkfluenzer`, Branch `main`  
@@ -67,7 +67,8 @@ Nur **fünf aktive Hauptbereiche** neben `README.md` und erforderlichen Projektd
 ├── docs/
 │   └── PHASENPLAN_V1.md         # EINZIGE verbindliche Planung und Statusübersicht
 ├── src/darkfluenzer/            # Ein Backend-Prozess, klare Python-Module
-│   ├── app.py                   # Start, Routing, Health
+│   ├── app.py                   # Start, Routing, Health (heute: CLI `darkfluenzer comfy …`)
+│   ├── config.py                # EINZIGE Konfigurationsquelle local/config.toml, Logging
 │   ├── runtime.py               # ComfyUI-Prozessstart/stop
 │   ├── comfy.py                 # ComfyUI-API und Workflow-Queue
 │   ├── pipeline.py              # Bild-/Videoroute, 3 Kandidaten
@@ -94,6 +95,9 @@ Nur **fünf aktive Hauptbereiche** neben `README.md` und erforderlichen Projektd
 │       └── ltx.api.json
 ├── tests/                       # Reproduzierbare Unit-/Integration-/Mac-Tests
 └── local/                       # VOLLSTÄNDIG .gitignore; niemals Git-Upload
+    ├── config.toml              # Maschinenpfade/Ports (Vorlage: config.example.toml im Repo)
+    ├── comfyui.json             # Identität der verwalteten ComfyUI (PID, Startzeit, Kommando)
+    ├── .venv/                   # Darkfluenzer-Python (uv.lock), getrennt von ComfyUI-Conda
     ├── ComfyUI/                 # Vorhandener Checkout oder kontrollierter Symlink
     ├── models/                  # Große Gewichte und LoRAs
     ├── darkfluenzer.sqlite3     # EINE zentrale Datenbank
@@ -187,12 +191,43 @@ Die bisherigen neun Phasen `P00–P08` werden **inhaltlich vollständig** in `S1
 
 | Phase | Status | Nachweis |
 |---|---|---|
-| S1 | OFFEN | Keine Mac-Abnahme |
+| S1 | PASS | Mac-Abnahme 14.11.2026, siehe „S1-Nachweis“ |
 | S2 | OFFEN | Keine reproduzierten Modell-Renderläufe |
 | S3 | OFFEN | Wan-FP8/MPS nicht abgenommen |
 | S4 | OFFEN | Keine implementierte Telegram-/LLM-/SQLite-Kette |
 | S5 | OFFEN | Kein Payment-/Operator-Gate implementiert |
 | S6 | OFFEN | Keine vollständige E2E-Abnahme |
+
+### Mac-Bestand (14.11.2026)
+
+| Punkt | Befund |
+|---|---|
+| Hardware/OS | MacBook Pro Mac16,6, **Apple M4 Max** (16 CPU = 12P+4E, 40 GPU), 128 GB, macOS 15.6.1 (24G90), 240 GB frei |
+| ComfyUI | **0.14.1** (`v0.14.1-22-g602b2505`), Git-Checkout `…/2_DarkMa/0_HRDF/ComfyUI`, eingebunden als Symlink `local/ComfyUI`; unverändert |
+| Python | Conda-Env `comfyui`: Python 3.11.14, torch 2.10.0 (Nightly), MPS verfügbar, FP16/BF16-Matmul OK, **FP8 auf MPS: nicht unterstützt** (geprüft) |
+| Manager | `--enable-manager` von 0.14.1 unterstützt, `comfyui-manager` 4.1b1 lädt |
+| Modelle | Nur VAEs (flux1/flux2/SeedVR2), `clip_l`, SAM ViT-B. **Keine Checkpoints/Diffusionsmodelle, keine LoRAs** |
+| Custom Nodes | KJNodes, Impact Pack, essentials, LayerStyle, rgthree, SeedVR2 (2×), FluxTrainer, promptmodels |
+| Umgebungsfehler (vorbestehend) | torchaudio 2.4.1 ≠ torch 2.10 → Audio-Nodes (inkl. `nodes_lt_audio`) laden nicht; FluxTrainer: `transformers` 5.2 ohne `CLIPFeatureExtractor`; LayerStyle: `opencv-contrib` fehlt (`guidedFilter`) |
+| Projektordner | `1_ComfyUI /0_Software/ComfyUI_Cinematic_Studio` (Entwurfs-Workflows A01–A04 SDXL, B01/B02 Wan) – unverändert belassen, per `.gitignore` ausgeschlossen |
+
+### S1-Nachweis (14.11.2026, echter Mac)
+
+Start über `Finder → open /Applications/Darkfluenzer.app` (LaunchServices, identisch zum Doppelklick); Belege in `local/logs/app.log` und `local/logs/darkfluenzer.log`.
+
+| Test | Ergebnis |
+|---|---|
+| Start aus vollständig gestopptem Zustand | PASS – bereit nach 5,1–11,3 s, `system_stats` meldet ComfyUI 0.14.1 / mps |
+| Browser erst nach Bereitschaft | PASS – „ComfyUI bereit“ 44,189 s → „Browser öffnen“ 44,265 s; Chrome hält Verbindungen zu :8188 |
+| Zweiter Doppelklick (App offen) / nach App-Ende | PASS – `already_running`, stets genau eine PID auf :8188; App-Ende lässt ComfyUI laufen |
+| Stop beendet nur die eigene Instanz | PASS – `runtime.stop` (vom App-Button 1:1 aufgerufen) beendet eigene Gruppe; fremd gestartete ComfyUI (manuell, PID 34853) wird erkannt, Dialog „weder übernommen noch beendet“, Stop → `not_managed`, Prozess lebt weiter |
+| Erneuter Start nach Stop | PASS |
+| Fehlerhafter Python-Pfad | PASS – Dialog „ComfyUI-Python nicht gefunden …“, Exit 2, kein Zustand |
+| Fehlgeschlagener Start | PASS – ungültiges ComfyUI-Argument → Exit 4 mit Logauszug, Zustand gelöscht, kein Restprozess |
+| Kein Terminal nötig | PASS – Installation einmalig per `launcher/install.sh`, danach nur Doppelklick |
+| Automatisierte Tests | 17/17 `pytest` (Prozess-Integration gegen Fake-ComfyUI: Idempotenz, fremde Instanz, PID-Wiederverwendung, Timeout, Crash) |
+
+Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen-Berechtigung angefordert); sie rufen ausschließlich die oben geprüften CLI-Befehle auf.
 
 **PASS nur nach realem Test auf dem Mac, reproduzierbarem Nachweis und Git-Commit.** Ein dokumentierter Plan oder importierbares Workflow-JSON ist noch kein Funktions-PASS. Kein `v1.0`-Release vor S6.
 
@@ -213,4 +248,6 @@ Die bisherigen neun Phasen `P00–P08` werden **inhaltlich vollständig** in `S1
 
 **V1.4 — SIMPLIFY (14.11.2026):** Drei überlappende Architekturdokumente zu **einem** verbindlichen Plan konsolidiert; neun Phasen auf sechs zusammengeführt; die übertiefe Code-, Workflow- und Kundenverzeichnisstruktur reduziert; SQLite als einzige Kunden- und Zustandsautorität bestätigt. Bild-/Videotechnik, Zahlungsprüfung, manuelle Freigabe und alle Qualitätsanforderungen unverändert beibehalten.
 
-**Nächste Umsetzung:** **S1** — vorhandenes ComfyUI auf deinem Mac lokalisieren und den doppelklickbaren Launcher mit pinkem `C` real testen.
+**V1.4.1 — S1 (14.11.2026):** Mac-Bestand erfasst; Launcher-App, `runtime.py`, `config.py` (einzige Konfigurationsquelle `local/config.toml`), CLI und Tests umgesetzt und auf dem Mac abgenommen. Strukturbaum um `config.py` und die `local/`-Laufzeitdateien ergänzt. Die MPS-High-Watermark bleibt auf PyTorch-Standard.
+
+**Nächste Umsetzung:** ComfyUI-API-Client (`comfy.py`), danach S2-Masterbild – blockiert, bis ein Master-Modell lokal liegt.

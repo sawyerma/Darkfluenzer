@@ -1,0 +1,23 @@
+# Vorlage für local/config.toml (die einzige Konfigurationsdatei; liegt außerhalb von Git).
+# Kopieren:  cp config.example.toml local/config.toml  und Pfade an den eigenen Mac anpassen.
+# Relative Pfade gelten ab Projektordner.
+
+[comfyui]
+# ComfyUI-Checkout mit main.py. Empfohlen: kontrollierter Symlink local/ComfyUI -> echte Installation.
+path = "local/ComfyUI"
+# Python der ComfyUI-Umgebung (Conda-Env). Wird direkt ausgeführt, kein "conda activate" nötig.
+python = "/opt/homebrew/Caskroom/miniconda/base/envs/comfyui/bin/python"
+# Nur Loopback-Adressen sind zulässig.
+host = "127.0.0.1"
+port = 8188
+# Zusätzliche ComfyUI-Argumente. --enable-manager ist ab ComfyUI 0.14 + comfyui-manager 4.x verfügbar.
+extra_args = ["--enable-manager"]
+# Werkzeuge, die ComfyUI/Manager per PATH brauchen (git, ffmpeg). Finder-Apps erben kein Shell-PATH.
+path_prepend = ["/opt/homebrew/bin"]
+startup_timeout_s = 240
+stop_timeout_s = 30
+
+[comfyui.env]
+PYTORCH_ENABLE_MPS_FALLBACK = "1"
+# PYTORCH_MPS_HIGH_WATERMARK_RATIO wird bewusst NICHT gesetzt (PyTorch-Standard).
+# 0.0 hebt die MPS-Speichergrenze komplett auf und darf nur nach einem Speichertest gesetzt werden.
