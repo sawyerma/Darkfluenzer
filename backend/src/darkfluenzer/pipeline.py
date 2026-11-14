@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import re
+import time
 from collections.abc import Callable
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -24,7 +25,7 @@ from PIL import Image
 from . import comfy
 from .config import Config
 from .models import Manifest, Workflow
-from .store import Store
+from .store import MEDIA_KINDS, Store, sha256_file
 
 log = logging.getLogger("darkfluenzer.pipeline")
 
@@ -149,6 +150,9 @@ def run_render(
             else:
                 store.set_job_status(job_id, "failed", error=str(exc) or type(exc).__name__)
             raise
+        for out in outputs:  # erst in die Galerie, dann gilt der Job als fertig
+            if Path(out["path"]).suffix.lower() in MEDIA_KINDS:
+                store.add_media(out["path"], out["sha256"], out["size"], job_id=job_id)
         store.set_job_status(
             job_id,
             "done",
@@ -241,3 +245,63 @@ def _render(
     sidecar.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     log.info("Evaluation %s: %s (%.1f s)", workflow_key, sidecar.name, result.duration_s)
     return result, record["outputs"]
+
+
+def media_candidates(cfg: Config, store: Store, seen: set[str], settle_s: float) -> list[tuple]:
+    """Noch nicht erfasste erzeugte Bilder/Videos, chronologisch: Ausgaben abgeschlossener Jobs
+    (mit Job-Bezug), Dateien unter ``local/evaluation`` (ohne Eingaben) und direkt in der
+    verwalteten ComfyUI erzeugte Ausgaben. Gleiche Bytes zählen einmal (Job vor Evaluation vor
+    ComfyUI); nur ruhende Dateien. Liefert (mtime, Pfad, SHA-256, Größe, Job-ID) und ergänzt
+    ``seen`` um alle geprüften Pfade."""
+    cutoff = time.time() - settle_s
+    found: dict[str, tuple] = {}  # sha -> (Vorrang, mtime, Pfad, Größe, Job-ID)
+
+    def offer(prio: int, path: Path, rel: str, sha: str, job_id: int | None) -> None:
+        stat = path.stat()
+        best = found.get(sha)
+        if best is None or (prio, stat.st_mtime) < best[:2]:
+            found[sha] = (prio, stat.st_mtime, rel, stat.st_size, job_id)
+
+    for row in store.finished_jobs(0, 1_000_000)[0]:
+        for out in row["data"].get("outputs") or []:
+            rel, path = out["path"], cfg.local / out["path"]
+            if rel in seen or Path(rel).suffix.lower() not in MEDIA_KINDS or not path.is_file():
+                continue
+            seen.add(rel)
+            offer(0, path, rel, out["sha256"], row["job_id"])
+    local = cfg.local.resolve()
+    for prio, root, skip in (
+        (1, cfg.local / "evaluation", "inputs"),
+        (2, cfg.comfyui.path / "output", None),
+    ):
+        if not root.is_dir() or not root.resolve().is_relative_to(local):
+            continue
+        for path in root.rglob("*"):
+            rel = path.resolve().relative_to(local).as_posix()
+            if (
+                rel in seen
+                or path.name.startswith(".")
+                or path.suffix.lower() not in MEDIA_KINDS
+                or not path.is_file()
+                or (skip and path.relative_to(root).parts[0] == skip)
+            ):
+                continue
+            if path.stat().st_mtime > cutoff:
+                continue  # wird noch geschrieben: beim nächsten Durchlauf
+            seen.add(rel)
+            offer(prio, path, rel, sha256_file(path), None)
+    return sorted((m, rel, sha, size, job) for sha, (_, m, rel, size, job) in found.items())
+
+
+def scan_media(cfg: Config, seen: set[str], settle_s: float) -> int:
+    """Nimmt alle noch nicht erfassten erzeugten Medien chronologisch in den Galerie-Index auf;
+    liefert die Zahl neuer Einträge."""
+    store = Store(cfg.local)
+    try:
+        added = 0
+        for mtime, rel, sha, size, job_id in media_candidates(cfg, store, seen, settle_s):
+            created = datetime.fromtimestamp(mtime, UTC).isoformat(timespec="milliseconds")
+            added += bool(store.add_media(rel, sha, size, job_id=job_id, created_at=created))
+        return added
+    finally:
+        store.close()

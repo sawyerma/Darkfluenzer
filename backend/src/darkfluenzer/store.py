@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -205,6 +205,45 @@ BEGIN SELECT RAISE(ABORT, '{t}: unveränderlich'); END;"""
     for t in _IMMUTABLE
 )
 
+# Geordnete, rein additive Schritte: neue Datenbank = SCHEMA + alle Schritte; vorhandene
+# Datenbank = nur die noch fehlenden. Bestehende Daten werden nie umgeschrieben.
+MIGRATIONS: dict[int, str] = {
+    2: """
+-- Hinterlegter Kundenname (Bild-/Videounterschrift); füllt z. B. der Telegram-Adapter
+ALTER TABLE customers ADD COLUMN display_name TEXT;
+
+-- Medienindex der Galerie: jede erzeugte Datei genau einmal (Dateiidentität = SHA-256)
+CREATE TABLE media (
+    id          INTEGER PRIMARY KEY,
+    sha256      TEXT    NOT NULL UNIQUE CHECK (length(sha256) = 64),
+    path        TEXT    NOT NULL UNIQUE,
+    kind        TEXT    NOT NULL CHECK (kind IN ('image', 'video')),
+    size        INTEGER NOT NULL CHECK (size > 0),
+    job_id      INTEGER REFERENCES jobs(id),
+    artifact_id INTEGER REFERENCES artifacts(id),
+    order_id    INTEGER REFERENCES orders(id),
+    number      INTEGER UNIQUE,
+    created_at  TEXT    NOT NULL,
+    CHECK ((order_id IS NULL) = (number IS NOT NULL))
+);
+CREATE TRIGGER media_no_update BEFORE UPDATE ON media
+BEGIN SELECT RAISE(ABORT, 'media: unveränderlich'); END;
+CREATE TRIGGER media_no_delete BEFORE DELETE ON media
+BEGIN SELECT RAISE(ABORT, 'media: unveränderlich'); END;
+""",
+}
+# Artefaktrollen, die in die Galerie gehören (Eingaben, Masken, Vorschauen nicht)
+GALLERY_ROLES = {"master", "candidate", "edit", "refined", "sent"}
+MEDIA_KINDS = {
+    ".png": "image",
+    ".jpg": "image",
+    ".jpeg": "image",
+    ".webp": "image",
+    ".mp4": "video",
+    ".webm": "video",
+    ".mov": "video",
+}
+
 
 class StoreError(Exception):
     """Fachlich unzulässige Operation (Meldung für Menschen)."""
@@ -277,12 +316,16 @@ class Store:
         # Transaktion implizit committen; so bleibt die Migration atomar und parallel sicher.
         with self.tx():
             version = self.db.execute("PRAGMA user_version").fetchone()[0]
+            if version > SCHEMA_VERSION:
+                raise StoreError(f"Unbekannte Datenbankversion {version} in {self.path}")
             if version == 0:
                 for statement in _statements(SCHEMA):
                     self.db.execute(statement)
-                self.db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
-            elif version != SCHEMA_VERSION:
-                raise StoreError(f"Unbekannte Datenbankversion {version} in {self.path}")
+                version = 1
+            for step in range(version + 1, SCHEMA_VERSION + 1):
+                for statement in _statements(MIGRATIONS[step]):
+                    self.db.execute(statement)
+            self.db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
     @contextlib.contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
@@ -556,6 +599,83 @@ class Store:
         ]
         return recent[::-1], len(rows) > limit
 
+    # ------------------------------------------------------------------ Medienindex
+
+    def add_media(
+        self,
+        rel: str,
+        sha: str,
+        size: int,
+        *,
+        job_id: int | None = None,
+        artifact_id: int | None = None,
+        created_at: str | None = None,
+    ) -> int | None:
+        """Nimmt eine erzeugte Datei (Pfad relativ zu ``local/``) genau einmal in die Galerie auf.
+        Gleiche Bytes oder gleicher Pfad -> keine zweite Aufnahme (None). Kundenbezug nur über
+        Auftrag (Job/Artefakt), sonst eine stabile fortlaufende Nummer."""
+        kind = MEDIA_KINDS.get(Path(rel).suffix.lower())
+        if kind is None:
+            raise StoreError(f"{rel}: kein Bild-/Videoformat")
+        with self.tx() as db:
+            if db.execute(
+                "SELECT 1 FROM media WHERE sha256 = ? OR path = ?", (sha, rel)
+            ).fetchone():
+                return None
+            order_id = None
+            if artifact_id is not None:
+                order_id = self.artifact(artifact_id).order_id
+            elif job_id is not None:
+                order_id = db.execute(
+                    "SELECT order_id FROM jobs WHERE id = ?", (job_id,)
+                ).fetchone()[0]
+            number = None
+            if order_id is None:
+                number = db.execute("SELECT coalesce(max(number), 0) + 1 FROM media").fetchone()[0]
+            cur = db.execute(
+                "INSERT INTO media (sha256, path, kind, size, job_id, artifact_id, order_id,"
+                " number, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                (sha, rel, kind, size, job_id, artifact_id, order_id, number, created_at or now()),
+            )
+            self._event("media", cur.lastrowid, "added", path=rel)
+            return cur.lastrowid
+
+    _MEDIA_SELECT = (
+        "SELECT m.*, j.workflow, j.params, o.order_no, c.customer_no, c.display_name FROM media m"
+        " LEFT JOIN jobs j ON j.id = m.job_id LEFT JOIN orders o ON o.id = m.order_id"
+        " LEFT JOIN customers c ON c.id = o.customer_id"
+    )
+
+    def _media_rows(self, rows: list[sqlite3.Row]) -> list[dict]:
+        return [dict(r) | {"params": json.loads(r["params"] or "{}")} for r in rows]
+
+    def media_page(self, before: int, limit: int) -> tuple[list[dict], bool]:
+        """Galerieseite, neueste zuerst; ``before`` = 0 beginnt bei der neuesten Datei."""
+        rows = self.db.execute(
+            self._MEDIA_SELECT + " WHERE (? = 0 OR m.id < ?) ORDER BY m.id DESC LIMIT ?",
+            (before, before, limit + 1),
+        ).fetchall()
+        return self._media_rows(rows[:limit]), len(rows) > limit
+
+    def media_events(self, after: int, limit: int) -> tuple[list[dict], bool]:
+        """Aufgenommene Medien aus dem Journal mit Cursor > ``after`` (neueste ``limit``,
+        aufsteigend); zweiter Wert: ältere wurden ausgelassen."""
+        rows = self.db.execute(
+            "SELECT e.id AS cursor, e.created_at AS committed_at, x.* FROM events e JOIN ("
+            + self._MEDIA_SELECT
+            + ") x ON x.id = e.entity_id WHERE e.entity = 'media' AND e.event = 'added'"
+            " AND e.id > ? ORDER BY e.id DESC LIMIT ?",
+            (after, limit + 1),
+        ).fetchall()
+        return self._media_rows(rows[:limit])[::-1], len(rows) > limit
+
+    def media_by_path(self, rel: str) -> dict | None:
+        row = self.db.execute("SELECT * FROM media WHERE path = ?", (rel,)).fetchone()
+        return dict(row) if row else None
+
+    def media_paths(self) -> set[str]:
+        return {r[0] for r in self.db.execute("SELECT path FROM media")}
+
     def journal_head(self) -> int:
         """Höchster Journal-Cursor (0 = leeres Journal)."""
         return self.db.execute("SELECT coalesce(max(id), 0) FROM events").fetchone()[0]
@@ -598,6 +718,8 @@ class Store:
             self._event(
                 "artifact", cur.lastrowid, "created", order_no=order_no, role=role, sha256=sha
             )
+            if role in GALLERY_ROLES and file.suffix.lower() in MEDIA_KINDS:
+                self.add_media(rel, sha, size, artifact_id=cur.lastrowid)
         os.chmod(file, 0o444)
         return self.artifact(cur.lastrowid)
 

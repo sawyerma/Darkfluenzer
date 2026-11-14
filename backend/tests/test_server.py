@@ -15,7 +15,7 @@ from darkfluenzer import comfy, models, runtime, server
 from darkfluenzer.config import project_root
 from darkfluenzer.store import Store
 from darkfluenzer.stream import PROTOCOL_MAJOR
-from darkfluenzer.v1 import comfy_pb2, commands_pb2
+from darkfluenzer.v1 import comfy_pb2, commands_pb2, media_pb2
 from darkfluenzer.v1 import stream_pb2 as pb
 
 
@@ -76,20 +76,34 @@ def test_guards_reject_foreign_host_origin_and_missing_tokens(cfg):
     _run(cfg, scenario)
 
 
-def test_media_only_with_session_and_only_render_outputs(cfg):
+def test_media_only_indexed_files_with_session_page_and_download(cfg):
     evaluation = cfg.local / "evaluation" / "lustify_sdxl"
     evaluation.mkdir(parents=True)
     (evaluation / "out.png").write_bytes(b"png")
+    (evaluation / "other.png").write_bytes(b"other")
     (evaluation / "escape.png").symlink_to(cfg.local / "config.toml")
+    store = Store(cfg.local)
+    store.add_media("evaluation/lustify_sdxl/out.png", "c" * 64, 3)
+    store.close()
 
     async def scenario(client, app, origin):
         url = "/api/v1/media/evaluation/lustify_sdxl/out.png"
         assert (await client.get(url)).status == 401
+        assert (await client.get("/api/v1/media-page")).status == 401
         await _csrf(client)
         resp = await client.get(url)
         assert resp.status == 200 and await resp.read() == b"png"
-        assert (await client.get("/api/v1/media/evaluation/lustify_sdxl/escape.png")).status == 404
+        download = await client.get(url + "?download=1")
+        assert "attachment" in download.headers["Content-Disposition"]
+        for unindexed in ("other.png", "escape.png"):
+            assert (
+                await client.get(f"/api/v1/media/evaluation/lustify_sdxl/{unindexed}")
+            ).status == 404
         assert (await client.get("/api/v1/media/config.toml")).status == 404
+        page = media_pb2.MediaPage.FromString(await (await client.get("/api/v1/media-page")).read())
+        assert [(i.caption, i.path) for i in page.items] == [
+            ("0001", "evaluation/lustify_sdxl/out.png")
+        ]
 
     _run(cfg, scenario)
 
@@ -149,6 +163,7 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
             (pb.TOPIC_JOBS_ACTIVE, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_COMFY_WORKFLOWS, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_JOB_COMPLETED, pb.TOPIC_CLASS_EVENT),
+            (pb.TOPIC_MEDIA_ADDED, pb.TOPIC_CLASS_EVENT),
         }
 
         sub = pb.Subscribe(topic=pb.TOPIC_COMFY_STATUS)

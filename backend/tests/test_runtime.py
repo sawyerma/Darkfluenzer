@@ -15,6 +15,7 @@ import pytest
 
 from darkfluenzer import runtime
 from darkfluenzer.config import Config, project_root
+from darkfluenzer.store import Store
 
 
 @pytest.fixture(autouse=True)
@@ -175,6 +176,12 @@ def test_cockpit_up_idempotent_down_stops_only_own(cfg: Config):
         first = runtime.cockpit_up(cfg)
         assert first["result"] == "started" and runtime.cockpit_healthy(cfg)
         assert runtime.cockpit_up(cfg)["result"] == "already_running"
+        store = Store(cfg.local)  # wartender Renderjob: Neustart wird verweigert
+        job = store.create_job(None, "lustify_sdxl", "lustify_sdxl_t2i", "p", {}, [])
+        with pytest.raises(runtime.Busy):
+            runtime.cockpit_restart(cfg)
+        store.set_job_status(job, "failed", error="Test")
+        store.close()
         restarted = runtime.cockpit_restart(cfg)
         assert restarted["result"] == "started" and restarted["pid"] != first["pid"]
     finally:

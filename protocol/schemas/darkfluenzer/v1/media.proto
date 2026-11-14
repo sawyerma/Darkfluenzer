@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package darkfluenzer.v1;
+
+// Galerie "Dateien": alle erzeugten Bilder und Videos aus dem Medienindex (SQLite, Tabelle media).
+// Neue Einträge als EVENT media.added; ältere seitenweise per
+//   GET /api/v1/media-page?before=<media_id>&limit=<n>  -> MediaPage (application/x-protobuf).
+// Die Datei selbst nur über den sitzungsgeschützten Pfad /api/v1/media/<path>.
+
+enum MediaKind {
+  MEDIA_KIND_UNSPECIFIED = 0;
+  MEDIA_KIND_IMAGE = 1;
+  MEDIA_KIND_VIDEO = 2;
+}
+
+enum MediaOrigin {
+  MEDIA_ORIGIN_UNSPECIFIED = 0;
+  // Ausgabe eines Darkfluenzer-Renderjobs
+  MEDIA_ORIGIN_RENDER = 1;
+  // Frühere Datei unter local/evaluation (vor dem Job-Journal)
+  MEDIA_ORIGIN_EVALUATION = 2;
+  // Direkt in der verwalteten ComfyUI erzeugt
+  MEDIA_ORIGIN_COMFYUI = 3;
+  // Artefakt eines Kundenauftrags
+  MEDIA_ORIGIN_ORDER = 4;
+}
+
+message MediaItem {
+  // Stabile ID des Medienindex (Dedupe auch nach Reconnect).
+  uint64 media_id = 1;
+  MediaKind kind = 2;
+  // Kundenauftrag: hinterlegter Kundenname (sonst Kundennummer); eigene Medien: laufende Nummer.
+  string caption = 3;
+  // Pfad relativ zu local/ (für den Medienpfad).
+  string path = 4;
+  uint64 size = 5;
+  string sha256 = 6;
+  int64 created_unix_ms = 7;
+  MediaOrigin origin = 8;
+  string workflow = 9;
+  map<string, string> params = 10;
+  uint64 job_id = 11;
+  string order_no = 12;
+  string customer_no = 13;
+}
+
+message MediaPage {
+  repeated MediaItem items = 1;
+  // Es gibt ältere Einträge.
+  bool more = 2;
+}

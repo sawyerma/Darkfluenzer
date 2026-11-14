@@ -16,6 +16,8 @@ catchup_limit = 200
 timeout_s = 20
 # Höchstgröße eines Befehls mit Eingabebildern (Quellbild, Maske, Startbild) in MB.
 max_upload_mb = 50
+# Erzeugte Dateien kommen erst in die Galerie, wenn sie so lange unverändert sind (Sekunden).
+media_settle_s = 10
 
 [comfyui]
 # Eigener, gepinnter ComfyUI-Checkout (launcher/setup_comfyui.sh) mit main.py.

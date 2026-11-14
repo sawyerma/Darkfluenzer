@@ -608,8 +608,22 @@ def cockpit_up(cfg: Config) -> dict:
 
 
 def cockpit_restart(cfg: Config) -> dict:
-    """Nur den eigenen Cockpit-Server neu starten (z. B. nach einem Update); ComfyUI und
-    laufende ComfyUI-Aufträge bleiben unberührt."""
+    """Nur den eigenen Cockpit-Server neu starten (z. B. nach einem Update); ComfyUI bleibt
+    unberührt. Verweigert, solange Renderjobs warten oder laufen – sie würden abbrechen."""
+    from .store import Store
+
+    store = Store(cfg.local)
+    try:
+        busy = len(store.queued_jobs()) + sum(
+            1 for _, pid in store.running_jobs() if pid and pid_alive(pid)
+        )
+    finally:
+        store.close()
+    if busy:
+        raise Busy(
+            f"{busy} Renderjob(s) warten oder laufen – ein Neustart würde sie abbrechen. "
+            "Nach Abschluss erneut versuchen."
+        )
     with _locked(cfg, timeout=cfg.server.timeout_s + 30):
         own, _ = _cockpit_pids(cfg)
         for pid in own:

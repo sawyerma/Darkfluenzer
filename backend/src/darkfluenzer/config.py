@@ -48,6 +48,7 @@ class ServerConfig:
     catchup_limit: int
     timeout_s: float
     max_upload_mb: float
+    media_settle_s: float
 
     @property
     def url(self) -> str:
@@ -183,6 +184,7 @@ def _parse_server(t: dict) -> ServerConfig:
         catchup_limit=int(_positive(t, "catchup_limit", 200, w)),
         timeout_s=_positive(t, "timeout_s", 20, w),
         max_upload_mb=_positive(t, "max_upload_mb", 50, w),
+        media_settle_s=_positive(t, "media_settle_s", 10, w),
     )
 
 

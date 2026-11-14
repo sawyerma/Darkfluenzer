@@ -25,7 +25,7 @@ from . import comfy, models, pipeline, runtime
 from .config import Config
 from .store import Store, StoreError
 from .stream import Hub, schema_id
-from .v1 import comfy_pb2, commands_pb2
+from .v1 import comfy_pb2, commands_pb2, media_pb2
 from .v1 import stream_pb2 as spb
 
 log = logging.getLogger("darkfluenzer.server")
@@ -67,6 +67,7 @@ class Cockpit:
         self._resume = asyncio.Event()  # gesetzt = Warteschlange läuft, gelöscht = angehalten
         self._resume.set()
         self._cancelled: set[int] = set()  # laufende Jobs mit Abbruchwunsch des Betreibers
+        self._seen_media = store.media_paths()  # bereits geprüfte Dateien des Galerie-Index
         self._renders: asyncio.Queue[int] = asyncio.Queue()  # FIFO der Backend-Renderjobs
         # Registry-Änderungen und das Lesen der Workflow-Projektion nie gleichzeitig
         self._registry = asyncio.Lock()
@@ -121,6 +122,7 @@ class Cockpit:
             except Exception as exc:  # im Journal als fehlgeschlagen festgehalten
                 log.error("Renderjob %s fehlgeschlagen: %s", job_id, exc)
             self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
+            self.hub.push_events(spb.TOPIC_MEDIA_ADDED)
             self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
 
     async def observe(self) -> None:
@@ -133,6 +135,10 @@ class Cockpit:
                     workflows = await asyncio.to_thread(self._workflows)
                 self.hub.set_state(spb.TOPIC_COMFY_WORKFLOWS, workflows)
                 self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
+                await asyncio.to_thread(
+                    pipeline.scan_media, self.cfg, self._seen_media, self.cfg.server.media_settle_s
+                )
+                self.hub.push_events(spb.TOPIC_MEDIA_ADDED)
             except Exception:  # eine fehlerhafte Runde beendet die Beobachtung nicht
                 log.exception("Beobachtung fehlgeschlagen")
             await asyncio.sleep(self.cfg.server.observe_s)
@@ -446,6 +452,13 @@ class Cockpit:
             self._busy = ""
         await self.refresh_comfy()
 
+    def read_media(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
+        rows, gap = self.store.media_events(after, limit)
+        return [
+            (r["cursor"], _unix_ms(r["committed_at"]), _media_item(r).SerializeToString())
+            for r in rows
+        ], gap
+
     def read_jobs(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
         rows, gap = self.store.finished_jobs(after, limit)
         return [(r["id"], _unix_ms(r["created_at"]), _job_completed(r)) for r in rows], gap
@@ -453,6 +466,39 @@ class Cockpit:
 
 def _unix_ms(iso: str) -> int:
     return int(datetime.fromisoformat(iso).timestamp() * 1000)
+
+
+def _media_item(row: dict) -> media_pb2.MediaItem:
+    """Galerie-Eintrag; Unterschrift: Kundenname (sonst Kundennummer) oder laufende Nummer."""
+    if row["artifact_id"]:
+        origin = media_pb2.MEDIA_ORIGIN_ORDER
+    elif row["job_id"]:
+        origin = media_pb2.MEDIA_ORIGIN_RENDER
+    elif row["path"].startswith("ComfyUI/"):
+        origin = media_pb2.MEDIA_ORIGIN_COMFYUI
+    else:
+        origin = media_pb2.MEDIA_ORIGIN_EVALUATION
+    caption = (
+        (row["display_name"] or row["customer_no"] or "")
+        if row["order_id"]
+        else f"{row['number']:04d}"
+    )
+    item = media_pb2.MediaItem(
+        media_id=row["id"],
+        kind=media_pb2.MEDIA_KIND_VIDEO if row["kind"] == "video" else media_pb2.MEDIA_KIND_IMAGE,
+        caption=caption,
+        path=row["path"],
+        size=row["size"],
+        sha256=row["sha256"],
+        created_unix_ms=_unix_ms(row["created_at"]),
+        origin=origin,
+        workflow=row["workflow"] or "",
+        job_id=row["job_id"] or 0,
+        order_no=row["order_no"] or "",
+        customer_no=row["customer_no"] or "",
+    )
+    item.params.update({k: str(v) for k, v in row["params"].items()})
+    return item
 
 
 def _job_completed(row: dict) -> bytes:
@@ -593,21 +639,38 @@ def _command_response(request_id: str, reason: str) -> web.Response:
 
 
 def _media(local: Path):
-    """Ausgabedateien der Renderungen (nur unter local/evaluation), nur mit gültiger Sitzung.
-    Pfade sind relativ zu local/, wie in JobCompleted.outputs; Dateien werden nie überschrieben."""
-    allowed = (local / "evaluation").resolve()
+    """Erzeugte Bilder/Videos – nur Dateien des Galerie-Index, nur mit gültiger Sitzung.
+    Pfade relativ zu local/; Dateien werden nie überschrieben. ``?download=1`` lädt herunter."""
 
     async def media(request: web.Request) -> web.StreamResponse:
         if request.app[GUARD_KEY].csrf_of(request) is None:
             return web.Response(status=401, text="Keine gültige Sitzung")
-        path = (local / request.match_info["path"]).resolve()
-        if not path.is_relative_to(allowed) or not path.is_file():
+        rel = request.match_info["path"]
+        if request.app[COCKPIT_KEY].store.media_by_path(rel) is None:
             raise web.HTTPNotFound()
-        return web.FileResponse(
-            path, headers={"Cache-Control": "private, max-age=31536000, immutable"}
-        )
+        path = (local / rel).resolve()
+        if not path.is_relative_to(local.resolve()) or not path.is_file():
+            raise web.HTTPNotFound()
+        headers = {"Cache-Control": "private, max-age=31536000, immutable"}
+        if request.query.get("download") == "1":
+            headers["Content-Disposition"] = f'attachment; filename="{path.name}"'
+        return web.FileResponse(path, headers=headers)
 
     return media
+
+
+async def _media_page(request: web.Request) -> web.Response:
+    """Ältere Galerie-Einträge seitenweise (neueste zuerst), Protobuf."""
+    if request.app[GUARD_KEY].csrf_of(request) is None:
+        return web.Response(status=401, text="Keine gültige Sitzung")
+    try:
+        before = int(request.query.get("before", "0"))
+        limit = min(max(int(request.query.get("limit", "48")), 1), 100)
+    except ValueError:
+        return web.Response(status=400, text="before/limit müssen Zahlen sein")
+    rows, more = request.app[COCKPIT_KEY].store.media_page(before, limit)
+    page = media_pb2.MediaPage(items=[_media_item(r) for r in rows], more=more)
+    return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
 
 
 def _static(dist: Path):
@@ -646,6 +709,9 @@ def create_app(cfg: Config) -> web.Application:
     hub.offer_events(
         spb.TOPIC_JOB_COMPLETED, comfy_pb2.JobCompleted.DESCRIPTOR.full_name, cockpit.read_jobs
     )
+    hub.offer_events(
+        spb.TOPIC_MEDIA_ADDED, media_pb2.MediaItem.DESCRIPTOR.full_name, cockpit.read_media
+    )
 
     limit = int(cfg.server.max_upload_mb * 1024 * 1024)
     app = web.Application(middlewares=[_host_check], client_max_size=limit)
@@ -661,6 +727,7 @@ def create_app(cfg: Config) -> web.Application:
     app.router.add_post("/api/v1/command", _command)
     app.router.add_get("/ws/v1/stream", _stream)
     app.router.add_get("/api/v1/media/{path:.+}", _media(cfg.local))
+    app.router.add_get("/api/v1/media-page", _media_page)
 
     async def lifecycle(_: web.Application):
         tasks = [

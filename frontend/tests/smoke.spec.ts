@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("Cockpit am echten Backend: verbunden, ComfyUI-Zustand, drei Bereiche, keine Fehler", async ({ page }) => {
+test("Cockpit am echten Backend: verbunden, ComfyUI-Zustand, vier Bereiche, keine Fehler", async ({ page }) => {
   const errors: string[] = [];
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(m.text());
@@ -13,8 +13,8 @@ test("Cockpit am echten Backend: verbunden, ComfyUI-Zustand, drei Bereiche, kein
   await expect(comfy).not.toHaveText("KEINE DATEN");
 
   const nav = page.getByRole("navigation", { name: "Bereiche" });
-  await expect(nav.getByRole("link")).toHaveText(["Übersicht", "Nachrichten", "ComfyUI"]);
-  for (const name of ["Nachrichten", "ComfyUI", "Übersicht"]) {
+  await expect(nav.getByRole("link")).toHaveText(["Übersicht", "Nachrichten", "ComfyUI", "Dateien"]);
+  for (const name of ["Nachrichten", "ComfyUI", "Dateien", "Übersicht"]) {
     await nav.getByRole("link", { name }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
     await expect(nav.getByRole("link", { name })).toHaveAttribute("aria-current", "page");

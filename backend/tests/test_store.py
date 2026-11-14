@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from darkfluenzer import approval
+from darkfluenzer import store as store_module
 from darkfluenzer.store import Store, StoreError
 
 BOT = "bot-1"
@@ -235,3 +236,49 @@ def test_database_rejects_delivery_bypassing_code(store):
             " decided_at) VALUES (?,?,?,'approved','x','now')",
             (order.id, arts[0].id, "f" * 64),
         )
+
+
+# ---------------------------------------------------------------------- Medienindex (Galerie)
+
+
+def test_media_index_migrates_v1_dedupes_numbers_and_customer_names(tmp_path):
+    local = tmp_path / "local"
+    local.mkdir()
+    db = sqlite3.connect(local / "darkfluenzer.sqlite3")  # bestehende v1-Datenbank mit Kunde
+    for statement in store_module._statements(store_module.SCHEMA):
+        db.execute(statement)
+    db.execute("PRAGMA user_version = 1")
+    db.execute(
+        "INSERT INTO customers (bot_id, telegram_user_id, created_at) VALUES (?, ?, ?)",
+        (BOT, 77, "2026-11-14T00:00:00.000+00:00"),
+    )
+    db.commit()
+    db.close()
+    s = Store(local)
+    try:
+        assert s.db.execute("PRAGMA user_version").fetchone()[0] == store_module.SCHEMA_VERSION
+        assert s.customer("DF-C-000001").telegram_user_id == 77  # Bestand bleibt
+        assert s.add_media("evaluation/x/a.png", "a" * 64, 10)
+        assert s.add_media("evaluation/x/b.png", "b" * 64, 10)
+        assert s.add_media("ComfyUI/output/a.png", "a" * 64, 10) is None  # gleiche Bytes
+        s.db.execute("UPDATE customers SET display_name = 'Mia' WHERE id = 1")
+        _paid_order_in_review(s, user=77)  # drei Kandidaten -> drei Kundenmedien
+        page, more = s.media_page(0, 10)
+        assert not more and [r["id"] for r in page] == sorted((r["id"] for r in page), reverse=True)
+        assert sorted(r["number"] for r in page if not r["order_id"]) == [1, 2]
+        customer = [r for r in page if r["order_id"]]
+        assert len(customer) == 3
+        assert all(r["display_name"] == "Mia" and r["number"] is None for r in customer)
+        older, _ = s.media_page(page[1]["id"], 10)
+        assert [r["id"] for r in older] == [r["id"] for r in page[2:]]
+        # Unterschrift: Kundenname bzw. Kundennummer, eigene Medien vierstellige Nummer
+        from darkfluenzer.server import _media_item
+
+        captions = {_media_item(r).caption for r in page}
+        assert captions == {"Mia", "0001", "0002"}
+        s.db.execute("UPDATE customers SET display_name = NULL WHERE id = 1")
+        assert {_media_item(r).caption for r in s.media_page(0, 10)[0] if r["order_id"]} == {
+            "DF-C-000001"
+        }
+    finally:
+        s.close()

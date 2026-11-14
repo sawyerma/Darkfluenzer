@@ -14,6 +14,7 @@ enum Topic {
   TOPIC_JOBS_ACTIVE = 2; // STATE darkfluenzer.v1.JobsActive
   TOPIC_COMFY_WORKFLOWS = 3; // STATE darkfluenzer.v1.Workflows
   TOPIC_JOB_COMPLETED = 20; // EVENT darkfluenzer.v1.JobCompleted
+  TOPIC_MEDIA_ADDED = 21; // EVENT darkfluenzer.v1.MediaItem
 }
 
 enum TopicClass {
