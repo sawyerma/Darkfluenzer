@@ -1,7 +1,7 @@
 # DARKFLUENZER — PHASENPLAN V1
 
 **Dokument:** `docs/PHASENPLAN_V1.md`  
-**Version:** 1.1  
+**Version:** 1.2  
 **Stand:** 14.11.2026  
 **Status:** Verbindlicher Architektur- und Umsetzungsplan; Implementierung und lokale Abnahme noch ausstehend  
 **Repository:** [sawyerma/Darkfluenzer](https://github.com/sawyerma/Darkfluenzer)  
@@ -33,7 +33,8 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 
 - Eine über Bilder und Videos wiedererkennbare **vollständig synthetische, eindeutig erwachsene** Figur.
 - Fotorealistische Haut, Haare, Proportionen, Perspektive, Lichtsetzung und konsistente Identität.
-- Bildvarianten, Inpainting, Detailer, Tiled Refinement und geeignetes Upscaling.
+- **Ein gemeinsames fotografisches Masterbild** pro Szene als kanonische, unveränderliche Ausgangsbasis; sowohl reguläre als auch NSFW-Bearbeitungen werden davon abgeleitet.
+- Bildvarianten, **maskiertes Inpainting mit separat ladbaren spezialisierten SDXL-Checkpoints**, Detailer, Tiled Refinement und geeignetes Upscaling.
 - Video: nachvollziehbare Referenzbilder, Pose-/Bewegungssteuerung, zeitliche Konsistenz, segmentierte Clips und Nachbearbeitung.
 - Das Ziel „Hollywood-/Realfilm-Niveau“ ist eine **Qualitätsanforderung**, keine garantierte oder bereits nachgewiesene Modelleigenschaft. Abnahme erfolgt anhand festgelegter Testmotive und Sichtung der Ergebnisse.
 
@@ -100,9 +101,9 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 │   └── observability/               # Logs, Metriken, Health
 ├── workflows/
 │   ├── images/
-│   │   ├── base/                    # LUSTIFY, SDXL
-│   │   ├── identity/                # Character-LoRA, Referenzkontrolle
-│   │   ├── inpainting/              # Lokale Korrektur
+│   │   ├── base/                    # Master-Fotogenerierung, Qualitätsbenchmark
+│   │   ├── identity/                # Einheitliches Charakterprofil, passende LoRAs
+│   │   ├── inpainting/              # SDXL/LUSTIFY: nur maskierte Bereiche
 │   │   └── refinement/              # Detailer, Tiled Diffusion, Upscaling
 │   └── video/
 │       ├── wan/                     # Wan 2.2 I2V / Remix
@@ -180,20 +181,29 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 
 ### P02 — Bildproduktion und Charakteridentität
 
-**Ziel:** Reproduzierbare fotorealistische Bilder mit derselben virtuellen Figur.
+**Ziel:** Reproduzierbare fotorealistische Bilder mit derselben virtuellen Figur und **einer einheitlichen Master-Ausgangsbasis** für reguläre und spezialisierte Bildbearbeitung.
 
 **Arbeiten**
-- `A01` Basisbild, `A02` SDXL-Character-LoRA, `A03` Img2Img, `A04` Inpainting strukturiert importieren.
-- LUSTIFY und mindestens einen Vergleichscheckpoint getrennt testen; SDXL-Kompatibilität jedes LoRA nachweisen.
-- Charakter-Referenzsatz versionieren (ohne ungeklärte fremde Bildrechte); eigene LoRA trainieren, falls qualitativ notwendig.
+- `A01` Basisbild, `A02` SDXL-Character-LoRA, `A03` Img2Img, `A04` Inpainting strukturiert importieren. Die bestehenden Workflows bleiben als technische Module erhalten, ihre Produktionsrolle wird neu geordnet.
+- **Master-Engine**: fotorealistische Szene mit dem qualitativ besten lokal geprüften, zulässigen Bildmodell erzeugen (FLUX/MiniMax/Qwen/vergleichbares Modell nur nach Mac-Test). Das Ergebnis wird als **unveränderliches Master-PNG** einschließlich Prompt, Seed, Modellhash, Charakterreferenz und Version gespeichert.
+- **Zwei Ableitungen vom selben Master-PNG**: (A) normales Bild → normale Korrektur/Upscaling; (B) spezialisierte Erwachsenen-Bildbearbeitung → gezielte, **maskierte** regionale Bearbeitung z. B. mit LUSTIFY (SDXL) → Korrektur/Upscaling.
+- **Der komplette Basis-Frame darf beim NSFW-Schritt nicht als neues Vollbild generiert werden.** Nur eine definierte Maske und eine begrenzte Übergangszone werden über Inpainting neu berechnet; außerhalb bleibt das Masterbild im finalen Composite pixelidentisch. Optional Cropping/Region Upscale mit Rückprojektion.
+- Die von Kleidung verdeckten Regionen sind im Ausgangsbild nicht vorhanden; Inpainting erzeugt diese Details synthetisch. Keine Behauptung einer physikalisch oder anatomisch garantiert korrekten Rekonstruktion.
+- Architekturwechsel erfolgen an **standardisierten PNG-/Masken-Dateien**; FLUX-/MiniMax-/Qwen-Latents sowie deren LoRAs **dürfen nicht direkt an SDXL/LUSTIFY angeschlossen werden**. Für SDXL-Identität separate kompatible LoRA oder passende Referenzkonditionierung vorsehen.
+- LUSTIFY ist ein **gewöhnlicher SDXL-Checkpoint**, nicht automatisch ein speziell konditioniertes Inpainting-Modell. Unterstützten Maskenpfad mit `VAEEncode` + `SetLatentNoiseMask` testen; `VAEEncodeForInpaint` oder dedizierte Inpaint-Modelle als gesonderten Versuch führen, nicht ungeprüft vermischen.
+- Charakter-Referenzsatz versionieren (ohne ungeklärte fremde Bildrechte); eigene Charakter-LoRA pro verwendeter Modellfamilie trainieren, soweit erforderlich.
 - Lokale Sampler-/Seed-/Modell-Registry; API-fähige Produktionsvorlagen und drei Varianten je Auftrag.
-- Detailer und Tiled-Upscale als **separate optionale Stufen**; Ergebnisse gegen Ausgangsbilder vergleichen.
+- Detailer und Tiled-Upscale als **separate optionale Stufen**; Ergebnisse gegen das originale Masterbild vergleichen.
 - Modelldateien und deren Lizenzen dokumentieren; fehlende oder inkompatible Nodes melden.
 
 **Abnahme**
 - Gleiche Prompt-/Seed-/Versionskombination ist reproduzierbar.
 - Mindestens drei Varianten pro Auftrag werden gespeichert.
 - Vergleich von Identität, Haut, Händen, Anatomie, Schatten und Auflösung dokumentiert.
+- Master-PNG bleibt unverändert; bei maskierten Ableitungen bleiben alle Pixel außerhalb der Maske und ihres definierten Rands identisch.
+- Beide Bearbeitungsarten liefern kontrolliert aus derselben Master-Datei; unverwechselbare Zuordnung über `master_artifact_id`.
+- Cross-Architecture-Übergänge erfolgen ausschließlich über Bilddateien/Masken, nicht Modell-Latents.
+- Kein unbewiesener Qualitätsvorteil von LUSTIFY-Inpainting: Vergleich mit anderen Inpaint-/Edit-Modellen am identischen Bild und identischer Maske dokumentiert.
 - Keine zwingende Cloud-Inferenz.
 - Nicht funktionierende oder nicht lizenzierte Modelle bleiben deaktiviert.
 
@@ -207,6 +217,7 @@ Darkfluenzer wird als **lokal betriebenes, modular aufgebautes KI-Medienprodukti
 - Wan 2.2 I2V mit zusammengehörigem High-/Low-Noise-Paar, passendem VAE und Encoder.
 - FP8/MPS-Kompatibilität **real messen**; falls ungeeignet, dokumentiert auf kompatiblen Datentyp/Backend wechseln.
 - LTX Desktop beziehungsweise LTX-Workflows als unabhängigen Video-Pfad integrieren.
+- Bild-zu-Video übernimmt ausschließlich ein versioniertes, geeignetes fertiges Master- oder bearbeitetes PNG; beide Varianten behalten ihre gemeinsame Herkunft (`master_artifact_id`) und ihre eigene, unveränderliche `artifact_id`.
 - Bewegungsreferenzen, Kontextverlängerung, SVI-/Segmentbildung, temporale Qualitätsprüfung und optionales Upscaling.
 - Keine LoRA zwischen Wan/LTX/SDXL austauschen; nur standardisierte Medien als Übergabe.
 
@@ -411,6 +422,16 @@ P01 wird **erst** als abgeschlossen markiert, wenn die `.app` auf dem realen Mac
 `docs/STATUS.md` enthält pro Phase: `OFFEN / IN_ARBEIT / BLOCKIERT / PASS`, Git-Commit, getestete Version, Testdatum, reproduzierbaren Nachweis und offene Befunde. Kein PASS auf Grundlage bloßer Datei-Existenz oder syntaktisch gültiger Workflows.
 
 Änderungen an der Architektur oder Qualitätspipeline erfolgen über einen dokumentierten Änderungsabschnitt im Plan und werden mit demselben Commit wie die Änderung umgesetzt.
+
+### Änderung V1.2 — Einheitliche Master-Bildpipeline (14.11.2026)
+
+- **Master-First** ist verbindlich: Erst das bestgeeignete lokale Bildmodell für die gesamte Fotografie, danach normale oder spezialisierte regionale Bearbeitung.
+- LUSTIFY ist ein **optionaler SDXL-Region-Editor**, nicht die erzwungene Master-Engine und nicht automatisch das beste Inpainting-Modell.
+- **Ein Master-PNG** mit identischem Gesicht, Szene und Kameraperspektive; die Normal-/NSFW-Versionen sind getrennte, reproduzierbare Derivate.
+- Bei maskierter Bearbeitung bleiben unmaskierte Pixel im Endbild exakt erhalten. Anatomie und Übergänge sind zusätzlich visuell abzunehmen.
+- Modellfamilien werden ausschließlich über Bild-/Maskenartefakte kombiniert; keine cross-family LoRA- oder Latent-Kompatibilität behaupten.
+- Echte Qualitätskontrolle durch A/B-Tests am identischen Originalmotiv.
+- Technische Grundlagen: https://github.com/Comfy-Org/ComfyUI/blob/master/nodes.py und https://huggingface.co/docs/diffusers/using-diffusers/inpaint
 
 ### Änderung V1.1 — Verkaufs- und Zahlungsgates (14.11.2026)
 
