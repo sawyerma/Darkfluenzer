@@ -270,6 +270,8 @@ Start über `Finder → open /Applications/Darkfluenzer.app` (LaunchServices, id
 
 **Regression nach Backend-Migration (14.11.2026, `backend/`):** `launcher/install.sh` neu ausgeführt (venv-Probelauf: nur das eigene Paket neu verlinkt, Trainings-Extras erhalten); per LaunchServices: Öffnen bei laufender ComfyUI → `already_running`; `comfy stop` → nur eigene PID beendet, Port frei; App-Start aus gestopptem Zustand → bereit nach 4,8 s, Browser danach; zweiter Doppelklick → `already_running`, eine PID; pytest 55/55 – PASS.
 
+**Starter auf Cockpit umgestellt (14.11.2026):** Doppelklick → `darkfluenzer up` (eigener Cockpit-Server, wartet auf `/healthz`) → Cockpit-URL öffnen → `darkfluenzer comfy start` (unveränderte einzige ComfyUI-Startlogik). „Stoppen“ = `darkfluenzer down` (nur eigener Server + eigene ComfyUI); `darkfluenzer restart` startet nur den Server neu (Updates), ComfyUI läuft weiter. Alle Start-/Stopplogik in `runtime.py`; fremde Prozesse auf dem Port werden erkannt, nie beendet. Integrationstest: `up` echt + idempotent, `restart` neue PID, `down` Port frei, fremder Port-Inhaber → abgewiesen. Mac 14.11. 20:10 aus vollständig gestopptem Zustand: `up` → started, Cockpit erst danach geöffnet, ComfyUI → started (app.log). Hinweis: nach jeder Änderung der App fragt macOS einmal nach Zugriff auf den Schreibtisch-Ordner (Ad-hoc-Signatur). **Offen:** zweiter Doppelklick, Stoppen, Neustart und Fehlerfall mit dem neuen Starter am Mac (unterbrechen ComfyUI, daher nicht während laufender Nutzung).
+
 Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen-Berechtigung angefordert); sie rufen ausschließlich die oben geprüften CLI-Befehle auf.
 
 ### S2-Nachweis (14.11.2026, echter Mac, ComfyUI 0.45.3, MPS)

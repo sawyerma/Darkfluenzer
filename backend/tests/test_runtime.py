@@ -5,6 +5,8 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
+import socket
 import subprocess
 import sys
 from dataclasses import replace
@@ -12,7 +14,7 @@ from dataclasses import replace
 import pytest
 
 from darkfluenzer import runtime
-from darkfluenzer.config import Config
+from darkfluenzer.config import Config, project_root
 
 
 @pytest.fixture(autouse=True)
@@ -165,3 +167,25 @@ def test_cli_json_contract(project, cfg: Config):
     assert json.loads(run("stop").stdout)["result"] == "stopped"
     unhealthy = run("health")
     assert unhealthy.returncode == 7
+
+
+def test_cockpit_up_idempotent_down_stops_only_own(cfg: Config):
+    shutil.copytree(project_root() / "workflows", cfg.root / "workflows")  # echte Registry
+    try:
+        first = runtime.cockpit_up(cfg)
+        assert first["result"] == "started" and runtime.cockpit_healthy(cfg)
+        assert runtime.cockpit_up(cfg)["result"] == "already_running"
+        restarted = runtime.cockpit_restart(cfg)
+        assert restarted["result"] == "started" and restarted["pid"] != first["pid"]
+    finally:
+        down = runtime.cockpit_down(cfg)
+    assert down["result"] == "stopped"
+    assert runtime.listening_pids(cfg.server.port) == []
+
+    with socket.socket() as foreign:  # fremder Prozess auf dem Cockpit-Port
+        foreign.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # TIME_WAIT der Checks
+        foreign.bind(("127.0.0.1", cfg.server.port))
+        foreign.listen()
+        with pytest.raises(runtime.ForeignInstance):
+            runtime.cockpit_up(cfg)
+        assert runtime.cockpit_down(cfg)["result"] == "not_running"

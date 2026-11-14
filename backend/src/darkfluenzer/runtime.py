@@ -1,9 +1,12 @@
-"""ComfyUI-Prozesssteuerung – die EINZIGE Start-/Stop-Logik für macOS-App und Backend.
+"""Prozesssteuerung – die EINZIGE Start-/Stop-Logik für macOS-App und Backend:
+verwaltete ComfyUI-Instanz und lokaler Cockpit-Server.
 
 Identität der verwalteten Instanz: ``local/comfyui.json`` hält PID, Prozess-Startzeit und
 Kommandozeile. Ein Prozess gilt nur dann als "eigene Instanz", wenn alle drei übereinstimmen.
 Fremde ComfyUI-Prozesse (z. B. manuell im Terminal gestartet) werden erkannt, aber weder
 übernommen noch beendet. Gestoppt wird ausschließlich die eigene Prozessgruppe – kein pkill.
+Der Cockpit-Server gilt als eigener, wenn er auf dem konfigurierten Port lauscht und mit
+``-m darkfluenzer serve`` gestartet wurde; alles andere auf dem Port ist fremd.
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ import logging
 import os
 import signal
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -31,7 +35,9 @@ log = logging.getLogger("darkfluenzer.runtime")
 STATE_NAME = "comfyui.json"
 LOCK_NAME = "comfyui.lock"
 COMFY_LOG_NAME = "comfyui.log"
-COMFY_LOG_KEEP = 3
+SERVER_LOG_NAME = "server.log"
+LOG_KEEP = 3
+SERVER_MARK = "-m darkfluenzer serve"
 _POLL_S = 0.5
 _ENV_DROP = ("PYTHONHOME", "PYTHONPATH", "VIRTUAL_ENV", "__PYVENV_LAUNCHER__", "CONDA_PREFIX")
 
@@ -291,13 +297,13 @@ def build_env(cfg: Config, base: dict[str, str] | None = None) -> dict[str, str]
     return env
 
 
-def _rotate_comfy_log(cfg: Config) -> Path:
+def _rotate_log(cfg: Config, name: str) -> Path:
     cfg.logs.mkdir(parents=True, exist_ok=True)
-    current = cfg.logs / COMFY_LOG_NAME
-    for i in range(COMFY_LOG_KEEP, 0, -1):
-        src = current if i == 1 else cfg.logs / f"{COMFY_LOG_NAME}.{i - 1}"
+    current = cfg.logs / name
+    for i in range(LOG_KEEP, 0, -1):
+        src = current if i == 1 else cfg.logs / f"{name}.{i - 1}"
         if src.exists():
-            os.replace(src, cfg.logs / f"{COMFY_LOG_NAME}.{i}")
+            os.replace(src, cfg.logs / f"{name}.{i}")
     return current
 
 
@@ -332,7 +338,7 @@ def _terminate(pid: int, timeout: float) -> None:
             time.sleep(0.2)
         if sig == signal.SIGTERM:
             log.warning("PID %s reagiert nicht auf SIGTERM – SIGKILL an eigene Gruppe", pid)
-    raise StopFailed(f"ComfyUI-Prozess {pid} ließ sich nicht beenden.", pid=pid)
+    raise StopFailed(f"Prozess {pid} ließ sich nicht beenden.", pid=pid)
 
 
 def _await_ready(cfg: Config, inst: Instance, proc: subprocess.Popen | None) -> dict:
@@ -407,7 +413,7 @@ def start(cfg: Config) -> dict:
                 health=health_summary(stats),
             )
 
-        log_path = _rotate_comfy_log(cfg)
+        log_path = _rotate_log(cfg, COMFY_LOG_NAME)
         cmd = build_command(cfg)
         log.info("Starte ComfyUI: cwd=%s cmd=%s", c.path, cmd)
         with open(log_path, "ab") as logf:
@@ -525,3 +531,103 @@ def status(cfg: Config) -> dict:
     else:
         payload["state"] = "stopped"
     return payload
+
+
+# --------------------------------------------------------------------------- Cockpit-Server
+
+
+def cockpit_healthy(cfg: Config) -> bool:
+    """Echter Health-Check des Cockpit-Servers: ``GET /healthz`` antwortet 204."""
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(f"{cfg.server.url}/healthz", timeout=2.0) as resp:
+            return resp.status == 204
+    except (urllib.error.URLError, OSError):
+        return False
+
+
+def _cockpit_pids(cfg: Config) -> tuple[list[int], list[int]]:
+    """(eigene, fremde) PIDs auf dem Cockpit-Port."""
+    own: list[int] = []
+    foreign: list[int] = []
+    for pid in listening_pids(cfg.server.port):
+        (own if SERVER_MARK in (process_command(pid) or "") else foreign).append(pid)
+    return own, foreign
+
+
+def cockpit_up(cfg: Config) -> dict:
+    """Startet den Cockpit-Server, falls nötig, und wartet auf seinen Health-Check. Idempotent."""
+    s = cfg.server
+    with _locked(cfg, timeout=s.timeout_s + 30):
+        own, foreign = _cockpit_pids(cfg)
+        if foreign:
+            raise ForeignInstance(
+                f"Cockpit-Port {s.port} ist von einem fremden Prozess belegt "
+                f"(PID {', '.join(map(str, foreign))}). Port in local/config.toml [server] ändern.",
+                pids=foreign,
+                url=s.url,
+            )
+        if own and cockpit_healthy(cfg):
+            return {"result": "already_running", "url": s.url, "pid": own[0]}
+        proc = None
+        log_path = cfg.logs / SERVER_LOG_NAME
+        if not own:
+            log_path = _rotate_log(cfg, SERVER_LOG_NAME)
+            log.info("Starte Cockpit-Server auf %s", s.url)
+            with open(log_path, "ab") as logf:
+                proc = subprocess.Popen(
+                    [sys.executable, "-m", "darkfluenzer", "serve"],
+                    cwd=cfg.root,
+                    env={**os.environ, "DARKFLUENZER_ROOT": str(cfg.root)},
+                    stdin=subprocess.DEVNULL,
+                    stdout=logf,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                    close_fds=True,
+                )
+        pid = proc.pid if proc else own[0]
+        deadline = time.monotonic() + s.timeout_s
+        while time.monotonic() < deadline:
+            if cockpit_healthy(cfg):
+                log.info("Cockpit-Server bereit: PID %s", pid)
+                return {"result": "started", "url": s.url, "pid": pid}
+            if proc is not None and proc.poll() is not None:
+                raise StartFailed(
+                    f"Cockpit-Server wurde beim Start beendet (Exit-Code {proc.returncode}).",
+                    log=str(log_path),
+                    log_tail=log_tail(log_path),
+                )
+            time.sleep(_POLL_S)
+        if proc is not None:
+            _terminate(proc.pid, s.timeout_s)
+        raise StartFailed(
+            f"Cockpit-Server nach {s.timeout_s:.0f} s nicht bereit.",
+            log=str(log_path),
+            log_tail=log_tail(log_path),
+        )
+
+
+def cockpit_restart(cfg: Config) -> dict:
+    """Nur den eigenen Cockpit-Server neu starten (z. B. nach einem Update); ComfyUI und
+    laufende ComfyUI-Aufträge bleiben unberührt."""
+    with _locked(cfg, timeout=cfg.server.timeout_s + 30):
+        own, _ = _cockpit_pids(cfg)
+        for pid in own:
+            log.info("Neustart: stoppe Cockpit-Server PID %s", pid)
+            _terminate(pid, cfg.server.timeout_s)
+    return cockpit_up(cfg)
+
+
+def cockpit_down(cfg: Config) -> dict:
+    """Beendet den eigenen Cockpit-Server und die eigene ComfyUI-Instanz; Fremdes bleibt."""
+    with _locked(cfg, timeout=cfg.server.timeout_s + 30):
+        own, _ = _cockpit_pids(cfg)
+        for pid in own:
+            log.info("Stoppe Cockpit-Server PID %s", pid)
+            _terminate(pid, cfg.server.timeout_s)
+    comfy = stop(cfg)
+    return {
+        "result": "stopped" if own else "not_running",
+        "cockpit_pids": own,
+        "comfyui": comfy["result"],
+    }

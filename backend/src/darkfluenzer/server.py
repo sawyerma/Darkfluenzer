@@ -232,6 +232,10 @@ async def _host_check(request: web.Request, handler):
 # --------------------------------------------------------------------------- Routen
 
 
+async def _healthz(_: web.Request) -> web.Response:
+    return web.Response(status=204)
+
+
 async def _session(request: web.Request) -> web.Response:
     guard = request.app[GUARD_KEY]
     site = request.headers.get("Sec-Fetch-Site", "same-origin")
@@ -360,6 +364,7 @@ def create_app(cfg: Config) -> web.Application:
     app[COMMANDS_KEY] = OrderedDict()
     index, asset = _static(cfg.root / "frontend" / "dist")
     app.router.add_get("/", index)
+    app.router.add_get("/healthz", _healthz)
     app.router.add_get("/assets/{name}", asset)
     app.router.add_get("/api/v1/session", _session)
     app.router.add_post("/api/v1/command", _command)

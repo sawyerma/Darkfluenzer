@@ -46,6 +46,7 @@ class ServerConfig:
     heartbeat_s: float
     observe_s: float
     catchup_limit: int
+    timeout_s: float
 
     @property
     def url(self) -> str:
@@ -179,6 +180,7 @@ def _parse_server(t: dict) -> ServerConfig:
         heartbeat_s=_positive(t, "heartbeat_s", 15, w),
         observe_s=_positive(t, "observe_s", 2, w),
         catchup_limit=int(_positive(t, "catchup_limit", 200, w)),
+        timeout_s=_positive(t, "timeout_s", 20, w),
     )
 
 

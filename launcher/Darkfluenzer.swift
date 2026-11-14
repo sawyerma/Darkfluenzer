@@ -1,9 +1,9 @@
-// Darkfluenzer.app – native macOS-Oberfläche für den ComfyUI-Starter.
+// Darkfluenzer.app – dünner macOS-Starter mit pinkem „C“ (PHASENPLAN_FRONT_V1 F0/F4).
 //
-// Die App enthält KEINE eigene Prozesslogik. Sie ruft ausschließlich
-//   <projekt>/local/.venv/bin/python -m darkfluenzer comfy start|stop|status --json
-// auf (backend/src/darkfluenzer/runtime.py) – dieselbe Logik, die das Backend benutzt.
-// Der Projektordner steht als DFProjectRoot in Info.plist (gesetzt von launcher/install.sh).
+// Die App enthält KEINE eigene Prozesslogik und keine zweite Bedienoberfläche. Sie ruft
+// ausschließlich <projekt>/local/.venv/bin/python -m darkfluenzer up|down|comfy start --json
+// auf (backend/src/darkfluenzer/runtime.py) und öffnet das Cockpit erst nach dessen
+// Health-Check. Der Projektordner steht als DFProjectRoot in Info.plist (launcher/install.sh).
 import AppKit
 
 struct CLIResult {
@@ -26,12 +26,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let stateLabel = NSTextField(labelWithString: "Prüfe Status …")
     private let detailLabel = NSTextField(wrappingLabelWithString: "")
     private let spinner = NSProgressIndicator()
-    private let openButton = NSButton(title: "Im Browser öffnen", target: nil, action: nil)
-    private let startButton = NSButton(title: "Starten", target: nil, action: nil)
+    private let openButton = NSButton(title: "Cockpit öffnen", target: nil, action: nil)
     private let stopButton = NSButton(title: "Stoppen", target: nil, action: nil)
     private let logButton = NSButton(title: "Logs", target: nil, action: nil)
     private var busy = false
-    private var currentURL: URL?
 
     private lazy var projectRoot: URL? = {
         guard let raw = Bundle.main.object(forInfoDictionaryKey: "DFProjectRoot") as? String,
@@ -47,14 +45,14 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
         buildMenu()
         buildWindow()
         appLog("App gestartet (pid \(ProcessInfo.processInfo.processIdentifier))")
-        ensureRunning(openBrowser: true)
+        ensureRunning()
     }
 
     /// Zweiter Doppelklick/Dock-Klick bei laufender App: idempotent prüfen und öffnen.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         window.makeKeyAndOrderFront(nil)
         appLog("Reopen angefordert")
-        ensureRunning(openBrowser: true)
+        ensureRunning()
         return true
     }
 
@@ -62,103 +60,88 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
-        menu.addItem(withTitle: "Im Browser öffnen", action: #selector(openClicked), keyEquivalent: "")
-        menu.addItem(withTitle: "Status aktualisieren", action: #selector(refreshClicked), keyEquivalent: "")
-        menu.addItem(withTitle: "ComfyUI stoppen", action: #selector(stopClicked), keyEquivalent: "")
+        menu.addItem(withTitle: "Cockpit öffnen", action: #selector(openClicked), keyEquivalent: "")
+        menu.addItem(withTitle: "Stoppen", action: #selector(stopClicked), keyEquivalent: "")
         return menu
     }
 
     // MARK: Aktionen
 
-    @objc private func openClicked() { ensureRunning(openBrowser: true) }
-    @objc private func startClicked() { ensureRunning(openBrowser: true) }
-    @objc private func refreshClicked() { refreshStatus() }
+    @objc private func openClicked() { ensureRunning() }
     @objc private func logsClicked() {
         if let dir = logsDir { NSWorkspace.shared.open(dir) }
     }
 
-    @objc private func stopClicked() {
+    /// Cockpit-Server bereitstellen, nach erfolgreichem Health-Check öffnen, dann ComfyUI starten.
+    private func ensureRunning() {
         guard !busy else { return }
-        setBusy("ComfyUI wird gestoppt …")
-        runCLI(["comfy", "stop"]) { [weak self] r in
+        setBusy("Cockpit wird gestartet bzw. geprüft …")
+        runCLI(["up"]) { [weak self] r in
             guard let self else { return }
-            self.busy = false
-            self.appLog("stop -> exit=\(r.exitCode) \(r.json?["result"] ?? r.error)")
-            if r.ok {
-                let result = r.json?["result"] as? String ?? ""
-                if result == "not_managed" {
-                    self.alert("Nicht gestoppt", r.json?["message"] as? String ?? "Fremde Instanz.")
-                }
-            } else {
-                self.alert("Stoppen fehlgeschlagen", r.message)
+            self.appLog("up -> exit=\(r.exitCode) \(r.json?["result"] ?? r.error)")
+            guard r.ok, let s = r.json?["url"] as? String, let url = URL(string: s) else {
+                self.busy = false
+                self.showStopped("Cockpit nicht gestartet")
+                self.failure("Cockpit konnte nicht gestartet werden", r)
+                return
             }
-            self.refreshStatus()
+            self.appLog("Browser öffnen: \(url.absoluteString)")
+            NSWorkspace.shared.open(url)
+            self.stateLabel.stringValue = "● Cockpit läuft"
+            self.stateLabel.textColor = .systemGreen
+            self.detailLabel.stringValue = "\(s)\nComfyUI wird gestartet bzw. geprüft …"
+            self.startComfy(cockpit: s)
         }
     }
 
-    private func ensureRunning(openBrowser: Bool) {
-        guard !busy else { return }
-        setBusy("ComfyUI wird gestartet bzw. geprüft …")
+    private func startComfy(cockpit: String) {
         runCLI(["comfy", "start"]) { [weak self] r in
             guard let self else { return }
             self.busy = false
-            self.appLog("start -> exit=\(r.exitCode) \(r.json?["result"] ?? r.error)")
+            self.idle()
+            self.appLog("comfy start -> exit=\(r.exitCode) \(r.json?["result"] ?? r.error)")
+            let comfy: String
             if r.ok {
-                self.showRunning(r.json ?? [:])
-                if openBrowser, let url = self.currentURL {
-                    // Erst hier – nach erfolgreichem Health-Check im Python-Runtime – Browser öffnen.
-                    self.appLog("Browser öffnen: \(url.absoluteString)")
-                    NSWorkspace.shared.open(url)
-                }
+                comfy = "ComfyUI bereit."
+            } else if r.error == "foreign_instance" {
+                comfy = "ComfyUI: fremde Instanz – wird weder übernommen noch beendet."
+            } else {
+                comfy = "ComfyUI-Start fehlgeschlagen (Details im Cockpit und in den Logs)."
+                self.failure("ComfyUI konnte nicht gestartet werden", r)
+            }
+            self.detailLabel.stringValue = "\(cockpit)\n\(comfy)\nFenster schließen beendet nichts."
+            self.openButton.isEnabled = true
+            self.stopButton.isEnabled = true
+        }
+    }
+
+    @objc private func stopClicked() {
+        guard !busy else { return }
+        setBusy("Cockpit und ComfyUI werden gestoppt …")
+        runCLI(["down"]) { [weak self] r in
+            guard let self else { return }
+            self.busy = false
+            self.appLog("down -> exit=\(r.exitCode) \(r.json?["result"] ?? r.error) comfyui=\(r.json?["comfyui"] ?? "-")")
+            guard r.ok else {
+                self.showStopped("Status unbekannt")
+                self.failure("Stoppen fehlgeschlagen", r)
                 return
             }
-            switch r.error {
-            case "foreign_instance":
-                self.showForeign(r.json ?? [:])
-                let details = r.json?["details"] as? [String: Any]
-                let isComfy = details?["is_comfyui"] as? Bool ?? false
-                let urlString = details?["url"] as? String
-                let choice = self.alert(
-                    "Fremde ComfyUI-Instanz", r.message,
-                    buttons: isComfy ? ["Trotzdem im Browser öffnen", "Abbrechen"] : ["OK"])
-                if isComfy, choice == .alertFirstButtonReturn, let s = urlString, let url = URL(string: s) {
-                    self.appLog("Fremde Instanz auf Wunsch geöffnet (nicht übernommen): \(s)")
-                    NSWorkspace.shared.open(url)
-                }
-            default:
-                self.showStopped("Start fehlgeschlagen")
-                var text = r.message
-                if let tail = (r.json?["details"] as? [String: Any])?["log_tail"] as? String, !tail.isEmpty {
-                    text += "\n\nLetzte Logzeilen:\n" + tail.split(separator: "\n").suffix(8).joined(separator: "\n")
-                }
-                let choice = self.alert("ComfyUI konnte nicht gestartet werden", text,
-                                        buttons: ["Logs öffnen", "Schließen"])
-                if choice == .alertFirstButtonReturn { self.logsClicked() }
+            self.showStopped("Gestoppt")
+            if r.json?["comfyui"] as? String == "not_managed" {
+                self.detailLabel.stringValue = "Fremde ComfyUI-Instanz läuft weiter (nicht von Darkfluenzer gestartet)."
             }
         }
     }
 
-    private func refreshStatus() {
-        guard !busy else { return }
-        runCLI(["comfy", "status"]) { [weak self] r in
-            guard let self, !self.busy else { return }
-            guard r.ok, let j = r.json else {
-                self.showStopped("Status unbekannt")
-                self.detailLabel.stringValue = r.message
-                return
-            }
-            switch j["state"] as? String ?? "" {
-            case "running": self.showRunning(j)
-            case "foreign": self.showForeign(j)
-            case "starting":
-                self.stateLabel.stringValue = "ComfyUI startet (anderer Aufrufer) …"
-                self.stateLabel.textColor = .secondaryLabelColor
-                self.detailLabel.stringValue = "Status später erneut prüfen."
-            case "unhealthy":
-                self.showStopped("Verwaltete Instanz antwortet nicht")
-                self.stopButton.isEnabled = true
-            default: self.showStopped("Gestoppt")
-            }
+    /// Fehlgeschlagene Schritte nie als Erfolg zeigen: Meldung mit letzten Logzeilen.
+    private func failure(_ title: String, _ r: CLIResult) {
+        var text = r.message
+        if let tail = (r.json?["details"] as? [String: Any])?["log_tail"] as? String, !tail.isEmpty {
+            text += "\n\nLetzte Logzeilen:\n" + tail.split(separator: "\n").suffix(8).joined(separator: "\n")
+        }
+        if alert(title, text, buttons: ["Logs öffnen", "Schließen"]) == .alertFirstButtonReturn {
+            logsClicked()
         }
     }
 
@@ -220,7 +203,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
         stateLabel.textColor = .secondaryLabelColor
         spinner.isHidden = false
         spinner.startAnimation(nil)
-        [openButton, startButton, stopButton].forEach { $0.isEnabled = false }
+        [openButton, stopButton].forEach { $0.isEnabled = false }
     }
 
     private func idle() {
@@ -228,42 +211,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
         spinner.isHidden = true
     }
 
-    private func showRunning(_ j: [String: Any]) {
-        idle()
-        currentURL = (j["url"] as? String).flatMap(URL.init(string:))
-        stateLabel.stringValue = "● ComfyUI läuft"
-        stateLabel.textColor = .systemGreen
-        var lines: [String] = []
-        if let u = j["url"] as? String { lines.append(u) }
-        if let pid = j["pid"] { lines.append("PID \(pid) · verwaltet von Darkfluenzer") }
-        if let h = j["health"] as? [String: Any] {
-            lines.append("ComfyUI \(h["comfyui_version"] ?? "?") · PyTorch \(h["pytorch_version"] ?? "?") · \(h["device"] ?? "?")")
-        }
-        lines.append("Fenster schließen beendet ComfyUI nicht.")
-        detailLabel.stringValue = lines.joined(separator: "\n")
-        openButton.isEnabled = true
-        startButton.isEnabled = false
-        stopButton.isEnabled = true
-    }
-
-    private func showForeign(_ j: [String: Any]) {
-        idle()
-        let pids = ((j["details"] as? [String: Any])?["pids"] ?? j["foreign_pids"]) as? [Int] ?? []
-        stateLabel.stringValue = "● Fremde Instanz auf dem Port"
-        stateLabel.textColor = .systemOrange
-        detailLabel.stringValue = "PID \(pids.map(String.init).joined(separator: ", ")) – nicht von Darkfluenzer gestartet.\nWird weder übernommen noch beendet."
-        openButton.isEnabled = false
-        startButton.isEnabled = true
-        stopButton.isEnabled = false
-    }
-
     private func showStopped(_ text: String) {
         idle()
         stateLabel.stringValue = "○ " + text
         stateLabel.textColor = .secondaryLabelColor
-        detailLabel.stringValue = "ComfyUI ist nicht aktiv."
-        openButton.isEnabled = false
-        startButton.isEnabled = true
+        detailLabel.stringValue = "Cockpit-Server und eigene ComfyUI sind nicht aktiv."
+        openButton.isEnabled = true
         stopButton.isEnabled = false
     }
 
@@ -332,14 +285,14 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
         spinner.controlSize = .small
         spinner.isHidden = true
 
-        for (b, sel) in [(openButton, #selector(openClicked)), (startButton, #selector(startClicked)),
-                         (stopButton, #selector(stopClicked)), (logButton, #selector(logsClicked))] {
+        for (b, sel) in [(openButton, #selector(openClicked)), (stopButton, #selector(stopClicked)),
+                         (logButton, #selector(logsClicked))] {
             b.target = self
             b.action = sel
             b.bezelStyle = .rounded
         }
         openButton.keyEquivalent = "\r"
-        [openButton, startButton, stopButton].forEach { $0.isEnabled = false }
+        [openButton, stopButton].forEach { $0.isEnabled = false }
 
         let stateRow = NSStackView(views: [spinner, stateLabel])
         stateRow.spacing = 6
@@ -352,7 +305,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
         top.spacing = 16
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let buttons = NSStackView(views: [logButton, spacer, stopButton, startButton, openButton])
+        let buttons = NSStackView(views: [logButton, spacer, stopButton, openButton])
         buttons.spacing = 8
         let root = NSStackView(views: [top, buttons])
         root.orientation = .vertical

@@ -7,6 +7,8 @@
     python -m darkfluenzer render WORKFLOW --set name=wert ... [--input name=datei ...] [--json]
     python -m darkfluenzer character scan|dataset|train-sdxl [--dataset ID] [--steps N] [--json]
     python -m darkfluenzer serve          (Cockpit: React-Build + Protobuf-API, blockierend)
+    python -m darkfluenzer up|restart|down [--json]  (Cockpit starten / nur Cockpit neu starten /
+                                                      Cockpit + eigene ComfyUI stoppen)
 
 Exit-Codes: 0 ok, 1 Fehler, 2 Konfiguration, 3 fremde Instanz, 4 Start fehlgeschlagen,
 5 belegt, 6 Stop fehlgeschlagen, 7 nicht gesund, 8 Modell-/Manifestfehler,
@@ -280,6 +282,13 @@ def main(argv: list[str] | None = None) -> int:
     chp.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     srv = sub.add_parser("serve", help="Cockpit-Server (React-Build + Protobuf-API)")
     srv.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
+    for name, text in (
+        ("up", "Cockpit-Server starten (idempotent)"),
+        ("restart", "nur den Cockpit-Server neu starten"),
+        ("down", "Cockpit + ComfyUI stoppen"),
+    ):
+        p = sub.add_parser(name, help=text)
+        p.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     args = parser.parse_args(argv)
 
     try:
@@ -293,6 +302,15 @@ def main(argv: list[str] | None = None) -> int:
             payload, code = _character(args)
         elif args.area == "serve":
             payload, code = _serve()
+        elif args.area in ("up", "restart", "down"):
+            cfg = load()
+            setup_logging(cfg)
+            fn = {
+                "up": runtime.cockpit_up,
+                "restart": runtime.cockpit_restart,
+                "down": runtime.cockpit_down,
+            }[args.area]
+            payload, code = {"ok": True, **fn(cfg)}, 0
         else:
             payload, code = _render(args)
     except (comfy.ComfyError, pipeline.PipelineError, ValueError) as exc:
