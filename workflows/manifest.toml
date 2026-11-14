@@ -383,3 +383,47 @@ steps = { node = "7", input = "steps", type = "int", min = 16, max = 80 }
 cfg = { node = "7", input = "cfg", type = "float", min = 1.0, max = 8.0 }
 width = { node = "6", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
 height = { node = "6", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
+
+[workflows.realcore_illustrious_t2i]
+engine = "realcore_illustrious"
+ui = "image/realcore_illustrious_t2i.ui.json"
+api = "image/realcore_illustrious_t2i.api.json"
+status = "OFFEN"
+
+[workflows.realcore_illustrious_t2i.params]
+prompt = { node = "2", input = "text", type = "str", required = true }
+negative_prompt = { node = "3", input = "text", type = "str" }
+seed = { node = "5", input = "seed", type = "int", min = 0, max = 4294967295 }
+steps = { node = "5", input = "steps", type = "int", min = 8, max = 80 }
+cfg = { node = "5", input = "cfg", type = "float", min = 1.0, max = 12.0 }
+width = { node = "4", input = "width", type = "int", min = 512, max = 2048, multiple_of = 64 }
+height = { node = "4", input = "height", type = "int", min = 512, max = 2048, multiple_of = 64 }
+
+[workflows.qwen_image_21_t2i]
+engine = "qwen_image_21"
+ui = "image/qwen_image_21_t2i.ui.json"
+api = "image/qwen_image_21_t2i.api.json"
+status = "OFFEN"
+
+[workflows.qwen_image_21_t2i.params]
+prompt = { node = "4", input = "prompt", type = "str", required = true }
+negative_prompt = { node = "4", input = "negative_prompt", type = "str" }
+seed = { node = "6", input = "seed", type = "int", min = 0, max = 4294967295 }
+steps = { node = "6", input = "steps", type = "int", min = 8, max = 80 }
+width = { node = "5", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
+height = { node = "5", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
+
+[workflows.qwen_image_20b_t2i]
+engine = "qwen_image_20b"
+ui = "image/qwen_image_20b_t2i.ui.json"
+api = "image/qwen_image_20b_t2i.api.json"
+status = "OFFEN"
+
+[workflows.qwen_image_20b_t2i.params]
+prompt = { node = "5", input = "text", type = "str", required = true }
+negative_prompt = { node = "6", input = "text", type = "str" }
+seed = { node = "8", input = "seed", type = "int", min = 0, max = 4294967295 }
+steps = { node = "8", input = "steps", type = "int", min = 8, max = 80 }
+cfg = { node = "8", input = "cfg", type = "float", min = 1.0, max = 10.0 }
+width = { node = "7", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
+height = { node = "7", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }

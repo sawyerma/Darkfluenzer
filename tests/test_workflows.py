@@ -65,6 +65,10 @@ def test_check_graph_finds_real_problems():
         "Unbekannt",
     ):
         assert needle in problems
+    # dynamische V3-Eingänge (AUTOGROW) dürfen fehlen
+    info = json.loads(json.dumps(OBJECT_INFO))
+    info["CLIPTextEncode"]["input"]["required"]["images"] = ["COMFY_AUTOGROW_V3", {}]
+    assert comfy.check_graph(GRAPH, info, set()) == []
     # Laufzeit-Uploads werden nicht als COMBO geprüft
     assert comfy.check_graph(bad, OBJECT_INFO, {("1", "ckpt_name")}).count("nicht verfügbar") == 0
 

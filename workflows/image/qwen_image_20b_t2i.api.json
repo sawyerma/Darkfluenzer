@@ -1,0 +1,12 @@
+{
+  "1": {"class_type": "UNETLoader", "inputs": {"unet_name": "qwen-image/qwen_image_bf16.safetensors", "weight_dtype": "default"}, "_meta": {"title": "Qwen-Image 20B (BF16)"}},
+  "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen2.5vl/qwen_2.5_vl_7b.safetensors", "type": "qwen_image", "device": "default"}, "_meta": {"title": "Text-Encoder Qwen2.5-VL-7B (BF16)"}},
+  "3": {"class_type": "VAELoader", "inputs": {"vae_name": "qwen-image/qwen_image_vae.safetensors"}, "_meta": {"title": "Qwen-Image-VAE"}},
+  "4": {"class_type": "ModelSamplingAuraFlow", "inputs": {"model": ["1", 0], "shift": 3.1, "sampling": "flow"}, "_meta": {"title": "Sampling-Shift 3,1 (Referenz)"}},
+  "5": {"class_type": "CLIPTextEncode", "inputs": {"text": "A photorealistic vertical editorial photograph of a clearly adult fictional woman in her late twenties sitting on a wooden bench in a quiet park in late afternoon. She has shoulder-length dark hair, natural skin texture, and wears a light grey wool coat over a cream sweater. Warm low sunlight comes from the right and leaves soft shadows across the gravel path behind her, which falls off into gentle bokeh. The overall composition is calm and balanced with a muted, natural palette.", "clip": ["2", 0]}, "_meta": {"title": "Prompt"}},
+  "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "", "clip": ["2", 0]}, "_meta": {"title": "Negativ-Prompt"}},
+  "7": {"class_type": "EmptySD3LatentImage", "inputs": {"width": 1328, "height": 1328, "batch_size": 1}, "_meta": {"title": "Format (Referenz 1328²)"}},
+  "8": {"class_type": "KSampler", "inputs": {"model": ["4", 0], "seed": 50347169, "steps": 20, "cfg": 4.0, "sampler_name": "euler", "scheduler": "simple", "positive": ["5", 0], "negative": ["6", 0], "latent_image": ["7", 0], "denoise": 1.0}, "_meta": {"title": "Sampler (Referenz ohne Lightning: 20 Schritte, CFG 4)"}},
+  "9": {"class_type": "VAEDecode", "inputs": {"samples": ["8", 0], "vae": ["3", 0]}},
+  "10": {"class_type": "SaveImage", "inputs": {"images": ["9", 0], "filename_prefix": "darkfluenzer/qwen_image_20b_t2i"}, "_meta": {"title": "Ergebnis"}}
+}

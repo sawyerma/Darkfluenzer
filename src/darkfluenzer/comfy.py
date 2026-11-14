@@ -395,8 +395,9 @@ def check_graph(graph: dict, object_info: dict, runtime_inputs: set[tuple[str, s
             problems.append(f"{nid}: {exc}")
             continue
         required = object_info[node["class_type"]]["input"].get("required", {})
-        for name in required:
-            if name not in node["inputs"]:
+        for name, sp in required.items():
+            dynamic = isinstance(sp[0], str) and sp[0].startswith("COMFY_")  # z. B. AUTOGROW
+            if name not in node["inputs"] and not dynamic:
                 problems.append(f"{nid} {node['class_type']}: Pflichteingang '{name}' fehlt")
         for name, value in node["inputs"].items():
             if name not in spec:
@@ -437,7 +438,7 @@ def api_to_ui(graph: dict, object_info: dict) -> dict:
         node = graph[nid]
         info = object_info.get(node["class_type"])
         spec = _node_spec(object_info, node["class_type"])
-        unknown = set(node["inputs"]) - set(spec)
+        unknown = {k for k in node["inputs"] if k.split(".")[0] not in spec}
         if unknown:
             raise ComfyError(f"Node {nid}: unbekannte Eingänge {sorted(unknown)}")
         inputs, widgets = [], []
@@ -454,6 +455,14 @@ def api_to_ui(graph: dict, object_info: dict) -> dict:
                     widgets.append(value if name in node["inputs"] else _default(sp))
                 if _spec_options(sp).get("control_after_generate"):
                     widgets.append("fixed")
+            elif isinstance(sp[0], str) and sp[0].startswith("COMFY_AUTOGROW"):
+                # dynamische Eingangsgruppe: wie ComfyUI-Templates als erster Einzelslot
+                tmpl = _spec_options(sp).get("template", {})
+                first = (tmpl.get("names") or ["1"])[0]
+                slot_type = next(iter(tmpl.get("input", {}).get("required", {}).values()), ["*"])
+                inputs.append(
+                    {"name": f"{name}.{first}", "type": slot_type[0], "link": None, "shape": 7}
+                )
             else:
                 inputs.append({"name": name, "type": sp[0], "link": None})
         outputs = [
