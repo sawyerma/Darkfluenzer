@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN V1
 
-**Version:** 1.5.1 — SIMPLIFY + DROP-TO-TRAIN (S1 abgenommen, S2 in Arbeit)  
+**Version:** 1.6 — SIMPLIFY + CREATOR-COCKPIT (S1 abgenommen, S2 in Arbeit)
 **Stand:** 14.11.2026  
 **Status:** Zielarchitektur verabschiedet, technische Implementierung und Mac-Abnahme überwiegend OFFEN  
 **Repository:** `sawyerma/Darkfluenzer`, Branch `main`  
@@ -212,6 +212,68 @@ Darkfluenzer bekommt eine **kompakte, lokale Steuerseite in derselben App**, kei
 
 **S1 unverändert:** Das pinke C muss ComfyUI ohne Terminal starten. Die zusätzliche Steuerseite ist eine spätere Ergänzung; sie darf S1 nicht wieder öffnen oder seinen nachgewiesenen Status zurücksetzen.
 
+## 6C. Zentrales Creator-Cockpit – Multi-Plattform ohne Systembruch
+
+**Ziel:** Im Alltag nur **eine** Darkfluenzer-Oberfläche öffnen. Plattformen/Accounts bleiben getrennt, aber Benachrichtigungen, erreichbare Nachrichten, Aufträge, Produktion, Zahlungen, Freigaben und technische Probleme erscheinen in einer zentralen Aufgabenansicht. **Kein zweites Backend, keine zweite Datenbank, kein neuer Microservice**.
+
+### Bedienung: Startansicht + drei Bereiche
+
+- **Startansicht „Meine Aufgaben“:** Nur Ausnahmen mit unmittelbarem Handlungsbedarf: nicht beantwortbare Kundenanfrage, Betreiberfreigabe, offene Zahlung, Jobfehler, abgelaufene Plattformautorisierung. Zähler sind aus echten SQLite-Zuständen abgeleitet, nicht aus manuell synchronisierten Widgets.
+- **Studio:** Charakterbilder per Drag-and-drop, LoRA-Training und aktive Version, ComfyUI starten, Bild-/Videoworkflows, Medienbibliothek, freizugebende Social-Posts.
+- **Posteingang:** Unterstützte Nachrichten/Kommentare aus allen angebundenen Kanälen, getrennte Plattformkennzeichen, Filter `NEU | KI_BEARBEITET | BRAUCHT_MICH | ERLEDIGT`. KI erstellt Vorschläge/Antworten nur im erlaubten Funktionsumfang; Handover zu Mensch auf eindeutigen Status.
+- **Business:** Kundenkartei, Aufträge, bestätigte Zahlungen, Auslieferungen, Plattformumsätze (nur soweit API vorhanden), Merchandise-Bestellungen. Pro Kundenkarte ein historischer Verlauf; plattformübergreifende Zuordnung nur nach bewusster, bestätigter Kontenverknüpfung.
+- **Verbindungen:** Kleine Statusfläche, kein eigener Hauptreiter: `VERBUNDEN | AKTION_ERFORDERLICH | EINGESCHRÄNKT | GETRENNT`; letzter erfolgreicher Sync, API-Fehler, betroffene Funktionen, „Neu verbinden“ und „Originalplattform öffnen“.
+
+**Bedienregel:** Keine fünf unabhängigen Dashboards, keine Pflicht, alle Plattformen täglich einzeln zu öffnen. Nur **nicht unterstützte Funktionen** führen über einen direkten Link zur nativen Plattform – ohne vorzutäuschen, dass sie im Cockpit verfügbar sind.
+
+### Plattform-Adapter mit nachgewiesenen Fähigkeiten
+
+- `telegram`: Bot API für private Chats, Betreiberfreigabe, Aufträge und zugelassene Zahlungsschritte; eigene Telegram-ID je Kundenplattformkontakt.
+- `instagram`: offizielle Meta-Instagram-API für professionelle Accounts und bewilligte Messaging-/Publishing-/Kommentar-Berechtigungen. Messaging-Fenster, App Review, Webhooks und Conversation Routing beachten. **Keine Garantie sämtlicher DMs/Medienarten**.
+- `tiktok`: Content Posting API für bewilligte Upload-/Publishing-Funktionen; Kommentar-Integration nur wenn zugelassen. **TikTok-Direktnachrichten nicht als allgemein verfügbare API-Funktion annehmen.**
+- `fanvue`: OAuth 2.0/PKCE, exakt gewährte Scopes, versionierter `X-Fanvue-API-Version`-Header; Chats, Posts, Insights und Webhooks **nur nach tatsächlich erteilter API-Berechtigung**. Keine Browser-Scraping-Automation als stiller Ersatz.
+- `shop`: unabhängiger Merchandise-Shop; physischer Warenbestand, Bestellung, Zahlung, Versandstatus und Erstattung als eigener Produkttyp. Digitale Fan-Inhalte und physische Waren niemals ungeprüft über denselben Zahlungs-/Plattformkanal mischen.
+- Weitere Plattformen nur hinzufügen, wenn ein Adapter mit echten Berechtigungen und realem End-to-End-Test implementiert werden kann.
+
+**Quellen (offizielle Anbieter):**  
+Meta Instagram API: https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api  
+Meta Versioning: https://developers.facebook.com/docs/graph-api/guides/versioning  
+TikTok Content Posting: https://developers.tiktok.com/docs/en/content-posting-api-get-started  
+Fanvue API-Regeln: https://legal.fanvue.com/api-policy
+
+### Gemeinsame Inbox- und Kundenlogik
+
+1. Jeder Adapter übersetzt verfügbare Plattformereignisse in den **gleichen internen Ereignisvertrag**: `platform`, `account_id`, `external_event_id`, `external_actor_id`, `event_type`, `occurred_at`, `payload_ref`, `ingested_at`.
+2. Eindeutigkeitsconstraint `UNIQUE(platform, account_id, external_event_id)`; wiederholte Webhooks/Nachrichten dürfen keine Doppelaufträge, Doppelantworten oder Doppelzahlungen erzeugen.
+3. Telegram-/Instagram-/Fanvue-Konten werden **nicht allein aufgrund ähnlicher Namen** zusammengelegt. Eine bestätigte Verknüpfung ordnet mehrere `platform_account`-Datensätze einem internen `customer_id` zu.
+4. Nur ein durch die tatsächliche Plattformfunktion erlaubter Auftrag kann eine plattformseitige Antwort oder Veröffentlichung auslösen. Entwürfe dürfen zentral gespeichert werden, wenn unmittelbarer Versand technisch nicht möglich ist.
+5. Plattformzahlungen gelten nur als bestätigt, wenn vom jeweiligen Payment-/Plattform-Provider autoritativ verifiziert. Fremde Umsatzanzeigen sind keine Zahlungsfreigabe für einen konkreten Auftrag.
+6. Nur eine betriebliche Entscheidungsschlange `tasks` mit Status und Zuweisung an den Betreiber; Fälligkeit, Referenz, Ursprungskanal und direkte Aktion. Kein redundant synchronisiertes „Inbox-CRM“ neben SQLite.
+
+### Update- und Ausfallsicherheit (verbindlich)
+
+- **Isolierte Adapter:** Ausfall oder API-Änderung bei Instagram darf Telegram, ComfyUI, Kundenakte und andere Adapter nicht stoppen.
+- **Speichern vor Verarbeiten:** eingehende, validierte Events zuerst lokal und transaktional schreiben; danach verarbeiten. Webhook-Signaturen/Authentisierung prüfen.
+- **Queue und Wiederholung:** durable lokale Aufgaben in SQLite, Retry mit Backoff, Fehlerendzustand und operator-sichtbarer Reparatur; idempotente Side Effects.
+- **Abgleich:** Webhooks plus periodische Reconciliation/Synchronisierung mit Cursor/Checkpoint, soweit die Plattform dies erlaubt. Nicht behaupten, dass bei API-Sperre alle historischen Daten nachlieferbar sind.
+- **Verbindungsmonitor:** Token-/Scope-Gültigkeit, API-Version, letzter erfolgreicher Zugriff, Rate Limits, Webhook-Eingang und Datenlücke überwachen. Bei Fehlern: klare Meldung und manueller Link zur Originalplattform.
+- **Versionen fixieren:** Python-Abhängigkeiten/ComfyUI-Custom-Nodes und nach Möglichkeit Plattform-API-Versionen pinnen. Keine unbeaufsichtigten produktiven Updates.
+- **Geprüfter Update-Prozess:** SQLite-Backup im konsistenten WAL-Zustand + Code/Workflow-Revision sichern → Tests und Migrationsprobe → ein Adapter nach dem anderen aktualisieren → Health- und Funktionstest → erst dann aktivieren. Vorherige Codeversion sofort startbar halten; DB-Migrationen vorwärtskompatibel und nicht destruktiv ausführen.
+- **Recovery:** Start nach Mac-Neustart, lokaler Backup-/Restore-Test, kein doppelter Versand bei Unterbrechung, keine verlorenen bereits empfangenen Events. Externes Ereignis nach längerem Offline-Zustand nur rekonstruieren, wenn API/Webhook-Retention es tatsächlich erlaubt.
+- **Erreichbarkeit:** Der lokale Mac muss für laufenden Betrieb eingeschaltet und online sein. Webhooks von Meta/Fanvue benötigen einen verlässlich erreichbaren, abgesicherten HTTPS-Endpunkt bzw. einen geprüften Relay-/Tunnelweg. Telegram-Long-Polling kann lokal ohne öffentlichen Inbound-Port genutzt werden. Ein lokales Cockpit allein erzeugt keine 24/7-Verfügbarkeit.
+
+### Abnahme vor Produktivfreigabe
+
+- Adapter A absichtlich trennen: andere Plattformen und ComfyUI funktionieren weiter.
+- Doppelte/out-of-order Webhooks erzeugen keine Doppelaktion.
+- Abgelaufener Zugriff: Cockpit zeigt `AKTION_ERFORDERLICH`, Datenbank bleibt nutzbar; Reconnect nur durch autorisierte Nutzeraktion.
+- Update mit fehlerhafter API-Antwort: kontrollierte Degradierung, Fehleranzeige, Rückkehr zur vorigen funktionierenden Codeversion ohne Datenverlust.
+- Nachrichten von zwei Plattformen werden **nicht** ohne Identitätsnachweis zum selben Kunden.
+- Zentrale Inbox zeigt nur wirklich von API erhaltene Nachrichten; nicht unterstützte Kanäle als `EINGESCHRÄNKT`, keine erfundenen Vollständigkeitsbehauptungen.
+- Bezahltes Bild/Video wird weiterhin nur nach `PAYMENT_CONFIRMED`, Betreiberfreigabe, Hash- und Kundenzuordnung geliefert.
+
+**Umsetzung:** In S4 zunächst Telegram + gemeinsame Adapter-Schnittstelle + ein Cockpit mit zentralen Aufgaben. Instagram, TikTok, Fanvue und Shop einzeln nach Verfügbarkeit der offiziellen API-Berechtigungen anbinden. S6 umfasst Adapter-Ausfall-, Reconnect-, Update- und Restore-Gates. Keine neuen Projektphasen.
+
 ## 7. Nur sechs Phasen
 
 | Phase | Ziel | Abnahme |
@@ -287,6 +349,9 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 10. **Fiktive erwachsene Figur:** keine fremde Person imitieren; Transparenz über künstliche Identität, vereinbarte Inhalte und kommerzielle Rechte.
 
 ## 9. Änderungsprotokoll
+
+**V1.6 — CREATOR-COCKPIT (14.11.2026):** Eine zentrale handlungsorientierte Inbox und Business-Übersicht; Plattform-Adapter für Instagram, TikTok, Telegram, Fanvue und Shop, aber keine API-Fähigkeiten ohne echte Berechtigung voraussetzen. Update-/Ausfallstrategie mit API-Versionen, Health, Retry, Backup und kontrolliertem Rollback, ohne neue Backend-Dienste oder zusätzliche Datenbanken.
+
 
 **V1.5 — DROP-TO-TRAIN (14.11.2026):** Ein Ordner für Charakterbilder, automatische lokale Datensatzaufbereitung und passende LoRA-Trainingspipeline; kompakte Steuerseite in derselben App. Keine Reduktion der Modell- oder Trainingstests. Alle nachweislichen S1-Fortschritte aus V1.4.1 bleiben unverändert.
 
