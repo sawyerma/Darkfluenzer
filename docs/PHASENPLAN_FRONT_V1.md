@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN FRONT V1
 
-**Version:** 1.4 · **Stand:** 14.11.2026  
+**Version:** 1.5 · **Stand:** 14.11.2026  
 **Zuständigkeit:** ausschließlich React-Frontend, Bedienbarkeit und typisierter Frontend-/Backend-Vertrag  
 **Backend-Gegenstück:** [PHASENPLAN_BACK_V1.md](PHASENPLAN_BACK_V1.md)  
 **Status:** F1–F3b am Mac abgenommen (PASS); F4 Nachrichten fachlich spezifiziert, Implementierung/Abnahme OFFEN; F5–F6 OFFEN.
@@ -16,7 +16,7 @@
 **Eine React-App, vier Hauptansichten in dieser festen Reihenfolge:**
 1. **Übersicht** — aktueller Betriebsstatus und echte offene Entscheidungen; fachliche Feinplanung später.
 2. **Nachrichten** — gemeinsame Kundenakten, kanalübergreifender Zeitstrahl, Instagram/Telegram/WhatsApp-Unterregister, Cydonia-Dialog- und Medienauftragssteuerung gemäß F4-Spezifikation.
-3. **ComfyUI** — eigene Render- und Workflow-Verwaltung, getrennt in **Fotos** und **Videos**, mit Parametern, Testausführung und gezielter Übergabe an den ComfyUI-Node-Editor.
+3. **ComfyUI** — zentrale Bedienung **zweier unabhängiger ComfyUI-Instanzen**: Instanz 1 weiterhin für **Fotos/Videos** (bereits PASS), Instanz 2 für grafisch editierbare **KI-Workflows** (LLM/Dialogs/Intent/Qualitätsprüfung/TTS; NEU, OFFEN). Parameter, Warteschlangen, Betrieb und Workflow-Editor je Instanz strikt trennen.
 4. **Dateien** — vollständige, chronologische Galerie aller erzeugten Bilder und Videos, mit Kundenname als Bild-/Video-Unterschrift bei Kundenauftrag, sonst fortlaufender Nummer.
 
 Keine weiteren Hauptreiter `Qualitätslabor`, `Kanäle`, `Business`, `Studio`, `Einstellungen`. Plattform- und Zahlungsinformationen bleiben bei Nachrichten/Übersicht. **F3a/F3b sind abgenommen. Als Nächstes F4 Nachrichten nach dieser festgelegten Gestaltung implementieren; Übersicht später gesondert verfeinern.**
@@ -140,6 +140,19 @@ Die vorhandene ComfyUI-Seite (F3 PASS: Laufzeit, Queue, Ergebnisse und reine Wor
 
 **Einzige Registrierungsquelle:** `workflows/manifest.toml` bleibt autoritativ für Engines, Dateien, zulässige Workflow-Parameter, Aktivierung und referenzierte UI-/API-Graphen. Änderungen an dieser Quelle sind kontrolliert atomar zu speichern und dem laufenden Backend ohne konkurrierende Registrierungsdaten bekannt zu machen. Kein zweiter Workflow-Katalog in React/SQLite.
 
+
+### Zweite ComfyUI-Instanz – KI-Workflows (verbindlicher F4-Ausbau, noch OFFEN)
+
+**Beschlossene Oberfläche:** Innerhalb des **vorhandenen** Hauptreiters `ComfyUI` drei Unterregister `Fotos`, `Videos`, **`KI`**. Keine fünfte Hauptansicht und kein zweites unabhängiges Frontend. `Fotos/Videos` zeigen weiterhin ausschließlich die bisherige **Medieninstanz 1** und deren globale Medien-FIFO, gespeicherte Bild-/Video-Workflows und Artefakte. **`KI`** zeigt ausschließlich **ComfyUI-Instanz 2**, mit eigenem tatsächlichen Health-/Queue-/Jobstatus, lokalen Text-/Vision-/TTS-Modellen und grafischen KI-Workflows. Wenn Instanz 2 fehlt oder gestoppt ist, ehrlicher Zustand `NICHT EINGERICHTET`/`GESTOPPT` statt Demo-Daten.
+
+**KI-Workflow-Bedienung wie beim vorhandenen F3a-Editor:** Registrierte Graphen für `Dialogantwort`, `Kundenwunsch verstehen`, `Prompt bilden`, `Antwort prüfen`, `Bildqualität prüfen`, `Sprachnachricht erzeugen` – nur anzeigen, wenn entsprechende Graphen/Nodes real registriert sind. Workflow auswählen, aktivieren/deaktivieren, zugehörige Parameter aus der bestehenden zentralen Registry ablesen, `Öffnen` lädt **genau den Graphen** in **Instanz 2**, `Änderungen übernehmen` validiert UI- und API-Graphen, Testlauf/Ergebnis und gegebenenfalls Löschen gemäß bestehenden F3a-Regeln. Schleifen, Bedingungen und Zweitmodell-Prüfschritte werden **im echten ComfyUI-Node-Editor** bearbeitet, nicht als fest programmierte React-Formulare nachgebaut. Start/Stop einer einzelnen Instanz darf nicht die andere stoppen und keine offenen Renderjobs verwerfen. Separate Warteschlangenstatus ohne falsche Aggregation. Das Cockpit bleibt die primäre Bedienoberfläche; der ComfyUI-Editor ist nur zur Graphbearbeitung nötig.
+
+**KI-Konfiguration im Reiter Nachrichten:** Rechte Spalte behält die getrennten, persistierten Fähigkeitsschalter und die Influencerin-Auswahl. Bei `Text-LLM`, `Intent-/Dialogworkflow`, `Bildprüfung` und `TTS` stehen nur reale, qualifizierte **KI-Workflows/Modelle aus ComfyUI 2** zur Auswahl. `Bildmodell`, `Foto-/Video-Workflow` und Charakter-LoRA bleiben auf Medieninstanz 1 bezogen. `KI antworten` auf dem ausdrücklich ausgewählten **Instagram-/Telegram-/WhatsApp-Unterregister** löst einen zur richtigen Kunden-/Influencerin-/Conversation-ID gebundenen **KI-Workflow in Instanz 2** aus, nicht einen direkten Pflicht-llama.cpp-/MLX-Chatpfad. `Gesamt` bleibt **ausschließlich lesbar** und löst keine Antwort aus. Automatische eingehende Antworten folgen dem festen Quellen-Conversation-Vertrag. Versionierte KI-Graphen, Nutzerkontext und Ergebnisse erhält React **nur über das bestehende Protobuf-Python-Backend**, niemals direkt aus ComfyUI. Keine zweite Datenbank oder zweite fachliche Kundenautorität.
+
+**Technische Trennung:** Python steuert beide Worker über getrennte, konfigurierbare Ports (Defaults 8188 Medien / 8189 KI), WebSockets, Status und IDs; **zwei unabhängige ComfyUI-Ausführungsqueues**. Beide teilen sich Apple-Metal-GPU und Unified Memory; kein garantierter Durchsatz vor einem realen Gleichzeitigkeitstest. Für dieselbe Kundenakte bleiben KI-Aufgaben kanalübergreifend seriell; unterschiedliche Kunden unabhängig. Kein neues eigenes WebSocket/JSON-Frontend-Protokoll, keine Browser-Polling-Schleifen, keine F3a/F3b-Neuentwicklung.
+
+**Abnahme KI-Reiter:** Zweiter echter ComfyUI-Prozess, getrennte Ports/Queues, tatsächlicher graphbasierter Text-LLM-Aufruf mit Persona, einer bedingten Verzweigung und begrenzter Schleife; Änderungen im Editor werden im Cockpit übernommen; Echtzeitstatus via Protobuf; ein paralleler Langzeit-Medienrender blockiert **nicht die KI-Queue**. Latenz p50/p95 und GPU-/Speicherlast auf dem Mac messen. TTS/Vision nur PASS bei tatsächlich vorhandenem Modell und realem Ergebnis. **F3a/F3b bleiben PASS, KI-Reiter bleibt bis zur vollständigen Implementierung OFFEN.**
+
 ### Dateien — eigenständiger vierter Hauptreiter (F3b)
 
 **Eine einfache Mediengalerie, keine Dateiverwaltungs- oder CRM-Dopplung.**
@@ -196,7 +209,7 @@ Handshake `Hello/Welcome` prüft Major-/Minor-Kompatibilität und angebotene Top
 | **F3 – ComfyUI Basis** | Echte Laufzeit, Jobs/Queue/Outputs, Öffnen/Start/Stop | Mac-/Browser-Test mit einem echten LUSTIFY-Job (bereits PASS) |
 | **F3a – ComfyUI-Bedienung** | Fotos/Videos getrennt; alle Workflows einzeln auswählen, aktivieren/deaktivieren, öffnen/bearbeiten, löschen; parameterspezifisches Formular und echter Renderstart im Cockpit | Ein echter LUSTIFY-Render komplett aus dem Cockpit; Video-/Fototrennung; kein Start bei fehlenden Modellen oder deaktiviertem Workflow; Öffnen des **richtigen** Graphen im ComfyUI-Editor; persistente Aktivierung und bestätigte Löschung eines entbehrlichen Testworkflows ohne Verlust von Modellen/Artefakten |
 | **F3b – Dateien** | Vierter Hauptreiter mit vollständiger Bild-/Videogalerie, Kundenname oder Nummer, Medienvorschau/Download, persistenter Index, paginierte Protobuf-Metadaten und neue Medien als Push | Echte Ausgabe von LUSTIFY im Galerie-Raster, Kundenfall mit richtiger Namensunterschrift, Evaluationsfall mit stabiler Nummer, Video-Filter, Datei nach Neustart weiterhin sichtbar; keine Dubletten nach Reconnect |
-| **F4 – Nachrichten / Kundenakten** | Chatwoot-CE-Kanalbackend v4.19.1; React-Dreispalten-Ansicht mit Kundenregisterkarten, Gesamt-/Kanal-Zeitleisten, Instagram-Pink/Telegram-Blau/WhatsApp-Grün, echten Zahlungs-/Medienereignissen, Cydonia-Modus, Kanalverknüpfung und Protobuf | Echte Telegram-Nachricht/Antwort, Instagram→Telegram→Instagram dieselbe Akte, drei parallele Kunden ohne Kontexttausch, Event-/Dedupe-/Reconnect-Test, Freigabegates, Datei- und FIFO-Zuordnung |
+| **F4 – Nachrichten / Kundenakten + KI-ComfyUI** | Chatwoot-CE v4.19.1; React-Kunden-/Kanalakten; **ComfyUI-Instanz 2 für grafische KI-Workflows im Unterregister KI**; eigenständige Queue/Nodes/Modelle; Persona-/LLM-/Intent-/Prüf-/TTS-Profile | Zwei getrennte ComfyUI-Prozesse, echter LLM-Workflow mit Verzweigung/Schleife, Kontextbindung, drei Kunden ohne Vermischung, Instagram→Telegram→Instagram, Echtzeitstatus, Kanalantwort-Gates und paralleler Medienrender |
 | **F5 – Freigabe** | Drei echte Kandidaten je Auftrag, Operatorentscheidung, Gate-Anzeige | Ohne Zahlung/Operatorfreigabe keine Versandaktion |
 | **F6 – Weitere Kanäle** | Instagram/Fanvue/TikTok/Shop je nur bei tatsächlich freigegebener API | Ein realer Adapter-E2E-Test je angebundenem Kanal; bestehende Kanäle bleiben intakt |
 
