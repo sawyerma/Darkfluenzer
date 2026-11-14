@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package darkfluenzer.v1;
+
+// Projektionen der verwalteten ComfyUI-Instanz und der vom Backend ausgeführten Renderungen.
+
+enum ComfyState {
+  COMFY_STATE_UNSPECIFIED = 0;
+  COMFY_STATE_STOPPED = 1;
+  COMFY_STATE_STARTING = 2;
+  COMFY_STATE_READY = 3;
+  COMFY_STATE_STOPPING = 4;
+  // Prozess lebt oder Port ist belegt, aber /system_stats antwortet nicht.
+  COMFY_STATE_UNREACHABLE = 5;
+  // Letzter Start/Stop ist fehlgeschlagen; error enthält den Grund.
+  COMFY_STATE_FAILED = 6;
+}
+
+// STATE comfy.status
+message ComfyStatus {
+  ComfyState state = 1;
+  // true: vom Darkfluenzer gestartete Instanz, die das Backend starten/stoppen darf.
+  bool managed = 2;
+  string url = 3;
+  string version = 4;
+  string device = 5;
+  string error = 6;
+}
+
+message JobOutput {
+  // Pfad relativ zu local/.
+  string path = 1;
+  string sha256 = 2;
+  uint64 size = 3;
+}
+
+enum JobResult {
+  JOB_RESULT_UNSPECIFIED = 0;
+  JOB_RESULT_DONE = 1;
+  JOB_RESULT_FAILED = 2;
+}
+
+// EVENT job.completed: eine abgeschlossene Renderung aus der jobs-Tabelle.
+message JobCompleted {
+  uint64 job_id = 1;
+  string workflow = 2;
+  string engine = 3;
+  JobResult result = 4;
+  string error = 5;
+  double duration_s = 6;
+  repeated JobOutput outputs = 7;
+  // Leer bei Renderungen ohne Kundenbezug (Evaluation).
+  string order_no = 8;
+}

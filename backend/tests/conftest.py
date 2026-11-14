@@ -56,7 +56,7 @@ def write_config(root: Path, **overrides: object) -> None:
         "stop_timeout_s": 5,
     }
     values.update(overrides)
-    lines = ["[comfyui]"]
+    lines = ["[server]", 'host = "127.0.0.1"', f"port = {free_port()}", "", "[comfyui]"]
     for key, val in values.items():
         lines.append(f"{key} = {val}" if isinstance(val, int | float) else f'{key} = "{val}"')
     lines += ["extra_args = []", "path_prepend = []", "", "[comfyui.env]"]

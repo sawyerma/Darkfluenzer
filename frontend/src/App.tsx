@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { connect, useConnection, type ConnectionStatus } from "./core/realtime";
 import { ComfyUI } from "./pages/ComfyUI";
 import { Messages } from "./pages/Messages";
 import { Overview } from "./pages/Overview";
@@ -17,9 +18,19 @@ function viewFromHash(): View {
   return VIEWS.find((v) => `#${v.id}` === window.location.hash) ?? VIEWS[0];
 }
 
+const CONNECTION_LABEL: Record<ConnectionStatus, [string, string]> = {
+  CONNECTING: ["VERBINDE", "warn"],
+  OPEN: ["VERBUNDEN", "ok"],
+  STALE: ["GETRENNT", "warn"],
+  BLOCKED: ["BLOCKIERT", "bad"],
+};
+
 export function App() {
   const [view, setView] = useState(viewFromHash);
+  const connection = useConnection();
+  const [label, tone] = CONNECTION_LABEL[connection.status];
 
+  useEffect(connect, []);
   useEffect(() => {
     const onHash = () => setView(viewFromHash());
     window.addEventListener("hashchange", onHash);
@@ -40,7 +51,15 @@ export function App() {
             </a>
           ))}
         </nav>
+        <span className="g-badge g-nav-end" data-tone={tone} title={connection.reason || undefined}>
+          {label}
+        </span>
       </header>
+      {connection.status === "BLOCKED" ? (
+        <p className="g-note g-banner" role="alert">
+          {connection.reason}
+        </p>
+      ) : null}
       <main className="g-main">
         <view.Page />
       </main>

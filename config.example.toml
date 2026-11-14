@@ -2,6 +2,17 @@
 # Kopieren:  cp config.example.toml local/config.toml  und Pfade an den eigenen Mac anpassen.
 # Relative Pfade gelten ab Projektordner.
 
+[server]
+# Cockpit (React-Build + Protobuf-API) auf EINEM Origin. Nur Loopback-Adressen sind zulässig.
+host = "127.0.0.1"
+port = 8190
+# Heartbeat an den Browser; bleiben Frames aus, zeigt das Cockpit die Daten als veraltet.
+heartbeat_s = 15
+# Abstand, in dem das Backend ComfyUI-Prozess und Job-Journal beobachtet (nur bei Änderung Push).
+observe_s = 2
+# Höchstzahl nachgeladener Ereignisse je Topic nach einem Reconnect.
+catchup_limit = 200
+
 [comfyui]
 # Eigener, gepinnter ComfyUI-Checkout (launcher/setup_comfyui.sh) mit main.py.
 path = "local/ComfyUI"

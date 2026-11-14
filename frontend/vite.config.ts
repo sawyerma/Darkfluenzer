@@ -1,11 +1,34 @@
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react-swc";
-import { defineConfig, type Plugin } from "vite";
+import type { Plugin } from "vite";
+import { defineConfig } from "vitest/config";
 
 const SRC = fileURLToPath(new URL("./src", import.meta.url));
+const SCHEMAS = fileURLToPath(new URL("../protocol/schemas", import.meta.url));
 const STYLESHEET = join("shared", "graphite.css");
+
+// Schema-Fingerabdruck wie im Backend (backend/src/darkfluenzer/stream.py schema_id): SHA-256
+// über alle .proto-Dateien, sortiert nach relativem Pfad, je Pfad und Inhalt mit Längenpräfix.
+function schemaId(): string {
+  const digest = createHash("sha256");
+  const names = readdirSync(SCHEMAS, { recursive: true })
+    .map((n) => String(n).split(sep).join("/"))
+    .filter((n) => n.endsWith(".proto"))
+    .sort();
+  for (const name of names) {
+    const rel = Buffer.from(name, "utf8");
+    const data = readFileSync(join(SCHEMAS, name));
+    const relLen = Buffer.alloc(4);
+    relLen.writeUInt32BE(rel.length);
+    const dataLen = Buffer.alloc(8);
+    dataLen.writeBigUInt64BE(BigInt(data.length));
+    digest.update(Buffer.concat([relLen, rel, dataLen, data]));
+  }
+  return digest.digest("hex");
+}
 
 // Ein globales Stylesheet für alle Seiten (PHASENPLAN_FRONT_V1 F1): der Build bricht ab bei
 // jeder weiteren CSS-Datei, Farbwerten außerhalb der :root-Tokens oder Inline-Styles.
@@ -34,4 +57,6 @@ function oneStylesheet(): Plugin {
 
 export default defineConfig({
   plugins: [react(), oneStylesheet()],
+  define: { __DF_SCHEMA_ID__: JSON.stringify(schemaId()) },
+  test: { include: ["tests/**/*.test.ts"] },
 });

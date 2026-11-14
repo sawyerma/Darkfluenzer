@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package darkfluenzer.v1;
+
+// Echtzeitprotokoll Browser <-> Python-Backend (PHASENPLAN_FRONT_V1 F3).
+// Jede binäre WebSocket-Nachricht auf /ws/v1/stream ist genau EIN ClientMessage bzw. ServerMessage.
+// Das Backend pusht STATE (vollständige kleine Projektion, letzter Wert gilt) und EVENT
+// (dauerhaftes Journal mit Cursor). Benutzeraktionen laufen als Protobuf-POST (commands.proto).
+
+// Jedes Topic hat genau eine Klasse und einen Payload-Typ; das Backend nennt beides im Welcome.
+enum Topic {
+  TOPIC_UNSPECIFIED = 0;
+  TOPIC_COMFY_STATUS = 1; // STATE darkfluenzer.v1.ComfyStatus
+  TOPIC_JOB_COMPLETED = 20; // EVENT darkfluenzer.v1.JobCompleted
+}
+
+enum TopicClass {
+  TOPIC_CLASS_UNSPECIFIED = 0;
+  // Letzter Wert gilt; Ordnung nach (generation, seq). Nach Reconnect neuer Snapshot.
+  TOPIC_CLASS_STATE = 1;
+  // Dauerhaftes Journal; Ordnung nach cursor; Catch-up nach Reconnect.
+  TOPIC_CLASS_EVENT = 2;
+}
+
+message TopicDescriptor {
+  Topic topic = 1;
+  TopicClass topic_class = 2;
+  // Voll qualifizierter Protobuf-Typ des Payloads, z. B. "darkfluenzer.v1.ComfyStatus".
+  string payload_type = 3;
+}
+
+message Hello {
+  uint32 protocol_major = 1;
+  uint32 protocol_minor = 2;
+  // SHA-256 über protocol/schemas; Backend und Frontend-Build berechnen ihn gleich.
+  string schema_id = 3;
+}
+
+enum WelcomeStatus {
+  WELCOME_STATUS_UNSPECIFIED = 0;
+  WELCOME_STATUS_ACCEPTED = 1;
+  // Inkompatibles Protokoll: der Client bleibt blockiert.
+  WELCOME_STATUS_REJECTED_MAJOR = 2;
+  // Anderes Schema als das Backend: der Client lädt höchstens einmal das passende Frontend.
+  WELCOME_STATUS_REJECTED_SCHEMA = 3;
+}
+
+message Welcome {
+  WelcomeStatus status = 1;
+  uint32 protocol_major = 2;
+  uint32 protocol_minor = 3;
+  string schema_id = 4;
+  // Abstand der Heartbeats; bleiben sie aus, gilt die Verbindung als veraltet.
+  uint32 heartbeat_interval_ms = 5;
+  repeated TopicDescriptor topics = 6;
+  string reject_reason = 7;
+}
+
+message Subscribe {
+  Topic topic = 1;
+  // Nur EVENT: höchster bereits angewendeter Cursor; 0 = neueste Ereignisse.
+  uint64 after_cursor = 2;
+}
+
+message StateFull {
+  Topic topic = 1;
+  // Backend-Lauf (Startzeit in ms); ein neuer Lauf hat eine größere Generation.
+  uint64 generation = 2;
+  // Pro Topic und Lauf streng steigend.
+  uint64 seq = 3;
+  bytes payload = 4;
+}
+
+message Event {
+  Topic topic = 1;
+  // Position im SQLite-Journal (events.id), streng steigend.
+  uint64 cursor = 2;
+  int64 committed_unix_ms = 3;
+  bytes payload = 4;
+}
+
+// Ende des Nachzugs; danach folgen nur noch Live-Ereignisse mit cursor > through.
+message CatchupComplete {
+  Topic topic = 1;
+  // Höchster Journal-Cursor beim Abschluss. Liegt er unter dem Cursor des Clients,
+  // wurde das Journal ersetzt und der Client verwirft seinen Stand.
+  uint64 through = 2;
+  // Zwischen after_cursor und dem ersten gesendeten Ereignis fehlen Ereignisse (Limit).
+  bool gap = 3;
+}
+
+message Heartbeat {
+  uint64 heartbeat_id = 1;
+  int64 server_unix_ms = 2;
+}
+
+message ClientMessage {
+  oneof msg {
+    Hello hello = 1;
+    Subscribe subscribe = 2;
+  }
+}
+
+message ServerMessage {
+  oneof msg {
+    Welcome welcome = 1;
+    StateFull state_full = 2;
+    Event event = 3;
+    CatchupComplete catchup_complete = 4;
+    Heartbeat heartbeat = 5;
+  }
+}

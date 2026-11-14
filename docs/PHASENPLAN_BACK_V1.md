@@ -153,7 +153,7 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
 | `messages` | Nachricht, Gesprächszuordnung, Zeit, deduplizierte Telegram-ID |
 | `orders` | Wunsch, Angebot, Typ Bild/Video, Preis, Verkaufsstatus |
 | `payments` | Transaktions-ID, Anbieter, Betrag, Währung, Zahlung/Refund |
-| `jobs` | zugeordneter Auftrag, Engine, Prompt, Renderstatus, Seeds |
+| `jobs` | zugeordneter Auftrag (leer bei Evaluationsrenderungen ohne Kundenbezug), Engine, Prompt, Renderstatus, Seeds |
 | `artifacts` | Master, Masken, Kandidaten, Dateien und unveränderliche Hashes |
 | `approvals` | Freigegebenes Artefakt, Hash, Betreiber, Zeitpunkt |
 | `deliveries` | tatsächlich versandtes Artefakt, Kunde, externe Versand-ID |
@@ -206,6 +206,8 @@ Das bestehende Python-Paket bleibt der einzige fachliche Owner. Es stellt beim A
 - **Versionskompatibilität:** Minor-Protobuf-Felder additiv, alte Field-IDs reservieren; beim inkompatiblen Major oder falscher Payload-Bindung UI blockieren statt falsch ausführen. Einmaliges kontrolliertes Frontend-Reload nach Deployment, kein Reload-Loop.
 - **Kein Rust-Gateway:** DarkBots Protobuf-/WebSocket-Mechanik **kopieren und unabhängig an Python anpassen**, nicht den Rust-Gateway oder fachfremde Engine-Module übernehmen.
 - **Nur implementierte Fähigkeiten zeigen:** Ein noch nicht angebundener Adapter liefert einen ehrlichen `UNAVAILABLE`-Status, keinen Fake-Publisher.
+
+**Umsetzungsstand (14.11.2026):** `server.py` (aiohttp, ein Origin `[server]` in `local/config.toml`; Host-Prüfung jeder Anfrage, Origin + Sitzungs-Cookie für WebSocket, zusätzlich CSRF für Befehle; Build mit `no-cache`/`immutable`) und `stream.py` (Hello/Welcome mit Schema-Fingerabdruck, STATE `comfy.status`, EVENT `job.completed` aus dem `events`-Journal mit Catch-up/Lücke/Live, geordneter Versand je Client, Heartbeat, Schließen mit 1001 beim Beenden); Befehle `comfy_start`/`comfy_stop` idempotent je `request_id`. Jede Renderung über `render_evaluation` (CLI) ist ein Job ohne Kundenbezug im Journal. Start: `python -m darkfluenzer serve`.
 
 **Betriebsstabilität:** Ein Adapterfehler darf ComfyUI und andere Plattformen nicht stoppen. API-Berechtigungs- und Verbindungsfehler sichtbar melden; nur notwendige Retries und konsistente Backups. Gekoppelte Versionen von Backend/Frontend/Protokoll zusammen deployen; bei fehlerhafter Version zur letzten getesteten Anwendung zurückkehren, ohne Kundendaten oder Freigaben zu verlieren.
 

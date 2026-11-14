@@ -94,9 +94,10 @@ CREATE TABLE payments (
 );
 CREATE INDEX payments_order ON payments(order_id);
 
+-- order_id NULL: Renderung ohne Kundenbezug (Evaluation durch den Betreiber)
 CREATE TABLE jobs (
     id         INTEGER PRIMARY KEY,
-    order_id   INTEGER NOT NULL REFERENCES orders(id),
+    order_id   INTEGER REFERENCES orders(id),
     engine     TEXT    NOT NULL,
     workflow   TEXT    NOT NULL,
     prompt     TEXT    NOT NULL,
@@ -477,26 +478,55 @@ class Store:
     # ------------------------------------------------------------------ Jobs & Artefakte
 
     def create_job(
-        self, order_no: str, engine: str, workflow: str, prompt: str, params: dict, seeds: list
+        self,
+        order_no: str | None,
+        engine: str,
+        workflow: str,
+        prompt: str,
+        params: dict,
+        seeds: list,
     ) -> int:
+        """Job anlegen; ``order_no=None`` für Renderungen ohne Kundenbezug (Evaluation)."""
         with self.tx() as db:
-            order = self.order(order_no)
+            order_id = self.order(order_no).id if order_no else None
             ts = now()
             cur = db.execute(
                 "INSERT INTO jobs (order_id, engine, workflow, prompt, params, seeds, created_at,"
                 " updated_at) VALUES (?,?,?,?,?,?,?,?)",
-                (order.id, engine, workflow, prompt, json.dumps(params), json.dumps(seeds), ts, ts),
+                (order_id, engine, workflow, prompt, json.dumps(params), json.dumps(seeds), ts, ts),
             )
-            self._event("job", cur.lastrowid, "created", order_no=order_no, engine=engine)
+            self._event("job", cur.lastrowid, "created", order_no=order_no, workflow=workflow)
             return cur.lastrowid
 
-    def set_job_status(self, job_id: int, status: str, error: str | None = None) -> None:
+    def set_job_status(
+        self, job_id: int, status: str, error: str | None = None, **result: object
+    ) -> None:
+        """Statuswechsel mit Journal-Ereignis; der Abschluss (done/failed) trägt das Ergebnis."""
         with self.tx() as db:
             db.execute(
                 "UPDATE jobs SET status = ?, error = ?, updated_at = ? WHERE id = ?",
                 (status, error, now(), job_id),
             )
-            self._event("job", job_id, "status", status=status, error=error)
+            self._event("job", job_id, "status", status=status, error=error, **result)
+
+    def finished_jobs(self, after: int, limit: int) -> tuple[list[dict], bool]:
+        """Abgeschlossene Jobs aus dem Journal mit Cursor (events.id) > ``after``: höchstens die
+        neuesten ``limit``, aufsteigend. Zweiter Wert: dazwischen wurden ältere ausgelassen."""
+        rows = self.db.execute(
+            "SELECT e.id, e.entity_id AS job_id, e.created_at, e.data, j.workflow, j.engine,"
+            " o.order_no FROM events e"
+            " JOIN jobs j ON j.id = e.entity_id LEFT JOIN orders o ON o.id = j.order_id"
+            " WHERE e.entity = 'job' AND e.event = 'status' AND e.id > ?"
+            " AND json_extract(e.data, '$.status') IN ('done', 'failed')"
+            " ORDER BY e.id DESC LIMIT ?",
+            (after, limit + 1),
+        ).fetchall()
+        recent = [dict(r) | {"data": json.loads(r["data"])} for r in rows[:limit]]
+        return recent[::-1], len(rows) > limit
+
+    def journal_head(self) -> int:
+        """Höchster Journal-Cursor (0 = leeres Journal)."""
+        return self.db.execute("SELECT coalesce(max(id), 0) FROM events").fetchone()[0]
 
     def add_artifact(
         self,

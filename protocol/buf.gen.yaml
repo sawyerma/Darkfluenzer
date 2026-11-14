@@ -1,0 +1,15 @@
+# Erzeugt TypeScript (protoc-gen-es, gepinnt in frontend/package.json) und Python (protoc
+# builtin; Laufzeit protobuf in backend/pyproject.toml passend zu libprotoc 33.x).
+#   cd protocol && buf lint && buf generate
+# Generierter Code wird eingecheckt und nie von Hand bearbeitet.
+version: v2
+inputs:
+  - directory: schemas
+plugins:
+  - local: ../frontend/node_modules/.bin/protoc-gen-es
+    out: ../frontend/src/core/generated
+    opt:
+      - target=ts
+      - import_extension=none
+  - protoc_builtin: python
+    out: ../backend/src

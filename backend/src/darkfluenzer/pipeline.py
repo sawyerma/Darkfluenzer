@@ -19,7 +19,8 @@ from PIL import Image
 
 from . import comfy
 from .config import Config
-from .models import Manifest
+from .models import Manifest, Workflow
+from .store import Store
 
 log = logging.getLogger("darkfluenzer.pipeline")
 
@@ -70,18 +71,50 @@ def render_evaluation(
     """Evaluationslauf: Eingaben hochladen, Workflow rendern, Ergebnis + Herkunft ablegen.
 
     Für maskierte Bearbeitungen wird zusätzlich geprüft, dass außerhalb der Maske kein Pixel
-    vom Master abweicht – sonst Fehler statt stiller Akzeptanz.
+    vom Master abweicht – sonst Fehler statt stiller Akzeptanz. Jede Renderung ist ein Job ohne
+    Kundenbezug im SQLite-Journal; ihr Abschluss erscheint im Cockpit als ``job.completed``.
     """
     wf = man.workflows[workflow_key]
     uploads = uploads or {}
     for name in uploads:
         if name not in wf.params or not wf.params[name].upload:
             raise PipelineError(f"{workflow_key}: '{name}' ist kein Upload-Parameter.")
+    store = Store(cfg.local)
+    try:
+        seeds = [values["seed"]] if "seed" in values else []
+        prompt = str(values.get("prompt", ""))
+        job_id = store.create_job(None, wf.engine, workflow_key, prompt, values, seeds)
+        store.set_job_status(job_id, "running")
+        try:
+            result, outputs = _render(cfg, man, wf, workflow_key, dict(values), uploads, timeout_s)
+        except BaseException as exc:
+            store.set_job_status(job_id, "failed", error=str(exc) or type(exc).__name__)
+            raise
+        store.set_job_status(
+            job_id,
+            "done",
+            prompt_id=result.prompt_id,
+            duration_s=result.duration_s,
+            outputs=outputs,
+        )
+    finally:
+        store.close()
+    return result
+
+
+def _render(
+    cfg: Config,
+    man: Manifest,
+    wf: Workflow,
+    workflow_key: str,
+    values: dict,
+    uploads: dict[str, Path],
+    timeout_s: float,
+) -> tuple[comfy.RenderResult, list[dict]]:
     from . import runtime
 
     runtime.start(cfg)
     client = comfy.ComfyClient(cfg.comfyui.url)
-    values = dict(values)
     for name, path in uploads.items():
         values[name] = client.upload_image(path)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -120,4 +153,4 @@ def render_evaluation(
     sidecar = dest / f"{workflow_key}_{stamp}.json"
     sidecar.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     log.info("Evaluation %s: %s (%.1f s)", workflow_key, sidecar.name, result.duration_s)
-    return result
+    return result, record["outputs"]

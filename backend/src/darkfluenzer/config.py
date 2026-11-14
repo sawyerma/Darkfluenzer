@@ -38,9 +38,26 @@ class ComfyConfig:
 
 
 @dataclass(frozen=True)
+class ServerConfig:
+    """Lokaler Cockpit-Server: React-Build, Protobuf-WebSocket und Befehle auf einem Origin."""
+
+    host: str
+    port: int
+    heartbeat_s: float
+    observe_s: float
+    catchup_limit: int
+
+    @property
+    def url(self) -> str:
+        host = f"[{self.host}]" if ":" in self.host else self.host
+        return f"http://{host}:{self.port}"
+
+
+@dataclass(frozen=True)
 class Config:
     root: Path
     comfyui: ComfyConfig
+    server: ServerConfig
 
     @property
     def local(self) -> Path:
@@ -141,6 +158,30 @@ def _parse_comfy(root: Path, t: dict) -> ComfyConfig:
     )
 
 
+def _positive(t: dict, key: str, default: float, where: str) -> float:
+    val = t.get(key, default)
+    if isinstance(val, bool) or not isinstance(val, int | float) or val <= 0:
+        raise ConfigError(f"Konfiguration: {where}.{key} muss eine positive Zahl sein.")
+    return float(val)
+
+
+def _parse_server(t: dict) -> ServerConfig:
+    w = "server"
+    host = _require(t, "host", str, w)
+    if not _loopback(host):
+        raise ConfigError(f"Konfiguration: server.host='{host}' ist keine Loopback-Adresse.")
+    port = _require(t, "port", int, w)
+    if not 1 <= port <= 65535:
+        raise ConfigError(f"Konfiguration: server.port={port} ist ungültig.")
+    return ServerConfig(
+        host=host,
+        port=port,
+        heartbeat_s=_positive(t, "heartbeat_s", 15, w),
+        observe_s=_positive(t, "observe_s", 2, w),
+        catchup_limit=int(_positive(t, "catchup_limit", 200, w)),
+    )
+
+
 def load(root: Path | None = None) -> Config:
     root = (root or project_root()).resolve()
     path = root / CONFIG_RELATIVE
@@ -153,9 +194,14 @@ def load(root: Path | None = None) -> Config:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as exc:
         raise ConfigError(f"Konfigurationsdatei {path} ist kein gültiges TOML: {exc}") from exc
-    if not isinstance(data.get("comfyui"), dict):
-        raise ConfigError(f"Konfiguration {path}: Abschnitt [comfyui] fehlt.")
-    return Config(root=root, comfyui=_parse_comfy(root, data["comfyui"]))
+    for section in ("comfyui", "server"):
+        if not isinstance(data.get(section), dict):
+            raise ConfigError(f"Konfiguration {path}: Abschnitt [{section}] fehlt.")
+    return Config(
+        root=root,
+        comfyui=_parse_comfy(root, data["comfyui"]),
+        server=_parse_server(data["server"]),
+    )
 
 
 def setup_logging(cfg: Config, name: str = "darkfluenzer.log") -> Path:

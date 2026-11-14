@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package darkfluenzer.v1;
+
+// Benutzeraktionen: POST /api/v1/command, Content-Type application/x-protobuf,
+// Body CommandRequest, Antwort CommandResponse. Header X-CSRF-Token aus GET /api/v1/session.
+// ACCEPTED heißt nur "angenommen"; Ausführung und Fehler kommen als STATE/EVENT.
+
+message ComfyStart {}
+
+message ComfyStop {}
+
+message CommandRequest {
+  // UUID je Benutzeraktion. Dieselbe ID mit demselben Befehl liefert dieselbe Antwort
+  // ohne zweite Ausführung; dieselbe ID mit anderem Befehl wird abgelehnt.
+  string request_id = 1;
+  oneof command {
+    ComfyStart comfy_start = 10;
+    ComfyStop comfy_stop = 11;
+  }
+}
+
+enum CommandStatus {
+  COMMAND_STATUS_UNSPECIFIED = 0;
+  COMMAND_STATUS_ACCEPTED = 1;
+  COMMAND_STATUS_REJECTED = 2;
+}
+
+message CommandResponse {
+  string request_id = 1;
+  CommandStatus status = 2;
+  // Ablehnungsgrund für Menschen; leer bei ACCEPTED.
+  string detail = 3;
+}

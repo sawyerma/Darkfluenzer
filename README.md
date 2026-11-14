@@ -37,11 +37,15 @@ local/.venv/bin/python -m darkfluenzer comfy start|stop|status|health [--json]
 ## Cockpit (React, im Aufbau)
 
 Browser-Oberfläche mit den Bereichen Übersicht, Nachrichten, ComfyUI; ein einziges Stylesheet
-`frontend/src/shared/graphite.css` (der Build bricht bei jeder weiteren CSS-Datei ab).
+`frontend/src/shared/graphite.css` (der Build bricht bei jeder weiteren CSS-Datei ab). Das Backend
+liefert Build und Protobuf-API auf einem Origin (`[server]` in `local/config.toml`, Standard
+`http://127.0.0.1:8190`); Echtzeit über einen binären WebSocket, Befehle als Protobuf-POST.
 
 ```bash
-cd frontend && npm ci && npm run build   # tsc + Vite
-npm run smoke                            # Browser-Smoke (Playwright)
+cd frontend && npm ci && npm run build       # tsc + Vite
+local/.venv/bin/python -m darkfluenzer serve # Cockpit-Server
+cd frontend && npm test && npm run smoke     # Unit-Tests, Browser-Test am echten Backend
+cd protocol && buf lint && buf generate      # nur nach Schemaänderung (Code wird eingecheckt)
 ```
 
 ## Modelle

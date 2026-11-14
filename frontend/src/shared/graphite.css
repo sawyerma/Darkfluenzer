@@ -12,12 +12,22 @@
   /* Linien */
   --g-line: #464646;
   --g-line-panel: #424242;
+  --g-line-badge: #595959;
+  --g-line-button: #626262;
 
   /* Text */
   --g-text: #f0f0f0;
   --g-text-strong: #ffffff;
+  --g-muted: #b2b2b2;
   --g-tab: #b8b8b8;
   --g-focus: #eeeeee;
+
+  /* Aktion und Zustand */
+  --g-accent: #eaeaea;
+  --g-accent-text: #202020;
+  --g-ok: #15803d;
+  --g-warn: #a16207;
+  --g-bad: #b91c1c;
 
   /* Marke: pinkes C, identisch zum App-Icon (launcher/make_icon.swift) */
   --g-brand: #ed2287;
@@ -30,16 +40,25 @@
   --g-r-tabs: 28px;
   --g-r-tab: 24px;
   --g-r-brand: 8px;
+  --g-r-badge: 22px;
+  --g-r-button: 18px;
 
   /* Abstände und Maße */
   --g-nav-min-h: 56px;
   --g-brand-size: 28px;
+  --g-line-min-h: 34px;
   --g-gap-xs: 3px;
+  --g-gap-sm: 9px;
   --g-gap-md: 12px;
   --g-pad-nav: 8px 20px;
   --g-pad-tab: 8px 14px;
   --g-pad-main: 18px 12px;
   --g-pad-panel: 24px 26px;
+  --g-pad-section: 20px 0 0;
+  --g-pad-badge: 4px 10px;
+  --g-pad-button: 6px 14px;
+  --g-dim-disabled: 0.35;
+  --g-dim-stale: 0.55;
 
   /* Typografie */
   --g-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
@@ -47,7 +66,10 @@
   --g-lh-base: 1.45;
   --g-fs-h1: 20px;
   --g-lh-h1: 1.25;
+  --g-fs-h2: 15px;
   --g-fs-body: 13px;
+  --g-fs-small: 12px;
+  --g-fs-tiny: 11px;
   --g-fw-brand: 800;
   --g-fw-bold: 700;
   --g-fw-semibold: 650;
@@ -71,6 +93,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
   min-height: var(--g-nav-min-h); padding: var(--g-pad-nav);
   border-bottom: 1px solid var(--g-line);
 }
+.g-nav-end { margin-left: auto; }
 .g-brand {
   display: inline-grid; place-items: center;
   width: var(--g-brand-size); height: var(--g-brand-size);
@@ -89,16 +112,53 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-tabs a[aria-current="page"] {
   background: var(--g-tab-selected); color: var(--g-text-strong); font-weight: var(--g-fw-semibold);
 }
+.g-banner { margin: 0; padding: var(--g-pad-nav); border-bottom: 1px solid var(--g-line); }
 .g-main { flex: 1; padding: var(--g-pad-main); }
 
-/* Panel */
+/* Panel, Abschnitte, Zeilen */
 .g-panel {
   border: 1px solid var(--g-line-panel); border-radius: var(--g-r-panel);
   padding: var(--g-pad-panel); background: var(--g-panel); box-shadow: var(--g-shadow-panel);
 }
 .g-panel h1 { margin: 0; font-size: var(--g-fs-h1); line-height: var(--g-lh-h1); font-weight: var(--g-fw-bold); }
+.g-section { padding: var(--g-pad-section); }
+.g-section h2 { margin: 0 0 var(--g-gap-sm); font-size: var(--g-fs-h2); font-weight: var(--g-fw-semibold); }
+.g-line {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--g-gap-md);
+  min-height: var(--g-line-min-h); font-size: var(--g-fs-body);
+  border-bottom: 1px solid var(--g-line);
+}
+.g-value {
+  display: flex; align-items: center; gap: var(--g-gap-sm); min-width: 0;
+  color: var(--g-muted); font-size: var(--g-fs-small); text-align: right; overflow-wrap: anywhere;
+}
+.g-note { margin: var(--g-gap-md) 0 0; color: var(--g-muted); font-size: var(--g-fs-small); }
+.g-note[role="alert"] { color: var(--g-text-strong); }
+
+/* Zustandsabzeichen */
+.g-badge {
+  border: 1px solid var(--g-line-badge); border-radius: var(--g-r-badge);
+  padding: var(--g-pad-badge); color: var(--g-text-strong);
+  font-size: var(--g-fs-tiny); font-weight: var(--g-fw-semibold); white-space: nowrap;
+}
+.g-badge[data-tone="ok"] { background: var(--g-ok); border-color: var(--g-ok); }
+.g-badge[data-tone="warn"] { background: var(--g-warn); border-color: var(--g-warn); }
+.g-badge[data-tone="bad"] { background: var(--g-bad); border-color: var(--g-bad); }
+.g-badge[data-tone="stale"] { border-style: dashed; opacity: var(--g-dim-stale); }
+
+/* Aktionen */
+.g-actions { display: flex; flex-wrap: wrap; gap: var(--g-gap-sm); margin-top: var(--g-gap-md); }
+.g-button {
+  border: 1px solid var(--g-line-button); border-radius: var(--g-r-button);
+  padding: var(--g-pad-button); background: transparent; color: var(--g-accent);
+  font: var(--g-fw-semibold) var(--g-fs-small) / var(--g-lh-base) var(--g-font);
+  text-decoration: none; cursor: pointer;
+}
+.g-button.g-primary { background: var(--g-accent); border-color: var(--g-accent); color: var(--g-accent-text); }
+.g-button:disabled { opacity: var(--g-dim-disabled); cursor: not-allowed; }
 
 @media (max-width: 650px) {
   .g-nav { flex-wrap: wrap; }
   .g-main { padding: var(--g-gap-xs) 0; }
+  .g-line { flex-wrap: wrap; }
 }

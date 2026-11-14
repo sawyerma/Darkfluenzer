@@ -6,6 +6,7 @@
     python -m darkfluenzer workflows check|export-ui|install [--json]
     python -m darkfluenzer render WORKFLOW --set name=wert ... [--input name=datei ...] [--json]
     python -m darkfluenzer character scan|dataset|train-sdxl [--dataset ID] [--steps N] [--json]
+    python -m darkfluenzer serve          (Cockpit: React-Build + Protobuf-API, blockierend)
 
 Exit-Codes: 0 ok, 1 Fehler, 2 Konfiguration, 3 fremde Instanz, 4 Start fehlgeschlagen,
 5 belegt, 6 Stop fehlgeschlagen, 7 nicht gesund, 8 Modell-/Manifestfehler,
@@ -238,6 +239,15 @@ def _character(args: argparse.Namespace) -> tuple[dict, int]:
     return {"ok": True, **training.train_sdxl_lora(base, dataset, out, params)}, 0
 
 
+def _serve() -> tuple[dict, int]:
+    from . import server  # aiohttp nur für den Server laden
+
+    cfg = load()
+    setup_logging(cfg)
+    server.serve(cfg)
+    return {"ok": True, "result": "stopped"}, 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="darkfluenzer", description="Darkfluenzer-Dienst")
     parser.add_argument("--version", action="version", version=__version__)
@@ -268,6 +278,8 @@ def main(argv: list[str] | None = None) -> int:
     chp.add_argument("--rank", type=int, default=16)
     chp.add_argument("--seed", type=int, default=1)
     chp.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
+    srv = sub.add_parser("serve", help="Cockpit-Server (React-Build + Protobuf-API)")
+    srv.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     args = parser.parse_args(argv)
 
     try:
@@ -279,6 +291,8 @@ def main(argv: list[str] | None = None) -> int:
             payload, code = _workflows(args.action)
         elif args.area == "character":
             payload, code = _character(args)
+        elif args.area == "serve":
+            payload, code = _serve()
         else:
             payload, code = _render(args)
     except (comfy.ComfyError, pipeline.PipelineError, ValueError) as exc:
@@ -292,11 +306,11 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as exc:
         payload, code = {"ok": False, "error": "config_invalid", "message": str(exc)}, 2
     except runtime.RuntimeFailure as exc:
-        log.error("%s fehlgeschlagen: %s", args.action, exc)
+        log.error("%s fehlgeschlagen: %s", getattr(args, "action", args.area), exc)
         payload = {"ok": False, "error": exc.code, "message": str(exc), "details": exc.details}
         code = exc.exit_code
     except Exception as exc:  # letzte Linie: nie still scheitern, immer melden
-        log.exception("Unerwarteter Fehler bei %s", args.action)
+        log.exception("Unerwarteter Fehler bei %s", getattr(args, "action", args.area))
         payload, code = {"ok": False, "error": "internal", "message": repr(exc)}, 1
     _emit(payload, args.json)
     return code

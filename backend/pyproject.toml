@@ -4,9 +4,12 @@ version = "0.1.0"
 description = "Lokaler Darkfluenzer-Dienst: ComfyUI-Laufzeit, Workflows, Kundenakte"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "aiohttp>=3.14",
     "huggingface-hub>=1.7",
     "numpy>=2.2",
     "pillow>=11",
+    # Laufzeit passend zum Generator libprotoc 33.x (protocol/buf.gen.yaml)
+    "protobuf>=6.33,<7",
 ]
 
 [project.scripts]
@@ -31,6 +34,8 @@ build-backend = "hatchling.build"
 packages = ["src/darkfluenzer"]
 
 [tool.ruff]
+# Generierter Protobuf-Code (protocol/buf.gen.yaml) wird nicht von Hand formatiert.
+extend-exclude = ["src/darkfluenzer/v1"]
 line-length = 100
 target-version = "py312"
 
