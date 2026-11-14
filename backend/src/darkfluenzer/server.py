@@ -294,6 +294,7 @@ class Cockpit:
             "create_workflow": self._create,
             "cancel_job": self._cancel,
             "pause_queue": self._pause,
+            "delete_media": self._delete_media,
         }
         if which in ("comfy_start", "comfy_stop"):
             return self._comfy_command(which)
@@ -428,6 +429,16 @@ class Cockpit:
         log.info("Workflow %s gelöscht (Registrierung, UI/API, Editor-Kopie)", wf.key)
         return ""
 
+    async def _delete_media(self, msg: commands_pb2.DeleteMedia) -> str:
+        if not msg.media_ids:
+            return "Keine Datei gewählt."
+        removed = await asyncio.to_thread(pipeline.delete_media, self.cfg, list(msg.media_ids))
+        # Freigewordene Pfade neu prüfen: ComfyUI vergibt gelöschte Dateinamen erneut.
+        self._seen_media.difference_update(removed)
+        self.hub.push_events(spb.TOPIC_MEDIA_REMOVED)
+        log.info("Galerie: %d Datei(en) gelöscht", len(removed))
+        return ""
+
     def _comfy_command(self, which: str) -> str:
         if self._busy:
             return "Ein ComfyUI-Befehl läuft bereits"
@@ -459,9 +470,21 @@ class Cockpit:
             for r in rows
         ], gap
 
+    def read_removed(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
+        rows, gap = self.store.media_removed(after, limit)
+        return [
+            (
+                r["cursor"],
+                _unix_ms(r["committed_at"]),
+                media_pb2.MediaRemoved(media_id=r["media_id"], path=r["path"]).SerializeToString(),
+            )
+            for r in rows
+        ], gap
+
     def read_jobs(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
         rows, gap = self.store.finished_jobs(after, limit)
-        return [(r["id"], _unix_ms(r["created_at"]), _job_completed(r)) for r in rows], gap
+        removed = self.store.removed_media_paths() if rows else set()
+        return [(r["id"], _unix_ms(r["created_at"]), _job_completed(r, removed)) for r in rows], gap
 
 
 def _unix_ms(iso: str) -> int:
@@ -501,7 +524,7 @@ def _media_item(row: dict) -> media_pb2.MediaItem:
     return item
 
 
-def _job_completed(row: dict) -> bytes:
+def _job_completed(row: dict, removed: set[str]) -> bytes:
     data = row["data"]
     msg = comfy_pb2.JobCompleted(
         job_id=row["job_id"],
@@ -517,6 +540,8 @@ def _job_completed(row: dict) -> bytes:
         order_no=row["order_no"] or "",
     )
     for out in data.get("outputs") or []:
+        if out["path"] in removed:  # vom Betreiber gelöscht
+            continue
         msg.outputs.add(path=out["path"], sha256=out["sha256"], size=out["size"])
     msg.params.update({k: str(v) for k, v in (row.get("params") or {}).items()})
     return msg.SerializeToString()
@@ -711,6 +736,9 @@ def create_app(cfg: Config) -> web.Application:
     )
     hub.offer_events(
         spb.TOPIC_MEDIA_ADDED, media_pb2.MediaItem.DESCRIPTOR.full_name, cockpit.read_media
+    )
+    hub.offer_events(
+        spb.TOPIC_MEDIA_REMOVED, media_pb2.MediaRemoved.DESCRIPTOR.full_name, cockpit.read_removed
     )
 
     limit = int(cfg.server.max_upload_mb * 1024 * 1024)

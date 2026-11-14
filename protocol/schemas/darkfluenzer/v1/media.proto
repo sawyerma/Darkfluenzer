@@ -6,6 +6,8 @@ package darkfluenzer.v1;
 // Neue Einträge als EVENT media.added; ältere seitenweise per
 //   GET /api/v1/media-page?before=<media_id>&limit=<n>  -> MediaPage (application/x-protobuf).
 // Die Datei selbst nur über den sitzungsgeschützten Pfad /api/v1/media/<path>.
+// Gelöschte Einträge als EVENT media.removed (Befehl DeleteMedia); IDs und Nummern werden nie
+// wieder vergeben.
 
 enum MediaKind {
   MEDIA_KIND_UNSPECIFIED = 0;
@@ -42,6 +44,13 @@ message MediaItem {
   uint64 job_id = 11;
   string order_no = 12;
   string customer_no = 13;
+}
+
+// Vom Betreiber gelöschter Galerie-Eintrag (Datei samt gleicher Kopien entfernt).
+message MediaRemoved {
+  uint64 media_id = 1;
+  // Pfad relativ zu local/ (auch Ausgabe eines Renderjobs in JobCompleted.outputs).
+  string path = 2;
 }
 
 message MediaPage {

@@ -4,7 +4,7 @@ import { MediaKind, MediaOrigin, type MediaItem } from "../core/generated/darkfl
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
 import { useConnection } from "../core/realtime";
 import { useEventTopic } from "../core/state";
-import { mediaUrl } from "./ComfyUI";
+import { mediaUrl, useCommand } from "./ComfyUI";
 
 type Filter = "all" | "image" | "video";
 
@@ -38,7 +38,9 @@ function Medium({ item, controls }: { item: MediaItem; controls?: boolean }) {
 
 export function Files() {
   const live = useEventTopic(Topic.MEDIA_ADDED);
+  const removed = useEventTopic(Topic.MEDIA_REMOVED);
   const connection = useConnection();
+  const cmd = useCommand();
   const [pages, setPages] = useState<MediaItem[]>([]);
   const [more, setMore] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,16 +48,25 @@ export function Files() {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<MediaItem | null>(null);
+  const [marked, setMarked] = useState<ReadonlySet<bigint>>(new Set());
+  const [deleted, setDeleted] = useState<ReadonlySet<bigint>>(new Set());
   const dialog = useRef<HTMLDialogElement>(null);
+  const confirm = useRef<HTMLDialogElement>(null);
 
-  // Seiten und Live-Ereignisse zusammengeführt: je media_id genau ein Eintrag, neueste zuerst.
+  // Seiten und Live-Ereignisse zusammengeführt: je media_id genau ein Eintrag, neueste zuerst;
+  // gelöschte (EVENT media.removed bzw. eigener angenommener Löschbefehl) fallen heraus.
   const items = useMemo(() => {
     const byId = new Map<bigint, MediaItem>();
     for (const m of pages) byId.set(m.mediaId, m);
     for (const e of live?.items ?? []) byId.set(e.value.mediaId, e.value);
+    for (const e of removed?.items ?? []) byId.delete(e.value.mediaId);
+    for (const id of deleted) byId.delete(id);
     return [...byId.values()].sort((a, b) => (b.mediaId > a.mediaId ? 1 : b.mediaId < a.mediaId ? -1 : 0));
-  }, [pages, live]);
+  }, [pages, live, removed, deleted]);
   const shown = items.filter((m) => matches(m, filter));
+  const deletable = shown.filter((m) => !m.orderNo); // Kundenmedien sind nicht löschbar
+  const chosen = deletable.filter((m) => marked.has(m.mediaId));
+  const allMarked = deletable.length > 0 && chosen.length === deletable.length;
 
   async function load(before: bigint) {
     setLoading(true);
@@ -75,39 +86,127 @@ export function Files() {
   useEffect(() => {
     // erste Seite beim Aufruf, sobald verbunden; ältere nur auf Wunsch
     if (connection.status === "OPEN" && !loaded && !loading) void load(0n);
-  }, [connection.status]);
+  }, [connection.status, loaded]);
+
+  useEffect(() => {
+    // Mehr Löschungen als der Nachzug liefert: Galerie neu laden statt veraltete Kacheln zeigen
+    if (removed?.gap) {
+      setPages([]);
+      setMore(false);
+      setLoaded(false);
+    }
+  }, [removed?.gap]);
+
+  useEffect(() => {
+    if (open && !items.some((m) => m.mediaId === open.mediaId)) dialog.current?.close();
+  }, [items, open]);
 
   function show(item: MediaItem) {
     setOpen(item);
     dialog.current?.showModal();
   }
 
+  function toggle(id: bigint) {
+    setMarked((s) => {
+      const next = new Set(s);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }
+
+  async function remove(ids: bigint[]) {
+    // Das Backend löscht vor der Antwort: angenommen = gelöscht.
+    if (await cmd.run({ case: "deleteMedia", value: { mediaIds: ids } })) {
+      setDeleted((s) => new Set([...s, ...ids]));
+    }
+  }
+
   return (
     <section className="g-panel">
       <h1>Dateien</h1>
-      <div className="g-subtabs" role="tablist" aria-label="Medienart">
-        {FILTERS.map(([f, label]) => (
-          <button key={f} type="button" role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}>
-            {label} <small>{items.filter((m) => matches(m, f)).length}</small>
-          </button>
-        ))}
+      <div className="g-toolbar">
+        <div className="g-subtabs" role="tablist" aria-label="Medienart">
+          {FILTERS.map(([f, label]) => (
+            <button
+              key={f}
+              type="button"
+              role="tab"
+              aria-selected={filter === f}
+              onClick={() => {
+                setFilter(f);
+                setMarked(new Set());
+              }}
+            >
+              {label} <small>{items.filter((m) => matches(m, f)).length}</small>
+            </button>
+          ))}
+        </div>
+        {deletable.length > 0 ? (
+          <span className="g-value">
+            <button
+              type="button"
+              className="g-button"
+              onClick={() => setMarked(allMarked ? new Set() : new Set(deletable.map((m) => m.mediaId)))}
+            >
+              {allMarked ? "Markierung aufheben" : "Alle markieren"}
+            </button>
+            <button
+              type="button"
+              className="g-button g-danger"
+              disabled={chosen.length === 0 || cmd.pending}
+              onClick={() => confirm.current?.showModal()}
+            >
+              {chosen.length > 0 ? `Löschen (${chosen.length})` : "Löschen"}
+            </button>
+          </span>
+        ) : null}
       </div>
 
       {shown.length > 0 ? (
-        <div className="g-gallery">
-          {shown.map((m) => (
-            <button key={String(m.mediaId)} type="button" className="g-tile" onClick={() => show(m)}>
-              <Medium item={m} />
-              <span>{m.caption}</span>
-            </button>
-          ))}
+        <div className="g-gallery" data-marking={chosen.length > 0 || undefined}>
+          {shown.map((m) => {
+            const isMarked = !m.orderNo && marked.has(m.mediaId);
+            return (
+              <div key={String(m.mediaId)} className="g-tile" data-marked={isMarked || undefined}>
+                <button
+                  type="button"
+                  className="g-tile-open"
+                  onClick={() => (chosen.length > 0 && !m.orderNo ? toggle(m.mediaId) : show(m))}
+                >
+                  <Medium item={m} />
+                  <span>{m.caption}</span>
+                </button>
+                {m.orderNo ? null : (
+                  <>
+                    <input
+                      type="checkbox"
+                      className="g-tile-mark"
+                      aria-label={`${m.caption} markieren`}
+                      checked={isMarked}
+                      onChange={() => toggle(m.mediaId)}
+                    />
+                    <button
+                      type="button"
+                      className="g-tile-x"
+                      aria-label={`${m.caption} löschen`}
+                      title="Löschen"
+                      disabled={cmd.pending}
+                      onClick={() => void remove([m.mediaId])}
+                    >
+                      ×
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <p className="g-note">{loaded || live?.live ? EMPTY[filter] : connection.status === "OPEN" ? "Lädt …" : "Keine Verbindung"}</p>
       )}
-      {error ? (
+      {error || cmd.notice ? (
         <p className="g-note" role="alert">
-          {error}
+          {error || cmd.notice}
         </p>
       ) : null}
       {more ? (
@@ -117,6 +216,26 @@ export function Files() {
           </button>
         </div>
       ) : null}
+
+      <dialog ref={confirm} className="g-dialog" aria-labelledby="files-delete">
+        <h2 id="files-delete">{chosen.length === 1 ? "1 Datei löschen" : `${chosen.length} Dateien löschen`}</h2>
+        <p>Die markierten Dateien werden endgültig vom Mac entfernt.</p>
+        <div className="g-actions">
+          <button type="button" className="g-button" onClick={() => confirm.current?.close()}>
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            className="g-button g-danger"
+            onClick={() => {
+              confirm.current?.close();
+              void remove(chosen.map((m) => m.mediaId)).then(() => setMarked(new Set()));
+            }}
+          >
+            Löschen
+          </button>
+        </div>
+      </dialog>
 
       <dialog ref={dialog} className="g-dialog g-media" aria-label={open?.caption} onClose={() => setOpen(null)}>
         {open ? (

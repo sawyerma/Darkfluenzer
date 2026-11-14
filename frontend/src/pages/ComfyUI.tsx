@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { sendCommand } from "../core/commands";
 import {
   ComfyState,
@@ -69,7 +69,7 @@ export function ComfyBadge({ comfy }: { comfy: StateValue<ComfyStatus> | undefin
 }
 
 /** Ein Befehl mit sichtbarem Ergebnis: läuft, Ablehnungsgrund oder Fehler. */
-function useCommand() {
+export function useCommand() {
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState("");
   async function run(command: Command, accepted = ""): Promise<boolean> {
@@ -513,6 +513,8 @@ const RESULT_BADGE: Record<JobResult, [string, Tone]> = {
 
 function Results({ onLoad, canLoad }: { onLoad: LoadDraft; canLoad: (key: string) => boolean }) {
   const results = useEventTopic(Topic.JOB_COMPLETED);
+  const removed = useEventTopic(Topic.MEDIA_REMOVED);
+  const gone = useMemo(() => new Set(removed?.items.map((e) => e.value.path)), [removed]);
   const connection = useConnection();
   const [open, setOpen] = useState<bigint | null>(null);
   const recent = results ? [...results.items].reverse().slice(0, 8) : [];
@@ -529,7 +531,7 @@ function Results({ onLoad, canLoad }: { onLoad: LoadDraft; canLoad: (key: string
               <div className="g-line">
                 <span className="g-value">
                   {job.outputs
-                    .filter((o) => IMAGE.test(o.path))
+                    .filter((o) => IMAGE.test(o.path) && !gone.has(o.path))
                     .slice(0, 1)
                     .map((o) => (
                       <a key={o.path} href={mediaUrl(o.path)} target="_blank" rel="noreferrer">

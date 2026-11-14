@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import hashlib
 import os
 import shutil
 import uuid
@@ -82,8 +83,11 @@ def test_media_only_indexed_files_with_session_page_and_download(cfg):
     (evaluation / "out.png").write_bytes(b"png")
     (evaluation / "other.png").write_bytes(b"other")
     (evaluation / "escape.png").symlink_to(cfg.local / "config.toml")
+    comfy_copy = cfg.comfyui.path / "output" / "darkfluenzer" / "out_00001_.png"
+    comfy_copy.parent.mkdir(parents=True)
+    comfy_copy.write_bytes(b"png")  # ComfyUIs eigene Kopie derselben Ausgabe
     store = Store(cfg.local)
-    store.add_media("evaluation/lustify_sdxl/out.png", "c" * 64, 3)
+    store.add_media("evaluation/lustify_sdxl/out.png", hashlib.sha256(b"png").hexdigest(), 3)
     store.close()
 
     async def scenario(client, app, origin):
@@ -104,6 +108,18 @@ def test_media_only_indexed_files_with_session_page_and_download(cfg):
         assert [(i.caption, i.path) for i in page.items] == [
             ("0001", "evaluation/lustify_sdxl/out.png")
         ]
+        # Löschen: Datei samt byte-gleicher ComfyUI-Kopie weg, Index leer, andere Dateien bleiben
+        delete = commands_pb2.DeleteMedia(media_ids=[page.items[0].media_id])
+        req = commands_pb2.CommandRequest(request_id=str(uuid.uuid4()), delete_media=delete)
+        answer = commands_pb2.CommandResponse.FromString(
+            (await _post(client, origin, await _csrf(client), req))[1]
+        )
+        assert answer.status == commands_pb2.COMMAND_STATUS_ACCEPTED, answer.detail
+        assert not (evaluation / "out.png").exists() and not comfy_copy.exists()
+        assert (evaluation / "other.png").exists()
+        assert (await client.get(url)).status == 404
+        page = media_pb2.MediaPage.FromString(await (await client.get("/api/v1/media-page")).read())
+        assert not page.items
 
     _run(cfg, scenario)
 
@@ -164,6 +180,7 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
             (pb.TOPIC_COMFY_WORKFLOWS, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_JOB_COMPLETED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_MEDIA_ADDED, pb.TOPIC_CLASS_EVENT),
+            (pb.TOPIC_MEDIA_REMOVED, pb.TOPIC_CLASS_EVENT),
         }
 
         sub = pb.Subscribe(topic=pb.TOPIC_COMFY_STATUS)

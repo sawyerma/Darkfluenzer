@@ -6,7 +6,7 @@ import {
   JobsActiveSchema,
   WorkflowsSchema,
 } from "./generated/darkfluenzer/v1/comfy_pb";
-import { MediaItemSchema } from "./generated/darkfluenzer/v1/media_pb";
+import { MediaItemSchema, MediaRemovedSchema } from "./generated/darkfluenzer/v1/media_pb";
 import {
   Topic,
   TopicClass,
@@ -23,6 +23,7 @@ const TOPICS = {
   [Topic.COMFY_WORKFLOWS]: { cls: TopicClass.STATE, schema: WorkflowsSchema },
   [Topic.JOB_COMPLETED]: { cls: TopicClass.EVENT, schema: JobCompletedSchema },
   [Topic.MEDIA_ADDED]: { cls: TopicClass.EVENT, schema: MediaItemSchema },
+  [Topic.MEDIA_REMOVED]: { cls: TopicClass.EVENT, schema: MediaRemovedSchema },
 } as const;
 
 type Topics = typeof TOPICS;

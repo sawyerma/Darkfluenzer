@@ -120,6 +120,7 @@ message JobCompleted {
   JobResult result = 4;
   string error = 5;
   double duration_s = 6;
+  // Noch vorhandene Ausgaben (vom Betreiber gelöschte fehlen).
   repeated JobOutput outputs = 7;
   // Leer bei Renderungen ohne Kundenbezug (Evaluation).
   string order_no = 8;

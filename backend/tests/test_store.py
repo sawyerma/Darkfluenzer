@@ -280,5 +280,18 @@ def test_media_index_migrates_v1_dedupes_numbers_and_customer_names(tmp_path):
         assert {_media_item(r).caption for r in s.media_page(0, 10)[0] if r["order_id"]} == {
             "DF-C-000001"
         }
+        # Löschen nur eigener Medien (Code und Trigger); IDs und Nummern nie wieder vergeben
+        with pytest.raises(StoreError):
+            s.remove_media([customer[0]["id"]])
+        with pytest.raises(sqlite3.IntegrityError):
+            s.db.execute("DELETE FROM media WHERE id = ?", (customer[0]["id"],))
+        c = s.add_media("evaluation/x/c.png", "c" * 64, 10)  # neuester Eintrag, Nummer 3
+        assert [r["id"] for r in s.remove_media([c, c + 1])] == [c]
+        assert s.remove_media([c]) == []  # bereits gelöscht
+        d = s.add_media("evaluation/x/d.png", "d" * 64, 10)
+        assert d == c + 1 and s.media_by_path("evaluation/x/d.png")["number"] == 4
+        removed, gap = s.media_removed(0, 10)
+        assert [(r["media_id"], r["path"]) for r in removed] == [(c, "evaluation/x/c.png")]
+        assert not gap and s.removed_media_paths() == {"evaluation/x/c.png"}
     finally:
         s.close()

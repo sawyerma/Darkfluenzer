@@ -14,7 +14,7 @@ import logging
 import os
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -247,6 +247,27 @@ def _render(
     return result, record["outputs"]
 
 
+def _gallery_files(cfg: Config) -> Iterator[tuple[int, Path, str]]:
+    """Bild-/Videodateien der Galerie-Quellen mit Vorrang: ``local/evaluation`` (ohne Eingaben)
+    und die Ausgabe der verwalteten ComfyUI. Liefert (Vorrang, Datei, Pfad relativ zu local/)."""
+    local = cfg.local.resolve()
+    for prio, root, skip in (
+        (1, cfg.local / "evaluation", "inputs"),
+        (2, cfg.comfyui.path / "output", None),
+    ):
+        if not root.is_dir() or not root.resolve().is_relative_to(local):
+            continue
+        for path in root.rglob("*"):
+            if (
+                path.name.startswith(".")
+                or path.suffix.lower() not in MEDIA_KINDS
+                or not path.is_file()
+                or (skip and path.relative_to(root).parts[0] == skip)
+            ):
+                continue
+            yield prio, path, path.resolve().relative_to(local).as_posix()
+
+
 def media_candidates(cfg: Config, store: Store, seen: set[str], settle_s: float) -> list[tuple]:
     """Noch nicht erfasste erzeugte Bilder/Videos, chronologisch: Ausgaben abgeschlossener Jobs
     (mit Job-Bezug), Dateien unter ``local/evaluation`` (ohne Eingaben) und direkt in der
@@ -269,28 +290,37 @@ def media_candidates(cfg: Config, store: Store, seen: set[str], settle_s: float)
                 continue
             seen.add(rel)
             offer(0, path, rel, out["sha256"], row["job_id"])
-    local = cfg.local.resolve()
-    for prio, root, skip in (
-        (1, cfg.local / "evaluation", "inputs"),
-        (2, cfg.comfyui.path / "output", None),
-    ):
-        if not root.is_dir() or not root.resolve().is_relative_to(local):
+    for prio, path, rel in _gallery_files(cfg):
+        if rel in seen:
             continue
-        for path in root.rglob("*"):
-            rel = path.resolve().relative_to(local).as_posix()
-            if (
-                rel in seen
-                or path.name.startswith(".")
-                or path.suffix.lower() not in MEDIA_KINDS
-                or not path.is_file()
-                or (skip and path.relative_to(root).parts[0] == skip)
-            ):
-                continue
-            if path.stat().st_mtime > cutoff:
-                continue  # wird noch geschrieben: beim nächsten Durchlauf
-            seen.add(rel)
-            offer(prio, path, rel, sha256_file(path), None)
+        if path.stat().st_mtime > cutoff:
+            continue  # wird noch geschrieben: beim nächsten Durchlauf
+        seen.add(rel)
+        offer(prio, path, rel, sha256_file(path), None)
     return sorted((m, rel, sha, size, job) for sha, (_, m, rel, size, job) in found.items())
+
+
+def delete_media(cfg: Config, ids: list[int]) -> list[str]:
+    """Löscht Galerie-Einträge ohne Kundenbezug endgültig: Index-Eintrag (Journal 'removed')
+    und Datei samt aller byte-gleichen Kopien in den Galerie-Quellen (z. B. ComfyUIs eigene
+    Ausgabe eines Renderjobs), damit nichts beim nächsten Durchlauf wieder auftaucht. Liefert
+    die entfernten Pfade relativ zu ``local/``."""
+    store = Store(cfg.local)
+    try:
+        with store.tx():
+            rows = store.remove_media(ids)
+            wanted = {(r["size"], r["sha256"]) for r in rows}
+            doomed = {r["path"]: cfg.local / r["path"] for r in rows}
+            sizes = {size for size, _ in wanted}
+            for _, path, rel in _gallery_files(cfg):
+                size = path.stat().st_size
+                if rel not in doomed and size in sizes and (size, sha256_file(path)) in wanted:
+                    doomed[rel] = path
+            for path in doomed.values():  # Fehler -> Index bleibt unverändert (Rollback)
+                path.unlink(missing_ok=True)
+        return list(doomed)
+    finally:
+        store.close()
 
 
 def scan_media(cfg: Config, seen: set[str], settle_s: float) -> int:

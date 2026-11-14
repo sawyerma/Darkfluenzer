@@ -395,6 +395,8 @@ export type JobCompleted = Message<"darkfluenzer.v1.JobCompleted"> & {
   durationS: number;
 
   /**
+   * Noch vorhandene Ausgaben (vom Betreiber gelöschte fehlen).
+   *
    * @generated from field: repeated darkfluenzer.v1.JobOutput outputs = 7;
    */
   outputs: JobOutput[];

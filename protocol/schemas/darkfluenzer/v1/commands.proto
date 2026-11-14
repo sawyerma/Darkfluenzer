@@ -72,6 +72,12 @@ message PauseQueue {
   bool paused = 1;
 }
 
+// Galerie-Einträge ohne Kundenbezug endgültig löschen (Dateien vom Mac entfernen).
+// Kundenmedien sind ausgenommen; bereits gelöschte IDs werden übergangen.
+message DeleteMedia {
+  repeated uint64 media_ids = 1;
+}
+
 message CommandRequest {
   // UUID je Benutzeraktion. Dieselbe ID mit demselben Befehl liefert dieselbe Antwort
   // ohne zweite Ausführung; dieselbe ID mit anderem Befehl wird abgelehnt.
@@ -87,6 +93,7 @@ message CommandRequest {
     CreateWorkflow create_workflow = 17;
     CancelJob cancel_job = 18;
     PauseQueue pause_queue = 19;
+    DeleteMedia delete_media = 20;
   }
 }
 

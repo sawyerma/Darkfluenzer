@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -205,8 +205,8 @@ BEGIN SELECT RAISE(ABORT, '{t}: unveränderlich'); END;"""
     for t in _IMMUTABLE
 )
 
-# Geordnete, rein additive Schritte: neue Datenbank = SCHEMA + alle Schritte; vorhandene
-# Datenbank = nur die noch fehlenden. Bestehende Daten werden nie umgeschrieben.
+# Geordnete Schritte: neue Datenbank = SCHEMA + alle Schritte; vorhandene Datenbank = nur die
+# noch fehlenden. Bestehende Daten werden nie umgeschrieben.
 MIGRATIONS: dict[int, str] = {
     2: """
 -- Hinterlegter Kundenname (Bild-/Videounterschrift); füllt z. B. der Telegram-Adapter
@@ -230,6 +230,12 @@ CREATE TRIGGER media_no_update BEFORE UPDATE ON media
 BEGIN SELECT RAISE(ABORT, 'media: unveränderlich'); END;
 CREATE TRIGGER media_no_delete BEFORE DELETE ON media
 BEGIN SELECT RAISE(ABORT, 'media: unveränderlich'); END;
+""",
+    3: """
+-- Betreiber darf eigene Medien löschen (Journal 'removed'); Kundenmedien bleiben unveränderlich
+DROP TRIGGER media_no_delete;
+CREATE TRIGGER media_order_no_delete BEFORE DELETE ON media WHEN OLD.order_id IS NOT NULL
+BEGIN SELECT RAISE(ABORT, 'media: Kundenmedien unveränderlich'); END;
 """,
 }
 # Artefaktrollen, die in die Galerie gehören (Eingaben, Masken, Vorschauen nicht)
@@ -629,16 +635,53 @@ class Store:
                 order_id = db.execute(
                     "SELECT order_id FROM jobs WHERE id = ?", (job_id,)
                 ).fetchone()[0]
+            # IDs und Nummern gelöschter Einträge werden nie wieder vergeben: das Journal kennt
+            # jede jemals vergebene ID ('added') und jede gelöschte Nummer ('removed').
+            media_id = db.execute(
+                "SELECT coalesce(max(entity_id), 0) + 1 FROM events WHERE entity = 'media'"
+            ).fetchone()[0]
             number = None
             if order_id is None:
-                number = db.execute("SELECT coalesce(max(number), 0) + 1 FROM media").fetchone()[0]
-            cur = db.execute(
-                "INSERT INTO media (sha256, path, kind, size, job_id, artifact_id, order_id,"
-                " number, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
-                (sha, rel, kind, size, job_id, artifact_id, order_id, number, created_at or now()),
+                number = db.execute(
+                    "SELECT max(coalesce((SELECT max(number) FROM media), 0), coalesce((SELECT"
+                    " max(json_extract(data, '$.number')) FROM events WHERE entity = 'media'"
+                    " AND event = 'removed'), 0)) + 1"
+                ).fetchone()[0]
+            db.execute(
+                "INSERT INTO media (id, sha256, path, kind, size, job_id, artifact_id, order_id,"
+                " number, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (
+                    media_id,
+                    sha,
+                    rel,
+                    kind,
+                    size,
+                    job_id,
+                    artifact_id,
+                    order_id,
+                    number,
+                    created_at or now(),
+                ),
             )
-            self._event("media", cur.lastrowid, "added", path=rel)
-            return cur.lastrowid
+            self._event("media", media_id, "added", path=rel)
+            return media_id
+
+    def remove_media(self, ids: list[int]) -> list[dict]:
+        """Entfernt Galerie-Einträge (nur ohne Kundenbezug) und hält jeden im Journal als
+        'removed' fest; bereits gelöschte IDs werden übergangen. Liefert die entfernten Zeilen."""
+        with self.tx() as db:
+            rows = [
+                dict(r)
+                for r in db.execute(
+                    f"SELECT * FROM media WHERE id IN ({','.join('?' * len(ids))})", ids
+                )
+            ]
+            if any(r["order_id"] is not None for r in rows):
+                raise StoreError("Medien eines Kundenauftrags können nicht gelöscht werden.")
+            for r in rows:
+                db.execute("DELETE FROM media WHERE id = ?", (r["id"],))
+                self._event("media", r["id"], "removed", path=r["path"], number=r["number"])
+        return rows
 
     _MEDIA_SELECT = (
         "SELECT m.*, j.workflow, j.params, o.order_no, c.customer_no, c.display_name FROM media m"
@@ -668,6 +711,26 @@ class Store:
             (after, limit + 1),
         ).fetchall()
         return self._media_rows(rows[:limit])[::-1], len(rows) > limit
+
+    def media_removed(self, after: int, limit: int) -> tuple[list[dict], bool]:
+        """Gelöschte Medien aus dem Journal mit Cursor > ``after`` (neueste ``limit``,
+        aufsteigend); zweiter Wert: ältere wurden ausgelassen."""
+        rows = self.db.execute(
+            "SELECT id AS cursor, created_at AS committed_at, entity_id AS media_id,"
+            " json_extract(data, '$.path') AS path FROM events WHERE entity = 'media'"
+            " AND event = 'removed' AND id > ? ORDER BY id DESC LIMIT ?",
+            (after, limit + 1),
+        ).fetchall()
+        return [dict(r) for r in rows[:limit]][::-1], len(rows) > limit
+
+    def removed_media_paths(self) -> set[str]:
+        return {
+            r[0]
+            for r in self.db.execute(
+                "SELECT json_extract(data, '$.path') FROM events"
+                " WHERE entity = 'media' AND event = 'removed'"
+            )
+        }
 
     def media_by_path(self, rel: str) -> dict | None:
         row = self.db.execute("SELECT * FROM media WHERE path = ?", (rel,)).fetchone()

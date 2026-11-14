@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/media.proto.
  */
 export const file_darkfluenzer_v1_media: GenFile = /*@__PURE__*/
-  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvbWVkaWEucHJvdG8SD2RhcmtmbHVlbnplci52MSL7AgoJTWVkaWFJdGVtEhAKCG1lZGlhX2lkGAEgASgEEigKBGtpbmQYAiABKA4yGi5kYXJrZmx1ZW56ZXIudjEuTWVkaWFLaW5kEg8KB2NhcHRpb24YAyABKAkSDAoEcGF0aBgEIAEoCRIMCgRzaXplGAUgASgEEg4KBnNoYTI1NhgGIAEoCRIXCg9jcmVhdGVkX3VuaXhfbXMYByABKAMSLAoGb3JpZ2luGAggASgOMhwuZGFya2ZsdWVuemVyLnYxLk1lZGlhT3JpZ2luEhAKCHdvcmtmbG93GAkgASgJEjYKBnBhcmFtcxgKIAMoCzImLmRhcmtmbHVlbnplci52MS5NZWRpYUl0ZW0uUGFyYW1zRW50cnkSDgoGam9iX2lkGAsgASgEEhAKCG9yZGVyX25vGAwgASgJEhMKC2N1c3RvbWVyX25vGA0gASgJGi0KC1BhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiRAoJTWVkaWFQYWdlEikKBWl0ZW1zGAEgAygLMhouZGFya2ZsdWVuemVyLnYxLk1lZGlhSXRlbRIMCgRtb3JlGAIgASgIKlMKCU1lZGlhS2luZBIaChZNRURJQV9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQTUVESUFfS0lORF9JTUFHRRABEhQKEE1FRElBX0tJTkRfVklERU8QAiqTAQoLTWVkaWFPcmlnaW4SHAoYTUVESUFfT1JJR0lOX1VOU1BFQ0lGSUVEEAASFwoTTUVESUFfT1JJR0lOX1JFTkRFUhABEhsKF01FRElBX09SSUdJTl9FVkFMVUFUSU9OEAISGAoUTUVESUFfT1JJR0lOX0NPTUZZVUkQAxIWChJNRURJQV9PUklHSU5fT1JERVIQBGIGcHJvdG8z");
+  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvbWVkaWEucHJvdG8SD2RhcmtmbHVlbnplci52MSL7AgoJTWVkaWFJdGVtEhAKCG1lZGlhX2lkGAEgASgEEigKBGtpbmQYAiABKA4yGi5kYXJrZmx1ZW56ZXIudjEuTWVkaWFLaW5kEg8KB2NhcHRpb24YAyABKAkSDAoEcGF0aBgEIAEoCRIMCgRzaXplGAUgASgEEg4KBnNoYTI1NhgGIAEoCRIXCg9jcmVhdGVkX3VuaXhfbXMYByABKAMSLAoGb3JpZ2luGAggASgOMhwuZGFya2ZsdWVuemVyLnYxLk1lZGlhT3JpZ2luEhAKCHdvcmtmbG93GAkgASgJEjYKBnBhcmFtcxgKIAMoCzImLmRhcmtmbHVlbnplci52MS5NZWRpYUl0ZW0uUGFyYW1zRW50cnkSDgoGam9iX2lkGAsgASgEEhAKCG9yZGVyX25vGAwgASgJEhMKC2N1c3RvbWVyX25vGA0gASgJGi0KC1BhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiLgoMTWVkaWFSZW1vdmVkEhAKCG1lZGlhX2lkGAEgASgEEgwKBHBhdGgYAiABKAkiRAoJTWVkaWFQYWdlEikKBWl0ZW1zGAEgAygLMhouZGFya2ZsdWVuemVyLnYxLk1lZGlhSXRlbRIMCgRtb3JlGAIgASgIKlMKCU1lZGlhS2luZBIaChZNRURJQV9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQTUVESUFfS0lORF9JTUFHRRABEhQKEE1FRElBX0tJTkRfVklERU8QAiqTAQoLTWVkaWFPcmlnaW4SHAoYTUVESUFfT1JJR0lOX1VOU1BFQ0lGSUVEEAASFwoTTUVESUFfT1JJR0lOX1JFTkRFUhABEhsKF01FRElBX09SSUdJTl9FVkFMVUFUSU9OEAISGAoUTUVESUFfT1JJR0lOX0NPTUZZVUkQAxIWChJNRURJQV9PUklHSU5fT1JERVIQBGIGcHJvdG8z");
 
 /**
  * @generated from message darkfluenzer.v1.MediaItem
@@ -96,6 +96,32 @@ export const MediaItemSchema: GenMessage<MediaItem> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_media, 0);
 
 /**
+ * Vom Betreiber gelöschter Galerie-Eintrag (Datei samt gleicher Kopien entfernt).
+ *
+ * @generated from message darkfluenzer.v1.MediaRemoved
+ */
+export type MediaRemoved = Message<"darkfluenzer.v1.MediaRemoved"> & {
+  /**
+   * @generated from field: uint64 media_id = 1;
+   */
+  mediaId: bigint;
+
+  /**
+   * Pfad relativ zu local/ (auch Ausgabe eines Renderjobs in JobCompleted.outputs).
+   *
+   * @generated from field: string path = 2;
+   */
+  path: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.MediaRemoved.
+ * Use `create(MediaRemovedSchema)` to create a new message.
+ */
+export const MediaRemovedSchema: GenMessage<MediaRemoved> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_media, 1);
+
+/**
  * @generated from message darkfluenzer.v1.MediaPage
  */
 export type MediaPage = Message<"darkfluenzer.v1.MediaPage"> & {
@@ -117,7 +143,7 @@ export type MediaPage = Message<"darkfluenzer.v1.MediaPage"> & {
  * Use `create(MediaPageSchema)` to create a new message.
  */
 export const MediaPageSchema: GenMessage<MediaPage> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_media, 1);
+  messageDesc(file_darkfluenzer_v1_media, 2);
 
 /**
  * @generated from enum darkfluenzer.v1.MediaKind
