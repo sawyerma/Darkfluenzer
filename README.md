@@ -1,7 +1,7 @@
 # Darkfluenzer
 
 Lokaler, freigabegesteuerter KI-Medien-Dienst auf Apple Silicon. Verbindliche Spezifikation und
-Status: [`docs/PHASENPLAN_V1.md`](docs/PHASENPLAN_V1.md).
+Status: [`docs/PHASENPLAN_BACK_V1.md`](docs/PHASENPLAN_BACK_V1.md) (Backend) und [`docs/PHASENPLAN_FRONT_V1.md`](docs/PHASENPLAN_FRONT_V1.md) (Frontend).
 
 ## Was heute funktioniert (S1)
 

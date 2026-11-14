@@ -1,6 +1,6 @@
-# DARKFLUENZER — PHASENPLAN V1
+# DARKFLUENZER — PHASENPLAN BACK V1
 
-**Version:** 1.6.1 — SIMPLIFY + CREATOR-COCKPIT (S1 abgenommen, S2 in Arbeit)  
+**Version:** 1.7 — BACKEND + PROTOBUF (S1 abgenommen, S2 in Arbeit)
 **Stand:** 14.11.2026  
 **Status:** Zielarchitektur verabschiedet, technische Implementierung und Mac-Abnahme überwiegend OFFEN  
 **Repository:** `sawyerma/Darkfluenzer`, Branch `main`  
@@ -57,69 +57,58 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
 
 **Zwei unverhandelbare Gates:** Ein LLM, ein Nutzertext oder ein Screenshot kann weder Zahlung bestätigen noch Betreiberfreigabe erteilen. Der Versanddienst prüft **beide** Bedingungen unmittelbar vor Auslieferung.
 
-## 3. Kompakte Ordnerstruktur
+## 3. Kompakte Struktur: unabhängiges Backend, Frontend, Protocol
 
-Nur **fünf aktive Hauptbereiche** neben `README.md` und erforderlichen Projektdateien:
+**Verbindliche Sollstruktur nach der kontrollierten Migration**, keine sofortige Verschiebung laufender Dateien:
 
 ```text
 8_Darkfluenzer/
-├── README.md
-├── docs/
-│   └── PHASENPLAN_V1.md         # EINZIGE verbindliche Planung und Statusübersicht
-├── src/darkfluenzer/            # Ein Backend-Prozess, klare Python-Module
-│   ├── app.py                   # Start, Routing, Health (heute: CLI `darkfluenzer comfy …`)
-│   ├── config.py                # EINZIGE Konfigurationsquelle local/config.toml, Logging
-│   ├── runtime.py               # ComfyUI-Prozessstart/stop
-│   ├── comfy.py                 # ComfyUI-API und Workflow-Queue
-│   ├── models.py                # Registry workflows/manifest.toml: Ablage, Download, Prüfung
-│   ├── pipeline.py              # Bild-/Videoroute, 3 Kandidaten
-│   ├── llm.py                   # Kundentext → Intent und Prompt
-│   ├── telegram.py              # Kunden-/Betreiber-Nachrichten
-│   ├── sales.py                 # Zählung/Angebote
-│   ├── payments.py              # Anbieterbestätigung, Erstattung
-│   ├── approval.py              # Betreiberfreigabe und Versand-Gates
-│   └── store.py                 # SQLite, Artefakte, Kunden-IDs
-├── launcher/                    # macOS-.app, pinkes C, Installer, ComfyUI-Setup + Lock
+├── backend/
+│   ├── pyproject.toml
+│   ├── uv.lock
+│   ├── src/darkfluenzer/   # Python: Runtime, API, Store, Jobs, Modelle, Training, Adapter
+│   └── tests/             # Nur gezielte fachliche Tests
+├── frontend/              # React/TypeScript/Vite; siehe FRONT-Plan
+├── protocol/
+│   ├── schemas/darkfluenzer/v1/   # Protobuf-STATE/EVENT/Commands
+│   ├── buf.yaml
+│   └── buf.gen.yaml
+├── launcher/               # Bestehendes pinkes C: nur Start, Stop, Health, Cockpit öffnen
 ├── workflows/
-│   ├── manifest.toml            # ZENTRALE Engine-/Modell-/Workflow-Registry
-│   ├── image/                   # je Engine+Aufgabe: <engine>_<aufgabe>.ui.json + .api.json
-│   │   ├── flux3_klein_base_t2i.ui.json / .api.json     # Master (Beispiel)
-│   │   └── lustify_sdxl_inpaint.ui.json / .api.json     # maskierte Spezialbearbeitung
-│   └── video/                   # z. B. wan22_i2v.ui.json / .api.json, ltx25_fast_i2v.*
-├── tests/                       # Reproduzierbare Unit-/Integration-/Mac-Tests
-└── local/                       # VOLLSTÄNDIG .gitignore; niemals Git-Upload
-    ├── config.toml              # Maschinenpfade/Ports (Vorlage: config.example.toml im Repo)
-    ├── comfyui.json             # Identität der verwalteten ComfyUI (PID, Startzeit, Kommando)
-    ├── .venv/                   # Darkfluenzer-Python (uv.lock), getrennt von ComfyUI-Conda
-    ├── ComfyUI/                 # EIGENER gepinnter Checkout (launcher/setup_comfyui.sh) + .venv
+│   ├── manifest.toml       # Eine Modell-/Workflow-Registry
+│   ├── image/              # ComfyUI UI/API-Exporte
+│   └── video/
+├── docs/
+│   ├── PHASENPLAN_BACK_V1.md
+│   └── PHASENPLAN_FRONT_V1.md
+└── local/                  # Vollständig gitignored
+    ├── config.toml
+    ├── comfyui.json
+    ├── .venv/
+    ├── ComfyUI/
     ├── character/
-    │   ├── photos/            # Trainingsbilder einfach hier ablegen
-    │   ├── dataset/           # Vom System vorbereitete Daten
-    │   └── previews/          # Trainingsvergleich und Identitätsprüfung
-    ├── models/                  # <ComfyUI-Typ>/<Familie>/<Datei>, z. B. diffusion_models/flux3/…
-    ├── evaluation/              # A/B-Testrenders je Engine (kein Kundenbezug)
-    ├── darkfluenzer.sqlite3     # EINE zentrale Datenbank
+    │   ├── photos/
+    │   ├── dataset/
+    │   └── previews/
+    ├── models/
+    ├── evaluation/
+    ├── darkfluenzer.sqlite3
     ├── customers/
     │   └── DF-C-000001/
-    │       ├── chats/           # Optionale, aus SQLite erzeugte Exporte
-    │       ├── payments/        # Quittungen; Zahlungsstatus bleibt in SQLite
-    │       └── orders/
-    │           └── DF-O-000001/
-    │               ├── input/   # Auftrag, Referenzbilder
-    │               ├── work/    # Master, Masken, 3 Kandidaten, Previews
-    │               └── sent/    # Tatsächlich ausgelieferte Datei
-    └── logs/                    # Rotierende technische Logs ohne Chat-Volltexte
+    │       ├── chats/
+    │       ├── payments/
+    │       └── orders/DF-O-000001/
+    │           ├── input/
+    │           ├── work/
+    │           └── sent/
+    └── logs/
 ```
 
-**Nicht mehr zulässig:** weitere parallele `local/data`-Datenbanken, `artifacts`-Spiegel, doppelte Statusdateien, pro Workflow `v001/`-Unterordner mit identischen Manifests, zehn kleine Verzeichnisse nur für jeweils eine Backend-Datei.
+**Quellstruktur und Laufzeit konsequent trennen:** Kein zweites Kunden-CRM, keine zweite SQLite-Datenbank, keine redundanten Modell-/Manifestdateien. Im laufenden Projekt liegen `pyproject.toml`, `uv.lock`, `src/` und `tests/` zurzeit noch im Root; vor ihrer Migration `launcher/install.sh`, Paketpfade, CI-/Testaufrufe und Konfiguration kontrolliert gemeinsam anpassen, damit das bereits abgenommene S1 nicht bricht.
 
-**Praktische Regeln:**
-- `ComfyUI` wird beim Bestandstest lokalisiert; eine bestehende Installation wird nicht blind verschoben. Darkfluenzer betreibt eine **eigene, gepinnte** ComfyUI (`launcher/setup_comfyui.sh`, Abhängigkeiten exakt aus `launcher/comfyui.lock.txt`), damit Updates keine fremden Projekte brechen.
-- Der Git-Commit versioniert Workflows. `manifest.toml` hält pro Workflow nur Engine, Basis-/LoRA-Architektur, benötigte Dateien/Nodes, Status und Freigabe. Kein zusätzlicher Versionsbaum.
-- Jeder Kunde erhält bei der ersten Bot-Nachricht einmalig eine **stabile Kundennummer** `DF-C-000001`, dann fortlaufend. Jede Bestellung hat `DF-O-000001`. Niemals Telegram-Nutzername als Dateipfad.
-- Kundendaten werden über SQLite gesucht. Die Ordner sind nur Ablage/Export, **keine zweite Wahrheit**.
-- Chats bleiben vollständig der Kunden-ID zugeordnet, ebenso Zahlungen, Aufträge, alle Kandidaten, Vorschauen und ausgelieferte Medien. Optionaler Chat-/Zahlungs-Export wird aus SQLite generiert.
-- Innerhalb von `work/` gelten **klare Namen statt weiterer Unterordner**: `master.png`, `mask_01.png`, `candidate_01.png` bis `candidate_03.png`, `preview_01.jpg`; Videos `candidate_01.mp4`. Keine Dateiüberschreibung freigegebener Medien.
+**Praktische Regeln:** ComfyUI besitzt einen separaten gepinnten Checkout in `local/ComfyUI`. Modellgewichte, Bilddaten, Kundendaten und Secrets gehören ausschließlich nach `local/`, niemals in Git. Workflowversionen stammen aus Git und einer einzigen `workflows/manifest.toml`; jeder Graph hat seine Native-UI- und API-Datei. Kunden und Aufträge erhalten stabile IDs; Kundendatenstatus liegt nur in SQLite, während `input/`, `work/` und `sent/` die zugehörigen Dateien enthalten. Keine Überschreibung freigegebener Artefakte.
+
+**Frontend-Vertrag:** [PHASENPLAN_FRONT_V1.md](PHASENPLAN_FRONT_V1.md) ist ausschließlich für sichtbare GUI, React-Code, Browserverhalten und UI-Protokollbindungsregeln maßgeblich. Dieses BACK-Dokument ist maßgeblich für Betrieb, ComfyUI, Modellinstallation, LoRA, Kundenstatus, Zahlungsprüfung, Persistenz, Plattform-Adapter und serverseitige Protobuf-Publikation.
 
 ## 4. Festgelegte Engines — so wenig wie möglich, so viel wie nötig
 
@@ -203,78 +192,22 @@ Ein gesamter Kundenauftrag ist anhand seiner Kunden- und Bestellnummer wieder au
 
 **Apple-MPS-Verifikation:** Die gewählte Trainingssoftware muss mit dem konkreten Zielmodell real getestet werden. Keine Annahme, dass ein FLUX-3-Inferenzbackend auch FLUX-3-LoRA trainieren kann. Wenn dies auf dem Mac nicht unterstützt wird: den Engpass anzeigen und eine tatsächlich kompatible lokale Alternative prüfen, ohne die Ein-Ordner-Bedienung zu verändern.
 
-## 6B. Bedienoberfläche — bewusst minimal
+## 6B. Frontend-/Backend-Grenze (verbindlich)
 
-Darkfluenzer bekommt eine **kompakte, lokale Steuerseite in derselben App**, kein zweites Dashboard-Produkt und keine zusätzliche Backend-Infrastruktur. Die Bild-/Videographen bleiben in ComfyUI.
+Das Creator-Cockpit ist **eine eigenständige React-/TypeScript-/Vite-Webanwendung**, deren Spezifikation ausschließlich in [PHASENPLAN_FRONT_V1.md](PHASENPLAN_FRONT_V1.md) liegt. **Keine native zweite GUI, keine WKWebView, keine Abhängigkeit vom DarkBot-Laufzeitbetrieb.**
 
-- **Charakter:** Ordnerpfad öffnen, Anzahl geprüfter Bilder, laufende Trainerphase/Fortschritt, aktuelle und neue LoRA, Ergebnisvorschauen, LoRA-Freigabe.
-- **Produktion:** ComfyUI starten/öffnen, Status der verfügbaren Engines und Workflows, Warteschlange, letzte Ergebnisse.
-- **Kunden:** Kundennummer, Chat-/Auftragsübersicht, Zahlungsstatus, drei private Vorschauen, manuelle Freigabe; die Freigabe per privatem Betreiber-Telegram ist weiterhin möglich.
-- **Keine separate App**, kein eigener Microservice, kein zweiter Datenspeicher. Bedienseite nutzt vorhandenen lokalen Backend-Prozess und SQLite.
+Das bestehende Python-Paket bleibt der einzige fachliche Owner. Es stellt beim Ausbau einen lokalen HTTP-Server bereit, der das gebaute React-Frontend und die eigene API **same-origin** ausliefert.
 
-**S1 unverändert:** Das pinke C muss ComfyUI ohne Terminal starten. Die zusätzliche Steuerseite ist eine spätere Ergänzung; sie darf S1 nicht wieder öffnen oder seinen nachgewiesenen Status zurücksetzen.
+- **Server → GUI:** ein binärer Protobuf-WebSocket `/ws/v1/stream` mit `Hello/Welcome`, `STATE` (vollständige Zustände), `EVENT` (durable Ereignisse), Heartbeat, Cursor/Catch-up und Reconnect; **kein periodisches Frontend-Polling**.
+- **GUI → Server:** autorisierte Protobuf-Kommandos `POST /api/v1/command` mit Request-ID, Idempotenz und klarer fachlicher Statusrückmeldung.
+- **Große Historien:** auf ausdrückliches Öffnen hin paginierte Protobuf-HTTP-Antworten; Bilder/Videos als kontrollierte Medien-Endpunkte, nicht im WebSocket-STATE.
+- **Nur Backend intern:** ComfyUI-Workflow-JSON und dessen JSON-HTTP-API bleiben an `comfy.py` gebunden. Keine JSON-Payload über die Darkfluenzer-GUI-/Backend-Grenze.
+- **Plattformen:** Telegram, Meta/Instagram, TikTok, Fanvue und Shop werden nur als voneinander isolierte Backend-Adapter eingebunden, sofern offizielle APIs/Berechtigungen existieren. Eingänge vor Verarbeitung in SQLite persistieren, Nachrichten deduplizieren, Zustellung nur durch Betreiber- und Zahlungsgate.
+- **Versionskompatibilität:** Minor-Protobuf-Felder additiv, alte Field-IDs reservieren; beim inkompatiblen Major oder falscher Payload-Bindung UI blockieren statt falsch ausführen. Einmaliges kontrolliertes Frontend-Reload nach Deployment, kein Reload-Loop.
+- **Kein Rust-Gateway:** DarkBots Protobuf-/WebSocket-Mechanik **kopieren und unabhängig an Python anpassen**, nicht den Rust-Gateway oder fachfremde Engine-Module übernehmen.
+- **Nur implementierte Fähigkeiten zeigen:** Ein noch nicht angebundener Adapter liefert einen ehrlichen `UNAVAILABLE`-Status, keinen Fake-Publisher.
 
-## 6C. Zentrales Creator-Cockpit – Multi-Plattform ohne Systembruch
-
-**Ziel:** Im Alltag nur **eine** Darkfluenzer-Oberfläche öffnen. Plattformen/Accounts bleiben getrennt, aber Benachrichtigungen, erreichbare Nachrichten, Aufträge, Produktion, Zahlungen, Freigaben und technische Probleme erscheinen in einer zentralen Aufgabenansicht. **Kein zweites Backend, keine zweite Datenbank, kein neuer Microservice**.
-
-### Bedienung: Startansicht + drei Bereiche
-
-- **Startansicht „Meine Aufgaben“:** Nur Ausnahmen mit unmittelbarem Handlungsbedarf: nicht beantwortbare Kundenanfrage, Betreiberfreigabe, offene Zahlung, Jobfehler, abgelaufene Plattformautorisierung. Zähler sind aus echten SQLite-Zuständen abgeleitet, nicht aus manuell synchronisierten Widgets.
-- **Studio:** Charakterbilder per Drag-and-drop, LoRA-Training und aktive Version, ComfyUI starten, Bild-/Videoworkflows, Medienbibliothek, freizugebende Social-Posts.
-- **Posteingang:** Unterstützte Nachrichten/Kommentare aus allen angebundenen Kanälen, getrennte Plattformkennzeichen, Filter `NEU | KI_BEARBEITET | BRAUCHT_MICH | ERLEDIGT`. KI erstellt Vorschläge/Antworten nur im erlaubten Funktionsumfang; Handover zu Mensch auf eindeutigen Status.
-- **Business:** Kundenkartei, Aufträge, bestätigte Zahlungen, Auslieferungen, Plattformumsätze (nur soweit API vorhanden), Merchandise-Bestellungen. Pro Kundenkarte ein historischer Verlauf; plattformübergreifende Zuordnung nur nach bewusster, bestätigter Kontenverknüpfung.
-- **Verbindungen:** Kleine Statusfläche, kein eigener Hauptreiter: `VERBUNDEN | AKTION_ERFORDERLICH | EINGESCHRÄNKT | GETRENNT`; letzter erfolgreicher Sync, API-Fehler, betroffene Funktionen, „Neu verbinden“ und „Originalplattform öffnen“.
-
-**Bedienregel:** Keine fünf unabhängigen Dashboards, keine Pflicht, alle Plattformen täglich einzeln zu öffnen. Nur **nicht unterstützte Funktionen** führen über einen direkten Link zur nativen Plattform – ohne vorzutäuschen, dass sie im Cockpit verfügbar sind.
-
-### Plattform-Adapter mit nachgewiesenen Fähigkeiten
-
-- `telegram`: Bot API für private Chats, Betreiberfreigabe, Aufträge und zugelassene Zahlungsschritte; eigene Telegram-ID je Kundenplattformkontakt.
-- `instagram`: offizielle Meta-Instagram-API für professionelle Accounts und bewilligte Messaging-/Publishing-/Kommentar-Berechtigungen. Messaging-Fenster, App Review, Webhooks und Conversation Routing beachten. **Keine Garantie sämtlicher DMs/Medienarten**.
-- `tiktok`: Content Posting API für bewilligte Upload-/Publishing-Funktionen; Kommentar-Integration nur wenn zugelassen. **TikTok-Direktnachrichten nicht als allgemein verfügbare API-Funktion annehmen.**
-- `fanvue`: OAuth 2.0/PKCE, exakt gewährte Scopes, versionierter `X-Fanvue-API-Version`-Header; Chats, Posts, Insights und Webhooks **nur nach tatsächlich erteilter API-Berechtigung**. Keine Browser-Scraping-Automation als stiller Ersatz.
-- `shop`: unabhängiger Merchandise-Shop; physischer Warenbestand, Bestellung, Zahlung, Versandstatus und Erstattung als eigener Produkttyp. Digitale Fan-Inhalte und physische Waren niemals ungeprüft über denselben Zahlungs-/Plattformkanal mischen.
-- Weitere Plattformen nur hinzufügen, wenn ein Adapter mit echten Berechtigungen und realem End-to-End-Test implementiert werden kann.
-
-**Quellen (offizielle Anbieter):**  
-Meta Instagram API: https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api  
-Meta Versioning: https://developers.facebook.com/docs/graph-api/guides/versioning  
-TikTok Content Posting: https://developers.tiktok.com/docs/en/content-posting-api-get-started  
-Fanvue API-Regeln: https://legal.fanvue.com/api-policy
-
-### Gemeinsame Inbox- und Kundenlogik
-
-1. Jeder Adapter übersetzt verfügbare Plattformereignisse in den **gleichen internen Ereignisvertrag**: `platform`, `account_id`, `external_event_id`, `external_actor_id`, `event_type`, `occurred_at`, `payload_ref`, `ingested_at`.
-2. Eindeutigkeitsconstraint `UNIQUE(platform, account_id, external_event_id)`; wiederholte Webhooks/Nachrichten dürfen keine Doppelaufträge, Doppelantworten oder Doppelzahlungen erzeugen.
-3. Telegram-/Instagram-/Fanvue-Konten werden **nicht allein aufgrund ähnlicher Namen** zusammengelegt. Eine bestätigte Verknüpfung ordnet mehrere `platform_account`-Datensätze einem internen `customer_id` zu.
-4. Nur ein durch die tatsächliche Plattformfunktion erlaubter Auftrag kann eine plattformseitige Antwort oder Veröffentlichung auslösen. Entwürfe dürfen zentral gespeichert werden, wenn unmittelbarer Versand technisch nicht möglich ist.
-5. Plattformzahlungen gelten nur als bestätigt, wenn vom jeweiligen Payment-/Plattform-Provider autoritativ verifiziert. Fremde Umsatzanzeigen sind keine Zahlungsfreigabe für einen konkreten Auftrag.
-6. Nur eine betriebliche Entscheidungsschlange `tasks` mit Status und Zuweisung an den Betreiber; Fälligkeit, Referenz, Ursprungskanal und direkte Aktion. Kein redundant synchronisiertes „Inbox-CRM“ neben SQLite.
-
-### Update- und Ausfallsicherheit (verbindlich)
-
-- **Isolierte Adapter:** Ausfall oder API-Änderung bei Instagram darf Telegram, ComfyUI, Kundenakte und andere Adapter nicht stoppen.
-- **Speichern vor Verarbeiten:** eingehende, validierte Events zuerst lokal und transaktional schreiben; danach verarbeiten. Webhook-Signaturen/Authentisierung prüfen.
-- **Queue und Wiederholung:** durable lokale Aufgaben in SQLite, Retry mit Backoff, Fehlerendzustand und operator-sichtbarer Reparatur; idempotente Side Effects.
-- **Abgleich:** Webhooks plus periodische Reconciliation/Synchronisierung mit Cursor/Checkpoint, soweit die Plattform dies erlaubt. Nicht behaupten, dass bei API-Sperre alle historischen Daten nachlieferbar sind.
-- **Verbindungsmonitor:** Token-/Scope-Gültigkeit, API-Version, letzter erfolgreicher Zugriff, Rate Limits, Webhook-Eingang und Datenlücke überwachen. Bei Fehlern: klare Meldung und manueller Link zur Originalplattform.
-- **Versionen fixieren:** Python-Abhängigkeiten/ComfyUI-Custom-Nodes und nach Möglichkeit Plattform-API-Versionen pinnen. Keine unbeaufsichtigten produktiven Updates.
-- **Geprüfter Update-Prozess:** SQLite-Backup im konsistenten WAL-Zustand + Code/Workflow-Revision sichern → Tests und Migrationsprobe → ein Adapter nach dem anderen aktualisieren → Health- und Funktionstest → erst dann aktivieren. Vorherige Codeversion sofort startbar halten; DB-Migrationen vorwärtskompatibel und nicht destruktiv ausführen.
-- **Recovery:** Start nach Mac-Neustart, lokaler Backup-/Restore-Test, kein doppelter Versand bei Unterbrechung, keine verlorenen bereits empfangenen Events. Externes Ereignis nach längerem Offline-Zustand nur rekonstruieren, wenn API/Webhook-Retention es tatsächlich erlaubt.
-- **Erreichbarkeit:** Der lokale Mac muss für laufenden Betrieb eingeschaltet und online sein. Webhooks von Meta/Fanvue benötigen einen verlässlich erreichbaren, abgesicherten HTTPS-Endpunkt bzw. einen geprüften Relay-/Tunnelweg. Telegram-Long-Polling kann lokal ohne öffentlichen Inbound-Port genutzt werden. Ein lokales Cockpit allein erzeugt keine 24/7-Verfügbarkeit.
-
-### Abnahme vor Produktivfreigabe
-
-- Adapter A absichtlich trennen: andere Plattformen und ComfyUI funktionieren weiter.
-- Doppelte/out-of-order Webhooks erzeugen keine Doppelaktion.
-- Abgelaufener Zugriff: Cockpit zeigt `AKTION_ERFORDERLICH`, Datenbank bleibt nutzbar; Reconnect nur durch autorisierte Nutzeraktion.
-- Update mit fehlerhafter API-Antwort: kontrollierte Degradierung, Fehleranzeige, Rückkehr zur vorigen funktionierenden Codeversion ohne Datenverlust.
-- Nachrichten von zwei Plattformen werden **nicht** ohne Identitätsnachweis zum selben Kunden.
-- Zentrale Inbox zeigt nur wirklich von API erhaltene Nachrichten; nicht unterstützte Kanäle als `EINGESCHRÄNKT`, keine erfundenen Vollständigkeitsbehauptungen.
-- Bezahltes Bild/Video wird weiterhin nur nach `PAYMENT_CONFIRMED`, Betreiberfreigabe, Hash- und Kundenzuordnung geliefert.
-
-**Umsetzung:** In S4 zunächst Telegram + gemeinsame Adapter-Schnittstelle + ein Cockpit mit zentralen Aufgaben. Instagram, TikTok, Fanvue und Shop einzeln nach Verfügbarkeit der offiziellen API-Berechtigungen anbinden. S6 umfasst Adapter-Ausfall-, Reconnect-, Update- und Restore-Gates. Keine neuen Projektphasen.
+**Betriebsstabilität:** Ein Adapterfehler darf ComfyUI und andere Plattformen nicht stoppen. API-Berechtigungs- und Verbindungsfehler sichtbar melden; nur notwendige Retries und konsistente Backups. Gekoppelte Versionen von Backend/Frontend/Protokoll zusammen deployen; bei fehlerhafter Version zur letzten getesteten Anwendung zurückkehren, ohne Kundendaten oder Freigaben zu verlieren.
 
 ## 7. Nur sechs Phasen
 
@@ -349,7 +282,19 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 
 **PASS nur nach realem Test auf dem Mac, reproduzierbarem Nachweis und Git-Commit.** Ein dokumentierter Plan oder importierbares Workflow-JSON ist noch kein Funktions-PASS. Kein `v1.0`-Release vor S6.
 
-## 8. Strenge Regeln trotz reduzierter Struktur
+## 8. Strenge Regeln: Dieter Rams auch für Code
+
+**Weniger, aber besser.** Einfachheit ist eine konkrete Entwicklungsanforderung, keine Reduktion der Bild-/Videoqualität oder der wirtschaftlichen Gates.
+
+1. Eine Backend-Anwendung, eine SQLite-Datenbank, ein Modell-/Workflow-Manifest, ein Protobuf-Vertrag, ein React-Frontend. Kein zusätzlicher Broker, separater Gateway-Prozess, Plugin-Framework oder zweiter eigener Produktionsdienst.
+2. Erst reale Funktion, dann mögliche Abstraktion. Keine ungenutzten Interface-Schichten, leeren Module, doppelten State-Owner oder Aufteilung einer kleinen Funktion in zehn Dateien.
+3. **Wenige gezielte Tests statt Testmasse:** pro neuer Funktion Normalfall, relevanter Fehlerpfad und nur notwendige Regression; ein echter Mac-Test für ComfyUI und ein E2E-Test für die spätere Zahlungs-/Freigabekette. Keine pauschalen hohen Testzähler, großflächigen Mocks oder mehrfachen identischen Gate-Prüfungen ohne zusätzlichen Erkenntniswert.
+4. **Sicherheit nicht künstlich maximieren:** Die tatsächlich notwendigen Grenzen bleiben strikt: validierte Eingaben, lokal gebundene Server, geschützte Tokens, autorisierte Schreibbefehle, verifizierte Zahlung, persönliche Betreiberfreigabe, exakte Kunden-/Artefaktbindung. Keine zusätzlichen Security-Subsysteme, komplexen Rollensysteme oder Auditrituale ohne nachgewiesenes Risiko.
+5. Keine erfundenen PASS-Berichte: Modell- und GUI-Funktionen erst als betriebsbereit markieren, wenn die passende reale Ausführung tatsächlich geprüft ist. Tests sind Mittel zum Nachweis, kein Selbstzweck.
+6. Eigenständige Darkfluenzer-Kopie der relevanten DarkBot-Technik; **niemals** Laufzeitabhängigkeiten, gemeinsame Datenbanken oder verborgene Imports zwischen beiden Projekten.
+7. Änderungen direkt auf `main` mit sauberem Git-Paket und Push; bestehende Mac-Daten und S1-Abnahme respektieren.
+
+
 
 1. **Single Source of Truth:** Diese Datei ist der einzige normative Masterplan. Technische Kommentare oder Tests dürfen Regeln präzisieren, nicht widersprechen.
 2. **Ein Programm, modulare Funktionen:** Ein lokaler Python-Dienst mit getrennten Modulen, kein selbstgebautes Microservice-System, kein zusätzlicher Message-Broker, kein Docker-Zwang.
@@ -363,6 +308,10 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 10. **Fiktive erwachsene Figur:** keine fremde Person imitieren; Transparenz über künstliche Identität, vereinbarte Inhalte und kommerzielle Rechte.
 
 ## 9. Änderungsprotokoll
+
+**V1.7 — BACK/FRONT SPLIT (14.11.2026):** bisherigen Masterplan in `PHASENPLAN_BACK_V1.md` überführt; Frontend-Vertrag in `PHASENPLAN_FRONT_V1.md` getrennt. Eine browserbasierte React-GUI, ein Python-Backend, ein binärer Protobuf-WebSocket ohne Polling und ohne JSON-GUI-Payload, eigene statt DarkBot-gekoppelte Quellen. Rams-Prinzip „Weniger, aber besser“ für Oberfläche, Code, Testumfang und notwendige Sicherheit verbindlich. Bestehende S1-/S2-Nachweise erhalten.
+
+
 
 **V1.6 — CREATOR-COCKPIT (14.11.2026):** Eine zentrale handlungsorientierte Inbox und Business-Übersicht; Plattform-Adapter für Instagram, TikTok, Telegram, Fanvue und Shop, aber keine API-Fähigkeiten ohne echte Berechtigung voraussetzen. Update-/Ausfallstrategie mit API-Versionen, Health, Retry, Backup und kontrolliertem Rollback, ohne neue Backend-Dienste oder zusätzliche Datenbanken.
 
