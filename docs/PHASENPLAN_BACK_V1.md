@@ -1,11 +1,11 @@
 # DARKFLUENZER — PHASENPLAN BACK V1
 
-**Version:** 1.8 — BACKEND + PROTOBUF + zwei ComfyUI-Instanzen (Architektur festgelegt, KI-Laufzeit noch nicht abgenommen)
-**Stand:** 14.11.2026  
+**Version:** 1.9 — BACKEND + PROTOBUF + zwei ComfyUI-Instanzen + verbindlicher nativer M4-Max-/Chatwoot-Betrieb (Host-Abnahme OFFEN)
+**Stand:** 15.11.2026  
 **Status:** Zielarchitektur verabschiedet; Medien-ComfyUI 1 vorhanden; KI-ComfyUI 2 verbindlich beschlossen, Implementierung und Mac-Abnahme OFFEN  
 **Repository:** `sawyerma/Darkfluenzer`, Branch `main`  
 **Lokal:** `/Users/sawyer_ma/Desktop/Firma/2_DarkMa/8_Darkfluenzer`  
-**System:** Apple-Silicon-Mac M4, 128 GB Unified Memory
+**System:** MacBook Pro Mac16,6, Apple M4 Max (12 Performance- + 4 Efficiency-CPU-Kerne, 128 GiB Unified Memory); ausschließlich natives macOS/ARM64, ohne Docker/Container/Linux-VM
 
 > **Ein verbindliches Dokument. Eine App. Eine lokale Datenbank. Ein Ordner pro Kunde. Wenige austauschbare Workflows.**  
 > Die technische Leistung, Modellqualität, vollständige Kundenhistorie, Zahlungsprüfung und manuelle Betreiberfreigabe bleiben erhalten. Komplexität wird nur dort entfernt, wo sie keinen technischen Nutzen hat.
@@ -168,6 +168,58 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
 
 **Status:** `ComfyUI 1 = bestehend/abgenommen`; `ComfyUI 2 = BESCHLOSSEN, UMSETZUNG UND ECHTER TEST OFFEN`. Keine bestehenden Status oder PASS-Werte rückwirkend ändern.
 
+## 4B. Native M4-Max-CPU- und macOS-Architektur: DarkBot-Quell-Reuse + Chatwoot ohne Docker (Beschluss 15.11.2026)
+
+**VERBINDLICH:** Sämtliche Dienste von Darkfluenzer und Chatwoot laufen **nativ auf macOS/ARM64**; **kein Docker, Docker Compose, Podman, Container, Linux-VM oder Rosetta** als Betriebsschicht. Der Apple M4 Max hat 12 Performance- und 4 Efficiency-CPU-Kerne und 128 GiB physisch geteilten Unified Memory. Nicht alle CPU-Kerne müssen genutzt werden; macOS-QoS ist **keine garantierte Performance-Core-Affinität**. Die DarkBot-Methodik wird übernommen, nicht dessen Latenzziel, Trading-Threadstruktur oder CPU-Konfiguration.
+
+**Klare Zuständigkeiten:** Darkfluenzer/Python = Kunden-, Nachrichten-, Job-, Zahlungs- und Freigabe-Koordination auf der CPU. **ComfyUI 1 und ComfyUI 2 einschließlich Modell-Backends = sämtliche Bild-/Video-/LLM-/TTS-Rechenarbeit**, mit ihrer eigenen Apple-Metal-/MPS-Nutzung. Darkfluenzer bekommt **keine** eigene KI-Modellengine und keine unnötige GPU-Ressourcenarchitektur. Chatwoot v4.19.1 **bleibt Original-Ruby/Rails**, wird nicht in Python/Rust übersetzt. Nur Chatwoot-Webhooks/-API werden vom bestehenden Python-Backend angebunden. Das ist eine einheitliche Bedienoberfläche, kein Auftrag zum Sprach-Rewrite.
+
+### 4B.1 DarkBot – absolut konkrete Quellpfade für Claudes Übernahme
+
+**Read-only-Quellroot auf diesem Mac:** \`/Users/sawyer_ma/Desktop/Firma/2_DarkMa/6_DarkBot/DarkBot/\`.
+**GitHub:** \`sawyerma/darkbot\`, überprüfter Stand \`b5b3921b5a2dfb1c0b85e9213b98e933948c9aaf\` (15.11.2026). Alle folgenden Pfade sind **relativ zu diesem Root** und benennen tatsächlich geprüfte Dateien. Claude liest zuerst den realen Inhalt und die enthaltenen Tests, statt den Mechanismus ein zweites Mal zu erfinden. DarkBot, BSC, Project_0 und ihre Builds/Worktrees/Evidence **niemals ändern, aufräumen oder als Runtime-Abhängigkeit verlinken**. Passende generische Bash-/macOS-Prinzipien in Darkfluenzer lokal übernehmen; Rust-/Go-Code nur auf konzeptioneller Ebene in Python/Ruby adaptieren.
+
+| Originalpfad in DarkBot | Im Quellcode belegter Mechanismus | Konkreter Reuse für Darkfluenzer |
+|---|---|---|
+| \`ops/darkbotctl\` | \`write_plist\`, \`write_capture_plist\`, \`p0_analytics_up\`, \`locked\`, \`foreign_capture\`, \`clean_stale_reporter\`, \`healthy\`, \`cmd_down\`, \`cmd_status\`; \`launchctl bootstrap/bootout\`, Benutzer-\`LaunchAgents\`, Start-/Stop-Lock, PID-/Ownership-/Health-Prüfung | **Shell-Mechanik selektiv übertragen** in einen **eigenen schlanken** Darkfluenzer-Dienstcontroller; projektspezifische Labels/Pfade. **Nicht** das komplette Trading-\`darkbotctl\` oder seine P0-/BSC-Kommandos kopieren. |
+| \`project_0/native/crates/runtime/src/host.rs\` | \`HostEvidence\`, \`read\`, \`sample\`, \`qualifying\`, \`active_cpus\`, \`low_power_mode\`, \`thermal_pressure\`, \`install_qos\`, \`set_thread_qos\`; ARM64-/Rosetta-/VM-/Perflevel-Prüfung | **Host-Abfragen für Python/macOS nachbauen oder minimal nativ anbinden**, keine Rust-Engine einführen. Native \`sysctl\`-/libnotify-APIs, keine fixen Kernzahlen. |
+| \`project_0/native/crates/common/src/qos.rs\` | \`ThreadRole\`, \`install\`, \`enter\`, \`refusals\`: Threadrollen, Plattform-Hook, Ablehnungszähler | Rollen-/Status-Prinzip übernehmen; Klassen nur auf geeigneten **echten OS-Threads**, nicht auf frei wandernden asynchronen Tasks. |
+| \`bsc/engine/crates/geth_ipc/src/host.rs\` | \`HostTopology::capture\`, \`performance_cpus\`, \`set_current_thread_qos\`, \`QosOutcome\`: \`sysctl\` für P-/E- und Cache-Topologie, \`pthread_set_qos_class_self_np\` mit \`pthread_get_qos_class_np\`-Readback | **Exakte native macOS-API als Vorlage**, set/readback/failure dokumentieren. QoS bleibt advisory, **kein CPU-Pinning**. |
+| \`bsc/geth/overlay/darkbot/fastlane/qos.go\` + \`bsc/geth/overlay/darkbot/fastlane/qos_darwin.go\` | \`applyPermanentThreadQoS\`, \`runtime.LockOSThread\` und native pthread-Bridge; standardmäßig QoS OFF | **Nur OS-Thread-Bindungsprinzip**, **kein Go-Code** oder geth übernehmen. |
+| \`project_0/native/crates/common/src/channel.rs\` | \`bounded\`, \`Producer::try_push\`, \`Wakeup::notify/wait\`, Queue-/Overflow-Zähler | Bestehende Python- und ComfyUI-Jobqueues begrenzen, Backpressure und Wakeup sauber integrieren; **kein neuer Rust-Queue-Service**. |
+| \`project_0/native/crates/runtime/src/orchestration/remote_workers.rs\` | \`result_queue\`, \`push_result\`, \`wait_stopped\`, blockierter Producer wird bei Platz/Shutdown geweckt | Geordnetes Stoppen, persistierte Python-Outbox und eventbasierte Worker-Wakeup-Semantik; Sidekiq bleibt Chatwoots eigener Worker. |
+| \`project_0/native/crates/common/src/timing.rs\` | \`Clock::try_new\`, \`Timeline::mark/interval\` | Monotone \`time.monotonic_ns()\`-Messungen, getrennt von UTC-/Chatwoot-Zeitstempeln. |
+| \`project_0/native/crates/common/src/histogram.rs\` | \`Histogram\`: p50/p95/p99-Messung mit ausdrücklich begrenzter Bucket-Auflösung | Für echte Latenzstichproben adaptieren, Quantile/Samplezahl korrekt ausweisen; **kein** 1-ms-Trading-Ziel. |
+| \`project_0/native/crates/runtime/src/storage/preflight.rs\` | Disk-/Memory-/Swap-/Pressure-Messbasis und nicht geratene Kapazitätszustände | Nur generische Hosttelemetrie verwenden; keine Solana-Journal-/Chain-Kapazitätslogik kopieren. |
+| \`bsc/native/evidence/c1/c1-10-gates-20261026T003339Z/c1-6.txt\` | Realer Mac16,6/M4 Max, 12P+4E/128 GiB; 11/11 C1.6-Hosttests PASS | **Bestehende Hardware-Evidence zitieren**, Darkfluenzer-Integration separat testen. |
+| \`project_0/docs/STATUS.md\` | \`P6-MT.12 M4 runtime\`: umgesetzte Host-/Threadrollen, LOCAL_PASS; M4-Latenzgate P6-MT.15 offen | **Wahrheitsgemäßen Status** und Grenzen beachten; keinen P0-PASS als Darkfluenzer-PASS umdeuten. |
+| \`bsc/docs/1_PLAN/STATUS.md\` | \`F3 (=AG1)\` CPU-QoS-A/B-Vergleich, \`P0 Iteration 2\` BSC-spezifische Spin-/QoS-Messungen | **A/B-Methode**, nicht Busy-Spin, INTERACTIVE-Default oder Trading-Limits übertragen. |
+| \`darknode/docs/APPLE_SILICON_M4_HOST_UND_OPTIMIERUNG_V1.md\` | Beschreibt Reuse-Matrix; ausdrücklich **„VERBINDLICHE PLANUNG, KEIN IMPLEMENTIERTES HOST-GATE“** für DarkNode | Als sekundäre Planungsreferenz lesen; keine DarkNode-SOLL-Aussage als bestandene DarkBot-Abnahme ausgeben. |
+
+**Reuse-Grenze:** macOS-/Shell-Primitiven und Prüf-/Prozessregeln sind fast direkt adaptierbar; existierende Rust- und Go-Typen sind **nicht 1:1** Python-/Ruby-Quellcode. Die manuelle Übertragung wird minimal gehalten: nur schon vorhandene Mechanismen, soweit benötigt; keine zusätzliche Rust-Laufzeit, kein selbstgebauter Service-Mesh, kein CPU-Pinning und kein aktiv wartender Spinloop.
+
+### 4B.2 Native Umsetzung in Darkfluenzer und Chatwoot
+
+1. **Bereits vorhandene Dateien zuerst bearbeiten:** \`launcher/\`, \`backend/src/darkfluenzer/runtime.py\`, \`config.py\`, \`server.py\`, \`backend/tests/test_runtime.py\` und \`config.example.toml\`. Bei Bedarf **einen** schlanken eigenen \`ops/darkfluenzerctl\` und wenige projektlokale \`launchd\`-Definitionen ergänzen. Keine zweite Runtime-Verwaltung. Pro Prozess gibt es genau **einen** Start-/Stop-/Restart-Owner (\`launchd\` **oder** der aktuelle Python-Supervisor), niemals beide zugleich. Bereits funktionierenden pinken C-Launcher, F3a/F3b und Medien-FIFO erhalten; laufende Jobs beim Umbau nicht unterbrechen.
+2. **Native Dienstprozesse:** Darkfluenzer Python-Backend, zwei unabhängig verwaltbare ComfyUI-Prozesse (\`media\`, \`ai\`), Chatwoot Rails/Puma, Chatwoot Sidekiq, PostgreSQL mit benötigter Chatwoot-Erweiterung \`pgvector\` und Redis. Alles lokal auf ARM64, konfigurierte Ports/Labels/Pfade/Logorte, Versionen gepinnt. Keine Docker-/Compose-Dateien in Startpfaden und kein VM-Fallback. Chatwoot selbst möglichst **unverändert** lassen.
+3. **Korrektes \`launchd\`-Modell:** DarkBots \`ops/darkbotctl\` benutzt \`gui/$(id -u)\` und \`~/Library/LaunchAgents\`, d. h. **Start in der Benutzer-Sitzung, nicht vor Login als LaunchDaemon**. Für Darkfluenzer zunächst derselbe Ansatz. Health statt bloßer PID, Eigentümerprüfung statt \`pkill\`, idempotentes Bootstrapping, geordneter Stopp; nach Crash keine doppelte Medienausführung oder Chatwoot-Nachricht. Der C-Starter bleibt eine dünne Oberfläche für diesen Owner.
+4. **CPU-/QoS-Politik:** Native Defaults zuerst messen. Dauerhafte fachlich relevante Python-OS-Threads können \`USER_INITIATED\` als A/B-Variante erhalten; Hintergrundindizierung \`UTILITY\` nur nach Messung. Puma, Sidekiq, PostgreSQL und Redis **nicht pauschal höher priorisieren**, deren Threads/Prozesskonfiguration getrennt messen. Mit \`pthread_get_qos_class_np\` Ist-Wert und Fehler dokumentieren. Keine garantierte Bindung an P-Kerne, keine volle 16-Core-Auslastung als Selbstzweck.
+5. **Chatwoot Upstream-Parameter im Original prüfen:** In \`chatwoot/chatwoot@v4.19.1\`: \`.ruby-version\` = Ruby **3.4.4**, \`Gemfile\` = Rails **7.2.3.1**, \`.nvmrc\` = Node **24.22.1**, \`package.json\` = pnpm **10.x**; \`config/puma.rb\`: \`RAILS_MAX_THREADS\` Default 5, \`WEB_CONCURRENCY\` Default 0; \`config/sidekiq.yml\`: \`SIDEKIQ_CONCURRENCY\` Default 10; \`config/database.yml\`: Poolgröße abhängig von Sidekiq-/Puma-Threads. Diese Werte sind **Default-Baselines, kein bereits optimales M4-Profil**. Unter gleichzeitiger ComfyUI-Last Puma-Threads/-Workers, Sidekiq-Concurrency, Datenbankverbindungen, Queues und Speichernutzung A/B vergleichen.
+6. **Unveränderte Koordination:** React bleibt einziges Cockpit; Chatwoot-Vue-Frontend nicht einbetten, Chatwoot-Bridge im eigenen Python-Backend (s. Chatwoot-ZIP in Frontend F4), Kundenzuordnung/Gates in SQLite. ComfyUI-Modelle allein übernehmen KI-/GPU-Rechnung; der Python-Koordinator ist lediglich Job-/Ressourcen-Zulassungsinstanz, keine zweite KI-Engine.
+
+### 4B.3 Neue Abnahmegates – Einbindung in vorhandene Phasen
+
+| Gate | Phase | Realer PASS-Nachweis; bis dahin OFFEN |
+|---|---|---|
+| \`NATIVE-01\` | S1-Erweiterung / S6 | Auf echtem Mac alle neuen Prozesse nativ ARM64, Host-Fingerprint mit DarkBot-Evidence abgeglichen, kein Rosetta/Container/VM; **historischen S1-PASS nicht überschreiben** |
+| \`NATIVE-02\` | S4 / S6 | \`launchd\`-Start-/Stop-/Neustart, kein Fremdprozess beendet, keine Doppelinstanz, kein verlorener/beim Recovery doppelt ausgeführter Auftrag, eigenständiger ComfyUI-1-/2-Ausfall |
+| \`NATIVE-03\` | S4 | Chatwoot v4.19.1 Rails/Puma + Sidekiq + PostgreSQL/pgvector + Redis wirklich unter macOS installiert, erreichbar, Restart und echte Telegram-Webhooks/Antworten über Python-Bridge; ohne Docker |
+| \`M4-CPU-01\` | S6 | Realer Hostreport (ARM64/Rosetta/VM, P/E, Cache, aktiver CPU-Stand, Thermal, Low Power) und QoS-Set/Readback/Refusal nur bei eigenem dauerhaftem Thread |
+| \`M4-CPU-02\` | S4 / S6 | Chatwoot Puma/Sidekiq/DB-Connection- und Python-Queue-Parameter anhand Messung unter ComfyUI-Last gewählt; p50/p95/p99, CPU, RSS/Swap, Queuezeiten und Fehlerraten vor/nach Maßnahme dokumentiert |
+| \`M4-CPU-03\` | S6 | Gleichzeitiger echter Medienrender + mindestens zwei KI-Chat-Aufträge + Chatwoot-Zustellung; keine gemeinsame Queue-Sperre und keine verlorene/duplizierte Nachricht; Render-/Antwortlatenzen gemessen |
+
+**Status aller neuen Gates: OFFEN / NICHT AUF DIESEM MAC ABGENOMMEN.** Bereits vorhandene S1-, F1–F3b- und BSC-/Project_0-Evidence bleibt gültig, aber wird nicht als bestanden für neue Chatwoot-/M4-Integrationen ausgegeben.
+
 ## 5. Eine Datenbank, minimale Tabellen, vollständiger Nachweis
 
 **SQLite** ist zentrale Autorität. Die Tabellen werden nur so weit getrennt wie nötig:
@@ -329,7 +381,7 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 
 
 1. **Single Source of Truth:** Diese Datei ist der einzige normative Masterplan. Technische Kommentare oder Tests dürfen Regeln präzisieren, nicht widersprechen.
-2. **Eine fachliche Anwendung, modulare Funktionen:** Ein lokaler Python-Dienst mit getrennten Modulen, zwei ComfyUI-Laufzeitprozessen und Chatwoot als externem Kanaldienst; kein selbstgebautes Microservice-System und kein zusätzlicher Message-Broker. Chatwoots bestehende PostgreSQL-/Redis-/Compose-Anforderungen bleiben davon unberührt.
+2. **Eine fachliche Anwendung, modulare Funktionen:** Ein lokaler Python-Dienst mit getrennten Modulen, zwei ComfyUI-Laufzeitprozessen und Chatwoot als externem Kanaldienst; kein selbstgebautes Microservice-System und kein zusätzlicher Message-Broker. Chatwoot behält PostgreSQL/Redis, Puma und Sidekiq, **aber Docker/Compose/Container/VM sind ausgeschlossen**; alle Dienste laufen nativ auf macOS/ARM64 gemäß §4B.
 3. **Wenig Ordner, klare Eigentümer:** Ein Codepaket, ein Workflow-Verzeichnis, ein Kundenbaum, eine SQLite-Datenbank. Keine redundanten Kopien und konkurrierenden Statusdateien.
 4. **Workflow-Verträge:** ComfyUI braucht UI-JSON und separaten API-Export; nur registrierte und validierte API-Workflows dürfen vom Bot ausgeführt werden.
 5. **Kein globales `pkill`:** Launcher verwaltet nur die beiden konkret zugeordneten ComfyUI-Instanzen, mit unabhängigen konfigurierbaren Loopback-Ports (Defaultvorschläge 8188/8189), ohne Terminal; laufende Medien-FIFO nie ungefragt abbrechen. Python-/Conda-Pfade lokal konfigurieren, nicht im Code erzwingen.
@@ -340,6 +392,8 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 10. **Fiktive erwachsene Figur:** keine fremde Person imitieren; Transparenz über künstliche Identität, vereinbarte Inhalte und kommerzielle Rechte.
 
 ## 9. Änderungsprotokoll
+
+**V1.9 — NATIVES MACOS/M4-MAX-CPU-REUSE (15.11.2026):** DarkBot-Quellpfade samt belegten macOS-/CPU-/QoS-/launchd-Funktionen unter §4B aufgenommen; Shell-/Hostprinzipien selektiv lokal adaptieren, keine Rust-/Go-Trading-Engine übernehmen; Chatwoot v4.19.1 als unverändertes Ruby/Rails nativ mit Puma/Sidekiq/PostgreSQL/Redis statt Docker/Compose/VM, Python-Bridge; neuer Host-/Chatwoot-/Last-Nachweis OFFEN. Keine Änderung an S1-/F1–F3b-PASS.
 
 **V1.8 — ZWEI COMFYUI-INSTANZEN (14.11.2026):** Instanz 1 bleibt für Foto/Video/Medien-FIFO; Instanz 2 führt Text-/Dialog-/Prüf-/TTS-Workflows graphbasiert aus, eigene Queue/Port/Nodes, gemeinsamer Python-/SQLite-Gatekeeper; primär keine separate Pflicht-LLM-Serverpipeline. Architektur verbindlich, KI-Instanz noch OFFEN. Frontend-Vertrag entsprechend angepasst.
 
