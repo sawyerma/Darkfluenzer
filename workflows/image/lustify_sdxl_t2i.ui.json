@@ -1,5 +1,5 @@
 {
- "id": "bd5e52dc-66a6-5b6a-964b-700eaa86d12c",
+ "id": "5892ce3f-ee3c-57a2-b9c3-34544e9f7db2",
  "revision": 0,
  "last_node_id": 7,
  "last_link_id": 9,
@@ -89,9 +89,9 @@
     "Node name for S&R": "CLIPTextEncode"
    },
    "widgets_values": [
-    "editorial photograph of a clearly adult fictional woman in her late twenties, natural skin texture, soft window light, 85mm lens, shallow depth of field"
+    "cinematic 35mm editorial photograph of one clearly adult fictional woman, consistent natural facial anatomy, realistic skin texture, subtle pores, natural proportions, coherent hands, physically plausible shadows, natural outdoor lighting, precise focus, professional photographic composition"
    ],
-   "title": "Prompt"
+   "title": "Prompt (A01 Photo HQ)"
   },
   {
    "id": 3,
@@ -128,7 +128,7 @@
     "Node name for S&R": "CLIPTextEncode"
    },
    "widgets_values": [
-    "illustration, CGI, plastic skin, distorted anatomy, extra fingers, asymmetrical eyes, blurry, watermark, text"
+    "illustration, CGI, plastic skin, overprocessed skin, distorted anatomy, duplicated limbs, extra fingers, asymmetrical eyes, bad hands, blurry, compression artifacts, text, watermark"
    ],
    "title": "Negativ-Prompt"
   },

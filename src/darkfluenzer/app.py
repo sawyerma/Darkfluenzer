@@ -3,7 +3,7 @@
     python -m darkfluenzer comfy start|stop|status|health [--json]
     python -m darkfluenzer models status|orphans [--json]
     python -m darkfluenzer models download|verify (--wave N | --engine ID ...) [--json]
-    python -m darkfluenzer workflows check|export-ui [--json]
+    python -m darkfluenzer workflows check|export-ui|install [--json]
     python -m darkfluenzer render WORKFLOW --set name=wert ... [--input name=datei ...] [--json]
 
 Exit-Codes: 0 ok, 1 Fehler, 2 Konfiguration, 3 fremde Instanz, 4 Start fehlgeschlagen,
@@ -122,6 +122,10 @@ def _workflows(action: str) -> tuple[dict, int]:
     cfg = load()
     setup_logging(cfg)
     man = models.load_manifest(cfg.root, require_ui=action != "export-ui")
+    if action == "install":  # Altbestand entfernen, damit gestrichene Workflows verschwinden
+        old_dir = cfg.comfyui.path / "user" / "default" / "workflows" / "Darkfluenzer"
+        for stale in old_dir.glob("*.json") if old_dir.is_dir() else []:
+            stale.unlink()
     runtime.start(cfg)
     object_info = comfy.ComfyClient(cfg.comfyui.url, timeout=120).object_info()
     report: dict[str, list[str]] = {}
@@ -131,6 +135,11 @@ def _workflows(action: str) -> tuple[dict, int]:
         ui = comfy.api_to_ui(graph, object_info)
         if action == "export-ui":
             ui_path.write_text(json.dumps(ui, indent=1, ensure_ascii=False) + "\n")
+        if action == "install":
+            # In ComfyUIs Workflow-Seitenleiste auswählbar machen (generiert, nicht in Git)
+            target = cfg.comfyui.path / "user" / "default" / "workflows" / "Darkfluenzer"
+            target.mkdir(parents=True, exist_ok=True)
+            (target / f"{key}.json").write_text(json.dumps(ui, indent=1, ensure_ascii=False))
         uploads = {(p.node, p.input) for p in wf.params.values() if p.upload}
         problems = comfy.check_graph(graph, object_info, uploads)
         if not ui_path.is_file() or json.loads(ui_path.read_text(encoding="utf-8")) != ui:
@@ -180,7 +189,7 @@ def main(argv: list[str] | None = None) -> int:
     mod.add_argument("--engine", action="append")
     mod.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     wfp = sub.add_parser("workflows", help="registrierte Workflows prüfen / UI-Export erzeugen")
-    wfp.add_argument("action", choices=["check", "export-ui"])
+    wfp.add_argument("action", choices=["check", "export-ui", "install"])
     wfp.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     ren = sub.add_parser("render", help="Evaluationslauf eines registrierten Workflows")
     ren.add_argument("workflow")

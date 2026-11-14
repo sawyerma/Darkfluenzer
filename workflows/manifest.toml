@@ -337,6 +337,7 @@ sha256 = "eb5a71fe4068ee87ccdb1c3aa635e547ca76bd2d30ae20ae889f2c325c0677e8"
 
 
 # ------------------------------------------------------------------------------------ Workflows (registriert)
+# Grundlage: Betreiberpaket ComfyUI_Cinematic_Studio_M4 (A01–A04, B01/B02), technisch korrigiert wo nötig.
 # UI-Export wird mit `darkfluenzer workflows check` gegen den API-Export und die laufende ComfyUI geprüft.
 
 [workflows.lustify_sdxl_t2i]
@@ -455,3 +456,17 @@ negative_prompt = { node = "6", input = "text", type = "str" }
 seed = { node = "11", input = "noise_seed", type = "int", min = 0, max = 4294967295 }
 width = { node = "8", input = "width", type = "int", min = 320, max = 1280, multiple_of = 16 }
 height = { node = "8", input = "height", type = "int", min = 320, max = 1280, multiple_of = 16 }
+
+[workflows.lustify_sdxl_refine]
+engine = "lustify_sdxl"
+ui = "image/lustify_sdxl_refine.ui.json"
+api = "image/lustify_sdxl_refine.api.json"
+status = "PASS"
+
+[workflows.lustify_sdxl_refine.params]
+image = { node = "2", input = "image", type = "str", required = true, upload = true }
+prompt = { node = "3", input = "text", type = "str" }
+negative_prompt = { node = "4", input = "text", type = "str" }
+seed = { node = "6", input = "seed", type = "int", min = 0, max = 4294967295 }
+steps = { node = "6", input = "steps", type = "int", min = 8, max = 80 }
+denoise = { node = "6", input = "denoise", type = "float", min = 0.05, max = 0.6 }

@@ -56,6 +56,7 @@ Jeder registrierte Workflow liegt als `workflows/<image|video>/<engine>_<aufgabe
 ```bash
 local/.venv/bin/python -m darkfluenzer workflows check       # gegen laufende ComfyUI prüfen
 local/.venv/bin/python -m darkfluenzer workflows export-ui   # UI-Exporte aus API neu erzeugen
+local/.venv/bin/python -m darkfluenzer workflows install     # in ComfyUI: Workflows → Darkfluenzer
 local/.venv/bin/python -m darkfluenzer render lustify_sdxl_t2i --set seed=1 --set prompt="…"
 local/.venv/bin/python -m darkfluenzer render lustify_sdxl_inpaint \
     --input image=master.png --input mask=mask.png --set prompt="…"

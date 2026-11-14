@@ -342,7 +342,8 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 | Reproduzierbarkeit | PASS – Seed 102416 nach Cache-Verdrängung neu berechnet: SHA-256 bitidentisch (`bcff1ea2…`). Hinweis: identische Wiederholung ohne Verdrängung liefert ComfyUI aus dem Cache (0,0 s) – kein Nachweis |
 | `lustify_sdxl_inpaint` (Master + Maske 10,9 %) | PASS – 83,5 s; **0 Pixel außerhalb der Maske verändert** (automatische Prüfung); Herkunft: Master-/Masken-Hash, Workflow-Git-Revision |
 | Qualität (Sichtprüfung) | OFFEN – fotorealistische Haut/Licht gut; LUSTIFY neigt ohne Kleidungsangabe zu unbekleideten Motiven; Rechteckmaske erzeugt sichtbare Kanten und überschreibt hineinragende Haare → objektgenaue Segmentierungsmasken erforderlich |
-| UI-Exporte (Frontend 1.58.5, `graphToPrompt`) | 8 Workspaces 0 Abweichungen; Wan-Video: einzig Alt-Schlüssel `codec`, den das Frontend bei SaveVideo selbst ergänzt |
+| Betreiberpaket `ComfyUI_Cinematic_Studio_M4.zip` (SHA-256 `56cf60f1…`, identisch in Downloads und Projektordner) | übernommen: A01 → `lustify_sdxl_t2i` (65,4 s), A03 → `lustify_sdxl_refine` (72,5 s; mittl. Abweichung 6,3/255, PSNR 27,2 dB, getrennt gespeichert), A04 → `lustify_sdxl_inpaint` (109,3 s; 0 Pixel außerhalb der Maske), B01/B02 → Wan-Workspaces (512×320, 49 Frames, 24 Schritte 12/12, CFG 5, Shift 5). Abweichungen begründet: A04 `VAEEncodeForInpaint`+denoise 0,8 → `SetLatentNoiseMask` (keine Grauflecken); B01/B02 16 statt 24 fps (Wan 2.2 14B nativ 16 fps), ohne CLIP-Vision (in Wan 2.2 14B nicht genutzt, Datei nicht registriert), Core-`CreateVideo/SaveVideo` statt nicht installiertem `VHS_VideoCombine`. A02 (Character-LoRA) erst nach trainierter SDXL-LoRA registrierbar |
+| UI-Exporte (Frontend 1.58.5, `graphToPrompt`) | 9 Workspaces 0 Abweichungen, in ComfyUI unter Workflows → Darkfluenzer auswählbar (`darkfluenzer workflows install`); Wan-Video: einzig Alt-Schlüssel `codec`, den das Frontend bei SaveVideo selbst ergänzt |
 
 **PASS nur nach realem Test auf dem Mac, reproduzierbarem Nachweis und Git-Commit.** Ein dokumentierter Plan oder importierbares Workflow-JSON ist noch kein Funktions-PASS. Kein `v1.0`-Release vor S6.
 
@@ -381,4 +382,6 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 
 **V1.6.1 — Erste reale Renders (14.11.2026):** LUSTIFY Text-zu-Bild und maskiertes Editing auf dem Mac PASS (Nachweis oben); Wan-2.2-I2V-Workspaces (offiziell FP16, Remix v3.0 FP8) aus dem offiziellen Template; ComfyUI-Vertragsfehler behoben (`prompt_id` muss UUID mit Bindestrichen sein).
 
-**Nächste Umsetzung:** FLUX 3 Klein Base nach Lizenzannahme rendern (Master-Rolle), A/B gegen Qwen-Image 2.1/20B auf identischen Prompts/Seeds; objektgenaue Masken (SAM) für das Editing; LTX-2.5-Workspace; danach S4 (LLM/Telegram).
+**V1.6.2 — Betreiberpaket (14.11.2026):** Workflows aus `ComfyUI_Cinematic_Studio_M4` als Grundlage übernommen (A01, A03, A04, B01, B02; A02 vorbereitet), technisch notwendige Korrekturen dokumentiert; LUSTIFY-Workflows mit den Paketwerten erneut real abgenommen; Workspaces direkt in der ComfyUI-Seitenleiste.
+
+**Nächste Umsetzung:** Character-LoRA aus den Betreiberbildern (`local/character/photos/`, §6A) für SDXL (A02) und den Master-Pfad; FLUX 3 Klein Base nach Lizenzannahme rendern (Master-Rolle), A/B gegen Qwen-Image 2.1/20B auf identischen Prompts/Seeds; objektgenaue Masken (SAM) für das Editing; LTX-2.5-Workspace; danach S4 (LLM/Telegram).

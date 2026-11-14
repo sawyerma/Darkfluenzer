@@ -1,5 +1,5 @@
 {
- "id": "49e83d4d-1bc2-579e-8f8d-87afc2ad5043",
+ "id": "ba2327d5-3723-5ecf-91ea-8baed7da41e1",
  "revision": 0,
  "last_node_id": 15,
  "last_link_id": 20,
@@ -112,7 +112,7 @@
     "Node name for S&R": "ModelSamplingSD3"
    },
    "widgets_values": [
-    5.000000000000001
+    5.0
    ],
    "title": "ModelSamplingSD3"
   },
@@ -187,9 +187,9 @@
     "Node name for S&R": "CLIPTextEncode"
    },
    "widgets_values": [
-    "The woman in the start image turns her head slightly towards the camera and smiles softly; her hair moves gently in a light breeze; the camera stays still; natural, realistic motion."
+    "One clearly adult fictional woman, consistently matching the provided start image. Photorealistic continuous cinematic shot, natural subtle movement, stable perspective, consistent face and body proportions, coherent outdoor lighting, accurate motion, subtle camera drift, 35mm footage."
    ],
-   "title": "Prompt (Bewegung)"
+   "title": "Prompt (B01 Remix v3.0 FP8)"
   },
   {
    "id": 6,
@@ -226,9 +226,9 @@
     "Node name for S&R": "CLIPTextEncode"
    },
    "widgets_values": [
-    "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"
+    "frame flicker, morphing face, inconsistent anatomy, extra limbs, missing fingers, sudden costume changes, CGI, distorted perspective, poor skin texture, duplicated objects, artifacts, blur, low quality"
    ],
-   "title": "Negativ (Wan-Standard)"
+   "title": "Negativ-Prompt"
   },
   {
    "id": 7,
@@ -342,12 +342,12 @@
     "Node name for S&R": "WanImageToVideo"
    },
    "widgets_values": [
-    640,
-    640,
-    81,
+    512,
+    320,
+    49,
     1
    ],
-   "title": "640×640, 81 Frames"
+   "title": "512×320, 49 Frames (Kompatibilitätslauf)"
   },
   {
    "id": 9,
@@ -418,7 +418,7 @@
     "Node name for S&R": "ModelSamplingSD3"
    },
    "widgets_values": [
-    5.000000000000001
+    5.0
    ],
    "title": "ModelSamplingSD3"
   },
@@ -473,17 +473,17 @@
    },
    "widgets_values": [
     "enable",
-    264244520,
+    246810,
     "fixed",
-    20,
-    3.5,
+    24,
+    5.0,
     "euler",
     "simple",
     0,
-    10,
+    12,
     "enable"
    ],
-   "title": "High-Noise: Schritte 0–10"
+   "title": "High-Noise: Schritte 0–12"
   },
   {
    "id": 12,
@@ -536,17 +536,17 @@
    },
    "widgets_values": [
     "disable",
-    0,
+    246810,
     "fixed",
-    20,
-    3.5,
+    24,
+    5.0,
     "euler",
     "simple",
-    10,
-    20,
+    12,
+    24,
     "disable"
    ],
-   "title": "Low-Noise: Schritte 10–20"
+   "title": "Low-Noise: Schritte 12–24"
   },
   {
    "id": 13,
@@ -636,7 +636,7 @@
     "auto",
     "none"
    ],
-   "title": "Create Video"
+   "title": "Video 16 fps (Wan 2.2 14B nativ)"
   },
   {
    "id": 15,
