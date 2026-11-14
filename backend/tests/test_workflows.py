@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
@@ -86,6 +87,18 @@ def test_api_to_ui_preserves_values_links_and_seed_control():
         assert nodes[dst]["inputs"][dst_slot]["link"] == link_id
         assert nodes[src]["outputs"][src_slot]["type"] == typ
     assert comfy.api_to_ui(GRAPH, OBJECT_INFO) == ui, "Export muss deterministisch sein"
+
+
+def test_ui_to_api_inverts_export_takes_edits_and_rejects_bypass():
+    ui = comfy.api_to_ui(GRAPH, OBJECT_INFO)
+    assert comfy.ui_to_api(ui, OBJECT_INFO) == GRAPH
+    edited = copy.deepcopy(ui)
+    sampler = next(n for n in edited["nodes"] if n["id"] == 3)
+    sampler["widgets_values"][2] = 20  # Schritte im Editor geändert (nach Seed + Seed-Steuerung)
+    assert comfy.ui_to_api(edited, OBJECT_INFO)["3"]["inputs"]["steps"] == 20
+    sampler["mode"] = 4  # umgangen: Bedeutung im Rendergraphen nicht eindeutig -> abweisen
+    with pytest.raises(comfy.ComfyError, match="umgangen"):
+        comfy.ui_to_api(edited, OBJECT_INFO)
 
 
 def test_registered_ui_exports_match_api_structure():

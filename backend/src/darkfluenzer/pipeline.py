@@ -8,8 +8,12 @@ Die Kundenroute (3 Kandidaten je Auftrag in ``work/``) baut auf denselben Funkti
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import logging
+import os
+import re
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -60,35 +64,90 @@ def evaluation_dir(cfg: Config, engine: str) -> Path:
     return cfg.local / "evaluation" / engine
 
 
-def render_evaluation(
-    cfg: Config,
-    man: Manifest,
-    workflow_key: str,
-    values: dict,
-    uploads: dict[str, Path] | None = None,
-    timeout_s: float = 3600.0,
-) -> comfy.RenderResult:
-    """Evaluationslauf: Eingaben hochladen, Workflow rendern, Ergebnis + Herkunft ablegen.
+INPUT_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
 
-    Für maskierte Bearbeitungen wird zusätzlich geprüft, dass außerhalb der Maske kein Pixel
-    vom Master abweicht – sonst Fehler statt stiller Akzeptanz. Jede Renderung ist ein Job ohne
-    Kundenbezug im SQLite-Journal; ihr Abschluss erscheint im Cockpit als ``job.completed``.
+
+def store_input(cfg: Config, data: bytes, filename: str) -> str:
+    """Eingabebild (Quellbild, Maske, Startbild) inhaltsadressiert unter ``local/evaluation/inputs``
+    ablegen; liefert den Pfad relativ zu ``local/``. Gleiche Bytes -> dieselbe Datei."""
+    suffix = Path(filename).suffix.lower()
+    if suffix not in INPUT_SUFFIXES:
+        raise PipelineError(f"{filename}: nur {', '.join(sorted(INPUT_SUFFIXES))} erlaubt.")
+    try:
+        with Image.open(io.BytesIO(data)) as im:
+            im.verify()
+    except Exception as exc:
+        raise PipelineError(f"{filename}: kein lesbares Bild ({exc}).") from exc
+    stem = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(filename).stem)[:60] or "bild"
+    target = (
+        cfg.local
+        / "evaluation"
+        / "inputs"
+        / f"{hashlib.sha256(data).hexdigest()[:16]}_{stem}{suffix}"
+    )
+    if not target.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+    return target.relative_to(cfg.local).as_posix()
+
+
+def create_render(
+    store: Store, man: Manifest, workflow_key: str, values: dict, inputs: dict
+) -> int:
+    """Prüft einen Renderauftrag gegen die Registry und legt ihn als Job (Status queued) an.
+
+    ``inputs``: Upload-Parameter -> abgelegte Eingabedatei relativ zu ``local/``.
     """
-    wf = man.workflows[workflow_key]
-    uploads = uploads or {}
-    for name in uploads:
+    wf = man.workflows.get(workflow_key)
+    if wf is None:
+        raise PipelineError(f"Workflow '{workflow_key}' ist nicht registriert.")
+    for name in inputs:
         if name not in wf.params or not wf.params[name].upload:
             raise PipelineError(f"{workflow_key}: '{name}' ist kein Upload-Parameter.")
+    as_text = [n for n in values if n in wf.params and wf.params[n].upload]
+    if as_text:
+        raise PipelineError(f"{', '.join(as_text)}: Datei erwartet.")
+    # Typen, Grenzen, Pflichtangaben und unbekannte Namen prüft die Registry-Bindung.
+    comfy.apply_params(comfy.load_graph(man, wf), wf, {**values, **inputs})
+    seeds = [values["seed"]] if "seed" in values else []
+    prompt = str(values.get("prompt", ""))
+    return store.create_job(None, wf.engine, workflow_key, prompt, {**values, **inputs}, seeds)
+
+
+def run_render(
+    cfg: Config,
+    man: Manifest,
+    job_id: int,
+    timeout_s: float = 3600.0,
+    client_id: str | None = None,
+    is_cancelled: Callable[[], bool] = lambda: False,
+) -> comfy.RenderResult:
+    """Führt einen angelegten Job über den registrierten API-Workflow aus und hält das Ergebnis im
+    Journal fest (``job.completed``). Für maskierte Bearbeitungen wird geprüft, dass außerhalb der
+    Maske kein Pixel vom Master abweicht – sonst Fehler statt stiller Akzeptanz."""
     store = Store(cfg.local)
     try:
-        seeds = [values["seed"]] if "seed" in values else []
-        prompt = str(values.get("prompt", ""))
-        job_id = store.create_job(None, wf.engine, workflow_key, prompt, values, seeds)
-        store.set_job_status(job_id, "running")
+        job = store.job(job_id)
         try:
-            result, outputs = _render(cfg, man, wf, job_id, dict(values), uploads, timeout_s)
+            wf = man.workflows.get(job["workflow"])
+            if wf is None:
+                raise PipelineError(f"Workflow '{job['workflow']}' ist nicht mehr registriert.")
+            params = job["params"]
+            uploads = {
+                n: cfg.local / v
+                for n, v in params.items()
+                if n in wf.params and wf.params[n].upload
+            }
+            values = {n: v for n, v in params.items() if n not in uploads}
+            store.set_job_status(job_id, "running", pid=os.getpid())
+            result, outputs = _render(cfg, man, wf, job_id, values, uploads, timeout_s, client_id)
         except BaseException as exc:
-            store.set_job_status(job_id, "failed", error=str(exc) or type(exc).__name__)
+            if is_cancelled():
+                store.set_job_status(
+                    job_id, "failed", error="Vom Betreiber abgebrochen.", cancelled=True
+                )
+            else:
+                store.set_job_status(job_id, "failed", error=str(exc) or type(exc).__name__)
             raise
         store.set_job_status(
             job_id,
@@ -97,9 +156,27 @@ def render_evaluation(
             duration_s=result.duration_s,
             outputs=outputs,
         )
+        return result
     finally:
         store.close()
-    return result
+
+
+def render_evaluation(
+    cfg: Config,
+    man: Manifest,
+    workflow_key: str,
+    values: dict,
+    uploads: dict[str, Path] | None = None,
+    timeout_s: float = 3600.0,
+) -> comfy.RenderResult:
+    """Evaluationslauf von der Kommandozeile: derselbe Weg wie im Cockpit (Job ohne Kundenbezug)."""
+    inputs = {n: store_input(cfg, p.read_bytes(), p.name) for n, p in (uploads or {}).items()}
+    store = Store(cfg.local)
+    try:
+        job_id = create_render(store, man, workflow_key, values, inputs)
+    finally:
+        store.close()
+    return run_render(cfg, man, job_id, timeout_s)
 
 
 def _render(
@@ -110,6 +187,7 @@ def _render(
     values: dict,
     uploads: dict[str, Path],
     timeout_s: float,
+    client_id: str | None = None,
 ) -> tuple[comfy.RenderResult, list[dict]]:
     workflow_key = wf.key
     from . import runtime
@@ -129,6 +207,7 @@ def _render(
         stem=f"{workflow_key}_{stamp}",
         timeout_s=timeout_s,
         job_id=job_id,
+        client_id=client_id,
     )
     checks: dict = {}
     if {"image", "mask"} <= set(uploads):

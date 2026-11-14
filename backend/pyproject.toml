@@ -8,6 +8,8 @@ dependencies = [
     "huggingface-hub>=1.7",
     "numpy>=2.2",
     "pillow>=11",
+    # formatbewahrende Änderungen an workflows/manifest.toml (Kommentare bleiben erhalten)
+    "tomlkit>=0.13",
     # Laufzeit passend zum Generator libprotoc 33.x (protocol/buf.gen.yaml)
     "protobuf>=6.33,<7",
 ]

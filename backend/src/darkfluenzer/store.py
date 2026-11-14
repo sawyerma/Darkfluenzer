@@ -509,17 +509,40 @@ class Store:
             )
             self._event("job", job_id, "status", status=status, error=error, **result)
 
-    def job_workflows(self, job_ids: list[int]) -> dict[int, str]:
-        """Workflow je Job-ID (unbekannte IDs fehlen im Ergebnis)."""
+    def job(self, job_id: int) -> dict:
+        row = self.db.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        if row is None:
+            raise StoreError(f"Job {job_id} ist unbekannt.")
+        return dict(row) | {"params": json.loads(row["params"]), "seeds": json.loads(row["seeds"])}
+
+    def queued_jobs(self) -> list[tuple[int, str]]:
+        """Angelegte, noch nicht gestartete Jobs in Eingangsreihenfolge (FIFO): (ID, Workflow)."""
+        rows = self.db.execute("SELECT id, workflow FROM jobs WHERE status = 'queued' ORDER BY id")
+        return [(r["id"], r["workflow"]) for r in rows]
+
+    def running_jobs(self) -> list[tuple[int, int | None]]:
+        """Jobs im Status running mit der Prozess-ID, die sie ausführt (aus dem Journal)."""
+        rows = self.db.execute(
+            "SELECT j.id, json_extract(e.data, '$.pid') AS pid FROM jobs j"
+            " JOIN events e ON e.entity = 'job' AND e.entity_id = j.id AND e.event = 'status'"
+            " AND json_extract(e.data, '$.status') = 'running' WHERE j.status = 'running'"
+        )
+        return [(r["id"], r["pid"]) for r in rows]
+
+    def jobs_brief(self, job_ids: list[int]) -> dict[int, tuple[str, dict]]:
+        """(Workflow, Parameter) je Job-ID (unbekannte IDs fehlen im Ergebnis)."""
         marks = ",".join("?" * len(job_ids))
-        rows = self.db.execute(f"SELECT id, workflow FROM jobs WHERE id IN ({marks})", job_ids)
-        return {r["id"]: r["workflow"] for r in rows}
+        rows = self.db.execute(
+            f"SELECT id, workflow, params FROM jobs WHERE id IN ({marks})", job_ids
+        )
+        return {r["id"]: (r["workflow"], json.loads(r["params"])) for r in rows}
 
     def finished_jobs(self, after: int, limit: int) -> tuple[list[dict], bool]:
         """Abgeschlossene Jobs aus dem Journal mit Cursor (events.id) > ``after``: höchstens die
         neuesten ``limit``, aufsteigend. Zweiter Wert: dazwischen wurden ältere ausgelassen."""
         rows = self.db.execute(
             "SELECT e.id, e.entity_id AS job_id, e.created_at, e.data, j.workflow, j.engine,"
+            " j.params,"
             " o.order_no FROM events e"
             " JOIN jobs j ON j.id = e.entity_id LEFT JOIN orders o ON o.id = j.order_id"
             " WHERE e.entity = 'job' AND e.event = 'status' AND e.id > ?"
@@ -527,7 +550,10 @@ class Store:
             " ORDER BY e.id DESC LIMIT ?",
             (after, limit + 1),
         ).fetchall()
-        recent = [dict(r) | {"data": json.loads(r["data"])} for r in rows[:limit]]
+        recent = [
+            dict(r) | {"data": json.loads(r["data"]), "params": json.loads(r["params"])}
+            for r in rows[:limit]
+        ]
         return recent[::-1], len(rows) > limit
 
     def journal_head(self) -> int:

@@ -10,6 +10,68 @@ message ComfyStart {}
 
 message ComfyStop {}
 
+// Wert eines Workflow-Parameters (Name und Typ laut workflows/manifest.toml).
+message ParamValue {
+  string name = 1;
+  oneof value {
+    string text = 2;
+    int64 integer = 3;
+    double number = 4;
+  }
+}
+
+// Eingabebild für einen Upload-Parameter (Quellbild, Maske, Startbild).
+message InputFile {
+  string param = 1;
+  string filename = 2;
+  bytes data = 3;
+}
+
+// Renderauftrag ohne Kundenbezug über den registrierten API-Workflow; FIFO im Backend.
+message Render {
+  string workflow = 1;
+  repeated ParamValue values = 2;
+  repeated InputFile files = 3;
+}
+
+// Betreiberentscheidung je Workflow, gespeichert in workflows/manifest.toml.
+message SetWorkflowEnabled {
+  string workflow = 1;
+  bool enabled = 2;
+}
+
+// Editor-Kopie bereitstellen; der Browser öffnet danach ComfyUI mit genau diesem Workflow.
+message OpenWorkflow {
+  string workflow = 1;
+}
+
+// Im ComfyUI-Editor gespeicherte Änderung prüfen und als UI- und API-Graph übernehmen.
+message AdoptWorkflow {
+  string workflow = 1;
+}
+
+// Registrierung, UI-/API-Datei und Editor-Kopie entfernen; Modelle, Jobs und Medien bleiben.
+message DeleteWorkflow {
+  string workflow = 1;
+}
+
+// Neuen Workflow als Kopie eines registrierten anlegen (Engine, Parameter, Graph); danach im
+// ComfyUI-Editor öffnen, bearbeiten und übernehmen. Status OFFEN bis zur eigenen Abnahme.
+message CreateWorkflow {
+  string source = 1;
+  string title = 2;
+}
+
+// Wartenden Auftrag aus der Warteschlange entfernen bzw. laufenden gezielt abbrechen.
+message CancelJob {
+  uint64 job_id = 1;
+}
+
+// Warteschlange anhalten (true) oder fortsetzen (false).
+message PauseQueue {
+  bool paused = 1;
+}
+
 message CommandRequest {
   // UUID je Benutzeraktion. Dieselbe ID mit demselben Befehl liefert dieselbe Antwort
   // ohne zweite Ausführung; dieselbe ID mit anderem Befehl wird abgelehnt.
@@ -17,6 +79,14 @@ message CommandRequest {
   oneof command {
     ComfyStart comfy_start = 10;
     ComfyStop comfy_stop = 11;
+    Render render = 12;
+    SetWorkflowEnabled set_workflow_enabled = 13;
+    OpenWorkflow open_workflow = 14;
+    AdoptWorkflow adopt_workflow = 15;
+    DeleteWorkflow delete_workflow = 16;
+    CreateWorkflow create_workflow = 17;
+    CancelJob cancel_job = 18;
+    PauseQueue pause_queue = 19;
   }
 }
 

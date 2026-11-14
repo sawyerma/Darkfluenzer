@@ -15,8 +15,11 @@ import re
 import shutil
 import time
 import tomllib
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+
+import tomlkit
 
 log = logging.getLogger("darkfluenzer.models")
 
@@ -108,10 +111,13 @@ class Param:
 @dataclass(frozen=True)
 class Workflow:
     key: str
+    title: str
     engine: str
     ui: str
     api: str
     status: str
+    # Betreiberentscheidung; ersetzt keine Modell-, Lizenz- oder Test-Gates.
+    enabled: bool
     params: dict[str, Param]
 
 
@@ -135,11 +141,12 @@ def _str(table: dict, key: str, where: str) -> str:
     return value
 
 
-def load_manifest(root: Path, *, require_ui: bool = True) -> Manifest:
-    """Lädt und validiert die Registry. ``require_ui=False`` nur für das Erzeugen der UI-Exporte."""
+def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = None) -> Manifest:
+    """Lädt und validiert die Registry. ``require_ui=False`` nur für das Erzeugen der UI-Exporte;
+    ``text`` prüft einen geänderten Manifest-Inhalt, bevor er gespeichert wird."""
     path = root / MANIFEST_RELATIVE
     try:
-        data = tomllib.loads(path.read_text(encoding="utf-8"))
+        data = tomllib.loads(text if text is not None else path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
         raise ManifestError(f"Manifest fehlt: {path}") from exc
     except tomllib.TOMLDecodeError as exc:
@@ -231,12 +238,17 @@ def load_manifest(root: Path, *, require_ui: bool = True) -> Manifest:
                 raise ManifestError(
                     f"Manifest: {w}.params.{name}.type muss {set(PARAM_TYPES)} sein."
                 )
+        enabled = t.get("enabled", True)
+        if not isinstance(enabled, bool):
+            raise ManifestError(f"Manifest: {w}.enabled muss true oder false sein.")
         wf = Workflow(
             key=key,
+            title=t.get("title") if isinstance(t.get("title"), str) else key,
             engine=_str(t, "engine", w),
             ui=_str(t, "ui", w),
             api=_str(t, "api", w),
             status=_str(t, "status", w),
+            enabled=enabled,
             params=params,
         )
         if wf.engine not in engines:
@@ -247,20 +259,11 @@ def load_manifest(root: Path, *, require_ui: bool = True) -> Manifest:
             if not (root / "workflows" / rel).is_file():
                 raise ManifestError(f"Manifest: {w} verweist auf fehlende Datei workflows/{rel}.")
         graph = json.loads((root / "workflows" / wf.api).read_text(encoding="utf-8"))
-        for name, prm in params.items():
-            if prm.input not in (graph.get(prm.node) or {}).get("inputs", {}):
-                raise ManifestError(
-                    f"Manifest: {w}.params.{name} -> {prm.node}.{prm.input} fehlt im API-Graph."
-                )
-        names = {mf.comfy_name for mf in (files[f] for f in engines[wf.engine].files)}
-        for node_id, node in graph.items():
-            for value in node.get("inputs", {}).values():
-                is_model = isinstance(value, str) and value.endswith((".safetensors", ".gguf"))
-                if is_model and value not in names:
-                    raise ManifestError(
-                        f"Manifest: {w} Node {node_id} lädt '{value}', das nicht zur Engine "
-                        f"{wf.engine} gehört."
-                    )
+        problems = graph_problems(
+            wf, graph, {files[f].comfy_name for f in engines[wf.engine].files}
+        )
+        if problems:
+            raise ManifestError(f"Manifest: {w}: {problems[0]}")
         workflows[key] = wf
 
     return Manifest(
@@ -271,6 +274,139 @@ def load_manifest(root: Path, *, require_ui: bool = True) -> Manifest:
         engines=engines,
         workflows=workflows,
     )
+
+
+def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str]:
+    """Registry-Vertrag eines API-Graphen: alle Parameter-Bindungen vorhanden, nur Modelldateien
+    der eigenen Engine. Gilt für das Laden wie für das Übernehmen eines bearbeiteten Graphen."""
+    problems = [
+        f"params.{name} -> {p.node}.{p.input} fehlt im API-Graph."
+        for name, p in wf.params.items()
+        if p.input not in (graph.get(p.node) or {}).get("inputs", {})
+    ]
+    for node_id, node in graph.items():
+        for value in node.get("inputs", {}).values():
+            is_model = isinstance(value, str) and value.endswith((".safetensors", ".gguf"))
+            if is_model and value not in model_names:
+                problems.append(
+                    f"Node {node_id} lädt '{value}', das nicht zur Engine {wf.engine} gehört."
+                )
+    return problems
+
+
+# --------------------------------------------------------------------------------- Bearbeiten
+
+
+def _atomic_write(path: Path, data: str) -> None:
+    tmp = path.with_name(f".{path.name}.tmp")
+    tmp.write_text(data, encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def edit_manifest(root: Path, change: Callable[[tomlkit.TOMLDocument], None]) -> Manifest:
+    """Ändert die Registry formatbewahrend; gespeichert wird nur ein gültiges Ergebnis."""
+    path = root / MANIFEST_RELATIVE
+    doc = tomlkit.parse(path.read_text(encoding="utf-8"))
+    change(doc)
+    # entfernte Tabellen sollen keine Leerzeilen am Dateiende hinterlassen
+    text = tomlkit.dumps(doc).rstrip("\n") + "\n"
+    manifest = load_manifest(root, text=text)
+    _atomic_write(path, text)
+    return manifest
+
+
+def _workflow_table(doc: tomlkit.TOMLDocument, key: str):
+    table = doc.get("workflows", {}).get(key)
+    if table is None:
+        raise ManifestError(f"Workflow '{key}' ist nicht registriert.")
+    return table
+
+
+def set_workflow_enabled(root: Path, key: str, enabled: bool) -> Manifest:
+    return edit_manifest(
+        root, lambda doc: _workflow_table(doc, key).__setitem__("enabled", enabled)
+    )
+
+
+def delete_workflow(root: Path, key: str) -> Manifest:
+    """Entfernt nur die Registrierung und die UI-/API-Dateien dieses Workflows. Modelle, Jobs,
+    Medien und Nachweise bleiben unberührt."""
+    wf = load_manifest(root).workflows.get(key)
+    if wf is None:
+        raise ManifestError(f"Workflow '{key}' ist nicht registriert.")
+    man = edit_manifest(root, lambda doc: doc["workflows"].remove(key))
+    for rel in {wf.ui, wf.api}:
+        (root / "workflows" / rel).unlink(missing_ok=True)
+    return man
+
+
+def _slug(title: str) -> str:
+    text = title.lower()
+    for a, b in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
+        text = text.replace(a, b)
+    slug = re.sub(r"[^a-z0-9]+", "_", text).strip("_")[:40]
+    return slug if slug[:1].isalpha() else f"wf_{slug}"
+
+
+def create_workflow(root: Path, source: str, title: str) -> tuple[Manifest, str]:
+    """Registriert eine Kopie von ``source`` (Engine, Parameter, UI-/API-Graph) unter neuem Titel;
+    Status OFFEN. Liefert die neue Registry und den vergebenen Schlüssel."""
+    man = load_manifest(root)
+    src = man.workflows.get(source)
+    title = title.strip()
+    if src is None:
+        raise ManifestError(f"Vorlage '{source}' ist nicht registriert.")
+    if not title:
+        raise ManifestError("Titel fehlt.")
+    if any(w.title == title for w in man.workflows.values()):
+        raise ManifestError(f"Titel „{title}“ ist bereits vergeben.")
+    base = _slug(title)
+    key = next(
+        k for k in (base, *(f"{base}_{n}" for n in range(2, 1000))) if k not in man.workflows
+    )
+    folder = Path(src.api).parent.as_posix()
+    ui, api = f"{folder}/{key}.ui.json", f"{folder}/{key}.api.json"
+    wdir = root / "workflows"
+    if (wdir / ui).exists() or (wdir / api).exists():
+        raise ManifestError(f"Workflow-Dateien für '{key}' existieren bereits.")
+
+    def change(doc: tomlkit.TOMLDocument) -> None:
+        table = tomlkit.table()
+        table["engine"] = src.engine
+        table["ui"] = ui
+        table["api"] = api
+        table["status"] = "OFFEN"
+        table["title"] = title
+        table["params"] = tomlkit.parse(tomlkit.dumps(doc["workflows"][source]["params"]))
+        doc["workflows"][key] = table
+
+    _atomic_write(wdir / api, (wdir / src.api).read_text(encoding="utf-8"))
+    _atomic_write(wdir / ui, (wdir / src.ui).read_text(encoding="utf-8"))
+    try:
+        return edit_manifest(root, change), key
+    except BaseException:
+        (wdir / api).unlink(missing_ok=True)
+        (wdir / ui).unlink(missing_ok=True)
+        raise
+
+
+def replace_workflow_graph(
+    root: Path, key: str, ui: dict, api: dict, *, reset_status: bool
+) -> Manifest:
+    """Übernimmt einen bearbeiteten UI- und API-Graphen. Erst prüfen, dann atomar schreiben;
+    ein geänderter Rendergraph verliert seine Abnahme (Status OFFEN) bis zum erneuten Test."""
+    man = load_manifest(root)
+    wf = man.workflows.get(key)
+    if wf is None:
+        raise ManifestError(f"Workflow '{key}' ist nicht registriert.")
+    problems = graph_problems(wf, api, {f.comfy_name for f in man.engine_files(wf.engine)})
+    if problems:
+        raise ManifestError("; ".join(problems))
+    if reset_status and wf.status != "OFFEN":
+        edit_manifest(root, lambda doc: _workflow_table(doc, key).__setitem__("status", "OFFEN"))
+    _atomic_write(root / "workflows" / wf.api, json.dumps(api, indent=1, ensure_ascii=False) + "\n")
+    _atomic_write(root / "workflows" / wf.ui, json.dumps(ui, indent=1, ensure_ascii=False) + "\n")
+    return load_manifest(root)
 
 
 # --------------------------------------------------------------------------------- Status

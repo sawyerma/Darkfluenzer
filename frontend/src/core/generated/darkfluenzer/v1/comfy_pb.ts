@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/comfy.proto.
  */
 export const file_darkfluenzer_v1_comfy: GenFile = /*@__PURE__*/
-  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvY29tZnkucHJvdG8SD2RhcmtmbHVlbnplci52MSK1AQoLQ29tZnlTdGF0dXMSKgoFc3RhdGUYASABKA4yGy5kYXJrZmx1ZW56ZXIudjEuQ29tZnlTdGF0ZRIPCgdtYW5hZ2VkGAIgASgIEgsKA3VybBgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJEg4KBmRldmljZRgFIAEoCRINCgVlcnJvchgGIAEoCRIVCg1xdWV1ZV9ydW5uaW5nGAcgASgNEhUKDXF1ZXVlX3BlbmRpbmcYCCABKA0iPgoJQWN0aXZlSm9iEg4KBmpvYl9pZBgBIAEoBBIQCgh3b3JrZmxvdxgCIAEoCRIPCgdydW5uaW5nGAMgASgIIjYKCkpvYnNBY3RpdmUSKAoEam9icxgBIAMoCzIaLmRhcmtmbHVlbnplci52MS5BY3RpdmVKb2IimAEKDFdvcmtmbG93SW5mbxILCgNrZXkYASABKAkSDgoGZW5naW5lGAIgASgJEhQKDGVuZ2luZV90aXRsZRgDIAEoCRIMCgRraW5kGAQgASgJEg4KBnN0YXR1cxgFIAEoCRIUCgxtb2RlbHNfcmVhZHkYBiABKAgSEgoKbWlzc2luZ19nYhgHIAEoARINCgV1c2FnZRgIIAEoCSI9CglXb3JrZmxvd3MSMAoJd29ya2Zsb3dzGAEgAygLMh0uZGFya2ZsdWVuemVyLnYxLldvcmtmbG93SW5mbyI3CglKb2JPdXRwdXQSDAoEcGF0aBgBIAEoCRIOCgZzaGEyNTYYAiABKAkSDAoEc2l6ZRgDIAEoBCLOAQoMSm9iQ29tcGxldGVkEg4KBmpvYl9pZBgBIAEoBBIQCgh3b3JrZmxvdxgCIAEoCRIOCgZlbmdpbmUYAyABKAkSKgoGcmVzdWx0GAQgASgOMhouZGFya2ZsdWVuemVyLnYxLkpvYlJlc3VsdBINCgVlcnJvchgFIAEoCRISCgpkdXJhdGlvbl9zGAYgASgBEisKB291dHB1dHMYByADKAsyGi5kYXJrZmx1ZW56ZXIudjEuSm9iT3V0cHV0EhAKCG9yZGVyX25vGAggASgJKtgBCgpDb21meVN0YXRlEhsKF0NPTUZZX1NUQVRFX1VOU1BFQ0lGSUVEEAASFwoTQ09NRllfU1RBVEVfU1RPUFBFRBABEhgKFENPTUZZX1NUQVRFX1NUQVJUSU5HEAISFQoRQ09NRllfU1RBVEVfUkVBRFkQAxIYChRDT01GWV9TVEFURV9TVE9QUElORxAEEhsKF0NPTUZZX1NUQVRFX1VOUkVBQ0hBQkxFEAUSFgoSQ09NRllfU1RBVEVfRkFJTEVEEAYSFAoQQ09NRllfU1RBVEVfQlVTWRAHKlMKCUpvYlJlc3VsdBIaChZKT0JfUkVTVUxUX1VOU1BFQ0lGSUVEEAASEwoPSk9CX1JFU1VMVF9ET05FEAESFQoRSk9CX1JFU1VMVF9GQUlMRUQQAmIGcHJvdG8z");
+  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvY29tZnkucHJvdG8SD2RhcmtmbHVlbnplci52MSK1AQoLQ29tZnlTdGF0dXMSKgoFc3RhdGUYASABKA4yGy5kYXJrZmx1ZW56ZXIudjEuQ29tZnlTdGF0ZRIPCgdtYW5hZ2VkGAIgASgIEgsKA3VybBgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJEg4KBmRldmljZRgFIAEoCRINCgVlcnJvchgGIAEoCRIVCg1xdWV1ZV9ydW5uaW5nGAcgASgNEhUKDXF1ZXVlX3BlbmRpbmcYCCABKA0i0wEKCUFjdGl2ZUpvYhIOCgZqb2JfaWQYASABKAQSEAoId29ya2Zsb3cYAiABKAkSDwoHcnVubmluZxgDIAEoCBIWCg5wcm9ncmVzc192YWx1ZRgEIAEoDRIUCgxwcm9ncmVzc19tYXgYBSABKA0SNgoGcGFyYW1zGAYgAygLMiYuZGFya2ZsdWVuemVyLnYxLkFjdGl2ZUpvYi5QYXJhbXNFbnRyeRotCgtQYXJhbXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkYKCkpvYnNBY3RpdmUSKAoEam9icxgBIAMoCzIaLmRhcmtmbHVlbnplci52MS5BY3RpdmVKb2ISDgoGcGF1c2VkGAIgASgIIucBCg1Xb3JrZmxvd1BhcmFtEgwKBG5hbWUYASABKAkSDAoEdHlwZRgCIAEoCRIQCghyZXF1aXJlZBgDIAEoCBIOCgZ1cGxvYWQYBCABKAgSEAoDbWluGAUgASgBSAGIAQESEAoDbWF4GAYgASgBSAKIAQESEwoLbXVsdGlwbGVfb2YYByABKA0SDwoHY2hvaWNlcxgIIAMoCRIOCgR0ZXh0GAkgASgJSAASEQoHaW50ZWdlchgKIAEoA0gAEhAKBm51bWJlchgLIAEoAUgAQgkKB2RlZmF1bHRCBgoEX21pbkIGCgRfbWF4IoACCgxXb3JrZmxvd0luZm8SCwoDa2V5GAEgASgJEg4KBmVuZ2luZRgCIAEoCRIUCgxlbmdpbmVfdGl0bGUYAyABKAkSDAoEa2luZBgEIAEoCRIOCgZzdGF0dXMYBSABKAkSFAoMbW9kZWxzX3JlYWR5GAYgASgIEhIKCm1pc3NpbmdfZ2IYByABKAESDQoFdXNhZ2UYCCABKAkSDQoFdGl0bGUYCSABKAkSDwoHZW5hYmxlZBgKIAEoCBIWCg5lZGl0b3JfY2hhbmdlZBgLIAEoCBIuCgZwYXJhbXMYDCADKAsyHi5kYXJrZmx1ZW56ZXIudjEuV29ya2Zsb3dQYXJhbSI9CglXb3JrZmxvd3MSMAoJd29ya2Zsb3dzGAEgAygLMh0uZGFya2ZsdWVuemVyLnYxLldvcmtmbG93SW5mbyI3CglKb2JPdXRwdXQSDAoEcGF0aBgBIAEoCRIOCgZzaGEyNTYYAiABKAkSDAoEc2l6ZRgDIAEoBCK4AgoMSm9iQ29tcGxldGVkEg4KBmpvYl9pZBgBIAEoBBIQCgh3b3JrZmxvdxgCIAEoCRIOCgZlbmdpbmUYAyABKAkSKgoGcmVzdWx0GAQgASgOMhouZGFya2ZsdWVuemVyLnYxLkpvYlJlc3VsdBINCgVlcnJvchgFIAEoCRISCgpkdXJhdGlvbl9zGAYgASgBEisKB291dHB1dHMYByADKAsyGi5kYXJrZmx1ZW56ZXIudjEuSm9iT3V0cHV0EhAKCG9yZGVyX25vGAggASgJEjkKBnBhcmFtcxgJIAMoCzIpLmRhcmtmbHVlbnplci52MS5Kb2JDb21wbGV0ZWQuUGFyYW1zRW50cnkaLQoLUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASrYAQoKQ29tZnlTdGF0ZRIbChdDT01GWV9TVEFURV9VTlNQRUNJRklFRBAAEhcKE0NPTUZZX1NUQVRFX1NUT1BQRUQQARIYChRDT01GWV9TVEFURV9TVEFSVElORxACEhUKEUNPTUZZX1NUQVRFX1JFQURZEAMSGAoUQ09NRllfU1RBVEVfU1RPUFBJTkcQBBIbChdDT01GWV9TVEFURV9VTlJFQUNIQUJMRRAFEhYKEkNPTUZZX1NUQVRFX0ZBSUxFRBAGEhQKEENPTUZZX1NUQVRFX0JVU1kQByptCglKb2JSZXN1bHQSGgoWSk9CX1JFU1VMVF9VTlNQRUNJRklFRBAAEhMKD0pPQl9SRVNVTFRfRE9ORRABEhUKEUpPQl9SRVNVTFRfRkFJTEVEEAISGAoUSk9CX1JFU1VMVF9DQU5DRUxMRUQQA2IGcHJvdG8z");
 
 /**
  * STATE comfy.status
@@ -92,6 +92,26 @@ export type ActiveJob = Message<"darkfluenzer.v1.ActiveJob"> & {
    * @generated from field: bool running = 3;
    */
   running: boolean;
+
+  /**
+   * Fortschritt des laufenden Nodes (z. B. Sampler-Schritte); 0/0, solange ComfyUI keinen meldet
+   * (nur für vom Backend eingereichte Aufträge verfügbar).
+   *
+   * @generated from field: uint32 progress_value = 4;
+   */
+  progressValue: number;
+
+  /**
+   * @generated from field: uint32 progress_max = 5;
+   */
+  progressMax: number;
+
+  /**
+   * Parameter des Auftrags als Text (Prompt, Seed, …); Upload-Parameter als Dateipfad.
+   *
+   * @generated from field: map<string, string> params = 6;
+   */
+  params: { [key: string]: string };
 };
 
 /**
@@ -111,6 +131,13 @@ export type JobsActive = Message<"darkfluenzer.v1.JobsActive"> & {
    * @generated from field: repeated darkfluenzer.v1.ActiveJob jobs = 1;
    */
   jobs: ActiveJob[];
+
+  /**
+   * Angehalten: der laufende Auftrag endet regulär, danach startet nichts bis zum Fortsetzen.
+   *
+   * @generated from field: bool paused = 2;
+   */
+  paused: boolean;
 };
 
 /**
@@ -119,6 +146,87 @@ export type JobsActive = Message<"darkfluenzer.v1.JobsActive"> & {
  */
 export const JobsActiveSchema: GenMessage<JobsActive> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_comfy, 2);
+
+/**
+ * Parameter eines Workflows laut Registry; default ist der Wert im registrierten API-Graphen.
+ *
+ * @generated from message darkfluenzer.v1.WorkflowParam
+ */
+export type WorkflowParam = Message<"darkfluenzer.v1.WorkflowParam"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * str | int | float
+   *
+   * @generated from field: string type = 2;
+   */
+  type: string;
+
+  /**
+   * @generated from field: bool required = 3;
+   */
+  required: boolean;
+
+  /**
+   * Datei, die vor dem Lauf zu ComfyUI hochgeladen wird (Quellbild, Maske, Startbild).
+   *
+   * @generated from field: bool upload = 4;
+   */
+  upload: boolean;
+
+  /**
+   * @generated from field: optional double min = 5;
+   */
+  min?: number | undefined;
+
+  /**
+   * @generated from field: optional double max = 6;
+   */
+  max?: number | undefined;
+
+  /**
+   * @generated from field: uint32 multiple_of = 7;
+   */
+  multipleOf: number;
+
+  /**
+   * @generated from field: repeated string choices = 8;
+   */
+  choices: string[];
+
+  /**
+   * @generated from oneof darkfluenzer.v1.WorkflowParam.default
+   */
+  default: {
+    /**
+     * @generated from field: string text = 9;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: int64 integer = 10;
+     */
+    value: bigint;
+    case: "integer";
+  } | {
+    /**
+     * @generated from field: double number = 11;
+     */
+    value: number;
+    case: "number";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message darkfluenzer.v1.WorkflowParam.
+ * Use `create(WorkflowParamSchema)` to create a new message.
+ */
+export const WorkflowParamSchema: GenMessage<WorkflowParam> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_comfy, 3);
 
 /**
  * Registrierter Workflow (workflows/manifest.toml) und Bereitschaft seiner Modelldateien.
@@ -171,6 +279,28 @@ export type WorkflowInfo = Message<"darkfluenzer.v1.WorkflowInfo"> & {
    * @generated from field: string usage = 8;
    */
   usage: string;
+
+  /**
+   * @generated from field: string title = 9;
+   */
+  title: string;
+
+  /**
+   * @generated from field: bool enabled = 10;
+   */
+  enabled: boolean;
+
+  /**
+   * Die Editor-Kopie in ComfyUI weicht vom registrierten UI-Export ab (übernehmbar).
+   *
+   * @generated from field: bool editor_changed = 11;
+   */
+  editorChanged: boolean;
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.WorkflowParam params = 12;
+   */
+  params: WorkflowParam[];
 };
 
 /**
@@ -178,7 +308,7 @@ export type WorkflowInfo = Message<"darkfluenzer.v1.WorkflowInfo"> & {
  * Use `create(WorkflowInfoSchema)` to create a new message.
  */
 export const WorkflowInfoSchema: GenMessage<WorkflowInfo> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 3);
+  messageDesc(file_darkfluenzer_v1_comfy, 4);
 
 /**
  * STATE comfy.workflows
@@ -197,7 +327,7 @@ export type Workflows = Message<"darkfluenzer.v1.Workflows"> & {
  * Use `create(WorkflowsSchema)` to create a new message.
  */
 export const WorkflowsSchema: GenMessage<Workflows> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 4);
+  messageDesc(file_darkfluenzer_v1_comfy, 5);
 
 /**
  * @generated from message darkfluenzer.v1.JobOutput
@@ -226,7 +356,7 @@ export type JobOutput = Message<"darkfluenzer.v1.JobOutput"> & {
  * Use `create(JobOutputSchema)` to create a new message.
  */
 export const JobOutputSchema: GenMessage<JobOutput> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 5);
+  messageDesc(file_darkfluenzer_v1_comfy, 6);
 
 /**
  * EVENT job.completed: eine abgeschlossene Renderung aus der jobs-Tabelle.
@@ -275,6 +405,11 @@ export type JobCompleted = Message<"darkfluenzer.v1.JobCompleted"> & {
    * @generated from field: string order_no = 8;
    */
   orderNo: string;
+
+  /**
+   * @generated from field: map<string, string> params = 9;
+   */
+  params: { [key: string]: string };
 };
 
 /**
@@ -282,7 +417,7 @@ export type JobCompleted = Message<"darkfluenzer.v1.JobCompleted"> & {
  * Use `create(JobCompletedSchema)` to create a new message.
  */
 export const JobCompletedSchema: GenMessage<JobCompleted> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 6);
+  messageDesc(file_darkfluenzer_v1_comfy, 7);
 
 /**
  * @generated from enum darkfluenzer.v1.ComfyState
@@ -359,6 +494,13 @@ export enum JobResult {
    * @generated from enum value: JOB_RESULT_FAILED = 2;
    */
   FAILED = 2,
+
+  /**
+   * Vom Betreiber aus der Warteschlange entfernt oder abgebrochen.
+   *
+   * @generated from enum value: JOB_RESULT_CANCELLED = 3;
+   */
+  CANCELLED = 3,
 }
 
 /**

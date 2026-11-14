@@ -38,11 +38,38 @@ message ActiveJob {
   string workflow = 2;
   // false: wartet in der Warteschlange.
   bool running = 3;
+  // Fortschritt des laufenden Nodes (z. B. Sampler-Schritte); 0/0, solange ComfyUI keinen meldet
+  // (nur für vom Backend eingereichte Aufträge verfügbar).
+  uint32 progress_value = 4;
+  uint32 progress_max = 5;
+  // Parameter des Auftrags als Text (Prompt, Seed, …); Upload-Parameter als Dateipfad.
+  map<string, string> params = 6;
 }
 
 // STATE jobs.active
 message JobsActive {
   repeated ActiveJob jobs = 1;
+  // Angehalten: der laufende Auftrag endet regulär, danach startet nichts bis zum Fortsetzen.
+  bool paused = 2;
+}
+
+// Parameter eines Workflows laut Registry; default ist der Wert im registrierten API-Graphen.
+message WorkflowParam {
+  string name = 1;
+  // str | int | float
+  string type = 2;
+  bool required = 3;
+  // Datei, die vor dem Lauf zu ComfyUI hochgeladen wird (Quellbild, Maske, Startbild).
+  bool upload = 4;
+  optional double min = 5;
+  optional double max = 6;
+  uint32 multiple_of = 7;
+  repeated string choices = 8;
+  oneof default {
+    string text = 9;
+    int64 integer = 10;
+    double number = 11;
+  }
 }
 
 // Registrierter Workflow (workflows/manifest.toml) und Bereitschaft seiner Modelldateien.
@@ -58,6 +85,11 @@ message WorkflowInfo {
   double missing_gb = 7;
   // evaluation | production
   string usage = 8;
+  string title = 9;
+  bool enabled = 10;
+  // Die Editor-Kopie in ComfyUI weicht vom registrierten UI-Export ab (übernehmbar).
+  bool editor_changed = 11;
+  repeated WorkflowParam params = 12;
 }
 
 // STATE comfy.workflows
@@ -76,6 +108,8 @@ enum JobResult {
   JOB_RESULT_UNSPECIFIED = 0;
   JOB_RESULT_DONE = 1;
   JOB_RESULT_FAILED = 2;
+  // Vom Betreiber aus der Warteschlange entfernt oder abgebrochen.
+  JOB_RESULT_CANCELLED = 3;
 }
 
 // EVENT job.completed: eine abgeschlossene Renderung aus der jobs-Tabelle.
@@ -89,4 +123,5 @@ message JobCompleted {
   repeated JobOutput outputs = 7;
   // Leer bei Renderungen ohne Kundenbezug (Evaluation).
   string order_no = 8;
+  map<string, string> params = 9;
 }

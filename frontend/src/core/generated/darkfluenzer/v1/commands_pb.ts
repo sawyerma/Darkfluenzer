@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/commands.proto.
  */
 export const file_darkfluenzer_v1_commands: GenFile = /*@__PURE__*/
-  fileDesc("Ch5kYXJrZmx1ZW56ZXIvdjEvY29tbWFuZHMucHJvdG8SD2RhcmtmbHVlbnplci52MSIMCgpDb21meVN0YXJ0IgsKCUNvbWZ5U3RvcCKVAQoOQ29tbWFuZFJlcXVlc3QSEgoKcmVxdWVzdF9pZBgBIAEoCRIyCgtjb21meV9zdGFydBgKIAEoCzIbLmRhcmtmbHVlbnplci52MS5Db21meVN0YXJ0SAASMAoKY29tZnlfc3RvcBgLIAEoCzIaLmRhcmtmbHVlbnplci52MS5Db21meVN0b3BIAEIJCgdjb21tYW5kImUKD0NvbW1hbmRSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEi4KBnN0YXR1cxgCIAEoDjIeLmRhcmtmbHVlbnplci52MS5Db21tYW5kU3RhdHVzEg4KBmRldGFpbBgDIAEoCSppCg1Db21tYW5kU3RhdHVzEh4KGkNPTU1BTkRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGwoXQ09NTUFORF9TVEFUVVNfQUNDRVBURUQQARIbChdDT01NQU5EX1NUQVRVU19SRUpFQ1RFRBACYgZwcm90bzM");
+  fileDesc("Ch5kYXJrZmx1ZW56ZXIvdjEvY29tbWFuZHMucHJvdG8SD2RhcmtmbHVlbnplci52MSIMCgpDb21meVN0YXJ0IgsKCUNvbWZ5U3RvcCJYCgpQYXJhbVZhbHVlEgwKBG5hbWUYASABKAkSDgoEdGV4dBgCIAEoCUgAEhEKB2ludGVnZXIYAyABKANIABIQCgZudW1iZXIYBCABKAFIAEIHCgV2YWx1ZSI6CglJbnB1dEZpbGUSDQoFcGFyYW0YASABKAkSEAoIZmlsZW5hbWUYAiABKAkSDAoEZGF0YRgDIAEoDCJyCgZSZW5kZXISEAoId29ya2Zsb3cYASABKAkSKwoGdmFsdWVzGAIgAygLMhsuZGFya2ZsdWVuemVyLnYxLlBhcmFtVmFsdWUSKQoFZmlsZXMYAyADKAsyGi5kYXJrZmx1ZW56ZXIudjEuSW5wdXRGaWxlIjcKElNldFdvcmtmbG93RW5hYmxlZBIQCgh3b3JrZmxvdxgBIAEoCRIPCgdlbmFibGVkGAIgASgIIiAKDE9wZW5Xb3JrZmxvdxIQCgh3b3JrZmxvdxgBIAEoCSIhCg1BZG9wdFdvcmtmbG93EhAKCHdvcmtmbG93GAEgASgJIiIKDkRlbGV0ZVdvcmtmbG93EhAKCHdvcmtmbG93GAEgASgJIi8KDkNyZWF0ZVdvcmtmbG93Eg4KBnNvdXJjZRgBIAEoCRINCgV0aXRsZRgCIAEoCSIbCglDYW5jZWxKb2ISDgoGam9iX2lkGAEgASgEIhwKClBhdXNlUXVldWUSDgoGcGF1c2VkGAEgASgIItUECg5Db21tYW5kUmVxdWVzdBISCgpyZXF1ZXN0X2lkGAEgASgJEjIKC2NvbWZ5X3N0YXJ0GAogASgLMhsuZGFya2ZsdWVuemVyLnYxLkNvbWZ5U3RhcnRIABIwCgpjb21meV9zdG9wGAsgASgLMhouZGFya2ZsdWVuemVyLnYxLkNvbWZ5U3RvcEgAEikKBnJlbmRlchgMIAEoCzIXLmRhcmtmbHVlbnplci52MS5SZW5kZXJIABJDChRzZXRfd29ya2Zsb3dfZW5hYmxlZBgNIAEoCzIjLmRhcmtmbHVlbnplci52MS5TZXRXb3JrZmxvd0VuYWJsZWRIABI2Cg1vcGVuX3dvcmtmbG93GA4gASgLMh0uZGFya2ZsdWVuemVyLnYxLk9wZW5Xb3JrZmxvd0gAEjgKDmFkb3B0X3dvcmtmbG93GA8gASgLMh4uZGFya2ZsdWVuemVyLnYxLkFkb3B0V29ya2Zsb3dIABI6Cg9kZWxldGVfd29ya2Zsb3cYECABKAsyHy5kYXJrZmx1ZW56ZXIudjEuRGVsZXRlV29ya2Zsb3dIABI6Cg9jcmVhdGVfd29ya2Zsb3cYESABKAsyHy5kYXJrZmx1ZW56ZXIudjEuQ3JlYXRlV29ya2Zsb3dIABIwCgpjYW5jZWxfam9iGBIgASgLMhouZGFya2ZsdWVuemVyLnYxLkNhbmNlbEpvYkgAEjIKC3BhdXNlX3F1ZXVlGBMgASgLMhsuZGFya2ZsdWVuemVyLnYxLlBhdXNlUXVldWVIAEIJCgdjb21tYW5kImUKD0NvbW1hbmRSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEi4KBnN0YXR1cxgCIAEoDjIeLmRhcmtmbHVlbnplci52MS5Db21tYW5kU3RhdHVzEg4KBmRldGFpbBgDIAEoCSppCg1Db21tYW5kU3RhdHVzEh4KGkNPTU1BTkRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGwoXQ09NTUFORF9TVEFUVVNfQUNDRVBURUQQARIbChdDT01NQU5EX1NUQVRVU19SRUpFQ1RFRBACYgZwcm90bzM");
 
 /**
  * @generated from message darkfluenzer.v1.ComfyStart
@@ -39,6 +39,250 @@ export const ComfyStopSchema: GenMessage<ComfyStop> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_commands, 1);
 
 /**
+ * Wert eines Workflow-Parameters (Name und Typ laut workflows/manifest.toml).
+ *
+ * @generated from message darkfluenzer.v1.ParamValue
+ */
+export type ParamValue = Message<"darkfluenzer.v1.ParamValue"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from oneof darkfluenzer.v1.ParamValue.value
+   */
+  value: {
+    /**
+     * @generated from field: string text = 2;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: int64 integer = 3;
+     */
+    value: bigint;
+    case: "integer";
+  } | {
+    /**
+     * @generated from field: double number = 4;
+     */
+    value: number;
+    case: "number";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message darkfluenzer.v1.ParamValue.
+ * Use `create(ParamValueSchema)` to create a new message.
+ */
+export const ParamValueSchema: GenMessage<ParamValue> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 2);
+
+/**
+ * Eingabebild für einen Upload-Parameter (Quellbild, Maske, Startbild).
+ *
+ * @generated from message darkfluenzer.v1.InputFile
+ */
+export type InputFile = Message<"darkfluenzer.v1.InputFile"> & {
+  /**
+   * @generated from field: string param = 1;
+   */
+  param: string;
+
+  /**
+   * @generated from field: string filename = 2;
+   */
+  filename: string;
+
+  /**
+   * @generated from field: bytes data = 3;
+   */
+  data: Uint8Array;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.InputFile.
+ * Use `create(InputFileSchema)` to create a new message.
+ */
+export const InputFileSchema: GenMessage<InputFile> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 3);
+
+/**
+ * Renderauftrag ohne Kundenbezug über den registrierten API-Workflow; FIFO im Backend.
+ *
+ * @generated from message darkfluenzer.v1.Render
+ */
+export type Render = Message<"darkfluenzer.v1.Render"> & {
+  /**
+   * @generated from field: string workflow = 1;
+   */
+  workflow: string;
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.ParamValue values = 2;
+   */
+  values: ParamValue[];
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.InputFile files = 3;
+   */
+  files: InputFile[];
+};
+
+/**
+ * Describes the message darkfluenzer.v1.Render.
+ * Use `create(RenderSchema)` to create a new message.
+ */
+export const RenderSchema: GenMessage<Render> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 4);
+
+/**
+ * Betreiberentscheidung je Workflow, gespeichert in workflows/manifest.toml.
+ *
+ * @generated from message darkfluenzer.v1.SetWorkflowEnabled
+ */
+export type SetWorkflowEnabled = Message<"darkfluenzer.v1.SetWorkflowEnabled"> & {
+  /**
+   * @generated from field: string workflow = 1;
+   */
+  workflow: string;
+
+  /**
+   * @generated from field: bool enabled = 2;
+   */
+  enabled: boolean;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.SetWorkflowEnabled.
+ * Use `create(SetWorkflowEnabledSchema)` to create a new message.
+ */
+export const SetWorkflowEnabledSchema: GenMessage<SetWorkflowEnabled> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 5);
+
+/**
+ * Editor-Kopie bereitstellen; der Browser öffnet danach ComfyUI mit genau diesem Workflow.
+ *
+ * @generated from message darkfluenzer.v1.OpenWorkflow
+ */
+export type OpenWorkflow = Message<"darkfluenzer.v1.OpenWorkflow"> & {
+  /**
+   * @generated from field: string workflow = 1;
+   */
+  workflow: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.OpenWorkflow.
+ * Use `create(OpenWorkflowSchema)` to create a new message.
+ */
+export const OpenWorkflowSchema: GenMessage<OpenWorkflow> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 6);
+
+/**
+ * Im ComfyUI-Editor gespeicherte Änderung prüfen und als UI- und API-Graph übernehmen.
+ *
+ * @generated from message darkfluenzer.v1.AdoptWorkflow
+ */
+export type AdoptWorkflow = Message<"darkfluenzer.v1.AdoptWorkflow"> & {
+  /**
+   * @generated from field: string workflow = 1;
+   */
+  workflow: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.AdoptWorkflow.
+ * Use `create(AdoptWorkflowSchema)` to create a new message.
+ */
+export const AdoptWorkflowSchema: GenMessage<AdoptWorkflow> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 7);
+
+/**
+ * Registrierung, UI-/API-Datei und Editor-Kopie entfernen; Modelle, Jobs und Medien bleiben.
+ *
+ * @generated from message darkfluenzer.v1.DeleteWorkflow
+ */
+export type DeleteWorkflow = Message<"darkfluenzer.v1.DeleteWorkflow"> & {
+  /**
+   * @generated from field: string workflow = 1;
+   */
+  workflow: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.DeleteWorkflow.
+ * Use `create(DeleteWorkflowSchema)` to create a new message.
+ */
+export const DeleteWorkflowSchema: GenMessage<DeleteWorkflow> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 8);
+
+/**
+ * Neuen Workflow als Kopie eines registrierten anlegen (Engine, Parameter, Graph); danach im
+ * ComfyUI-Editor öffnen, bearbeiten und übernehmen. Status OFFEN bis zur eigenen Abnahme.
+ *
+ * @generated from message darkfluenzer.v1.CreateWorkflow
+ */
+export type CreateWorkflow = Message<"darkfluenzer.v1.CreateWorkflow"> & {
+  /**
+   * @generated from field: string source = 1;
+   */
+  source: string;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.CreateWorkflow.
+ * Use `create(CreateWorkflowSchema)` to create a new message.
+ */
+export const CreateWorkflowSchema: GenMessage<CreateWorkflow> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 9);
+
+/**
+ * Wartenden Auftrag aus der Warteschlange entfernen bzw. laufenden gezielt abbrechen.
+ *
+ * @generated from message darkfluenzer.v1.CancelJob
+ */
+export type CancelJob = Message<"darkfluenzer.v1.CancelJob"> & {
+  /**
+   * @generated from field: uint64 job_id = 1;
+   */
+  jobId: bigint;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.CancelJob.
+ * Use `create(CancelJobSchema)` to create a new message.
+ */
+export const CancelJobSchema: GenMessage<CancelJob> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 10);
+
+/**
+ * Warteschlange anhalten (true) oder fortsetzen (false).
+ *
+ * @generated from message darkfluenzer.v1.PauseQueue
+ */
+export type PauseQueue = Message<"darkfluenzer.v1.PauseQueue"> & {
+  /**
+   * @generated from field: bool paused = 1;
+   */
+  paused: boolean;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.PauseQueue.
+ * Use `create(PauseQueueSchema)` to create a new message.
+ */
+export const PauseQueueSchema: GenMessage<PauseQueue> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 11);
+
+/**
  * @generated from message darkfluenzer.v1.CommandRequest
  */
 export type CommandRequest = Message<"darkfluenzer.v1.CommandRequest"> & {
@@ -65,6 +309,54 @@ export type CommandRequest = Message<"darkfluenzer.v1.CommandRequest"> & {
      */
     value: ComfyStop;
     case: "comfyStop";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.Render render = 12;
+     */
+    value: Render;
+    case: "render";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.SetWorkflowEnabled set_workflow_enabled = 13;
+     */
+    value: SetWorkflowEnabled;
+    case: "setWorkflowEnabled";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.OpenWorkflow open_workflow = 14;
+     */
+    value: OpenWorkflow;
+    case: "openWorkflow";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.AdoptWorkflow adopt_workflow = 15;
+     */
+    value: AdoptWorkflow;
+    case: "adoptWorkflow";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.DeleteWorkflow delete_workflow = 16;
+     */
+    value: DeleteWorkflow;
+    case: "deleteWorkflow";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.CreateWorkflow create_workflow = 17;
+     */
+    value: CreateWorkflow;
+    case: "createWorkflow";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.CancelJob cancel_job = 18;
+     */
+    value: CancelJob;
+    case: "cancelJob";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.PauseQueue pause_queue = 19;
+     */
+    value: PauseQueue;
+    case: "pauseQueue";
   } | { case: undefined; value?: undefined };
 };
 
@@ -73,7 +365,7 @@ export type CommandRequest = Message<"darkfluenzer.v1.CommandRequest"> & {
  * Use `create(CommandRequestSchema)` to create a new message.
  */
 export const CommandRequestSchema: GenMessage<CommandRequest> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 2);
+  messageDesc(file_darkfluenzer_v1_commands, 12);
 
 /**
  * @generated from message darkfluenzer.v1.CommandResponse
@@ -102,7 +394,7 @@ export type CommandResponse = Message<"darkfluenzer.v1.CommandResponse"> & {
  * Use `create(CommandResponseSchema)` to create a new message.
  */
 export const CommandResponseSchema: GenMessage<CommandResponse> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 3);
+  messageDesc(file_darkfluenzer_v1_commands, 13);
 
 /**
  * @generated from enum darkfluenzer.v1.CommandStatus

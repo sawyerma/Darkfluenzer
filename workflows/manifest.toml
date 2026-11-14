@@ -345,6 +345,7 @@ engine = "lustify_sdxl"
 ui = "image/lustify_sdxl_t2i.ui.json"
 api = "image/lustify_sdxl_t2i.api.json"
 status = "PASS"
+title = "LUSTIFY · Text zu Bild"
 
 [workflows.lustify_sdxl_t2i.params]
 prompt = { node = "2", input = "text", type = "str", required = true }
@@ -360,6 +361,7 @@ engine = "lustify_sdxl"
 ui = "image/lustify_sdxl_inpaint.ui.json"
 api = "image/lustify_sdxl_inpaint.api.json"
 status = "PASS"
+title = "LUSTIFY · Maskiertes Inpainting"
 
 [workflows.lustify_sdxl_inpaint.params]
 image = { node = "2", input = "image", type = "str", required = true, upload = true }
@@ -376,6 +378,7 @@ engine = "flux3_klein_base"
 ui = "image/flux3_klein_base_t2i.ui.json"
 api = "image/flux3_klein_base_t2i.api.json"
 status = "OFFEN"
+title = "FLUX 3 Klein · Text zu Bild"
 
 [workflows.flux3_klein_base_t2i.params]
 prompt = { node = "4", input = "text", type = "str", required = true }
@@ -390,6 +393,7 @@ engine = "realcore_illustrious"
 ui = "image/realcore_illustrious_t2i.ui.json"
 api = "image/realcore_illustrious_t2i.api.json"
 status = "OFFEN"
+title = "RealCore Illustrious · Text zu Bild"
 
 [workflows.realcore_illustrious_t2i.params]
 prompt = { node = "2", input = "text", type = "str", required = true }
@@ -405,6 +409,7 @@ engine = "qwen_image_21"
 ui = "image/qwen_image_21_t2i.ui.json"
 api = "image/qwen_image_21_t2i.api.json"
 status = "OFFEN"
+title = "Qwen-Image 2.1 · Text zu Bild"
 
 [workflows.qwen_image_21_t2i.params]
 prompt = { node = "4", input = "prompt", type = "str", required = true }
@@ -419,6 +424,7 @@ engine = "qwen_image_20b"
 ui = "image/qwen_image_20b_t2i.ui.json"
 api = "image/qwen_image_20b_t2i.api.json"
 status = "OFFEN"
+title = "Qwen-Image 20B · Text zu Bild"
 
 [workflows.qwen_image_20b_t2i.params]
 prompt = { node = "5", input = "text", type = "str", required = true }
@@ -434,6 +440,7 @@ engine = "wan22_i2v"
 ui = "video/wan22_i2v.ui.json"
 api = "video/wan22_i2v.api.json"
 status = "OFFEN"
+title = "Wan 2.2 · Bild zu Video"
 
 [workflows.wan22_i2v.params]
 image = { node = "1", input = "image", type = "str", required = true, upload = true }
@@ -448,6 +455,7 @@ engine = "wan22_remix_v30"
 ui = "video/wan22_remix_v30_i2v.ui.json"
 api = "video/wan22_remix_v30_i2v.api.json"
 status = "OFFEN"
+title = "Wan 2.2 Remix v3.0 · Bild zu Video"
 
 [workflows.wan22_remix_v30_i2v.params]
 image = { node = "1", input = "image", type = "str", required = true, upload = true }
@@ -462,6 +470,7 @@ engine = "lustify_sdxl"
 ui = "image/lustify_sdxl_refine.ui.json"
 api = "image/lustify_sdxl_refine.api.json"
 status = "PASS"
+title = "LUSTIFY · Verfeinern"
 
 [workflows.lustify_sdxl_refine.params]
 image = { node = "2", input = "image", type = "str", required = true, upload = true }

@@ -115,10 +115,12 @@ def fake():
 
 WF = Workflow(
     key="t2i",
+    title="Test",
     engine="e1",
     ui="x",
     api="y",
     status="OFFEN",
+    enabled=True,
     params={
         "prompt": Param(node="2", input="text", type="str", required=True),
         "seed": Param(node="3", input="seed", type="int", min=0, max=2**32),

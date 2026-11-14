@@ -17,6 +17,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -62,10 +63,11 @@ class RenderResult:
 
 
 class ComfyClient:
-    def __init__(self, base_url: str, timeout: float = 30.0) -> None:
+    def __init__(self, base_url: str, timeout: float = 30.0, client_id: str | None = None) -> None:
         self.base = base_url.rstrip("/")
         self.timeout = timeout
-        self.client_id = uuid.uuid4().hex
+        # ComfyUI meldet Fortschritt nur an den einreichenden Client (siehe progress_events)
+        self.client_id = client_id or uuid.uuid4().hex
         self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
     # ---------------------------------------------------------------- HTTP
@@ -133,11 +135,11 @@ class ComfyClient:
     def queue(self) -> dict:
         return self._json("GET", "/queue")
 
-    def queued_jobs(self) -> list[tuple[int, bool]]:
-        """(Darkfluenzer-Job-ID oder 0, läuft?) für alle Aufträge in der Warteschlange."""
+    def queued_jobs(self) -> list[tuple[int, bool, str]]:
+        """(Darkfluenzer-Job-ID oder 0, läuft?, prompt_id) für alle Aufträge der Warteschlange."""
         q = self.queue()
         return [
-            (int((item[3] or {}).get(JOB_KEY) or 0), running)
+            (int((item[3] or {}).get(JOB_KEY) or 0), running, str(item[1]))
             for running, items in (
                 (True, q.get("queue_running", [])),
                 (False, q.get("queue_pending", [])),
@@ -283,6 +285,7 @@ def run_workflow(
     stem: str,
     timeout_s: float = 1800.0,
     job_id: int | None = None,
+    client_id: str | None = None,
 ) -> RenderResult:
     """Server sicherstellen, Workflow ausführen, alle Ausgabedateien unter ``dest`` sichern.
 
@@ -295,7 +298,7 @@ def run_workflow(
         raise ComfyError(f"Workflow '{workflow_key}' ist gesperrt.")
     graph = apply_params(load_graph(man, wf), wf, values)
     runtime.start(cfg)  # einzige Startlogik; idempotent
-    client = ComfyClient(cfg.comfyui.url)
+    client = ComfyClient(cfg.comfyui.url, client_id=client_id)
     t0 = time.monotonic()
     prompt_id = client.submit(graph, job_id)
     log.info("Auftrag %s: Workflow %s übermittelt", prompt_id, workflow_key)
@@ -561,3 +564,138 @@ def api_to_ui(graph: dict, object_info: dict) -> dict:
         "extra": {"ds": {"scale": 0.75, "offset": [0, 0]}},
         "version": 0.4,
     }
+
+
+# -------------------------------------------------------------------- Editor-Rückweg
+
+# Reine Anmerkungen ohne Einfluss auf den Rendergraphen.
+_NOTE_NODES = {"Note", "MarkdownNote"}
+
+
+def _ui_links(ui: dict) -> dict[int, tuple[int, int]]:
+    """Link-ID -> (Quell-Node, Quell-Slot); Array- (0.4) und Objektformat (1.x) des Editors."""
+    out: dict[int, tuple[int, int]] = {}
+    for link in ui.get("links") or []:
+        if isinstance(link, dict):
+            out[link["id"]] = (link["origin_id"], link["origin_slot"])
+        else:
+            out[link[0]] = (link[1], link[2])
+    return out
+
+
+def _take_dynamic(name: str, spec: list, values: list, inputs: dict) -> None:
+    """Umkehrung von ``_dynamic_widgets``: Wert und Unterwerte aus der Widget-Liste lesen."""
+    value = values.pop(0)
+    inputs[name] = value
+    option = next((o for o in _spec_options(spec).get("options", []) if o.get("key") == value), {})
+    sub_specs = {
+        **option.get("inputs", {}).get("required", {}),
+        **option.get("inputs", {}).get("optional", {}),
+    }
+    for sub, sub_spec in sub_specs.items():
+        if _is_dynamic_combo(sub_spec):
+            _take_dynamic(f"{name}.{sub}", sub_spec, values, inputs)
+        elif _is_widget(sub_spec):
+            inputs[f"{name}.{sub}"] = values.pop(0)
+
+
+def ui_to_api(ui: dict, object_info: dict) -> dict:
+    """Umkehrung von ``api_to_ui`` für einen im ComfyUI-Editor gespeicherten Workflow.
+
+    Übersetzt Nodes, Widgets und Links (über Reroutes hinweg); Anmerkungen entfallen.
+    Subgraphen, Primitive-Nodes und stumme/umgangene Nodes werden abgewiesen statt geraten.
+    """
+    if (ui.get("definitions") or {}).get("subgraphs"):
+        raise ComfyError("Subgraphen werden nicht übernommen – im Editor auflösen und speichern.")
+    nodes = {n["id"]: n for n in ui.get("nodes") or []}
+    links = _ui_links(ui)
+
+    def source(link_id: int) -> list:
+        origin, slot = links[link_id]
+        while nodes[origin]["type"] == "Reroute":
+            upstream = (nodes[origin].get("inputs") or [{}])[0].get("link")
+            if upstream is None:
+                raise ComfyError(f"Reroute {origin} hat keinen Eingang.")
+            origin, slot = links[upstream]
+        return [str(origin), slot]
+
+    graph: dict[str, dict] = {}
+    for nid, node in nodes.items():
+        typ = node["type"]
+        if typ in _NOTE_NODES or typ == "Reroute":
+            continue
+        if node.get("mode", 0) != 0:
+            raise ComfyError(f"Node {nid} ({typ}) ist stumm oder umgangen – aktivieren/entfernen.")
+        if typ == "PrimitiveNode":
+            raise ComfyError(f"Primitive-Node {nid} wird nicht übernommen – Wert direkt setzen.")
+        if not isinstance(node.get("widgets_values", []), list):
+            raise ComfyError(f"Node {nid} ({typ}): Widget-Format wird nicht unterstützt.")
+        linked = {
+            i["name"]: i["link"] for i in node.get("inputs") or [] if i.get("link") is not None
+        }
+        values = list(node.get("widgets_values") or [])
+        inputs: dict = {}
+        for name, sp in _node_spec(object_info, typ).items():
+            if _is_dynamic_combo(sp):
+                _take_dynamic(name, sp, values, inputs)
+            elif _is_widget(sp):
+                value = values.pop(0) if values else _default(sp)
+                inputs[name] = source(linked[name]) if name in linked else value
+                if _spec_options(sp).get("control_after_generate") and values:
+                    values.pop(0)
+            elif isinstance(sp[0], str) and sp[0].startswith("COMFY_AUTOGROW"):
+                inputs.update({k: source(v) for k, v in linked.items() if k.startswith(f"{name}.")})
+            elif name in linked:
+                inputs[name] = source(linked[name])
+        graph[str(nid)] = {"class_type": typ, "inputs": inputs}
+        if node.get("title"):
+            graph[str(nid)]["_meta"] = {"title": node["title"]}
+    return graph
+
+
+def editor_file(cfg: Config, key: str) -> Path:
+    """Editor-Kopie eines Workflows: je Workflow ein eigener Ordner der ComfyUI-Seitenleiste, damit
+    ``/?workflows=<key>`` (ComfyUI-Frontend, Ordner-Link) genau diesen Graphen lädt."""
+    return cfg.comfyui.path / "user" / "default" / "workflows" / key / f"{key}.json"
+
+
+def install_editor_copy(cfg: Config, man: Manifest, key: str, *, replace: bool = False) -> Path:
+    """Legt die Editor-Kopie aus dem registrierten UI-Export an, falls sie fehlt; vorhandene
+    (ggf. bearbeitete, noch nicht übernommene) Kopien bleiben unangetastet, außer ``replace``
+    (nach einer Übernahme: Kopie = registrierte Fassung)."""
+    target = editor_file(cfg, key)
+    if replace or not target.is_file():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((man.root / "workflows" / man.workflows[key].ui).read_bytes())
+    return target
+
+
+def remove_editor_copy(cfg: Config, key: str) -> None:
+    target = editor_file(cfg, key)
+    target.unlink(missing_ok=True)
+    if target.parent.is_dir() and not any(target.parent.iterdir()):
+        target.parent.rmdir()
+
+
+async def progress_events(url: str, client_id: str) -> AsyncIterator[tuple[str, int, int]]:
+    """Fortschritt der unter ``client_id`` eingereichten Aufträge aus ComfyUIs WebSocket:
+    liefert (prompt_id, Wert, Maximum); Maximum 0 heißt: Auftrag beendet. Endet, wenn ComfyUI
+    die Verbindung schließt. Vorschaubilder (Binärframes) werden ignoriert."""
+    import aiohttp
+
+    ws_url = url.replace("http://", "ws://", 1).rstrip("/") + f"/ws?clientId={client_id}"
+    async with aiohttp.ClientSession() as session, session.ws_connect(ws_url) as ws:
+        async for msg in ws:
+            if msg.type != aiohttp.WSMsgType.TEXT:
+                continue
+            event = json.loads(msg.data)
+            data = event.get("data") or {}
+            kind, prompt_id = event.get("type"), data.get("prompt_id")
+            if not prompt_id:
+                continue
+            if kind == "progress":
+                yield prompt_id, int(data.get("value", 0)), int(data.get("max", 0))
+            elif kind in ("execution_success", "execution_error", "execution_interrupted") or (
+                kind == "executing" and data.get("node") is None
+            ):
+                yield prompt_id, 0, 0

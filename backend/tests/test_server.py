@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import os
 import shutil
 import uuid
 
 from aiohttp import WSServerHandshakeError
 from aiohttp.test_utils import TestClient, TestServer
 
-from darkfluenzer import server
+from darkfluenzer import comfy, models, runtime, server
 from darkfluenzer.config import project_root
 from darkfluenzer.store import Store
 from darkfluenzer.stream import PROTOCOL_MAJOR
@@ -177,3 +178,113 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
         _run(cfg, scenario)
     finally:
         store.close()
+
+
+async def _stream_after_catchup(client, app, origin, topic):
+    """Angemeldeter WebSocket mit abgeschlossenem Nachzug für ``topic``."""
+    ws = await client.ws_connect("/ws/v1/stream", headers={"Origin": origin})
+    hello = pb.Hello(protocol_major=PROTOCOL_MAJOR, schema_id=app[server.HUB_KEY].schema)
+    await ws.send_bytes(pb.ClientMessage(hello=hello).SerializeToString())
+    assert (await _frame(ws)).welcome.status == pb.WELCOME_STATUS_ACCEPTED
+    await ws.send_bytes(pb.ClientMessage(subscribe=pb.Subscribe(topic=topic)).SerializeToString())
+    while (await _frame(ws)).WhichOneof("msg") != "catchup_complete":
+        pass
+    return ws
+
+
+def test_workflow_commands_enable_render_fifo_and_delete(cfg):
+    cfg = dataclasses.replace(cfg, server=dataclasses.replace(cfg.server, observe_s=0.1))
+    shutil.copytree(project_root() / "workflows", cfg.root / "workflows")
+    man = models.load_manifest(cfg.root)
+    for mf in man.engine_files("lustify_sdxl"):  # Modell "vorhanden" (Größe laut Registry, sparse)
+        target = models.models_dir(cfg.root) / mf.target
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with open(target, "wb") as fh:
+            fh.truncate(mf.size)
+    t2i = "lustify_sdxl_t2i"
+
+    def cmd(**kw):
+        return commands_pb2.CommandRequest(request_id=str(uuid.uuid4()), **kw)
+
+    def render():
+        prompt = commands_pb2.ParamValue(name="prompt", text="studio portrait, adult woman")
+        return cmd(render=commands_pb2.Render(workflow=t2i, values=[prompt]))
+
+    async def scenario(client, app, origin):
+        csrf = await _csrf(client)
+
+        async def answer(req):
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body)
+
+        off = commands_pb2.SetWorkflowEnabled(workflow=t2i, enabled=False)
+        assert (await answer(cmd(set_workflow_enabled=off))).detail == ""
+        assert models.load_manifest(cfg.root).workflows[t2i].enabled is False
+        refused = await answer(render())
+        assert refused.status == commands_pb2.COMMAND_STATUS_REJECTED
+        assert "deaktiviert" in refused.detail
+
+        on = commands_pb2.SetWorkflowEnabled(workflow=t2i, enabled=True)
+        assert (await answer(cmd(set_workflow_enabled=on))).detail == ""
+        # großer Befehl (1 MB Datei) wird vollständig gelesen und fachlich beurteilt, nicht 400
+        big = commands_pb2.InputFile(param="prompt", filename="x.png", data=os.urandom(1 << 20))
+        too_much = cmd(render=commands_pb2.Render(workflow=t2i, files=[big]))
+        assert "kein Upload-Parameter" in (await answer(too_much)).detail
+        ws = await _stream_after_catchup(client, app, origin, pb.TOPIC_JOB_COMPLETED)
+
+        async def next_job() -> comfy_pb2.JobCompleted:
+            frame = await _frame(ws)
+            while frame.WhichOneof("msg") != "event":
+                frame = await _frame(ws)
+            return comfy_pb2.JobCompleted.FromString(frame.event.payload)
+
+        # Angehalten: Auftrag bleibt eingereiht; Entfernen -> ENTFERNT mit seinen Parametern
+        pause = commands_pb2.PauseQueue(paused=True)
+        assert (await answer(cmd(pause_queue=pause))).detail == ""
+        assert (await answer(render())).status == commands_pb2.COMMAND_STATUS_ACCEPTED
+        held = Store(cfg.local)
+        (queued_id, _), *rest = held.queued_jobs()
+        held.close()
+        assert rest == []
+        cancel = commands_pb2.CancelJob(job_id=queued_id)
+        assert (await answer(cmd(cancel_job=cancel))).detail == ""
+        removed = await next_job()
+        assert removed.result == comfy_pb2.JOB_RESULT_CANCELLED
+        assert removed.params["prompt"] == "studio portrait, adult woman"
+        resume = commands_pb2.PauseQueue(paused=False)
+        assert (await answer(cmd(pause_queue=resume))).detail == ""
+
+        assert (await answer(render())).status == commands_pb2.COMMAND_STATUS_ACCEPTED
+        job = await next_job()
+        # Test-ComfyUI kennt kein /prompt: der echte Renderpfad lief und meldet den Fehler
+        assert job.workflow == t2i and job.result == comfy_pb2.JOB_RESULT_FAILED and job.error
+        await ws.close()
+
+        new = commands_pb2.CreateWorkflow(source=t2i, title="Porträt Neu")
+        assert (await answer(cmd(create_workflow=new))).detail == ""
+        created = models.load_manifest(cfg.root).workflows["portraet_neu"]
+        assert created.engine == "lustify_sdxl" and created.status == "OFFEN"
+        assert set(created.params) == set(man.workflows[t2i].params)
+        assert comfy.editor_file(cfg, "portraet_neu").is_file()
+        assert "vergeben" in (await answer(cmd(create_workflow=new))).detail
+
+        gone = "lustify_sdxl_refine"
+        files = [cfg.root / "workflows" / f for f in ("image/lustify_sdxl_refine.api.json",)]
+        assert (
+            await answer(cmd(delete_workflow=commands_pb2.DeleteWorkflow(workflow=gone)))
+        ).detail == ""
+        assert gone not in models.load_manifest(cfg.root).workflows
+        assert not any(f.exists() for f in files) and not comfy.editor_file(cfg, gone).exists()
+        assert all(
+            (models.models_dir(cfg.root) / mf.target).exists()
+            for mf in man.engine_files("lustify_sdxl")
+        )
+        store = Store(cfg.local)
+        assert store.job(job.job_id)["workflow"] == t2i  # Historie bleibt
+        store.close()
+
+    try:
+        _run(cfg, scenario)
+    finally:
+        runtime.stop(cfg)

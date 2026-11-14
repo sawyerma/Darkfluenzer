@@ -139,32 +139,37 @@ def _models(args: argparse.Namespace) -> tuple[dict, int]:
 
 
 def _workflows(action: str) -> tuple[dict, int]:
-    """Prüft bzw. erzeugt UI-Exporte gegen die Node-Definitionen der laufenden ComfyUI."""
+    """Prüft UI-/API-Exporte gegen die laufende ComfyUI, erzeugt UI-Exporte oder stellt die
+    Editor-Kopien (je Workflow ein eigener Seitenleisten-Ordner) bereit."""
     cfg = load()
     setup_logging(cfg)
     man = models.load_manifest(cfg.root, require_ui=action != "export-ui")
-    if action == "install":  # Altbestand entfernen, damit gestrichene Workflows verschwinden
-        old_dir = cfg.comfyui.path / "user" / "default" / "workflows" / "Darkfluenzer"
-        for stale in old_dir.glob("*.json") if old_dir.is_dir() else []:
-            stale.unlink()
+    if action == "install":  # frühere Sammel-Ablage aufräumen (nur eigene, registrierte Dateien)
+        legacy = cfg.comfyui.path / "user" / "default" / "workflows" / "Darkfluenzer"
+        for key in man.workflows:
+            (legacy / f"{key}.json").unlink(missing_ok=True)
+        if legacy.is_dir() and not any(legacy.iterdir()):
+            legacy.rmdir()
     runtime.start(cfg)
     object_info = comfy.ComfyClient(cfg.comfyui.url, timeout=120).object_info()
     report: dict[str, list[str]] = {}
     for key, wf in man.workflows.items():
         graph = comfy.load_graph(man, wf)
         ui_path = man.root / "workflows" / wf.ui
-        ui = comfy.api_to_ui(graph, object_info)
         if action == "export-ui":
+            ui = comfy.api_to_ui(graph, object_info)
             ui_path.write_text(json.dumps(ui, indent=1, ensure_ascii=False) + "\n")
         if action == "install":
-            # In ComfyUIs Workflow-Seitenleiste auswählbar machen (generiert, nicht in Git)
-            target = cfg.comfyui.path / "user" / "default" / "workflows" / "Darkfluenzer"
-            target.mkdir(parents=True, exist_ok=True)
-            (target / f"{key}.json").write_text(json.dumps(ui, indent=1, ensure_ascii=False))
+            comfy.install_editor_copy(cfg, man, key)
         uploads = {(p.node, p.input) for p in wf.params.values() if p.upload}
         problems = comfy.check_graph(graph, object_info, uploads)
-        if not ui_path.is_file() or json.loads(ui_path.read_text(encoding="utf-8")) != ui:
-            problems.append("UI-Export weicht vom API-Export ab (darkfluenzer workflows export-ui)")
+        normal = comfy.ui_to_api(comfy.api_to_ui(graph, object_info), object_info)
+        if (
+            not ui_path.is_file()
+            or comfy.ui_to_api(json.loads(ui_path.read_text(encoding="utf-8")), object_info)
+            != normal
+        ):
+            problems.append("UI-Export beschreibt einen anderen Rendergraphen als der API-Export")
         report[key] = problems
     ok = not any(report.values())
     return {"ok": ok, "workflows": report}, 0 if ok else 9

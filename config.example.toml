@@ -14,6 +14,8 @@ observe_s = 2
 catchup_limit = 200
 # Wartezeit für Start (Health-Check) und Stopp des Cockpit-Servers durch den Launcher.
 timeout_s = 20
+# Höchstgröße eines Befehls mit Eingabebildern (Quellbild, Maske, Startbild) in MB.
+max_upload_mb = 50
 
 [comfyui]
 # Eigener, gepinnter ComfyUI-Checkout (launcher/setup_comfyui.sh) mit main.py.
