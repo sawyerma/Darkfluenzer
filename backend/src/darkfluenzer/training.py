@@ -200,7 +200,8 @@ def train_sdxl_lora(base_ckpt: Path, dataset_dir: Path, out_file: Path, p: Train
         from peft.utils import get_peft_model_state_dict
     except ImportError as exc:
         raise TrainerUnavailable(
-            f"Trainings-Abhängigkeiten fehlen ({exc.name}): uv sync --extra train"
+            f"Trainings-Abhängigkeiten fehlen ({exc.name}): "
+            "uv sync --project backend --inexact --extra train"
         ) from exc
     if not torch.backends.mps.is_available():
         raise TrainerUnavailable("Apple MPS ist nicht verfügbar.")

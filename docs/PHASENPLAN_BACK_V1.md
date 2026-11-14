@@ -104,7 +104,7 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
     └── logs/
 ```
 
-**Quellstruktur und Laufzeit konsequent trennen:** Kein zweites Kunden-CRM, keine zweite SQLite-Datenbank, keine redundanten Modell-/Manifestdateien. Im laufenden Projekt liegen `pyproject.toml`, `uv.lock`, `src/` und `tests/` zurzeit noch im Root; vor ihrer Migration `launcher/install.sh`, Paketpfade, CI-/Testaufrufe und Konfiguration kontrolliert gemeinsam anpassen, damit das bereits abgenommene S1 nicht bricht.
+**Quellstruktur und Laufzeit konsequent trennen:** Kein zweites Kunden-CRM, keine zweite SQLite-Datenbank, keine redundanten Modell-/Manifestdateien. **Migration durchgeführt (14.11.2026):** `pyproject.toml`, `uv.lock`, `src/` und `tests/` per `git mv` nach `backend/`; `project_root()`, `launcher/install.sh` (`--project backend`, `--inexact` erhält installierte Extras), Testaufrufe und README gemeinsam angepasst; `local/` unverändert. Nachweis im S1-Abschnitt.
 
 **Praktische Regeln:** ComfyUI besitzt einen separaten gepinnten Checkout in `local/ComfyUI`. Modellgewichte, Bilddaten, Kundendaten und Secrets gehören ausschließlich nach `local/`, niemals in Git. Workflowversionen stammen aus Git und einer einzigen `workflows/manifest.toml`; jeder Graph hat seine Native-UI- und API-Datei. Kunden und Aufträge erhalten stabile IDs; Kundendatenstatus liegt nur in SQLite, während `input/`, `work/` und `sent/` die zugehörigen Dateien enthalten. Keine Überschreibung freigegebener Artefakte.
 
@@ -265,6 +265,8 @@ Start über `Finder → open /Applications/Darkfluenzer.app` (LaunchServices, id
 | Automatisierte Tests | 17/17 `pytest` (Prozess-Integration gegen Fake-ComfyUI: Idempotenz, fremde Instanz, PID-Wiederverwendung, Timeout, Crash) |
 
 **Regression auf ComfyUI 0.45.3 (eigene Instanz):** CLI-Start 32,8 s (Erststart), App-Start per Finder 10,7 s → Browser danach, Reopen `already_running`, eine Instanz – PASS.
+
+**Regression nach Backend-Migration (14.11.2026, `backend/`):** `launcher/install.sh` neu ausgeführt (venv-Probelauf: nur das eigene Paket neu verlinkt, Trainings-Extras erhalten); per LaunchServices: Öffnen bei laufender ComfyUI → `already_running`; `comfy stop` → nur eigene PID beendet, Port frei; App-Start aus gestopptem Zustand → bereit nach 4,8 s, Browser danach; zweiter Doppelklick → `already_running`, eine PID; pytest 55/55 – PASS.
 
 Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen-Berechtigung angefordert); sie rufen ausschließlich die oben geprüften CLI-Befehle auf.
 

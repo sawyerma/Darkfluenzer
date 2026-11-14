@@ -10,7 +10,7 @@ Status: [`docs/PHASENPLAN_BACK_V1.md`](docs/PHASENPLAN_BACK_V1.md) (Backend) und
   Health-Check (`/system_stats`). Ein zweiter Doppelklick startet keine zweite Instanz.
 - Fenster mit Status, **Stoppen**, **Starten**, **Im Browser öffnen**, **Logs**. Schließen des
   Fensters beendet ComfyUI nicht.
-- Eine einzige Start-/Stop-Logik in `src/darkfluenzer/runtime.py`; App und künftiges Backend
+- Eine einzige Start-/Stop-Logik in `backend/src/darkfluenzer/runtime.py`; App und künftiges Backend
   rufen dieselbe CLI/Funktion auf. Gestoppt wird nur die eigene Prozessgruppe (PID + Startzeit +
   Kommandozeile geprüft), nie per `pkill`. Fremd gestartete ComfyUI-Instanzen werden erkannt,
   aber weder übernommen noch beendet.
@@ -23,7 +23,7 @@ Tools, Git. ComfyUI wird von `launcher/setup_comfyui.sh` gepinnt eingerichtet.
 ```bash
 cp config.example.toml local/config.toml     # Ports/Pfade prüfen
 launcher/setup_comfyui.sh                     # eigene ComfyUI v0.45.3 + venv (comfyui.lock.txt)
-launcher/install.sh                           # Darkfluenzer-venv (uv.lock) + App nach /Applications
+launcher/install.sh                           # Darkfluenzer-venv (backend/uv.lock) + App nach /Applications
 ```
 
 ## Bedienung ohne Terminal
@@ -80,7 +80,7 @@ Bilder der eigenen, rein synthetischen Figur nach `local/character/photos/` kopi
 kurze Seite ≥ 768 px, besser ≥ 1024 px, mindestens 15 Bilder). Originale bleiben unverändert.
 
 ```bash
-UV_PROJECT_ENVIRONMENT=local/.venv uv sync --extra train         # einmalig: Trainings-Abhängigkeiten
+UV_PROJECT_ENVIRONMENT=local/.venv uv sync --project backend --inexact --extra train  # einmalig
 local/.venv/bin/python -m darkfluenzer character scan            # Prüfung je Bild
 local/.venv/bin/python -m darkfluenzer character dataset         # versionierter Datensatz ds_…
 local/.venv/bin/python -m darkfluenzer character train-sdxl --dataset ds_…   # SDXL-LoRA (LUSTIFY)
@@ -95,16 +95,17 @@ Logs: `local/logs/comfyui.log` (ComfyUI-Ausgabe, 3 Generationen), `local/logs/da
 ## Struktur
 
 ```text
-src/darkfluenzer/   app.py (CLI), config.py, runtime.py (ComfyUI-Prozess), comfy.py (API-Client),
-                    models.py (Registry/Download)
+backend/            pyproject.toml, uv.lock, src/darkfluenzer/ (CLI, Runtime, ComfyUI-Client, Registry,
+                    Kundenakte, Training), tests/ (pytest, Prozesstests gegen Fake-ComfyUI)
+frontend/           React/TypeScript/Vite-Cockpit
 launcher/           Darkfluenzer.swift, make_icon.swift, install.sh, setup_comfyui.sh, comfyui.lock.txt
-workflows/          manifest.toml (+ image/, video/ sobald Workflows real geprüft sind)
-tests/              pytest, inkl. Prozess-Integrationstests gegen Fake-ComfyUI
+workflows/          manifest.toml, image/, video/ (UI- und API-Export je Workflow)
+docs/               PHASENPLAN_BACK_V1.md, PHASENPLAN_FRONT_V1.md
 local/              NICHT in Git: config.toml, .venv, ComfyUI, Modelle, Evaluation, Kunden, Logs
 ```
 
 ## Tests
 
 ```bash
-UV_PROJECT_ENVIRONMENT=local/.venv uv run pytest
+cd backend && ../local/.venv/bin/python -m pytest
 ```

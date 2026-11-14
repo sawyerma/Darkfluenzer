@@ -16,8 +16,9 @@ command -v uv >/dev/null || die "uv fehlt (https://docs.astral.sh/uv/)."
 command -v swiftc >/dev/null || die "swiftc fehlt: xcode-select --install"
 [ -f "$ROOT/local/config.toml" ] || die "local/config.toml fehlt. Vorlage: config.example.toml"
 
-echo "1/4 Python-Umgebung (local/.venv, gesperrt durch uv.lock)"
-UV_PROJECT_ENVIRONMENT="$ROOT/local/.venv" uv sync --frozen --project "$ROOT"
+echo "1/4 Python-Umgebung (local/.venv, gesperrt durch backend/uv.lock)"
+# --inexact: zusätzlich installierte Extras (z. B. --extra train) bleiben erhalten.
+UV_PROJECT_ENVIRONMENT="$ROOT/local/.venv" uv sync --frozen --inexact --project "$ROOT/backend"
 
 echo "2/4 App kompilieren"
 rm -rf "$APP"
@@ -28,7 +29,7 @@ swiftc -O -target arm64-apple-macos13.0 -framework AppKit \
 echo "3/4 Icon und Info.plist"
 swift "$ROOT/launcher/make_icon.swift" "$BUILD/AppIcon.iconset" >/dev/null
 iconutil -c icns "$BUILD/AppIcon.iconset" -o "$APP/Contents/Resources/AppIcon.icns"
-VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/pyproject.toml" | head -1)"
+VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/backend/pyproject.toml" | head -1)"
 PLIST="$APP/Contents/Info.plist"
 cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>

@@ -2,7 +2,7 @@
 //
 // Die App enthält KEINE eigene Prozesslogik. Sie ruft ausschließlich
 //   <projekt>/local/.venv/bin/python -m darkfluenzer comfy start|stop|status --json
-// auf (src/darkfluenzer/runtime.py) – dieselbe Logik, die das Backend benutzt.
+// auf (backend/src/darkfluenzer/runtime.py) – dieselbe Logik, die das Backend benutzt.
 // Der Projektordner steht als DFProjectRoot in Info.plist (gesetzt von launcher/install.sh).
 import AppKit
 

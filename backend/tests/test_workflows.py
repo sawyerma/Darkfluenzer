@@ -10,8 +10,9 @@ import pytest
 from PIL import Image
 
 from darkfluenzer import comfy, models, pipeline
+from darkfluenzer.config import project_root
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = project_root()
 
 # Ausschnitt echter /object_info-Definitionen (ComfyUI 0.45.3)
 OBJECT_INFO = {

@@ -10,8 +10,9 @@ from pathlib import Path
 import pytest
 
 from darkfluenzer import models
+from darkfluenzer.config import project_root
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = project_root()
 
 
 def test_repository_manifest_is_valid():

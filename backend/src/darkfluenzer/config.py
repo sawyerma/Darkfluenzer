@@ -52,11 +52,12 @@ class Config:
 
 
 def project_root() -> Path:
-    """Projektordner: ``DARKFLUENZER_ROOT`` oder der Checkout, aus dem das Paket geladen wurde."""
+    """Projektordner: ``DARKFLUENZER_ROOT`` oder der Checkout, aus dem das Paket geladen wurde
+    (``<projekt>/backend/src/darkfluenzer/config.py``)."""
     env = os.environ.get("DARKFLUENZER_ROOT")
     if env:
         return Path(env).expanduser().resolve()
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[3]
 
 
 def _resolve(root: Path, value: str) -> Path:
