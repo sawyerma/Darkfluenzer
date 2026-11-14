@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { sendCommand } from "../core/commands";
+import { useCommand } from "../core/commands";
 import {
   ComfyState,
   JobResult,
@@ -9,11 +9,13 @@ import {
   type WorkflowParam,
 } from "../core/generated/darkfluenzer/v1/comfy_pb";
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
+import { fetchMediaFile, mediaUrl } from "../core/media";
 import { useConnection } from "../core/realtime";
+import { type MediaItem } from "../core/generated/darkfluenzer/v1/media_pb";
 import { useEventTopic, useStateTopic, type StateValue } from "../core/state";
+import { MediaPicker } from "./Files";
 
 type Tone = "ok" | "warn" | "bad" | "neutral";
-type Command = Parameters<typeof sendCommand>[0];
 type Kind = "image" | "video";
 
 const STATE_LABEL: Record<ComfyState, [string, Tone]> = {
@@ -49,10 +51,6 @@ export function clock(ms: number): string {
   return new Date(ms).toLocaleTimeString("de-DE");
 }
 
-export function mediaUrl(path: string): string {
-  return `/api/v1/media/${encodeURI(path)}`;
-}
-
 /** Zustand der ComfyUI-Instanz; veraltete Werte sind als solche gekennzeichnet. */
 export function ComfyBadge({ comfy }: { comfy: StateValue<ComfyStatus> | undefined }) {
   if (!comfy) return <span className="g-badge">KEINE DATEN</span>;
@@ -69,26 +67,6 @@ export function ComfyBadge({ comfy }: { comfy: StateValue<ComfyStatus> | undefin
 }
 
 /** Ein Befehl mit sichtbarem Ergebnis: läuft, Ablehnungsgrund oder Fehler. */
-export function useCommand() {
-  const [pending, setPending] = useState(false);
-  const [notice, setNotice] = useState("");
-  async function run(command: Command, accepted = ""): Promise<boolean> {
-    setPending(true);
-    setNotice("");
-    try {
-      const result = await sendCommand(command);
-      setNotice(result.accepted ? accepted : result.detail);
-      return result.accepted;
-    } catch (e) {
-      setNotice(e instanceof Error ? e.message : String(e));
-      return false;
-    } finally {
-      setPending(false);
-    }
-  }
-  return { pending, notice, run };
-}
-
 function paramLabel(p: WorkflowParam, kind: string): string {
   if (p.name === "prompt") return kind === "video" ? "Szene und Bewegung" : "Motiv, Komposition, Perspektive, Licht";
   if (p.name === "image") return kind === "video" ? "Startbild" : "Quellbild";
@@ -210,6 +188,11 @@ function WorkflowDetail({
     if (draft) top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [draft]);
   const [files, setFiles] = useState<Record<string, File | undefined>>({});
+  // Eingabebild aus der Galerie: dieselbe Datei wie beim Hochladen, Herkunft sichtbar
+  const [picked, setPicked] = useState<Record<string, MediaItem | undefined>>({});
+  const [picking, setPicking] = useState<WorkflowParam | null>(null);
+  const [pickError, setPickError] = useState("");
+  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const [checked, setChecked] = useState(false);
   const errors = Object.fromEntries(wf.params.map((p) => [p.name, validate(p, raw[p.name] ?? "", files[p.name])]));
   const blocked = !wf.enabled
@@ -246,6 +229,24 @@ function WorkflowDetail({
     );
     if (await cmd.run({ case: "render", value: { workflow: wf.key, values, files: inputs } }, "Eingereiht.")) {
       setChecked(false);
+    }
+  }
+
+  async function pick(param: string, item: MediaItem) {
+    setPickError("");
+    try {
+      const file = await fetchMediaFile(item);
+      const input = fileInputs.current[param];
+      if (input) {
+        // Dateifeld zeigt die gewählte Datei wie nach eigener Auswahl
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        input.files = transfer.files;
+      }
+      setFiles((f) => ({ ...f, [param]: file }));
+      setPicked((p) => ({ ...p, [param]: item }));
+    } catch (e) {
+      setPickError(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -315,6 +316,7 @@ function WorkflowDetail({
         {wf.params.map((p) => {
           const id = `${wf.key}-${p.name}`;
           const error = checked ? errors[p.name] : "";
+          const from = p.upload ? picked[p.name] : undefined;
           return (
             <div className={`g-field${p.type === "str" && !p.upload ? " g-wide" : ""}`} key={p.name}>
               <label htmlFor={id}>
@@ -322,12 +324,23 @@ function WorkflowDetail({
                 {p.required ? " *" : ""}
               </label>
               {p.upload ? (
-                <input
-                  id={id}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={(e) => setFiles({ ...files, [p.name]: e.target.files?.[0] })}
-                />
+                <div className="g-file">
+                  <input
+                    id={id}
+                    ref={(el) => {
+                      fileInputs.current[p.name] = el;
+                    }}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(e) => {
+                      setFiles({ ...files, [p.name]: e.target.files?.[0] });
+                      setPicked({ ...picked, [p.name]: undefined });
+                    }}
+                  />
+                  <button type="button" className="g-button" onClick={() => setPicking(p)}>
+                    Aus Dateien
+                  </button>
+                </div>
               ) : p.choices.length > 0 ? (
                 <select id={id} value={raw[p.name]} onChange={(e) => setRaw({ ...raw, [p.name]: e.target.value })}>
                   {p.choices.map((c) => (
@@ -347,10 +360,21 @@ function WorkflowDetail({
                   onChange={(e) => setRaw({ ...raw, [p.name]: e.target.value })}
                 />
               )}
+              {from ? (
+                <span className="g-picked">
+                  <img className="g-thumb" src={mediaUrl(from.path)} alt={from.caption} />
+                  {from.caption} · local/{from.path}
+                </span>
+              ) : null}
               {error ? <small className="g-error">{error}</small> : null}
             </div>
           );
         })}
+        {pickError ? (
+          <p className="g-note g-wide" role="alert">
+            {pickError}
+          </p>
+        ) : null}
         <div className="g-actions g-wide">
           <button type="submit" className="g-button g-primary" disabled={!live || Boolean(blocked) || cmd.pending}>
             Generieren
@@ -366,6 +390,13 @@ function WorkflowDetail({
         </p>
       ) : null}
 
+      {picking ? (
+        <MediaPicker
+          title={`${paramLabel(picking, wf.kind)} aus Dateien`}
+          onPick={(item) => void pick(picking.name, item)}
+          onClose={() => setPicking(null)}
+        />
+      ) : null}
       <dialog ref={dialog} className="g-dialog" aria-labelledby={`${wf.key}-delete`}>
         <h2 id={`${wf.key}-delete`}>Workflow löschen</h2>
         <p>

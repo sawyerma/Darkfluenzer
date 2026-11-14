@@ -241,6 +241,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-form :focus-visible { outline: 2px solid var(--g-focus); outline-offset: 1px; }
 .g-form .g-actions small { color: var(--g-muted); font-size: var(--g-fs-small); }
 .g-error { color: var(--g-bad-text); font-size: var(--g-fs-small); }
+.g-file { display: flex; align-items: center; gap: var(--g-gap-sm); }
+.g-file input { flex: 1; }
+.g-picked { display: flex; align-items: center; gap: var(--g-gap-sm); color: var(--g-muted); font-size: var(--g-fs-small); overflow-wrap: anywhere; }
 
 /* Schalter, Gefahr, Dialog */
 .g-switch { display: inline-flex; align-items: center; gap: var(--g-gap-sm); font-size: var(--g-fs-small); color: var(--g-muted); cursor: pointer; }
@@ -277,6 +280,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-tile-open:hover img, .g-tile-open:hover video { border-color: var(--g-brand); }
 .g-tile[data-marked] img, .g-tile[data-marked] video { outline: 2px solid var(--g-brand); outline-offset: -2px; }
 .g-tile-open span { font-size: var(--g-fs-body); }
+.g-tile-open small { color: var(--g-muted); font-size: var(--g-fs-tiny); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .g-tile-x, .g-tile-mark { position: absolute; top: var(--g-gap-sm); margin: 0; opacity: 0; cursor: pointer; }
 .g-tile-x {
   right: var(--g-gap-sm); width: var(--g-tile-x); height: var(--g-tile-x); padding: 0;

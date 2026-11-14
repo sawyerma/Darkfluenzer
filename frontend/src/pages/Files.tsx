@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { fetchMediaPage } from "../core/commands";
+import { useEffect, useRef, useState } from "react";
+import { useCommand } from "../core/commands";
 import { MediaKind, MediaOrigin, type MediaItem } from "../core/generated/darkfluenzer/v1/media_pb";
-import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
-import { useConnection } from "../core/realtime";
-import { useEventTopic } from "../core/state";
-import { mediaUrl, useCommand } from "./ComfyUI";
+import { mediaUrl, useGallery, type GalleryStatus } from "../core/media";
 
 type Filter = "all" | "image" | "video";
 
@@ -21,7 +18,7 @@ const ORIGIN: Record<MediaOrigin, string> = {
   [MediaOrigin.COMFYUI]: "ComfyUI",
   [MediaOrigin.ORDER]: "Kundenauftrag",
 };
-const PAGE_SIZE = 48;
+const STATUS_NOTE: Record<Exclude<GalleryStatus, "ready">, string> = { loading: "Lädt …", offline: "Keine Verbindung" };
 
 function matches(m: MediaItem, filter: Filter): boolean {
   if (filter === "all") return true;
@@ -36,66 +33,72 @@ function Medium({ item, controls }: { item: MediaItem; controls?: boolean }) {
   );
 }
 
+/** Galerie-Auswahl eines Bildes (z. B. Start-/Quellbild im Renderformular). */
+export function MediaPicker({ title, onPick, onClose }: { title: string; onPick: (item: MediaItem) => void; onClose: () => void }) {
+  const gallery = useGallery();
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => dialog.current?.showModal(), []);
+  const images = gallery.items.filter((m) => m.kind === MediaKind.IMAGE);
+  return (
+    <dialog ref={dialog} className="g-dialog g-media" aria-labelledby="media-pick" onClose={onClose}>
+      <div className="g-line g-head">
+        <h2 id="media-pick">{title}</h2>
+        <button type="button" className="g-button" onClick={() => dialog.current?.close()}>
+          Schließen
+        </button>
+      </div>
+      {images.length > 0 ? (
+        <div className="g-gallery">
+          {images.map((m) => (
+            <div key={String(m.mediaId)} className="g-tile">
+              <button
+                type="button"
+                className="g-tile-open"
+                title={`local/${m.path}`}
+                onClick={() => {
+                  onPick(m);
+                  dialog.current?.close();
+                }}
+              >
+                <Medium item={m} />
+                <span>{m.caption}</span>
+                <small>{m.path.split("/").pop()}</small>
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="g-note">{gallery.status === "ready" ? EMPTY.image : STATUS_NOTE[gallery.status]}</p>
+      )}
+      {gallery.error ? (
+        <p className="g-note" role="alert">
+          {gallery.error}
+        </p>
+      ) : null}
+      {gallery.more ? (
+        <div className="g-actions">
+          <button type="button" className="g-button" disabled={gallery.loading} onClick={() => void gallery.loadOlder()}>
+            Ältere laden
+          </button>
+        </div>
+      ) : null}
+    </dialog>
+  );
+}
+
 export function Files() {
-  const live = useEventTopic(Topic.MEDIA_ADDED);
-  const removed = useEventTopic(Topic.MEDIA_REMOVED);
-  const connection = useConnection();
+  const gallery = useGallery();
+  const items = gallery.items;
   const cmd = useCommand();
-  const [pages, setPages] = useState<MediaItem[]>([]);
-  const [more, setMore] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<MediaItem | null>(null);
   const [marked, setMarked] = useState<ReadonlySet<bigint>>(new Set());
-  const [deleted, setDeleted] = useState<ReadonlySet<bigint>>(new Set());
   const dialog = useRef<HTMLDialogElement>(null);
   const confirm = useRef<HTMLDialogElement>(null);
-
-  // Seiten und Live-Ereignisse zusammengeführt: je media_id genau ein Eintrag, neueste zuerst;
-  // gelöschte (EVENT media.removed bzw. eigener angenommener Löschbefehl) fallen heraus.
-  const items = useMemo(() => {
-    const byId = new Map<bigint, MediaItem>();
-    for (const m of pages) byId.set(m.mediaId, m);
-    for (const e of live?.items ?? []) byId.set(e.value.mediaId, e.value);
-    for (const e of removed?.items ?? []) byId.delete(e.value.mediaId);
-    for (const id of deleted) byId.delete(id);
-    return [...byId.values()].sort((a, b) => (b.mediaId > a.mediaId ? 1 : b.mediaId < a.mediaId ? -1 : 0));
-  }, [pages, live, removed, deleted]);
   const shown = items.filter((m) => matches(m, filter));
   const deletable = shown.filter((m) => !m.orderNo); // Kundenmedien sind nicht löschbar
   const chosen = deletable.filter((m) => marked.has(m.mediaId));
   const allMarked = deletable.length > 0 && chosen.length === deletable.length;
-
-  async function load(before: bigint) {
-    setLoading(true);
-    setError("");
-    try {
-      const page = await fetchMediaPage(before, PAGE_SIZE);
-      setPages((p) => [...p, ...page.items]);
-      setMore(page.more);
-      setLoaded(true);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    // erste Seite beim Aufruf, sobald verbunden; ältere nur auf Wunsch
-    if (connection.status === "OPEN" && !loaded && !loading) void load(0n);
-  }, [connection.status, loaded]);
-
-  useEffect(() => {
-    // Mehr Löschungen als der Nachzug liefert: Galerie neu laden statt veraltete Kacheln zeigen
-    if (removed?.gap) {
-      setPages([]);
-      setMore(false);
-      setLoaded(false);
-    }
-  }, [removed?.gap]);
 
   useEffect(() => {
     if (open && !items.some((m) => m.mediaId === open.mediaId)) dialog.current?.close();
@@ -117,7 +120,7 @@ export function Files() {
   async function remove(ids: bigint[]) {
     // Das Backend löscht vor der Antwort: angenommen = gelöscht.
     if (await cmd.run({ case: "deleteMedia", value: { mediaIds: ids } })) {
-      setDeleted((s) => new Set([...s, ...ids]));
+      gallery.drop(ids);
     }
   }
 
@@ -202,16 +205,16 @@ export function Files() {
           })}
         </div>
       ) : (
-        <p className="g-note">{loaded || live?.live ? EMPTY[filter] : connection.status === "OPEN" ? "Lädt …" : "Keine Verbindung"}</p>
+        <p className="g-note">{gallery.status === "ready" ? EMPTY[filter] : STATUS_NOTE[gallery.status]}</p>
       )}
-      {error || cmd.notice ? (
+      {gallery.error || cmd.notice ? (
         <p className="g-note" role="alert">
-          {error || cmd.notice}
+          {gallery.error || cmd.notice}
         </p>
       ) : null}
-      {more ? (
+      {gallery.more ? (
         <div className="g-actions">
-          <button type="button" className="g-button" disabled={loading} onClick={() => load(items.at(-1)?.mediaId ?? 0n)}>
+          <button type="button" className="g-button" disabled={gallery.loading} onClick={() => void gallery.loadOlder()}>
             Ältere laden
           </button>
         </div>
@@ -275,7 +278,7 @@ export function Files() {
                 <div>
                   <dt>Datei</dt>
                   <dd>
-                    {open.path.split("/").pop()} · {(Number(open.size) / 1e6).toFixed(1)} MB
+                    local/{open.path} · {(Number(open.size) / 1e6).toFixed(1)} MB
                   </dd>
                 </div>
               </dl>
