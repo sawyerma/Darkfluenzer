@@ -232,8 +232,8 @@ Die bisherigen neun Phasen `P00–P08` werden **inhaltlich vollständig** in `S1
 | S1 | PASS | Mac-Abnahme 14.11.2026, siehe „S1-Nachweis“ |
 | S2 | IN_ARBEIT | API-Client, Registry, eigene ComfyUI 0.45.3 fertig; Modelle laden (Leitung ≈ 1,6–5 MB/s), FLUX 3 gated |
 | S3 | OFFEN | Wan-FP8/MPS nicht abgenommen |
-| S4 | OFFEN | Keine implementierte Telegram-/LLM-/SQLite-Kette |
-| S5 | OFFEN | Kein Payment-/Operator-Gate implementiert |
+| S4 | IN_ARBEIT | SQLite-Kundenakte + stabile, lückenlose Kundennummern getestet (inkl. 12 parallele Erstnachrichten); Telegram/LLM offen |
+| S5 | IN_ARBEIT | Liefer-Gate in `approval.py` + SQLite-Triggern isoliert getestet; keine echte Zahlung/Zustellung aktiv |
 | S6 | OFFEN | Keine vollständige E2E-Abnahme |
 
 ### Mac-Bestand (14.11.2026)
@@ -297,4 +297,6 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 
 **V1.5.1 — Modelle (14.11.2026):** Eigene ComfyUI 0.45.3 statt 0.14.1 (FLUX 3/Qwen-Image 2.1 benötigen ≥ 0.4x). Engine-Liste nach Betreibervorgabe erweitert (FLUX.2 Dev, Qwen-Image 20B, RealCore, Wan offiziell); verbindliche Modellregeln §4; Workflow-Namensschema `<engine>_<aufgabe>`; `models.py` und `local/evaluation/` ergänzt. ComfyUI-API-Client (`comfy.py`) mit Parameter-Whitelist, gezieltem Abbruch und Herkunftsdaten.
 
-**Nächste Umsetzung:** S2 – erste reale Renders mit vollständig geladenen Engines (LUSTIFY zuerst), dann FLUX 3 nach Lizenzannahme; parallel Paket 5 (SQLite).
+**V1.5.2 — Kundenakte (14.11.2026):** `store.py` (9 Tabellen, generierte Nummern `DF-C-`/`DF-O-`, erlaubte Statusübergänge, unveränderliche Artefakte/Freigaben/Ereignisse per Trigger, Artefakte 0444 + SHA-256) und `approval.py` (Gate im Code, zweite Schicht als Insert-/Versand-Trigger, idempotente Lieferung je Auftrag). Zahlungen werden nur mit passendem Betrag/Währung im Status `accepted` angenommen; Aufrufer ist künftig ausschließlich der verifizierende Provider-Adapter.
+
+**Nächste Umsetzung:** S2 – erster realer Render mit LUSTIFY (Download läuft), Workflows UI+API, danach FLUX 3 nach Lizenzannahme.
