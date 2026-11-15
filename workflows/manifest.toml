@@ -606,7 +606,7 @@ height = { node = "7", input = "height", type = "int", min = 512, max = 2048, mu
 engine = "lustify_v10_krea"
 ui = "image/lustify_v10_krea_t2i.ui.json"
 api = "image/lustify_v10_krea_t2i.api.json"
-status = "OFFEN"
+status = "PASS"
 title = "LUSTIFY v10 (Krea) · Text zu Bild"
 
 [workflows.lustify_v10_krea_t2i.params]
