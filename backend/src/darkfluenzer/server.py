@@ -23,11 +23,11 @@ from pathlib import Path
 from aiohttp import web
 from google.protobuf.message import DecodeError
 
-from . import comfy, models, pipeline, runtime
+from . import comfy, models, pipeline, runtime, training
 from .config import ComfyConfig, Config
 from .store import Store, StoreError
 from .stream import Hub, schema_id
-from .v1 import comfy_pb2, commands_pb2, media_pb2
+from .v1 import character_pb2, comfy_pb2, commands_pb2, media_pb2
 from .v1 import stream_pb2 as spb
 
 log = logging.getLogger("darkfluenzer.server")
@@ -66,6 +66,7 @@ _COMMAND_ERRORS = (
     pipeline.PipelineError,
     comfy.ComfyError,
     StoreError,
+    training.TrainingError,
     ValueError,
     OSError,
 )
@@ -119,6 +120,7 @@ class Cockpit:
         self._memory: dict = {}  # letzte Messung: ram_total, ram_free (Bytes), swap (MB)
         self._cancelled: set[int] = set()  # laufende Jobs mit Abbruchwunsch des Betreibers
         self._seen_media = store.media_paths()  # bereits geprüfte Dateien des Galerie-Index
+        self._character_sig: tuple = ()  # letzter Stand von Trainingsordner, Datensätzen, LoRAs
         # Registry-Änderungen und das Lesen der Workflow-Projektion nie gleichzeitig
         self._registry = asyncio.Lock()
         self._manifest_mtime = self._manifest_path().stat().st_mtime_ns
@@ -311,6 +313,7 @@ class Cockpit:
                         self._registry_version = self.store.bump("workflows", fingerprint)
                     workflows = await asyncio.to_thread(self._workflows)
                 self.hub.set_state(spb.TOPIC_COMFY_WORKFLOWS, workflows)
+                await self.refresh_characters()
                 self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
                 self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
                 await asyncio.to_thread(
@@ -320,6 +323,49 @@ class Cockpit:
             except Exception:  # eine fehlerhafte Runde beendet die Beobachtung nicht
                 log.exception("Beobachtung fehlgeschlagen")
             await asyncio.sleep(self.cfg.server.observe_s)
+
+    async def refresh_characters(self) -> None:
+        """Trainingsordner, Datensätze und LoRAs neu projizieren, nur wenn sich etwas änderte."""
+        sig = (
+            await asyncio.to_thread(training.signature, self.cfg.local),
+            tuple(sorted(self.manifest.loras.items())),
+        )
+        if sig != self._character_sig:
+            msg = await asyncio.to_thread(self._characters)
+            fingerprint = hashlib.sha256(msg.SerializeToString()).hexdigest()
+            msg.version = self.store.bump("characters", fingerprint)  # SQLite im Loop-Thread
+            self.hub.set_state(spb.TOPIC_CHARACTERS, msg.SerializeToString())
+            self._character_sig = sig
+
+    def _characters(self) -> character_pb2.Characters:
+        """B1: ein Charakter mit dem Trainingsdatenordner (Profile folgen in B2). Ohne Store-
+        Zugriff, läuft im Worker-Thread (Scan hasht die Bilder)."""
+        photos = training.scan(self.cfg.local)
+        folder = training.character_dir(self.cfg.local)
+        char = character_pb2.Character(
+            id=folder.name,
+            photos_dir=(folder / "photos").relative_to(self.cfg.root).as_posix(),
+            usable=sum(p.status == "ok" for p in photos),
+            min_images=training.MIN_IMAGES,
+        )
+        for p in photos:
+            char.photos.add(
+                name=p.name, status=p.status, width=p.width, height=p.height, note=p.note
+            )
+        for d in training.datasets(self.cfg.local):
+            char.datasets.add(**d)
+        for lo in self.manifest.loras.values():
+            char.loras.add(
+                key=lo.key,
+                base_engine=lo.base_engine,
+                dataset=lo.dataset,
+                trigger=lo.trigger,
+                steps=lo.steps,
+                rank=lo.rank,
+                status=lo.status,
+                created_at=lo.created_at,
+            )
+        return character_pb2.Characters(characters=[char])
 
     async def refresh_comfy(self) -> None:
         for lane in self.lanes.values():
@@ -417,6 +463,7 @@ class Cockpit:
                 and editor.is_file()
                 and editor.read_bytes() != registry_ui.read_bytes(),
                 instance=eng.instance,
+                training=wf.training,
             )
             graph = comfy.load_graph(self.manifest, wf)
             for name, p in wf.params.items():
@@ -621,12 +668,16 @@ class Cockpit:
                 inputs[f.param] = await asyncio.to_thread(
                     pipeline.store_input, self.cfg, f.data, f.filename
                 )
+        dataset = None
+        if wf.training:  # Datensatzversion der aktuell geeigneten Bilder (mindestens MIN_IMAGES)
+            dataset = (await asyncio.to_thread(training.build_dataset, self.cfg.local)).name
         job_id = pipeline.create_render(
             self.store,
             self.manifest,
             wf.key,
             values,
             inputs,
+            dataset=dataset,
             parent_media_id=msg.parent_media_id or None,
             command={
                 "request_id": call.request_id,
@@ -1141,6 +1192,7 @@ def create_app(cfg: Config) -> web.Application:
     hub.offer_state(spb.TOPIC_RESOURCES, comfy_pb2.Resources.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_JOBS_ACTIVE, comfy_pb2.JobsActive.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_COMFY_WORKFLOWS, comfy_pb2.Workflows.DESCRIPTOR.full_name)
+    hub.offer_state(spb.TOPIC_CHARACTERS, character_pb2.Characters.DESCRIPTOR.full_name)
     hub.offer_events(
         spb.TOPIC_JOB_COMPLETED, comfy_pb2.JobCompleted.DESCRIPTOR.full_name, cockpit.read_jobs
     )

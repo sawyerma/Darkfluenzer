@@ -362,8 +362,10 @@ def run_workflow(
     client_id: str | None = None,
     on_submit: Callable[[str, dict], None] | None = None,
     unload_first: bool = False,
+    overrides: dict[tuple[str, str], object] | None = None,
 ) -> RenderResult:
     """Server sicherstellen, Workflow ausführen, alle Ausgabedateien unter ``dest`` sichern.
+    ``overrides``: (Node, Eingang) -> Wert, die das Backend selbst setzt (z. B. Trainingsdaten).
 
     ``on_submit(prompt_id, graph)`` hält den exakt eingereichten Graphen fest, bevor gewartet wird
     (Wiederanlauf nach einem Backend-Neustart: ``collect_workflow``). Ausgaben werden niemals
@@ -375,7 +377,10 @@ def run_workflow(
     if wf.status == "GESPERRT":
         raise ComfyError(f"Workflow '{workflow_key}' ist gesperrt.")
     tag = f"job{job_id}" if job_id is not None else stem.rsplit("_", 1)[-1]
-    graph = unique_outputs(apply_params(load_graph(man, wf), wf, values), tag)
+    graph = apply_params(load_graph(man, wf), wf, values)
+    for (node, name), value in (overrides or {}).items():
+        graph[node]["inputs"][name] = value
+    graph = unique_outputs(graph, tag)
     inst = instance_of(cfg, man, wf)
     runtime.start(cfg, inst.name)  # einzige Startlogik; idempotent
     client = ComfyClient(inst.url, client_id=client_id)
@@ -438,7 +443,7 @@ def collect_workflow(
                     size=len(data),
                 )
             )
-    if not result.outputs:
+    if not result.outputs and not wf.training:  # Training liefert die LoRA-Datei (SaveLoRA)
         raise ComfyError(f"Auftrag {prompt_id} lieferte keine Ausgabedatei.", prompt_id=prompt_id)
     result.duration_s = round(time.monotonic() - start, 1)
     log.info(
@@ -608,6 +613,9 @@ def check_graph(graph: dict, object_info: dict, runtime_inputs: set[tuple[str, s
     return problems
 
 
+_MATCHTYPE = "COMFY_MATCHTYPE_V3"  # Ein-/Ausgang übernimmt den Typ der Verbindung
+
+
 def api_to_ui(graph: dict, object_info: dict) -> dict:
     """Erzeugt aus einem API-Graphen den ComfyUI-Editor-Workflow (gleiche Nodes, Werte, Links).
 
@@ -661,10 +669,18 @@ def api_to_ui(graph: dict, object_info: dict) -> dict:
                 inputs.append(
                     {"name": f"{name}.{first}", "type": slot_type[0], "link": None, "shape": 7}
                 )
+            elif sp[0] == _MATCHTYPE:  # Typvorlage: wie das Frontend die erlaubten Typen
+                allowed = _spec_options(sp).get("template", {}).get("allowed_types", "*")
+                inputs.append({"name": name, "type": allowed, "link": None})
             else:
                 inputs.append({"name": name, "type": sp[0], "link": None})
         outputs = [
-            {"name": oname, "type": otype, "links": [], "slot_index": i}
+            {
+                "name": oname,
+                "type": "*" if otype == _MATCHTYPE else otype,
+                "links": [],
+                "slot_index": i,
+            }
             for i, (otype, oname) in enumerate(
                 zip(info["output"], info["output_name"], strict=True)
             )
@@ -880,8 +896,7 @@ def ui_to_api(ui: dict, object_info: dict) -> dict:
 def editor_file(inst: ComfyConfig, key: str) -> Path:
     """Editor-Kopie eines Workflows in der ausführenden Instanz: je Workflow ein eigener Ordner der
     ComfyUI-Seitenleiste, damit ``/?workflows=<key>`` genau diesen Graphen lädt."""
-    user = inst.data_dir / "user" if inst.data_dir is not None else inst.path / "user"
-    return user / "default" / "workflows" / key / f"{key}.json"
+    return inst.folder("user") / "default" / "workflows" / key / f"{key}.json"
 
 
 def install_editor_copy(cfg: Config, man: Manifest, key: str, *, replace: bool = False) -> Path:

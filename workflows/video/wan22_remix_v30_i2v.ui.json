@@ -1,5 +1,5 @@
 {
- "id": "ba2327d5-3723-5ecf-91ea-8baed7da41e1",
+ "id": "21c5a731-2913-5f67-a3d7-b9b15aa3ee2d",
  "revision": 0,
  "last_node_id": 15,
  "last_link_id": 20,
@@ -41,7 +41,7 @@
    "widgets_values": [
     "start.png"
    ],
-   "title": "Startbild (Master-PNG)"
+   "title": "Eingabe · Startbild"
   },
   {
    "id": 2,
@@ -75,7 +75,7 @@
     "wan22/Wan2.2_Remix_NSFW_i2v_14b_low_lighting_fp8_e4m3fn_v3.0.safetensors",
     "default"
    ],
-   "title": "Wan 2.2 Remix v3.0 Low (FP8)"
+   "title": "Modell · Remix v3.0 Low-Noise (FP8)"
   },
   {
    "id": 3,
@@ -112,9 +112,9 @@
     "Node name for S&R": "ModelSamplingSD3"
    },
    "widgets_values": [
-    5.0
+    8.0
    ],
-   "title": "ModelSamplingSD3"
+   "title": "Modell · Low-Noise Shift 8"
   },
   {
    "id": 4,
@@ -150,7 +150,7 @@
     "wan",
     "default"
    ],
-   "title": "Load CLIP"
+   "title": "Modell · Textencoder umt5-xxl (FP16)"
   },
   {
    "id": 5,
@@ -189,7 +189,7 @@
    "widgets_values": [
     "One clearly adult fictional woman, consistently matching the provided start image. Photorealistic continuous cinematic shot, natural subtle movement, stable perspective, consistent face and body proportions, coherent outdoor lighting, accurate motion, subtle camera drift, 35mm footage."
    ],
-   "title": "Prompt (B01 Remix v3.0 FP8)"
+   "title": "Generierung · Szene und Bewegung"
   },
   {
    "id": 6,
@@ -228,7 +228,7 @@
    "widgets_values": [
     "frame flicker, morphing face, inconsistent anatomy, extra limbs, missing fingers, sudden costume changes, CGI, distorted perspective, poor skin texture, duplicated objects, artifacts, blur, low quality"
    ],
-   "title": "Negativ-Prompt"
+   "title": "Generierung · Negativ (ohne Wirkung bei CFG 1)"
   },
   {
    "id": 7,
@@ -262,7 +262,7 @@
    "widgets_values": [
     "wan/wan_2.1_vae.safetensors"
    ],
-   "title": "Load VAE"
+   "title": "Modell · Wan-VAE"
   },
   {
    "id": 8,
@@ -342,12 +342,12 @@
     "Node name for S&R": "WanImageToVideo"
    },
    "widgets_values": [
-    512,
-    320,
-    49,
+    480,
+    832,
+    81,
     1
    ],
-   "title": "512×320, 49 Frames (Kompatibilitätslauf)"
+   "title": "Generierung · Bild zu Video (480p, 81 Frames)"
   },
   {
    "id": 9,
@@ -381,7 +381,7 @@
     "wan22/Wan2.2_Remix_NSFW_i2v_14b_high_lighting_fp8_e4m3fn_v3.0.safetensors",
     "default"
    ],
-   "title": "Wan 2.2 Remix v3.0 High (FP8)"
+   "title": "Modell · Remix v3.0 High-Noise (FP8)"
   },
   {
    "id": 10,
@@ -418,9 +418,9 @@
     "Node name for S&R": "ModelSamplingSD3"
    },
    "widgets_values": [
-    5.0
+    8.0
    ],
-   "title": "ModelSamplingSD3"
+   "title": "Modell · High-Noise Shift 8"
   },
   {
    "id": 11,
@@ -475,15 +475,15 @@
     "enable",
     246810,
     "fixed",
-    24,
-    5.0,
+    8,
+    1.0,
     "euler",
     "simple",
     0,
-    12,
+    4,
     "enable"
    ],
-   "title": "High-Noise: Schritte 0–12"
+   "title": "Generierung · High-Noise Schritte 0–4"
   },
   {
    "id": 12,
@@ -538,15 +538,15 @@
     "disable",
     246810,
     "fixed",
-    24,
-    5.0,
+    8,
+    1.0,
     "euler",
     "simple",
-    12,
-    24,
+    4,
+    8,
     "disable"
    ],
-   "title": "Low-Noise: Schritte 12–24"
+   "title": "Generierung · Low-Noise Schritte 4–8"
   },
   {
    "id": 13,
@@ -588,7 +588,7 @@
     "Node name for S&R": "VAEDecode"
    },
    "widgets_values": [],
-   "title": "VAE Decode"
+   "title": "Ausgabe · Dekodieren"
   },
   {
    "id": 14,
@@ -636,7 +636,7 @@
     "auto",
     "none"
    ],
-   "title": "Video 16 fps (Wan 2.2 14B nativ)"
+   "title": "Ausgabe · Video 16 fps"
   },
   {
    "id": 15,
@@ -676,7 +676,7 @@
     "auto",
     "auto"
    ],
-   "title": "Video speichern"
+   "title": "Ausgabe · Ergebnis"
   }
  ],
  "links": [

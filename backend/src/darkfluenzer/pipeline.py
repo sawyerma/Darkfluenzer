@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import asdict
@@ -22,9 +23,9 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from . import comfy
-from .config import Config
-from .models import Manifest, Workflow
+from . import comfy, models, training
+from .config import ComfyConfig, Config
+from .models import Lora, Manifest, Workflow
 from .store import MEDIA_KINDS, Store, sha256_file
 
 log = logging.getLogger("darkfluenzer.pipeline")
@@ -120,8 +121,10 @@ def create_render(
     *,
     parent_media_id: int | None = None,
     command: dict | None = None,
+    dataset: str | None = None,
 ) -> int:
     """Prüft einen Renderauftrag gegen die Registry und legt ihn als Job (Status queued) an.
+    ``dataset``: Datensatzversion eines Trainingsworkflows (beim Anlegen festgelegt).
 
     ``inputs``: Upload-Parameter -> abgelegte Eingabedatei relativ zu ``local/``.
     ``command``: auslösender Befehl; Job und Befehlsjournal entstehen im selben Commit.
@@ -139,6 +142,8 @@ def create_render(
     comfy.apply_params(comfy.load_graph(man, wf), wf, {**values, **inputs})
     if parent_media_id is not None and store.media_by_id(parent_media_id) is None:
         raise PipelineError(f"Ausgangsmedium {parent_media_id} ist nicht in der Galerie.")
+    if wf.training != bool(dataset):
+        raise PipelineError(f"{workflow_key}: Datensatz nur und immer für Trainingsworkflows.")
     seeds = [values["seed"]] if "seed" in values else []
     prompt = str(values.get("prompt", ""))
     return store.create_job(
@@ -146,7 +151,7 @@ def create_render(
         wf.engine,
         workflow_key,
         prompt,
-        {**values, **inputs},
+        {**values, **inputs, **({"dataset": dataset} if dataset else {})},
         seeds,
         parent_media_id=parent_media_id,
         command=command,
@@ -180,7 +185,7 @@ def run_render(
                 for n, v in params.items()
                 if n in wf.params and wf.params[n].upload
             }
-            values = {n: v for n, v in params.items() if n not in uploads}
+            values = {n: v for n, v in params.items() if n not in uploads and n in wf.params}
             if job["status"] != "running":
                 store.set_job_status(job_id, "running", pid=os.getpid())
 
@@ -202,6 +207,7 @@ def run_render(
                 resume=job["prompt_id"],
                 on_submit=submitted,
                 unload_first=unload_first,
+                dataset=params.get("dataset"),
             )
         except BaseException as exc:
             if is_cancelled():
@@ -258,6 +264,7 @@ def _render(
     resume: str | None = None,
     on_submit: Callable[[str, dict], None] | None = None,
     unload_first: bool = False,
+    dataset: str | None = None,
 ) -> tuple[comfy.RenderResult, list[dict]]:
     workflow_key = wf.key
     from . import runtime
@@ -266,6 +273,13 @@ def _render(
     runtime.start(cfg, inst.name)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     dest = evaluation_dir(cfg, wf.engine)
+    overrides: dict[tuple[str, str], object] = {}
+    lora_prefix = f"loras/darkfluenzer/job{job_id}"  # SaveLoRA-Ziel unter ComfyUIs Ausgabe
+    if wf.training:  # Datensatz in den ComfyUI-Eingang, Ziel der LoRA festlegen
+        folder = training.stage_dataset(
+            training.character_dir(cfg.local) / "dataset" / str(dataset), inst.folder("input")
+        )
+        overrides = {(wf.train_dataset, "folder"): folder, (wf.train_lora, "prefix"): lora_prefix}
     if resume:  # vor einem Neustart eingereicht: nur abholen, nie ein zweites Mal rendern
         if comfy.prompt_state(inst, resume) == "unknown":
             raise PipelineError(
@@ -297,6 +311,7 @@ def _render(
             client_id=client_id,
             on_submit=on_submit,
             unload_first=unload_first,
+            overrides=overrides,
         )
     checks: dict = {}
     masked: tuple[Path, int, list] | None = None  # (Maske, Randerweiterung, geprüfte Ausgaben)
@@ -336,10 +351,68 @@ def _render(
         "memory": result.memory,
         "provenance": result.provenance,
     }
+    if wf.training:  # Ergebnis eines Trainings ist die registrierte LoRA-Datei
+        record["outputs"].append(
+            _adopt_lora(cfg, man, wf, inst, lora_prefix, dataset, values, stamp)
+        )
     sidecar = dest / f"{workflow_key}_{stamp}.json"
     sidecar.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     log.info("Evaluation %s: %s (%.1f s)", workflow_key, sidecar.name, result.duration_s)
     return result, record["outputs"]
+
+
+def _adopt_lora(
+    cfg: Config,
+    man: Manifest,
+    wf: Workflow,
+    inst: ComfyConfig,
+    prefix: str,
+    dataset: str | None,
+    values: dict,
+    stamp: str,
+) -> dict:
+    """Trainierte LoRA aus ComfyUIs Ausgabe in die Modellablage übernehmen und registrieren
+    (Basis, Datensatz, Trigger, Einstellungen; Status OFFEN bis zur Freigabe)."""
+    src = training.take_lora(inst.folder("output"), prefix)
+    graph = comfy.load_graph(man, wf)
+
+    def value(name: str) -> object:  # gewählter oder im Graphen hinterlegter Wert
+        p = wf.params[name]
+        return values.get(name, graph[p.node]["inputs"][p.input])
+
+    meta_file = training.character_dir(cfg.local) / "dataset" / str(dataset) / "dataset.json"
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    steps, rank = int(value("steps")), int(value("rank"))
+    key = f"{dataset}_r{rank}_s{steps}_{stamp}"
+    target = f"loras/characters/{key}.safetensors"
+    dest = models.models_dir(cfg.root) / target
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(src, dest)
+    lora = Lora(
+        key=key,
+        target=target,
+        size=dest.stat().st_size,
+        sha256=sha256_file(dest),
+        base_engine=wf.engine,
+        base_file=man.engines[wf.engine].files[0],
+        dataset=str(dataset),
+        trigger=str(meta.get("trigger", "")),
+        steps=steps,
+        rank=rank,
+        learning_rate=float(value("learning_rate")),
+        strength=1.0,
+        status="OFFEN",
+        created_at=stamp,
+        trainer="ComfyUI TrainLoraNode",
+    )
+    models.register_lora(man.root, lora)
+    log.info("LoRA %s trainiert und registriert (%s)", key, target)
+    return {
+        "node": wf.train_lora,
+        "path": dest.relative_to(cfg.local).as_posix(),
+        "sha256": lora.sha256,
+        "size": lora.size,
+    }
 
 
 def sidecar_for(cfg: Config, output_rel: str) -> dict | None:

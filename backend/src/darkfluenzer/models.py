@@ -13,10 +13,11 @@ import logging
 import os
 import re
 import shutil
+import threading
 import time
 import tomllib
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import tomlkit
@@ -131,6 +132,39 @@ class Workflow:
     # SaveImage-Node, der die im Graphen erzeugte Maske speichert (leer: keine). Alle übrigen
     # Ausgaben müssen außerhalb dieser Maske dem Quellbild ``image`` gleichen (Pixelprüfung).
     mask_output: str = ""
+    # Trainingsworkflow: Node, der den Datensatz lädt (folder), und SaveLoRA-Node (prefix);
+    # beide setzt das Backend, nicht der Betreiber.
+    train_dataset: str = ""
+    train_lora: str = ""
+
+    @property
+    def training(self) -> bool:
+        return bool(self.train_dataset)
+
+
+@dataclass(frozen=True)
+class Lora:
+    """Selbst trainierte Charakter-LoRA (B1): Datei, Architekturbindung und Herkunft."""
+
+    key: str
+    target: str  # unter local/models/, z. B. loras/characters/<key>.safetensors
+    size: int
+    sha256: str
+    base_engine: str
+    base_file: str  # Dateischlüssel des Basismodells (dessen SHA-256 steht in [files.*])
+    dataset: str
+    trigger: str
+    steps: int
+    rank: int
+    learning_rate: float
+    strength: float
+    status: str
+    created_at: str
+    trainer: str
+
+    @property
+    def comfy_name(self) -> str:
+        return self.target.split("/", 1)[1]
 
 
 @dataclass(frozen=True)
@@ -141,6 +175,7 @@ class Manifest:
     files: dict[str, ModelFile]
     engines: dict[str, Engine]
     workflows: dict[str, Workflow]
+    loras: dict[str, Lora]
 
     def engine_files(self, engine: str) -> list[ModelFile]:
         return [self.files[k] for k in self.engines[engine].files]
@@ -240,6 +275,39 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
                 f"Manifest: Rolle {role} -> {eng_key} ist keine freigegebene Produktions-Engine."
             )
 
+    loras: dict[str, Lora] = {}
+    for key, t in (data.get("loras") or {}).items():
+        w = f"loras.{key}"
+        try:
+            lora = Lora(
+                key=key,
+                target=_str(t, "target", w),
+                size=int(t["size"]),
+                sha256=_str(t, "sha256", w),
+                base_engine=_str(t, "base_engine", w),
+                base_file=_str(t, "base_file", w),
+                dataset=_str(t, "dataset", w),
+                trigger=_str(t, "trigger", w),
+                steps=int(t["steps"]),
+                rank=int(t["rank"]),
+                learning_rate=float(t["learning_rate"]),
+                strength=float(t.get("strength", 1.0)),
+                status=_str(t, "status", w),
+                created_at=_str(t, "created_at", w),
+                trainer=_str(t, "trainer", w),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ManifestError(f"Manifest: {w}: {exc}") from exc
+        if not _SHA.match(lora.sha256) or not lora.target.startswith("loras/"):
+            raise ManifestError(f"Manifest: {w}: sha256 oder target (loras/…) ungültig.")
+        if lora.base_engine not in engines or lora.base_file not in engines[lora.base_engine].files:
+            raise ManifestError(
+                f"Manifest: {w}: Basis {lora.base_engine}/{lora.base_file} unbekannt."
+            )
+        if lora.status not in GATE_VALUES:
+            raise ManifestError(f"Manifest: {w}.status muss {GATE_VALUES} sein.")
+        loras[key] = lora
+
     workflows: dict[str, Workflow] = {}
     for key, t in (data.get("workflows") or {}).items():
         w = f"workflows.{key}"
@@ -266,7 +334,13 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             enabled=enabled,
             params=params,
             mask_output=str(t.get("mask_output", "")),
+            train_dataset=str((t.get("training") or {}).get("dataset", "")),
+            train_lora=str((t.get("training") or {}).get("lora", "")),
         )
+        if bool(wf.train_dataset) != bool(wf.train_lora):
+            raise ManifestError(f"Manifest: {w}.training braucht dataset und lora.")
+        if wf.training and not {"steps", "rank", "learning_rate"} <= set(params):
+            raise ManifestError(f"Manifest: {w}: Training braucht steps, rank, learning_rate.")
         if wf.mask_output and "image" not in params:
             raise ManifestError(f"Manifest: {w}.mask_output braucht den Parameter 'image'.")
         if wf.engine not in engines:
@@ -277,9 +351,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             if not (root / "workflows" / rel).is_file():
                 raise ManifestError(f"Manifest: {w} verweist auf fehlende Datei workflows/{rel}.")
         graph = json.loads((root / "workflows" / wf.api).read_text(encoding="utf-8"))
-        problems = graph_problems(
-            wf, graph, {files[f].comfy_name for f in engines[wf.engine].files}
-        )
+        problems = graph_problems(wf, graph, engine_model_names(files, engines, loras, wf.engine))
         if problems:
             raise ManifestError(f"Manifest: {w}: {problems[0]}")
         workflows[key] = wf
@@ -291,7 +363,17 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
         files=files,
         engines=engines,
         workflows=workflows,
+        loras=loras,
     )
+
+
+def engine_model_names(
+    files: dict[str, ModelFile], engines: dict[str, Engine], loras: dict[str, Lora], engine: str
+) -> set[str]:
+    """Modelldateien, die ein Workflow dieser Engine laden darf: ihre Dateien und die auf ihr
+    trainierten LoRAs."""
+    names = {files[f].comfy_name for f in engines[engine].files}
+    return names | {lo.comfy_name for lo in loras.values() if lo.base_engine == engine}
 
 
 def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str]:
@@ -304,6 +386,12 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
     ]
     if wf.mask_output and (graph.get(wf.mask_output) or {}).get("class_type") != "SaveImage":
         problems.append(f"mask_output -> {wf.mask_output} ist kein SaveImage-Node im API-Graph.")
+    for role, node, field in (
+        ("training.dataset", wf.train_dataset, "folder"),
+        ("training.lora", wf.train_lora, "prefix"),
+    ):
+        if node and field not in (graph.get(node) or {}).get("inputs", {}):
+            problems.append(f"{role} -> {node} hat keinen Eingang '{field}' im API-Graph.")
     for node_id, node in graph.items():
         for value in node.get("inputs", {}).values():
             is_model = isinstance(value, str) and value.endswith((".safetensors", ".gguf"))
@@ -323,16 +411,38 @@ def _atomic_write(path: Path, data: str) -> None:
     os.replace(tmp, path)
 
 
+# Cockpit-Befehle und Trainingsläufe (Worker-Thread) ändern die Registry nie gleichzeitig
+_EDIT_LOCK = threading.Lock()
+
+
 def edit_manifest(root: Path, change: Callable[[tomlkit.TOMLDocument], None]) -> Manifest:
     """Ändert die Registry formatbewahrend; gespeichert wird nur ein gültiges Ergebnis."""
     path = root / MANIFEST_RELATIVE
-    doc = tomlkit.parse(path.read_text(encoding="utf-8"))
-    change(doc)
-    # entfernte Tabellen sollen keine Leerzeilen am Dateiende hinterlassen
-    text = tomlkit.dumps(doc).rstrip("\n") + "\n"
-    manifest = load_manifest(root, text=text)
-    _atomic_write(path, text)
+    with _EDIT_LOCK:
+        doc = tomlkit.parse(path.read_text(encoding="utf-8"))
+        change(doc)
+        # entfernte Tabellen sollen keine Leerzeilen am Dateiende hinterlassen
+        text = tomlkit.dumps(doc).rstrip("\n") + "\n"
+        manifest = load_manifest(root, text=text)
+        _atomic_write(path, text)
     return manifest
+
+
+def register_lora(root: Path, lora: Lora) -> Manifest:
+    """Trägt eine trainierte LoRA in die Registry ein (Status OFFEN bis zur Freigabe)."""
+
+    def change(doc: tomlkit.TOMLDocument) -> None:
+        if "loras" not in doc:
+            doc["loras"] = tomlkit.table(is_super_table=True)
+        if lora.key in doc["loras"]:
+            raise ManifestError(f"LoRA '{lora.key}' ist bereits registriert.")
+        table = tomlkit.table()
+        for name, value in asdict(lora).items():
+            if name != "key":
+                table[name] = value
+        doc["loras"][lora.key] = table
+
+    return edit_manifest(root, change)
 
 
 def _workflow_table(doc: tomlkit.TOMLDocument, key: str):
@@ -391,13 +501,13 @@ def create_workflow(root: Path, source: str, title: str) -> tuple[Manifest, str]
         raise ManifestError(f"Workflow-Dateien für '{key}' existieren bereits.")
 
     def change(doc: tomlkit.TOMLDocument) -> None:
-        table = tomlkit.table()
-        table["engine"] = src.engine
+        # vollständige Kopie (Parameter, mask_output …); eigene Dateien, Titel, Abnahme offen
+        table = tomlkit.parse(tomlkit.dumps({"t": doc["workflows"][source]}))["t"]
+        table.pop("enabled", None)
         table["ui"] = ui
         table["api"] = api
         table["status"] = "OFFEN"
         table["title"] = title
-        table["params"] = tomlkit.parse(tomlkit.dumps(doc["workflows"][source]["params"]))
         doc["workflows"][key] = table
 
     _atomic_write(wdir / api, (wdir / src.api).read_text(encoding="utf-8"))
@@ -419,7 +529,9 @@ def replace_workflow_graph(
     wf = man.workflows.get(key)
     if wf is None:
         raise ManifestError(f"Workflow '{key}' ist nicht registriert.")
-    problems = graph_problems(wf, api, {f.comfy_name for f in man.engine_files(wf.engine)})
+    problems = graph_problems(
+        wf, api, engine_model_names(man.files, man.engines, man.loras, wf.engine)
+    )
     if problems:
         raise ManifestError("; ".join(problems))
     if reset_status and wf.status != "OFFEN":

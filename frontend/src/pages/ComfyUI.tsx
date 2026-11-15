@@ -13,6 +13,7 @@ import { takeRenderIntent, type RenderIntent } from "../core/intent";
 import { mediaUrl } from "../core/media";
 import { useConnection } from "../core/realtime";
 import { type MediaItem } from "../core/generated/darkfluenzer/v1/media_pb";
+import { type Character } from "../core/generated/darkfluenzer/v1/character_pb";
 import { useEventTopic, useStateTopic } from "../core/state";
 import { MediaPicker } from "./Files";
 
@@ -412,6 +413,13 @@ function WorkflowResults({
                   </span>
                 </button>
                 {job.result === JobResult.FAILED && job.error ? <p className="g-note g-error">{job.error}</p> : null}
+                {outs
+                  .filter((o) => !VIDEO.test(o.path) && !IMAGE.test(o.path))
+                  .map((o) => (
+                    <small key={o.path} className="g-ellipsis" title={`local/${o.path}`}>
+                      {o.path.split("/").pop()}
+                    </small>
+                  ))}
                 {isOpen ? (
                   <div className="g-details">
                     <JobParams workflow={job.workflow} params={job.params} />
@@ -431,6 +439,54 @@ function WorkflowResults({
       ) : (
         <p className="g-note">Ergebnisse erscheinen hier nach dem Rendern.</p>
       )}
+    </div>
+  );
+}
+
+const PHOTO_STATUS: Record<string, string> = {
+  incomplete: "wird kopiert",
+  unsupported: "Format",
+  unreadable: "nicht lesbar",
+  duplicate: "doppelt",
+  too_small: "zu klein",
+};
+
+/** Charaktertraining (Mitte, F7): geprüfter Inhalt des Trainingsdatenordners, Datensätze, LoRAs. */
+function TrainingFolder({ character }: { character: Character | undefined }) {
+  if (!character) return <p className="g-note">Keine Daten zum Trainingsordner.</p>;
+  const problems = character.photos.filter((p) => p.status !== "ok");
+  return (
+    <div className="g-training">
+      <h3>Charaktertraining</h3>
+      <p className="g-note">Alle geeigneten Bilder aus dem Trainingsordner werden automatisch als Datensatz verwendet.</p>
+      <div className="g-line">
+        <span>Geeignete Bilder</span>
+        <span className="g-value">
+          {character.usable} von {character.photos.length} · mindestens {character.minImages}
+        </span>
+      </div>
+      {problems.map((p) => (
+        <small key={p.name} className="g-line">
+          <span className="g-ellipsis">{p.name}</span>
+          <span className="g-value">{[PHOTO_STATUS[p.status] ?? p.status, p.note].filter(Boolean).join(" · ")}</span>
+        </small>
+      ))}
+      {character.datasets[0] ? (
+        <div className="g-line">
+          <span>Datensatz</span>
+          <span className="g-value">
+            {character.datasets[0].id} · {character.datasets[0].images} Bilder
+          </span>
+        </div>
+      ) : null}
+      {character.loras.map((l) => (
+        <div className="g-line" key={l.key}>
+          <span className="g-ellipsis">{l.key}</span>
+          <span className="g-badge" data-tone={WORKFLOW_TONE[l.status] ?? "neutral"}>
+            {l.status}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -456,6 +512,7 @@ function Workbench({
   canLoad: (key: string) => boolean;
 }) {
   const cmd = useCommand();
+  const character = useStateTopic(Topic.CHARACTERS)?.value.characters[0];
   const mine = (useStateTopic(Topic.JOBS_ACTIVE)?.value.jobs ?? []).filter((j) => j.workflow === wf.key);
   const running = mine.find((j) => j.running);
   const waiting = mine.filter((j) => !j.running).length;
@@ -485,7 +542,9 @@ function Workbench({
       ? "Gesperrt"
       : !wf.modelsReady
         ? `Modelle fehlen (${wf.missingGb.toFixed(1)} GB)`
-        : "";
+        : wf.training && (!character || character.usable < character.minImages)
+          ? `Zu wenige geeignete Bilder (${character?.usable ?? 0}/${character?.minImages ?? "?"})`
+          : "";
 
   async function generate() {
     setChecked(true);
@@ -609,6 +668,7 @@ function Workbench({
             Aus einem Auftrag geladen{wf.params.some((p) => p.upload) ? " – Bilddateien neu wählen." : "."}
           </p>
         ) : null}
+        {wf.training ? <TrainingFolder character={character} /> : null}
         <div className="g-form">{[...wf.params.filter((p) => inMain(p) && !p.upload), ...wf.params.filter((p) => p.upload)].map(field)}</div>
         <WorkflowResults wf={wf} running={running} waiting={waiting} onLoad={onLoad} canLoad={canLoad} />
       </div>
@@ -620,6 +680,12 @@ function Workbench({
             <span>Charakter</span>
             <span className="g-value">kein Profil angelegt</span>
           </div>
+          {wf.training && character ? (
+            <div className="g-stack">
+              <span>Trainingsdatenordner</span>
+              <small className="g-mono">{character.photosDir}/</small>
+            </div>
+          ) : null}
           <div className="g-line">
             <span>Workflow</span>
             <span className="g-value">
@@ -672,7 +738,7 @@ function Workbench({
           </details>
         ) : null}
         <button type="button" className="g-button g-primary g-block" disabled={!live || Boolean(blocked) || cmd.pending} onClick={() => void generate()}>
-          Generieren
+          {wf.training ? "Training starten" : "Generieren"}
         </button>
         {blocked ? <small>{blocked}</small> : null}
         {cmd.notice ? (

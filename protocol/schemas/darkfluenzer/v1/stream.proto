@@ -15,6 +15,7 @@ enum Topic {
   TOPIC_UNSPECIFIED = 0;
   TOPIC_JOBS_ACTIVE = 2; // STATE darkfluenzer.v1.JobsActive
   TOPIC_COMFY_WORKFLOWS = 3; // STATE darkfluenzer.v1.Workflows
+  TOPIC_CHARACTERS = 5; // STATE darkfluenzer.v1.Characters
   TOPIC_COMFY_INSTANCES = 6; // STATE darkfluenzer.v1.ComfyInstances
   TOPIC_RESOURCES = 7; // STATE darkfluenzer.v1.Resources
   TOPIC_JOB_COMPLETED = 20; // EVENT darkfluenzer.v1.JobCompleted

@@ -1,10 +1,130 @@
 {
-  "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "sdxl/lustifySDXLNSFWSFW_v20.safetensors"}, "_meta": {"title": "LUSTIFY! v2.0 (SDXL)"}},
-  "2": {"class_type": "LoadImage", "inputs": {"image": "reference.png"}, "_meta": {"title": "Ausgangsbild (Master bleibt unverändert gespeichert)"}},
-  "3": {"class_type": "CLIPTextEncode", "inputs": {"text": "professional photorealistic adult fashion portrait, realistic natural anatomy, consistent facial characteristics, natural lighting and materials, no stylization", "clip": ["1", 1]}, "_meta": {"title": "Prompt (A03 Refine)"}},
-  "4": {"class_type": "CLIPTextEncode", "inputs": {"text": "CGI, painting, plastic skin, oversharpened, distorted face, duplicate limbs, unnatural lighting", "clip": ["1", 1]}, "_meta": {"title": "Negativ-Prompt"}},
-  "5": {"class_type": "VAEEncode", "inputs": {"pixels": ["2", 0], "vae": ["1", 2]}},
-  "6": {"class_type": "KSampler", "inputs": {"model": ["1", 0], "seed": 123456, "steps": 30, "cfg": 5.0, "sampler_name": "dpmpp_2m", "scheduler": "karras", "positive": ["3", 0], "negative": ["4", 0], "latent_image": ["5", 0], "denoise": 0.25}, "_meta": {"title": "Sampler (A03: denoise 0,25)"}},
-  "7": {"class_type": "VAEDecode", "inputs": {"samples": ["6", 0], "vae": ["1", 2]}},
-  "8": {"class_type": "SaveImage", "inputs": {"images": ["7", 0], "filename_prefix": "darkfluenzer/lustify_refine"}, "_meta": {"title": "Refined (separat gespeichert)"}}
+ "1": {
+  "class_type": "CheckpointLoaderSimple",
+  "inputs": {
+   "ckpt_name": "sdxl/lustifySDXLNSFWSFW_v20.safetensors"
+  },
+  "_meta": {
+   "title": "LUSTIFY! v2.0 (SDXL)"
+  }
+ },
+ "2": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "reference.png"
+  },
+  "_meta": {
+   "title": "Ausgangsbild (Master bleibt unverändert gespeichert)"
+  }
+ },
+ "3": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "text": "professional photorealistic adult fashion portrait, realistic natural anatomy, consistent facial characteristics, natural lighting and materials, no stylization",
+   "clip": [
+    "1",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "Prompt (A03 Refine)"
+  }
+ },
+ "4": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "text": "CGI, painting, plastic skin, oversharpened, distorted face, duplicate limbs, unnatural lighting",
+   "clip": [
+    "1",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "Negativ-Prompt"
+  }
+ },
+ "5": {
+  "class_type": "VAEEncode",
+  "inputs": {
+   "pixels": [
+    "9",
+    0
+   ],
+   "vae": [
+    "1",
+    2
+   ]
+  }
+ },
+ "6": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "1",
+    0
+   ],
+   "seed": 123456,
+   "steps": 30,
+   "cfg": 5.0,
+   "sampler_name": "dpmpp_2m",
+   "scheduler": "karras",
+   "positive": [
+    "3",
+    0
+   ],
+   "negative": [
+    "4",
+    0
+   ],
+   "latent_image": [
+    "5",
+    0
+   ],
+   "denoise": 0.25
+  },
+  "_meta": {
+   "title": "Sampler (A03: denoise 0,25)"
+  }
+ },
+ "7": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "6",
+    0
+   ],
+   "vae": [
+    "1",
+    2
+   ]
+  }
+ },
+ "8": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "images": [
+    "7",
+    0
+   ],
+   "filename_prefix": "darkfluenzer/lustify_refine"
+  },
+  "_meta": {
+   "title": "Refined (separat gespeichert)"
+  }
+ },
+ "9": {
+  "class_type": "ResizeImageMaskNode",
+  "inputs": {
+   "input": [
+    "2",
+    0
+   ],
+   "resize_type": "scale shorter dimension",
+   "resize_type.shorter_size": 1080,
+   "scale_method": "lanczos"
+  },
+  "_meta": {
+   "title": "Eingabe · auf 1K skalieren (kurze Seite)"
+  }
+ }
 }

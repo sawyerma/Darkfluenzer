@@ -1,8 +1,8 @@
 {
- "id": "31a91ba2-d664-5504-a88d-64698efeb013",
+ "id": "e1b3b2b2-f782-5880-8435-c2f4bd489000",
  "revision": 0,
- "last_node_id": 8,
- "last_link_id": 11,
+ "last_node_id": 9,
+ "last_link_id": 12,
  "nodes": [
   {
    "id": 1,
@@ -75,7 +75,7 @@
      "name": "IMAGE",
      "type": "IMAGE",
      "links": [
-      3
+      12
      ],
      "slot_index": 0
     },
@@ -176,15 +176,15 @@
    "id": 5,
    "type": "VAEEncode",
    "pos": [
-    460,
-    396
+    880,
+    40
    ],
    "size": [
     360,
     118
    ],
    "flags": {},
-   "order": 4,
+   "order": 5,
    "mode": 0,
    "inputs": [
     {
@@ -217,7 +217,7 @@
    "id": 6,
    "type": "KSampler",
    "pos": [
-    880,
+    1300,
     40
    ],
    "size": [
@@ -225,7 +225,7 @@
     334
    ],
    "flags": {},
-   "order": 5,
+   "order": 6,
    "mode": 0,
    "inputs": [
     {
@@ -277,7 +277,7 @@
    "id": 7,
    "type": "VAEDecode",
    "pos": [
-    1300,
+    1720,
     40
    ],
    "size": [
@@ -285,7 +285,7 @@
     118
    ],
    "flags": {},
-   "order": 6,
+   "order": 7,
    "mode": 0,
    "inputs": [
     {
@@ -318,7 +318,7 @@
    "id": 8,
    "type": "SaveImage",
    "pos": [
-    1720,
+    2140,
     40
    ],
    "size": [
@@ -326,7 +326,7 @@
     118
    ],
    "flags": {},
-   "order": 7,
+   "order": 8,
    "mode": 0,
    "inputs": [
     {
@@ -350,6 +350,47 @@
     "darkfluenzer/lustify_refine"
    ],
    "title": "Refined (separat gespeichert)"
+  },
+  {
+   "id": 9,
+   "type": "ResizeImageMaskNode",
+   "pos": [
+    460,
+    396
+   ],
+   "size": [
+    360,
+    166
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "input",
+     "type": "IMAGE,MASK",
+     "link": 12
+    }
+   ],
+   "outputs": [
+    {
+     "name": "resized",
+     "type": "*",
+     "links": [
+      3
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ResizeImageMaskNode"
+   },
+   "widgets_values": [
+    "scale shorter dimension",
+    1080,
+    "lanczos"
+   ],
+   "title": "Eingabe · auf 1K skalieren (kurze Seite)"
   }
  ],
  "links": [
@@ -371,11 +412,11 @@
   ],
   [
    3,
-   2,
+   9,
    0,
    5,
    0,
-   "IMAGE"
+   "*"
   ],
   [
    4,
@@ -438,6 +479,14 @@
    7,
    0,
    8,
+   0,
+   "IMAGE"
+  ],
+  [
+   12,
+   2,
+   0,
+   9,
    0,
    "IMAGE"
   ]

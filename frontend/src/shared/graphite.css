@@ -83,6 +83,7 @@
 
   /* Typografie */
   --g-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  --g-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
   --g-fs-base: 14px;
   --g-lh-base: 1.45;
   --g-fs-h1: 20px;
@@ -224,6 +225,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-expert[open] summary { color: var(--g-text-strong); }
 .g-button.g-block { width: 100%; }
 .g-result { margin-top: var(--g-gap-lg); padding-top: var(--g-gap-md); border-top: 1px solid var(--g-line); }
+.g-training { margin: var(--g-gap-md) 0 var(--g-gap-lg); }
+.g-stack { display: flex; flex-direction: column; gap: var(--g-gap-xs); padding: var(--g-gap-sm) 0; border-bottom: 1px solid var(--g-line); }
+.g-training h3 { margin: 0 0 var(--g-gap-sm); font-size: var(--g-fs-body); }
+.g-mono { font-family: var(--g-font-mono); }
 .g-results { display: grid; gap: var(--g-gap-md); grid-template-columns: repeat(auto-fill, minmax(var(--g-tile-min), 1fr)); }
 .g-results .g-row { margin-top: var(--g-gap-xs); font-size: var(--g-fs-small); }
 .g-new { margin-bottom: var(--g-gap-sm); align-self: flex-start; }

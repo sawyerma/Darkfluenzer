@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package darkfluenzer.v1;
+
+// Charaktere, Trainingsdatenordner und Charakter-LoRAs (PHASENPLAN_V0 §9.2, B1/B2).
+// B1: genau ein Charakter mit dem Trainingsdatenordner local/character/photos;
+// Profile, Referenzen und Prüfsatz folgen additiv in B2.
+
+// Eine Datei im Trainingsdatenordner und ihr Prüfergebnis (der Ordner wird nie verändert).
+message TrainingPhoto {
+  string name = 1;
+  // ok | incomplete | unsupported | unreadable | duplicate | too_small
+  string status = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+  string note = 5;
+}
+
+// Versionierter Datensatz: gleiche Bildmenge ergibt dieselbe Version.
+message TrainingDataset {
+  string id = 1;
+  uint32 images = 2;
+  string created_at = 3;
+  string trigger = 4;
+}
+
+// Trainierte Charakter-LoRA aus der Registry (workflows/manifest.toml [loras.*]).
+message CharacterLora {
+  string key = 1;
+  // Basis-Engine, auf der trainiert wurde (Architekturbindung)
+  string base_engine = 2;
+  string dataset = 3;
+  string trigger = 4;
+  uint32 steps = 5;
+  uint32 rank = 6;
+  // OFFEN | PASS | GESPERRT
+  string status = 7;
+  string created_at = 8;
+}
+
+message Character {
+  string id = 1;
+  string name = 2;
+  // Trainingsdatenordner relativ zum Projekt
+  string photos_dir = 3;
+  repeated TrainingPhoto photos = 4;
+  // geeignete Bilder und Mindestzahl für einen Datensatz
+  uint32 usable = 5;
+  uint32 min_images = 6;
+  repeated TrainingDataset datasets = 7;
+  repeated CharacterLora loras = 8;
+}
+
+// STATE characters
+message Characters {
+  repeated Character characters = 1;
+  // Domain-Version „characters“ (nach dem Speichern erhöht)
+  uint64 version = 2;
+}

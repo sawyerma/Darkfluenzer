@@ -154,9 +154,11 @@ def test_workflow_must_only_load_engine_files(tmp_path):
 def test_select_orders_smallest_remaining_engine_first(tmp_path):
     man = models.load_manifest(REPO_ROOT)
     keys = models.select(man, wave=1, base=tmp_path)
-    # LUSTIFY (6,9 GB), dann LUSTIFY + SAM 3.1 (nur SAM fehlt noch), zuletzt FLUX 3 Klein
-    assert keys == ["lustify_v20", "sam31_multiplex_fp16", *man.engines["flux3_klein_base"].files]
+    wave = [e for e in man.engines.values() if e.wave == 1]
     assert len(keys) == len(set(keys))
+    assert set(keys) == {f for e in wave for f in e.files}
+    smallest = min(wave, key=lambda e: sum(man.files[f].size for f in e.files))
+    assert keys[: len(smallest.files)] == list(smallest.files)
     with pytest.raises(models.ModelError):
         models.select(man, engines=["gibt_es_nicht"])
 

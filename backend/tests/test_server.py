@@ -16,7 +16,7 @@ from darkfluenzer import comfy, models, runtime, server
 from darkfluenzer.config import project_root
 from darkfluenzer.store import Store
 from darkfluenzer.stream import PROTOCOL_MAJOR
-from darkfluenzer.v1 import comfy_pb2, commands_pb2, media_pb2
+from darkfluenzer.v1 import character_pb2, comfy_pb2, commands_pb2, media_pb2
 from darkfluenzer.v1 import stream_pb2 as pb
 
 
@@ -232,6 +232,7 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
             (pb.TOPIC_RESOURCES, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_JOBS_ACTIVE, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_COMFY_WORKFLOWS, pb.TOPIC_CLASS_STATE),
+            (pb.TOPIC_CHARACTERS, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_JOB_COMPLETED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_MEDIA_ADDED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_MEDIA_REMOVED, pb.TOPIC_CLASS_EVENT),
@@ -358,6 +359,9 @@ def test_workflow_commands_enable_render_fifo_and_delete(cfg):
         assert set(created.params) == set(man.workflows[t2i].params)
         assert comfy.editor_file(cfg.comfyui, "portraet_neu").is_file()
         assert "vergeben" in (await answer(cmd(create_workflow=new))).detail
+        edit = commands_pb2.CreateWorkflow(source="lustify_sam31_edit", title="Ausziehen Neu")
+        assert (await answer(cmd(create_workflow=edit))).detail == ""
+        assert models.load_manifest(cfg.root).workflows["ausziehen_neu"].mask_output == "19"
 
         gone = "lustify_sdxl_refine"
         files = [cfg.root / "workflows" / f for f in ("image/lustify_sdxl_refine.api.json",)]
@@ -426,5 +430,41 @@ def test_provenance_of_a_rendered_medium(cfg):
         ]
         assert prov.memory.ram_free_min_gb == 50.0
         assert (await client.get("/api/v1/provenance/999999")).status == 404
+
+    _run(cfg, scenario)
+
+
+def test_characters_state_pushes_training_folder_changes(cfg):
+    """Trainingsdatenordner per Push: neue, fertig kopierte Bilder erscheinen geprüft im STATE."""
+    from PIL import Image
+
+    cfg = dataclasses.replace(cfg, server=dataclasses.replace(cfg.server, observe_s=0.1))
+    photos = cfg.local / "character" / "photos"
+    photos.mkdir(parents=True)
+
+    async def scenario(client, app, origin):
+        await _csrf(client)
+        ws = await client.ws_connect("/ws/v1/stream", headers={"Origin": origin})
+        hello = pb.Hello(protocol_major=PROTOCOL_MAJOR, schema_id=app[server.HUB_KEY].schema)
+        await ws.send_bytes(pb.ClientMessage(hello=hello).SerializeToString())
+        assert (await _frame(ws)).welcome.status == pb.WELCOME_STATUS_ACCEPTED
+        sub = pb.Subscribe(topic=pb.TOPIC_CHARACTERS)
+        await ws.send_bytes(pb.ClientMessage(subscribe=sub).SerializeToString())
+        first = character_pb2.Characters.FromString((await _frame(ws)).state_full.payload)
+        (char,) = first.characters
+        assert char.photos_dir == "local/character/photos" and not char.photos
+        assert char.usable == 0 and char.min_images > 0
+
+        for name, side in (("gross.png", 1024), ("klein.png", 512)):
+            Image.new("RGB", (side, side), (side % 255, 40, 90)).save(photos / name)
+            os.utime(photos / name, (1, 1))  # fertig kopiert (älter als die Ruhezeit)
+        later = character_pb2.Characters.FromString((await _frame(ws)).state_full.payload)
+        (char,) = later.characters
+        assert {(p.name, p.status) for p in char.photos} == {
+            ("gross.png", "ok"),
+            ("klein.png", "too_small"),
+        }
+        assert char.usable == 1 and later.version > first.version
+        await ws.close()
 
     _run(cfg, scenario)

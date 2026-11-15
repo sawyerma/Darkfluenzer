@@ -20,6 +20,19 @@ video_i2v = ""
 
 # ------------------------------------------------------------------------------------ Engines
 
+[engines.krea2_turbo]
+title = "Krea 2 Turbo (BF16) – Foto"
+kind = "image"
+role = "master"
+arch = "krea2"
+precision = "bf16"
+wave = 1
+files = ["krea2_turbo_bf16", "krea2_qwen3vl_4b_bf16", "qwen_image_vae"]
+license = "Krea 2 Community License"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Inferenzmodell (destilliert): Vorlage image_krea2_turbo_t2i – 8 Schritte, CFG 1, euler/simple, Negativ leer; Prompt-Erweiterer der Vorlage nicht übernommen (bekleidet jede Person). Raw = Trainingsbasis, nicht für Inferenz (Modellkarte)."
+
 [engines.flux3_klein_base]
 title = "FLUX 3 Image Klein Base (BF16, undestilliert)"
 kind = "image"
@@ -34,7 +47,7 @@ gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "O
 note = "Modellkarte: 50 Schritte, Guidance 3,5, Prompt-Upsampling empfohlen. Repo gated – Lizenz auf HF akzeptieren."
 
 [engines.lustify_sdxl]
-title = "LUSTIFY! v2.0 (SDXL) – maskiertes Spezial-Inpainting"
+title = "LUSTIFY! v2.0 (SDXL)"
 kind = "image"
 role = "edit"
 arch = "sdxl"
@@ -83,7 +96,7 @@ files = ["wan22_remix_i2v_high_v30_fp8", "wan22_remix_i2v_low_v30_fp8", "umt5_xx
 license = "unbekannt (Repo: license other)"
 usage = "evaluation"
 gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
-note = "v3.0 existiert nur als FP8; FP8-Tensoren sind auf MPS nicht nativ nutzbar (geprüft 14.11.2026) – Ladeweg separat testen."
+note = "v3.0 existiert nur als FP8; FP8-Tensoren sind auf MPS nicht nativ nutzbar (geprüft 14.11.2026). Autorvorgabe Lightning: 4+4 Schritte, CFG 1, euler/simple, Shift 8 (Workflow seit 15.11.2026); Negativ-Prompt bei CFG 1 ohne Wirkung."
 
 [engines.ltx25_fast]
 title = "LTX 2.5 22B distilliert (BF16) – Video-Ersatzpfad"
@@ -125,7 +138,24 @@ target = "vae/flux2/flux2-vae.safetensors"
 size = 336211292
 sha256 = "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3"
 
-# keiner Engine zugeordnet: dieselbe Datei (SHA-256) wie Comfy-Org/Krea-2 vae/qwen_image_vae.safetensors – Krea 2
+[files.krea2_turbo_bf16]
+repo = "Comfy-Org/Krea-2"
+revision = "588feaf955b08b9ac4723eeb751752ab045dba71"
+source = "diffusion_models/krea2_turbo_bf16.safetensors"
+target = "diffusion_models/krea2/krea2_turbo_bf16.safetensors"
+size = 26283332608
+sha256 = "78bbf8f4165eda19cea3cb06c78089221932a39e2eed8af9da741f942c47ffb3"
+
+# Krea-2-Textencoder; Datei weicht von der FLUX-3-Fassung ab (anderer SHA-256, 24 Byte Kopf)
+[files.krea2_qwen3vl_4b_bf16]
+repo = "Comfy-Org/Krea-2"
+revision = "588feaf955b08b9ac4723eeb751752ab045dba71"
+source = "text_encoders/qwen3vl_4b_bf16.safetensors"
+target = "text_encoders/krea2/qwen3vl_4b_bf16.safetensors"
+size = 8875719384
+sha256 = "36f3ff447ef59201722e8f9ce6020c9819fdcfba6aa2608c4e09b1c0ce114e34"
+
+# dieselbe Datei (SHA-256) wie Comfy-Org/Krea-2 vae/qwen_image_vae.safetensors (Krea 2)
 [files.qwen_image_vae]
 repo = "Comfy-Org/Qwen-Image_ComfyUI"
 revision = "1f12b17be14c89b026c51a91d67c32f84bb047bc"
@@ -343,7 +373,6 @@ title = "Wan 2.2 Remix v3.0 · Bild zu Video"
 [workflows.wan22_remix_v30_i2v.params]
 image = { node = "1", input = "image", type = "str", required = true, upload = true }
 prompt = { node = "5", input = "text", type = "str", required = true }
-negative_prompt = { node = "6", input = "text", type = "str" }
 seed = { node = "11", input = "noise_seed", type = "int", min = 0, max = 4294967295 }
 width = { node = "8", input = "width", type = "int", min = 320, max = 1280, multiple_of = 16 }
 height = { node = "8", input = "height", type = "int", min = 320, max = 1280, multiple_of = 16 }
@@ -362,6 +391,7 @@ negative_prompt = { node = "4", input = "text", type = "str" }
 seed = { node = "6", input = "seed", type = "int", min = 0, max = 4294967295 }
 steps = { node = "6", input = "steps", type = "int", min = 8, max = 80 }
 denoise = { node = "6", input = "denoise", type = "float", min = 0.05, max = 0.6 }
+short_side = { node = "9", input = "resize_type.shorter_size", type = "int", min = 512, max = 4096, label = "Kurze Seite des Ergebnisses (px)" }
 
 [workflows.lustify_sam31_edit]
 engine = "lustify_sam31_edit"
@@ -382,3 +412,31 @@ steps = { node = "14", input = "steps", type = "int", min = 8, max = 80 }
 denoise = { node = "14", input = "denoise", type = "float", min = 0.3, max = 1.0 }
 mask_grow = { node = "7", input = "expand", type = "int", min = 0, max = 64 }
 threshold = { node = "4", input = "threshold", type = "float", min = 0.05, max = 0.95, label = "Erkennungsschwelle" }
+
+[workflows.krea2_turbo_t2i]
+engine = "krea2_turbo"
+ui = "image/krea2_turbo_t2i.ui.json"
+api = "image/krea2_turbo_t2i.api.json"
+status = "OFFEN"
+title = "Krea 2 Turbo · Text zu Bild"
+
+[workflows.krea2_turbo_t2i.params]
+prompt = { node = "4", input = "text", type = "str", required = true }
+seed = { node = "7", input = "seed", type = "int", min = 0, max = 4294967295 }
+steps = { node = "7", input = "steps", type = "int", min = 4, max = 50 }
+width = { node = "6", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
+height = { node = "6", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
+
+[workflows.lustify_sdxl_lora_train]
+engine = "lustify_sdxl"
+ui = "image/lustify_sdxl_lora_train.ui.json"
+api = "image/lustify_sdxl_lora_train.api.json"
+status = "OFFEN"
+title = "LUSTIFY · Charakter-LoRA trainieren"
+training = { dataset = "2", lora = "5" }
+
+[workflows.lustify_sdxl_lora_train.params]
+steps = { node = "4", input = "steps", type = "int", min = 50, max = 10000, label = "Trainingsschritte" }
+rank = { node = "4", input = "rank", type = "int", min = 4, max = 128, label = "LoRA-Rang" }
+learning_rate = { node = "4", input = "learning_rate", type = "float", min = 0.000001, max = 0.01, label = "Lernrate" }
+seed = { node = "4", input = "seed", type = "int", min = 0, max = 4294967295 }

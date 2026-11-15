@@ -113,6 +113,68 @@ def scan(local: Path, now: float | None = None) -> list[Photo]:
     return result
 
 
+def signature(local: Path, now: float | None = None) -> tuple:
+    """Günstiger Änderungsstempel von Trainingsordner und Datensätzen (Name, Größe, mtime) ohne
+    Hashen. Solange eine Datei noch kopiert wird, ändert er sich mit der Zeit (erneut prüfen)."""
+    now = time.time() if now is None else now
+    entries = []
+    for folder in (character_dir(local) / "photos", character_dir(local) / "dataset"):
+        for path in sorted(folder.iterdir()) if folder.is_dir() else []:
+            stat = path.stat()
+            entries.append((folder.name, path.name, stat.st_size, stat.st_mtime_ns))
+            if now - stat.st_mtime < SETTLE_S:
+                entries.append(("settling", int(now)))
+    return tuple(entries)
+
+
+def datasets(local: Path) -> list[dict]:
+    """Vorhandene Datensatzversionen (neueste zuerst) aus ihren ``dataset.json``."""
+    found = []
+    for meta in (character_dir(local) / "dataset").glob("ds_*/dataset.json"):
+        try:
+            data = json.loads(meta.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        found.append(
+            {
+                "id": meta.parent.name,
+                "images": len(data.get("items") or []),
+                "created_at": str(data.get("created_at", "")),
+                "trigger": str(data.get("trigger", "")),
+            }
+        )
+    return sorted(found, key=lambda d: d["created_at"], reverse=True)
+
+
+def stage_dataset(dataset_dir: Path, input_dir: Path) -> str:
+    """Legt eine Datensatzversion für ComfyUI-Training in dessen Eingang ab: Bilder und je Bild
+    die Caption als ``.txt`` (gleicher Name). Liefert den Ordner relativ zum Eingang; eine schon
+    abgelegte Version bleibt unverändert (gleiche ID = gleicher Inhalt)."""
+    meta = json.loads((dataset_dir / "dataset.json").read_text(encoding="utf-8"))
+    rel = f"darkfluenzer_datasets/{dataset_dir.name}"
+    target = input_dir / rel
+    if target.is_dir():
+        return rel
+    tmp = target.with_name(f".{target.name}.tmp")
+    shutil.rmtree(tmp, ignore_errors=True)
+    tmp.mkdir(parents=True)
+    for item in meta["items"]:
+        shutil.copy2(dataset_dir / item["file"], tmp / item["file"])
+        (tmp / Path(item["file"]).with_suffix(".txt").name).write_text(
+            item["caption"], encoding="utf-8"
+        )
+    os.replace(tmp, target)
+    return rel
+
+
+def take_lora(output_dir: Path, prefix: str) -> Path:
+    """Die von SaveLoRA unter ``prefix`` gespeicherte Datei (``<prefix>_<n>_steps_<z>_``)."""
+    found = sorted(output_dir.glob(f"{prefix}_*.safetensors"))
+    if len(found) != 1:
+        raise TrainingError(f"LoRA-Datei unter {prefix} nicht eindeutig gefunden ({len(found)}).")
+    return found[0]
+
+
 def bucket(width: int, height: int) -> tuple[int, int]:
     aspect = width / height
     return min(BUCKETS, key=lambda b: abs(math.log((b[0] / b[1]) / aspect)))

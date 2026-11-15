@@ -44,6 +44,10 @@ class ComfyConfig:
     stop_timeout_s: float
     data_dir: Path | None  # eigene user/input/output/temp-Ordner; None = ComfyUI-Standard
 
+    def folder(self, sub: str) -> Path:
+        """Eigener Ordner der Instanz (user, input, output, temp)."""
+        return (self.data_dir if self.data_dir is not None else self.path) / sub
+
     @property
     def url(self) -> str:
         host = f"[{self.host}]" if ":" in self.host else self.host

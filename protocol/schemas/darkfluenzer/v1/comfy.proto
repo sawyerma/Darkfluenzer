@@ -131,6 +131,8 @@ message WorkflowInfo {
   repeated WorkflowParam params = 12;
   // Ausführende Instanz (media | ai) laut Engine
   string instance = 13;
+  // Trainingsworkflow: trainiert eine Charakter-LoRA aus dem Trainingsdatenordner (B1)
+  bool training = 14;
 }
 
 // STATE comfy.workflows

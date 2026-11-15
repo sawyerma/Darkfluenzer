@@ -1,0 +1,363 @@
+{
+ "id": "a6f4f34d-ef3a-5a11-912c-27cc908cb47c",
+ "revision": 0,
+ "last_node_id": 5,
+ "last_link_id": 9,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "CheckpointLoaderSimple",
+   "pos": [
+    40,
+    40
+   ],
+   "size": [
+    360,
+    142
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      5
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      3
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      2
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CheckpointLoaderSimple"
+   },
+   "widgets_values": [
+    "sdxl/lustifySDXLNSFWSFW_v20.safetensors"
+   ],
+   "title": "Modell · LUSTIFY! v2.0 (Trainingsbasis)"
+  },
+  {
+   "id": 2,
+   "type": "LoadImageTextDataSetFromFolder",
+   "pos": [
+    40,
+    242
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "texts",
+     "type": "STRING",
+     "links": [
+      4
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImageTextDataSetFromFolder"
+   },
+   "widgets_values": [
+    "darkfluenzer_datasets"
+   ],
+   "title": "Eingabe · Datensatz (setzt Darkfluenzer)"
+  },
+  {
+   "id": 3,
+   "type": "MakeTrainingDataset",
+   "pos": [
+    460,
+    40
+   ],
+   "size": [
+    360,
+    190
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 1
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 2
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 3
+    },
+    {
+     "name": "texts",
+     "type": "STRING",
+     "link": 4
+    }
+   ],
+   "outputs": [
+    {
+     "name": "latents",
+     "type": "LATENT",
+     "links": [
+      6
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "links": [
+      7
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MakeTrainingDataset"
+   },
+   "widgets_values": [],
+   "title": "Training · Latents und Captions"
+  },
+  {
+   "id": 4,
+   "type": "TrainLoraNode",
+   "pos": [
+    880,
+    40
+   ],
+   "size": [
+    360,
+    622
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 5
+    },
+    {
+     "name": "latents",
+     "type": "LATENT",
+     "link": 6
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 7
+    }
+   ],
+   "outputs": [
+    {
+     "name": "lora",
+     "type": "LORA_MODEL",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "loss_map",
+     "type": "LOSS_MAP",
+     "links": [],
+     "slot_index": 1
+    },
+    {
+     "name": "steps",
+     "type": "INT",
+     "links": [
+      9
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "TrainLoraNode"
+   },
+   "widgets_values": [
+    1,
+    1,
+    1500,
+    0.0001,
+    16,
+    "AdamW",
+    "MSE",
+    1,
+    "bf16",
+    "bf16",
+    false,
+    "LoRA",
+    true,
+    1,
+    false,
+    "[None]",
+    false,
+    false
+   ],
+   "title": "Training · Charakter-LoRA"
+  },
+  {
+   "id": 5,
+   "type": "SaveLoRA",
+   "pos": [
+    1300,
+    40
+   ],
+   "size": [
+    360,
+    142
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "lora",
+     "type": "LORA_MODEL",
+     "link": 8
+    },
+    {
+     "name": "steps",
+     "type": "INT",
+     "link": 9,
+     "widget": {
+      "name": "steps"
+     }
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "SaveLoRA"
+   },
+   "widgets_values": [
+    "loras/darkfluenzer/character",
+    null
+   ],
+   "title": "Ausgabe · LoRA (übernimmt Darkfluenzer)"
+  }
+ ],
+ "links": [
+  [
+   1,
+   2,
+   0,
+   3,
+   0,
+   "IMAGE"
+  ],
+  [
+   2,
+   1,
+   2,
+   3,
+   1,
+   "VAE"
+  ],
+  [
+   3,
+   1,
+   1,
+   3,
+   2,
+   "CLIP"
+  ],
+  [
+   4,
+   2,
+   1,
+   3,
+   3,
+   "STRING"
+  ],
+  [
+   5,
+   1,
+   0,
+   4,
+   0,
+   "MODEL"
+  ],
+  [
+   6,
+   3,
+   0,
+   4,
+   1,
+   "LATENT"
+  ],
+  [
+   7,
+   3,
+   1,
+   4,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   8,
+   4,
+   0,
+   5,
+   0,
+   "LORA_MODEL"
+  ],
+  [
+   9,
+   4,
+   2,
+   5,
+   1,
+   "INT"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {
+  "ds": {
+   "scale": 0.75,
+   "offset": [
+    0,
+    0
+   ]
+  }
+ },
+ "version": 0.4
+}
