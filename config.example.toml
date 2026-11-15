@@ -79,15 +79,24 @@ candidates_default = 3
 candidates_max = 6
 stage_attempts_max = 3
 
-# Telegram-Adapter (PHASENPLAN_V0 §6, C2): Bot der Influencerin, Long-Polling ohne öffentlichen
-# Zugang. Der Bot-Token liegt ausschließlich im macOS-Schlüsselbund:
-#   security add-generic-password -U -a darkfluenzer -s darkfluenzer.telegram.bot_token -w
-# Ohne diesen Abschnitt ist Telegram nicht eingerichtet. api_base kann auf einen lokalen
-# Bot-API-Server zeigen (Dateien über 20 MB); max_download_mb ist dann entsprechend höher.
-[telegram]
-keychain_service = "darkfluenzer.telegram.bot_token"
-api_base = "https://api.telegram.org"
-poll_timeout_s = 50
-max_download_mb = 20
-send_timeout_s = 60
+# Claras Telegram-Konto (PHASENPLAN_V0 §6.1, C2d): Darkfluenzer meldet sich über TDLib als normales
+# Nutzerkonto an (kein Bot). TDLib bauen: launcher/setup_tdlib.sh. api_id/api_hash von
+# my.telegram.org (API development tools) liegen ausschließlich im macOS-Schlüsselbund:
+#   security add-generic-password -U -a darkfluenzer -s darkfluenzer.telegram.api_id -w
+#   security add-generic-password -U -a darkfluenzer -s darkfluenzer.telegram.api_hash -w
+# Den Datenbankschlüssel legt Darkfluenzer beim ersten Start selbst im Schlüsselbund an.
+# Anmeldung (Nummer -> Code -> Passwort) im Cockpit, Reiter Nachrichten. Ohne diesen Abschnitt ist
+# Telegram nicht eingerichtet. Testbetrieb (bis Claras SIM da ist): nur test_chat_ids werden
+# verarbeitet und gespeichert, alle anderen Chats verworfen; KI-Antworten gesperrt.
+[telegram_account]
+tdjson = "local/tdlib/libtdjson.dylib"
+data_dir = "local/telegram"
+test_mode = true
+test_chat_ids = []
+max_download_mb = 2000
+# Antworttempo gegen Sperren: Verzögerung vor jeder Nachricht, Schreibanzeige, Höchstzahl je Minute
+reply_delay_min_s = 4
+reply_delay_max_s = 20
+typing_chars_per_s = 6
+max_messages_per_minute = 6
 

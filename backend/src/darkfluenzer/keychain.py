@@ -11,6 +11,21 @@ import subprocess
 ACCOUNT = "darkfluenzer"
 
 
+def store_secret(service: str, value: str) -> bool:
+    """Eintrag anlegen oder ersetzen (nur für von Darkfluenzer erzeugte Werte wie den
+    TDLib-Datenbankschlüssel; Zugangsdaten legt der Betreiber selbst ab)."""
+    try:
+        result = subprocess.run(
+            ["security", "add-generic-password", "-U", "-a", ACCOUNT, "-s", service, "-w", value],
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
+
+
 def secret(service: str) -> str | None:
     """Wert eines Schlüsselbund-Eintrags oder None, wenn er fehlt."""
     try:

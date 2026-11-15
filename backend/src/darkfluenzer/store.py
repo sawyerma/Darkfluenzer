@@ -795,6 +795,47 @@ class Store:
             self.bump("conversations")
             return Inbound(customer, identity, conv, cur.lastrowid, created)
 
+    def record_external_outgoing(
+        self,
+        platform: str,
+        account: str,
+        partner_id: str,
+        platform_message_id: str,
+        text: str,
+        sent_at: str,
+        attachments: list[dict] | None = None,
+    ) -> tuple[int, int | None]:
+        """Ausgehende Nachricht, die nicht aus dem Postausgang stammt (der Betreiber schreibt am
+        Handy in Claras Konto, V0 §6.1 Punkt 5): genau einmal gespeichert; liefert
+        (Konversation, Nachricht oder None, wenn schon bekannt)."""
+        with self.tx() as db:
+            customer, identity, _ = self.customer_for_identity(platform, account, partner_id)
+            conv = self.conversation(identity, partner_id)
+            cur = db.execute(
+                "INSERT INTO channel_messages (customer_id, conversation_id, direction,"
+                " platform_message_id, text, attachments, status, sent_at, read_at, created_at)"
+                " VALUES (?,?,'out',?,?,?,'sent',?,?,?)"
+                " ON CONFLICT (conversation_id, direction, platform_message_id) DO NOTHING",
+                (
+                    customer.id,
+                    conv,
+                    platform_message_id,
+                    text,
+                    json.dumps(attachments or [], ensure_ascii=False),
+                    sent_at,
+                    now(),
+                    now(),
+                ),
+            )
+            if not cur.rowcount:
+                return conv, None
+            db.execute(
+                "UPDATE channel_conversations SET revision = revision + 1 WHERE id = ?", (conv,)
+            )
+            self._event("message", cur.lastrowid, "added", customer_id=customer.id)
+            self.bump("conversations")
+            return conv, cur.lastrowid
+
     def add_system_card(
         self,
         conversation_id: int,
@@ -991,6 +1032,15 @@ class Store:
                 " ON CONFLICT (platform, account, key) DO UPDATE SET value = excluded.value",
                 (platform, account, key, value),
             )
+
+    def adapter_prefixed(self, platform: str, account: str, prefix: str) -> dict[str, str]:
+        """Alle Adapterwerte eines Kontos mit Schlüsselpräfix (z. B. letzte Nachricht je Chat)."""
+        rows = self.db.execute(
+            "SELECT key, value FROM adapter_state WHERE platform = ? AND account = ?"
+            " AND substr(key, 1, length(?)) = ?",
+            (platform, account, prefix, prefix),
+        )
+        return {r[0][len(prefix) :]: r[1] for r in rows}
 
     def customers_overview(self, customer_id: int | None = None) -> list[dict]:
         """Kundenliste (F7.2): letzte Nachricht, Kanal, Zeit, ungelesen; Kanäle je Akte."""

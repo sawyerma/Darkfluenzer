@@ -17,8 +17,19 @@ message ChannelStatus {
   string error = 4;
   // Zeit des letzten Plattform-Ereignisses (Unix-ms, 0 = noch keins)
   int64 last_event_ms = 5;
-  // Was zur Einrichtung fehlt (z. B. „Bot-Token im Schlüsselbund“); leer, wenn eingerichtet
+  // Was zur Einrichtung fehlt (z. B. „api_id/api_hash im Schlüsselbund“); leer, wenn eingerichtet
   string missing = 6;
+  // Kontoanmeldung (Telegram über TDLib, V0 §6.1): phone | code | password | ready; leer = noch
+  // kein Anmeldeschritt (TDLib startet bzw. Voraussetzung fehlt)
+  string login_state = 7;
+  // Hinweis zum Zwei-Faktor-Passwort, wie bei Telegram hinterlegt
+  string login_hint = 8;
+  // Testbetrieb: nur freigegebene Test-Chats, KI-Antworten gesperrt
+  bool test_mode = 9;
+  // Automatik je Konto vom Betreiber freigegeben (Standard aus)
+  bool automation = 10;
+  // Telegram bremst den Versand bis zu dieser Zeit (Unix-ms; 0 = keine Bremse)
+  int64 flood_until_ms = 11;
 }
 
 // STATE channels

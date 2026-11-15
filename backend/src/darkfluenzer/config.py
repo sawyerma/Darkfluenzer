@@ -93,14 +93,22 @@ class ServerConfig:
 
 @dataclass(frozen=True)
 class TelegramConfig:
-    """Telegram-Adapter (V0 §6): Bot-Token im Schlüsselbund, Long-Polling ohne öffentlichen
-    Zugang; api_base auch für einen lokalen Bot-API-Server (größere Dateien)."""
+    """Claras Telegram-Konto über TDLib (V0 §6.1, C2d): ``api_id``/``api_hash`` und der
+    Datenbankschlüssel im Schlüsselbund; Testbetrieb nur mit freigegebenen Chat-IDs; Antworttempo
+    und Sendegrenze gegen Sperren."""
 
-    keychain_service: str
-    api_base: str
-    poll_timeout_s: float
+    tdjson: Path  # libtdjson (launcher/setup_tdlib.sh)
+    data_dir: Path  # TDLib-Sitzung und -Dateien (nur für den Benutzer lesbar)
+    api_id_service: str
+    api_hash_service: str
+    db_key_service: str
+    test_mode: bool
+    test_chat_ids: tuple[int, ...]
     max_download_mb: float
-    send_timeout_s: float
+    reply_delay_min_s: float
+    reply_delay_max_s: float
+    typing_chars_per_s: float
+    max_messages_per_minute: int
 
 
 @dataclass(frozen=True)
@@ -251,6 +259,41 @@ def _positive(t: dict, key: str, default: float, where: str) -> float:
     return float(val)
 
 
+def _parse_telegram(tg: object, root: Path, path: Path) -> TelegramConfig | None:
+    """[telegram_account]; fehlt der Abschnitt, ist der Kanal nicht eingerichtet."""
+    if tg is None:
+        return None
+    w = "telegram_account"
+    if not isinstance(tg, dict):
+        raise ConfigError(f"Konfiguration {path}: [{w}] muss ein Abschnitt sein.")
+    ids = tg.get("test_chat_ids", [])
+    if not isinstance(ids, list) or not all(
+        isinstance(i, int) and not isinstance(i, bool) for i in ids
+    ):
+        raise ConfigError(f"Konfiguration: {w}.test_chat_ids muss eine Liste von Chat-IDs sein.")
+    test_mode = tg.get("test_mode", True)
+    if not isinstance(test_mode, bool):
+        raise ConfigError(f"Konfiguration: {w}.test_mode muss true oder false sein.")
+    low = _positive(tg, "reply_delay_min_s", 4, w)
+    high = _positive(tg, "reply_delay_max_s", 20, w)
+    if low > high:
+        raise ConfigError(f"Konfiguration: {w}.reply_delay_min_s > reply_delay_max_s.")
+    return TelegramConfig(
+        tdjson=root / str(tg.get("tdjson", "local/tdlib/libtdjson.dylib")),
+        data_dir=root / str(tg.get("data_dir", "local/telegram")),
+        api_id_service=str(tg.get("api_id_service", "darkfluenzer.telegram.api_id")),
+        api_hash_service=str(tg.get("api_hash_service", "darkfluenzer.telegram.api_hash")),
+        db_key_service=str(tg.get("db_key_service", "darkfluenzer.telegram.db_key")),
+        test_mode=test_mode,
+        test_chat_ids=tuple(ids),
+        max_download_mb=_positive(tg, "max_download_mb", 2000, w),
+        reply_delay_min_s=low,
+        reply_delay_max_s=high,
+        typing_chars_per_s=_positive(tg, "typing_chars_per_s", 6, w),
+        max_messages_per_minute=int(_positive(tg, "max_messages_per_minute", 6, w)),
+    )
+
+
 def _parse_server(t: dict) -> ServerConfig:
     w = "server"
     host = _require(t, "host", str, w)
@@ -318,20 +361,7 @@ def load(root: Path | None = None) -> Config:
     )
     if production.candidates_default > production.candidates_max:
         raise ConfigError("Konfiguration: production.candidates_default > candidates_max.")
-    tg = data.get("telegram")
-    if tg is not None and not isinstance(tg, dict):
-        raise ConfigError(f"Konfiguration {path}: [telegram] muss ein Abschnitt sein.")
-    telegram = (
-        TelegramConfig(
-            keychain_service=str(tg.get("keychain_service", "darkfluenzer.telegram.bot_token")),
-            api_base=str(tg.get("api_base", "https://api.telegram.org")).rstrip("/"),
-            poll_timeout_s=_positive(tg, "poll_timeout_s", 50, "telegram"),
-            max_download_mb=_positive(tg, "max_download_mb", 20, "telegram"),
-            send_timeout_s=_positive(tg, "send_timeout_s", 60, "telegram"),
-        )
-        if tg is not None
-        else None
-    )
+    telegram = _parse_telegram(data.get("telegram_account"), root, path)
     return Config(
         root=root,
         comfyui=media,

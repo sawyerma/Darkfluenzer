@@ -9,7 +9,6 @@ import pytest
 from test_server import _csrf, _post, _run
 
 from darkfluenzer import server
-from darkfluenzer.channels.telegram import _files
 from darkfluenzer.store import Store, StoreError
 from darkfluenzer.v1 import channel_pb2, commands_pb2
 
@@ -73,21 +72,6 @@ def test_default_contact_takes_over_own_id(tmp_path):
     with pytest.raises(StoreError, match="geändert"):  # CAS
         store.update_default_contact(default["revision"], {}, {})
     store.close()
-
-
-def test_telegram_files_take_largest_photo_and_documents():
-    msg = {
-        "photo": [
-            {"file_id": "s", "file_size": 1000, "width": 90, "height": 90},
-            {"file_id": "l", "file_size": 90000, "width": 1280, "height": 960},
-        ],
-        "document": {"file_id": "d", "file_size": 30_000_000, "mime_type": "video/mp4"},
-    }
-    files = _files(msg)
-    assert [(f["kind"], f["file_id"], f["size"]) for f in files] == [
-        ("photo", "l", 90000),
-        ("document", "d", 30_000_000),
-    ]
 
 
 def test_pages_reply_guard_and_mark_read(cfg):

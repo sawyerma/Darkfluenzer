@@ -24,7 +24,7 @@ from aiohttp import web
 from google.protobuf.message import DecodeError
 
 from . import cloner, comfy, models, pipeline, runtime, training
-from .channels.telegram import TelegramAdapter
+from .channels.telegram import TelegramAccount
 from .config import ComfyConfig, Config
 from .store import Store, StoreError
 from .stream import Hub, schema_id
@@ -135,7 +135,7 @@ class Cockpit:
         store.settle_sending()  # vor dem Neustart begonnener Versand: Ergebnis unbekannt
         store.default_contact()  # interner Kontakt Default existiert genau einmal
         self.telegram = (
-            TelegramAdapter(cfg, store, self._on_inbound, self._channels_changed)
+            TelegramAccount(cfg, store, self._on_inbound, self._channels_changed)
             if cfg.telegram
             else None
         )
@@ -633,6 +633,8 @@ class Cockpit:
             "default_contact_update": self._default_contact_update,
             "start_cloner_order": self._start_cloner_order,
             "character_update": self._character_update,
+            "channel_account_login": self._channel_login,
+            "channel_account_update": self._channel_update,
             "set_workflow_enabled": self._set_enabled,
             "open_workflow": self._open,
             "adopt_workflow": self._adopt,
@@ -856,7 +858,9 @@ class Cockpit:
         if self.telegram:
             msg.channels.add(**self.telegram.status())
         else:
-            msg.channels.add(platform="telegram", state="OFF", missing="Abschnitt [telegram]")
+            msg.channels.add(
+                platform="telegram", state="OFF", missing="Abschnitt [telegram_account]"
+            )
         msg.channels.add(platform="instagram", state="OFF", missing="Meta-App und Tunnel")
         msg.channels.add(platform="whatsapp", state="OFF", missing="WhatsApp folgt später (C7)")
         return msg.SerializeToString()
@@ -999,6 +1003,24 @@ class Cockpit:
         self._orders_changed()
         return order_no
 
+    async def _channel_login(self, msg: commands_pb2.ChannelAccountLogin, call: _Call) -> str:
+        """Anmeldeschritt (Befehl 39); der Wert geht nur an TDLib (V0 §6.1 Punkt 2)."""
+        call.entity = f"channel:{msg.platform}"
+        if msg.platform != "telegram" or self.telegram is None:
+            return f"{msg.platform or 'Kanal'}: Kontoanmeldung nicht eingerichtet."
+        return await self.telegram.login_step(msg.step, msg.value)
+
+    async def _channel_update(self, msg: commands_pb2.ChannelAccountUpdate, call: _Call) -> str:
+        """Automatik freigeben/sperren oder abmelden (Befehl 40)."""
+        call.entity = f"channel:{msg.platform}"
+        if msg.platform != "telegram" or self.telegram is None:
+            return f"{msg.platform or 'Kanal'}: Konto nicht eingerichtet."
+        if msg.action == "logout":
+            return await self.telegram.logout()
+        if msg.action in ("enable_automation", "disable_automation"):
+            return self.telegram.set_automation(msg.action == "enable_automation")
+        return "Unbekannte Aktion."
+
     async def _character_update(self, msg: commands_pb2.CharacterUpdate, call: _Call) -> str:
         """Charakterprofil anlegen oder ändern; ein angegebener Trainingsdatenordner muss
         existieren (neue Profile ohne Angabe erhalten ihren eigenen Ordner)."""
@@ -1075,7 +1097,7 @@ class Cockpit:
     def _default_identity_account(self, platform: str) -> str:
         if platform == "telegram":
             if not self.telegram or not self.telegram.account:
-                raise pipeline.PipelineError("Telegram ist noch nicht verbunden (Bot-Token).")
+                raise pipeline.PipelineError("Claras Telegram-Konto ist noch nicht angemeldet.")
             return self.telegram.account
         raise pipeline.PipelineError(f"{platform} ist noch nicht eingerichtet.")
 
@@ -1624,7 +1646,11 @@ async def _command(request: web.Request) -> web.Response:
     except (DecodeError, ValueError):
         return web.Response(status=400, text="Ungültiger CommandRequest")
 
-    payload_sha = hashlib.sha256(req.SerializeToString(deterministic=True)).hexdigest()
+    hashed = commands_pb2.CommandRequest()
+    hashed.CopyFrom(req)
+    if hashed.WhichOneof("command") == "channel_account_login":
+        hashed.channel_account_login.value = ""  # Code/Passwort nie im Befehlsjournal
+    payload_sha = hashlib.sha256(hashed.SerializeToString(deterministic=True)).hexdigest()
     answer = await request.app[COCKPIT_KEY].command(req, payload_sha)
     return web.Response(body=answer.SerializeToString(), content_type=PROTOBUF)
 

@@ -130,6 +130,21 @@ message CharacterUpdate {
   string photos_dir = 4;
 }
 
+// Anmeldeschritt eines Kanalkontos (Telegram über TDLib): step phone | code | password. Der Wert
+// wird nur an TDLib weitergereicht – nie gespeichert, protokolliert oder angezeigt.
+message ChannelAccountLogin {
+  string platform = 1;
+  string step = 2;
+  string value = 3;
+}
+
+// Kanalkonto steuern: Automatik freigeben/sperren oder abmelden (Abmelden beendet die Sitzung).
+message ChannelAccountUpdate {
+  string platform = 1;
+  // enable_automation | disable_automation | logout
+  string action = 2;
+}
+
 // Erkannten Kloner-Auftrag starten, der auf den Betreiberstart wartet (Systemkarte mit
 // awaiting_start). Läuft mit dem aktuellen Medien-Workflow des Default-Kontakts; genau einmal.
 message StartClonerOrder {
@@ -197,6 +212,8 @@ message CommandRequest {
     DefaultContactUpdate default_contact_update = 37;
     CharacterUpdate character_update = 25;
     StartClonerOrder start_cloner_order = 38;
+    ChannelAccountLogin channel_account_login = 39;
+    ChannelAccountUpdate channel_account_update = 40;
   }
 }
 

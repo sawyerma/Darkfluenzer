@@ -1,55 +1,95 @@
-"""Telegram-Adapter (PHASENPLAN_V0 §6, C2): Bot der Influencerin über die Bot-API.
+"""Claras Telegram-Konto über TDLib (PHASENPLAN_V0 §6.1, C2d) – ein normales Nutzerkonto, kein Bot.
 
-Eingang per Long-Polling (``getUpdates``): jedes Update wird vor dem Weiterschalten des Offsets
-dauerhaft gespeichert (Ereignis genau einmal, Kundenakte, Konversation, Nachricht); Anhänge bis zur
-konfigurierten Grenze sofort gesichert, größere sichtbar als „zu groß“. Ausgang über den
-Postausgang: Status „sendet“ vor dem API-Aufruf, danach „gesendet“ mit Plattform-ID oder
-„fehlgeschlagen“; eine Zeitüberschreitung nach möglicher Annahme bleibt „unbekannt“ (kein blindes
-Wiederholen). Der Bot-Token stammt ausschließlich aus dem Schlüsselbund.
+Anmeldung im Cockpit (Nummer -> Code -> Passwort, Befehl 39); Code und Passwort werden nur an
+TDLib weitergereicht, nie gespeichert oder protokolliert. Die Sitzung liegt unter
+``[telegram_account] data_dir`` (verschlüsselt mit einem Schlüssel aus dem Schlüsselbund), ein
+Neustart braucht keinen neuen Code.
+
+Eingang: jede neue Nachricht eines Einzelchats wird vor dem Gelesen-Setzen dauerhaft gespeichert
+(genau einmal), Anhänge sofort gesichert; im Testbetrieb nur freigegebene Test-Chats, alles andere
+wird verworfen und nie gespeichert. Ausgang: nur über den Postausgang, mit Antworttempo,
+Schreibanzeige, Höchstzahl je Minute und eingehaltener Telegram-Bremse (Flood-Wait). Schreibt der
+Betreiber am Handy selbst in Claras Konto, entsteht die Karte ``ÜBERGABE AN BETREIBER``.
 """
 
 from __future__ import annotations
 
 import asyncio
+import base64
+import contextlib
 import hashlib
 import logging
-import mimetypes
+import os
+import random
+import re
+import shutil
 import time
+from collections import deque
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-import aiohttp
-
+from .. import __version__
 from ..config import Config
-from ..keychain import secret
+from ..keychain import secret, store_secret
 from ..store import Inbound, Store
+from .tdjson import TdError, TdJson
 
 log = logging.getLogger("darkfluenzer.telegram")
 
 PLATFORM = "telegram"
-# Telegram-Nachrichtenfelder mit Datei -> Anhangart
-_FILE_KINDS = {
-    "video": "video",
-    "document": "document",
-    "voice": "voice",
-    "audio": "audio",
-    "video_note": "video",
-    "animation": "video",
-    "sticker": "sticker",
+HANDOFF_CARD = "ÜBERGABE AN BETREIBER"
+LAST = "last:"  # adapter_state: letzte gespeicherte Nachrichten-ID je Chat (Abgleich nach Neustart)
+HISTORY_PAGES = 20  # Obergrenze Seiten je Chat beim Abgleich (je bis zu 100 Nachrichten)
+# TDLib-Inhaltsart -> (Anhangart, Feld mit der Datei)
+_FILE_CONTENT = {
+    "messageVideo": ("video", "video", "video"),
+    "messageDocument": ("document", "document", "document"),
+    "messageVoiceNote": ("voice", "voice_note", "voice"),
+    "messageAudio": ("audio", "audio", "audio"),
+    "messageVideoNote": ("video", "video_note", "video"),
+    "messageAnimation": ("video", "animation", "animation"),
+    "messageSticker": ("sticker", "sticker", "sticker"),
+}
+_RETRY_AFTER = re.compile(r"retry after (\d+)", re.IGNORECASE)
+# Anmeldezustände (FRONT F4 V1.12 Punkt 1)
+_AUTH_STEP = {
+    "authorizationStateWaitPhoneNumber": "phone",
+    "authorizationStateWaitCode": "code",
+    "authorizationStateWaitPassword": "password",
+    "authorizationStateReady": "ready",
 }
 
 
-class TelegramError(Exception):
-    """Antwort der Bot-API mit ok=false (endgültig) oder Transportfehler."""
-
-    def __init__(self, message: str, *, definite: bool) -> None:
-        super().__init__(message)
-        self.definite = definite  # True: Telegram hat sicher nicht angenommen
+def message_text(content: dict) -> str:
+    if content.get("@type") == "messageText":
+        return str(content["text"]["text"])
+    return str((content.get("caption") or {}).get("text", ""))
 
 
-class TelegramAdapter:
-    """Ein Bot (Konto der Influencerin). ``account`` ist die unveränderliche Bot-ID."""
+def files_of(content: dict) -> list[dict]:
+    """Anhänge einer TDLib-Nachricht (Foto: größte Fassung) mit TDLib-Datei-ID."""
+    kind = content.get("@type")
+    if kind == "messagePhoto":
+        best = max(content["photo"]["sizes"], key=lambda s: s["width"] * s["height"])
+        f = best["photo"]
+        return [{"kind": "photo", "file_id": f["id"], "size": _size(f), "mime": "image/jpeg"}]
+    if kind in _FILE_CONTENT:
+        att, field, inner = _FILE_CONTENT[kind]
+        obj = content[field]
+        f = obj[inner]
+        return [
+            {"kind": att, "file_id": f["id"], "size": _size(f), "mime": obj.get("mime_type", "")}
+        ]
+    return []
+
+
+def _size(f: dict) -> int:
+    return int(f.get("size") or f.get("expected_size") or 0)
+
+
+class TelegramAccount:
+    """Ein Telegram-Nutzerkonto (Claras Konto; im Testbetrieb das des Betreibers)."""
 
     def __init__(
         self,
@@ -64,265 +104,521 @@ class TelegramAdapter:
         self.store = store
         self.on_inbound = on_inbound
         self.on_change = on_change
-        self.account = ""  # Bot-ID nach getMe
+        self.account = ""  # unveränderliche Telegram-Nutzer-ID nach der Anmeldung
         self.username = ""
         self.state = "OFF"
+        self.login = ""  # phone | code | password | ready
+        self.login_hint = ""
         self.error = ""
         self.missing = ""
         self.last_event_ms = 0
+        self.flood_until = 0.0
         self.wake = asyncio.Event()  # Postausgang hat Arbeit
-        self._token = ""
-        self._session: aiohttp.ClientSession | None = None
+        self._td: TdJson | None = None
+        self._chats: dict[int, str] = {}  # Chat-ID -> TDLib-Chatart
+        self._sending: dict[int, int] = {}  # vorläufige TDLib-Nachrichten-ID -> Postausgang-ID
+        self._open: dict[int, int] = {}  # Postausgang-ID -> noch unbestätigte Teilnachrichten
+        self._sent_at: deque[float] = deque()
+        self._api: tuple[str, str] = ("", "")  # api_id, api_hash (nur im Speicher)
+        self._key = ""  # TDLib-Datenbankschlüssel (nur im Speicher)
 
     # ------------------------------------------------------------------ Zustand
 
+    @property
+    def automation(self) -> bool:
+        return (
+            bool(self.account)
+            and self.store.adapter_get(PLATFORM, self.account, "automation") == "1"
+        )
+
     def status(self) -> dict:
+        label = f"@{self.username}" if self.username else self.account
         return {
             "platform": PLATFORM,
-            "account": f"@{self.username}" if self.username else "",
+            "account": label,
             "state": self.state,
             "error": self.error,
             "last_event_ms": self.last_event_ms,
             "missing": self.missing,
+            "login_state": self.login,
+            "login_hint": self.login_hint,
+            "test_mode": self.tg.test_mode,
+            "automation": self.automation,
+            "flood_until_ms": int(self.flood_until * 1000) if self.flood_until > time.time() else 0,
         }
 
-    def _set(self, state: str, error: str = "", missing: str = "") -> None:
-        if (state, error, missing) != (self.state, self.error, self.missing):
-            self.state, self.error, self.missing = state, error, missing
+    def _set(
+        self, state: str, *, login: str | None = None, error: str = "", missing: str = ""
+    ) -> None:
+        new = (state, self.login if login is None else login, error, missing)
+        if new != (self.state, self.login, self.error, self.missing):
+            self.state, self.login, self.error, self.missing = new
             self.on_change()
 
-    # ------------------------------------------------------------------ Bot-API
+    # ------------------------------------------------------------------ Start und Anmeldung
 
-    async def _call(self, method: str, timeout: float, **params: object) -> object:
-        assert self._session is not None
-        url = f"{self.tg.api_base}/bot{self._token}/{method}"
-        try:
-            async with self._session.post(
-                url, json=params, timeout=aiohttp.ClientTimeout(total=timeout)
-            ) as resp:
-                body = await resp.json(content_type=None)
-        except (TimeoutError, aiohttp.ClientError) as exc:
-            raise TelegramError(f"{method}: {type(exc).__name__}", definite=False) from exc
-        if not body.get("ok"):
-            raise TelegramError(f"{method}: {body.get('description', 'Fehler')}", definite=True)
-        return body["result"]
+    def _prerequisites(self) -> tuple[str, str] | str:
+        if not self.tg.tdjson.is_file():
+            return f"TDLib fehlt ({self.tg.tdjson.name}: launcher/setup_tdlib.sh)"
+        api_id = secret(self.tg.api_id_service)
+        api_hash = secret(self.tg.api_hash_service)
+        if not api_id or not api_hash:
+            return f"api_id/api_hash im Schlüsselbund ({self.tg.api_id_service}, …api_hash)"
+        if not api_id.isdigit():
+            return f"{self.tg.api_id_service} ist keine Zahl"
+        return api_id, api_hash
 
-    async def _upload(self, method: str, field: str, path: Path, **params: object) -> dict:
-        """Datei per Multipart senden (keine öffentliche URL nötig)."""
-        assert self._session is not None
-        form = aiohttp.FormData()
-        for key, value in params.items():
-            if value is not None:
-                form.add_field(key, str(value))
-        form.add_field(field, path.read_bytes(), filename=path.name)
-        url = f"{self.tg.api_base}/bot{self._token}/{method}"
-        try:
-            async with self._session.post(
-                url, data=form, timeout=aiohttp.ClientTimeout(total=self.tg.send_timeout_s)
-            ) as resp:
-                body = await resp.json(content_type=None)
-        except (TimeoutError, aiohttp.ClientError) as exc:
-            raise TelegramError(f"{method}: {type(exc).__name__}", definite=False) from exc
-        if not body.get("ok"):
-            raise TelegramError(f"{method}: {body.get('description', 'Fehler')}", definite=True)
-        return body["result"]
-
-    # ------------------------------------------------------------------ Eingang
+    def _db_key(self) -> str | None:
+        key = secret(self.tg.db_key_service)
+        if key:
+            return key
+        key = base64.b64encode(os.urandom(32)).decode()
+        return key if store_secret(self.tg.db_key_service, key) else None
 
     async def run(self) -> None:
-        """Verbinden, dann Long-Polling; fehlender Token wird sichtbar gemeldet und regelmäßig
-        neu geprüft (Ablage im Schlüsselbund ohne Neustart)."""
-        async with aiohttp.ClientSession() as session:
-            self._session = session
-            while True:
-                token = await asyncio.to_thread(secret, self.tg.keychain_service)
-                if not token:
-                    self._set(
-                        "OFF", missing=f"Bot-Token im Schlüsselbund ({self.tg.keychain_service})"
-                    )
-                    await asyncio.sleep(self.cfg.server.observe_s * 15)
-                    continue
-                self._token = token
-                try:
-                    self._set("CONNECTING")
-                    me = await self._call("getMe", self.cfg.server.timeout_s)
-                    self.account, self.username = str(me["id"]), str(me.get("username", ""))
-                    self._set("READY")
-                    self.wake.set()  # liegengebliebenen Postausgang anstoßen
-                    await self._poll()
-                except TelegramError as exc:
-                    self._set("ERROR", error=str(exc))
-                    log.warning("Telegram: %s", exc)
-                    await asyncio.sleep(self.cfg.server.observe_s * 5)
-
-    async def _poll(self) -> None:
+        """Voraussetzungen prüfen (Schlüsselbund wird regelmäßig neu gelesen), dann TDLib starten;
+        alles Weitere treiben TDLib-Updates."""
         while True:
-            offset = int(self.store.adapter_get(PLATFORM, self.account, "offset") or 0)
-            updates = await self._call(
-                "getUpdates",
-                self.tg.poll_timeout_s + self.cfg.server.timeout_s,
-                offset=offset + 1 if offset else 0,
-                timeout=int(self.tg.poll_timeout_s),
-                allowed_updates=["message"],
-            )
-            for update in updates:  # type: ignore[union-attr]
-                await self._handle(update)
-                # erst nach dem dauerhaften Speichern weiterschalten (Wiederanlauf ohne Verlust)
-                self.store.adapter_set(PLATFORM, self.account, "offset", str(update["update_id"]))
-            if self.state != "READY":
-                self._set("READY")
+            ready = await asyncio.to_thread(self._prerequisites)
+            if isinstance(ready, str):
+                self._set("OFF", login="", missing=ready)
+                await asyncio.sleep(self.cfg.server.observe_s * 15)
+                continue
+            self._api = ready
+            key = await asyncio.to_thread(self._db_key)
+            if key is None:
+                self._set("ERROR", error="Datenbankschlüssel nicht im Schlüsselbund ablegbar")
+                await asyncio.sleep(self.cfg.server.observe_s * 15)
+                continue
+            self._key = key
+            break
+        self.tg.data_dir.mkdir(parents=True, exist_ok=True)
+        os.chmod(self.tg.data_dir, 0o700)
+        self._set("CONNECTING", missing="")
+        self._start_client()
+        await asyncio.Event().wait()  # läuft bis zum Beenden des Servers
 
-    async def _handle(self, update: dict) -> None:
-        msg = update.get("message")
-        if not msg or msg.get("chat", {}).get("type") != "private":
-            return  # nur Einzelchats mit dem Bot
-        sender = msg.get("from") or {}
-        name = " ".join(filter(None, (sender.get("first_name"), sender.get("last_name"))))
-        reply = msg.get("reply_to_message") or {}
-        files = _files(msg)
+    def _start_client(self) -> None:
+        self._td = TdJson(self.tg.tdjson, asyncio.get_running_loop())
+        self._td.on_update = self._on_update
+        self._td.start()
+
+    def _parameters(self) -> dict:
+        api_id, api_hash = self._api
+        return {
+            "@type": "setTdlibParameters",
+            "use_test_dc": False,
+            "database_directory": str(self.tg.data_dir / "db"),
+            "files_directory": str(self.tg.data_dir / "files"),
+            "database_encryption_key": self._key,
+            # SQLite ist die einzige Autorität für Nachrichten und Anhänge (V0 §6.1 Punkt 1)
+            "use_file_database": False,
+            "use_chat_info_database": False,
+            "use_message_database": False,
+            "use_secret_chats": False,
+            "api_id": int(api_id),
+            "api_hash": api_hash,
+            "system_language_code": "de",
+            "device_model": "Mac",
+            "application_version": __version__,
+        }
+
+    async def login_step(self, step: str, value: str) -> str:
+        """Ein Anmeldeschritt (Befehl 39); leer bei Erfolg, sonst der Grund."""
+        method = {
+            "phone": ("setAuthenticationPhoneNumber", "phone_number"),
+            "code": ("checkAuthenticationCode", "code"),
+            "password": ("checkAuthenticationPassword", "password"),
+        }.get(step)
+        if method is None:
+            return "Unbekannter Anmeldeschritt."
+        if self._td is None:
+            return self.missing or "Telegram ist nicht bereit."
+        if step != self.login:
+            return "Dieser Schritt ist gerade nicht dran."
+        try:
+            await self._td.call({"@type": method[0], method[1]: value.strip()}, self._timeout)
+        except TdError as exc:
+            return f"Telegram: {exc.message}"
+        except TimeoutError:
+            return "Telegram antwortet nicht."
+        return ""
+
+    async def logout(self) -> str:
+        if self._td is None or self.login != "ready":
+            return "Nicht angemeldet."
+        try:
+            await self._td.call({"@type": "logOut"}, self._timeout)
+        except (TdError, TimeoutError) as exc:
+            return f"Abmelden fehlgeschlagen: {exc}"
+        return ""
+
+    def set_automation(self, enabled: bool) -> str:
+        if not self.account:
+            return "Nicht angemeldet."
+        self.store.adapter_set(PLATFORM, self.account, "automation", "1" if enabled else "0")
+        self.on_change()
+        return ""
+
+    @property
+    def _timeout(self) -> float:
+        return self.cfg.server.timeout_s
+
+    # ------------------------------------------------------------------ Updates
+
+    def _on_update(self, update: dict) -> None:
+        kind = update.get("@type")
+        if kind == "updateAuthorizationState":
+            asyncio.create_task(self._auth(update["authorization_state"]))
+        elif kind == "updateNewChat":
+            self._chats[update["chat"]["id"]] = update["chat"]["type"]["@type"]
+        elif kind == "updateNewMessage":
+            asyncio.create_task(self._guard(self._message(update["message"])))
+        elif kind == "updateMessageSendSucceeded":
+            self._send_result(update["old_message_id"], str(update["message"]["id"]), None)
+        elif kind == "updateMessageSendFailed":
+            err = update.get("error") or {}
+            self._flood(str(err.get("message", "")), int(err.get("code", 0)))
+            self._send_result(update["old_message_id"], None, str(err.get("message", "Fehler")))
+        elif kind == "updateConnectionState" and self.login == "ready":
+            ready = update["state"]["@type"] == "connectionStateReady"
+            self._set("READY" if ready else "CONNECTING")
+            if ready:
+                self.wake.set()
+
+    async def _guard(self, job: Awaitable[None]) -> None:
+        try:
+            await job
+        except Exception:  # eine fehlerhafte Nachricht stoppt den Eingang nicht
+            log.exception("Telegram: Nachricht nicht verarbeitet")
+
+    async def _auth(self, state: dict) -> None:
+        kind = state["@type"]
+        assert self._td is not None
+        if kind == "authorizationStateWaitTdlibParameters":
+            try:
+                await self._td.call(self._parameters(), self._timeout)
+            except (TdError, TimeoutError) as exc:
+                self._set("ERROR", error=f"TDLib-Start: {exc}")
+            return
+        if kind in _AUTH_STEP:
+            step = _AUTH_STEP[kind]
+            self.login_hint = str(state.get("password_hint", "")) if step == "password" else ""
+            if step != "ready":
+                self._set("LOGIN", login=step)
+                return
+            try:
+                me = await self._td.call({"@type": "getMe"}, self._timeout)
+            except (TdError, TimeoutError) as exc:
+                self._set("ERROR", error=f"getMe: {exc}")
+                return
+            self.account = str(me["id"])
+            names = (me.get("usernames") or {}).get("active_usernames") or []
+            self.username = names[0] if names else ""
+            self._set("READY", login="ready")
+            log.info("Telegram angemeldet als Konto %s", self.account)
+            await self._guard(self._reconcile())
+            self.wake.set()
+            return
+        if kind == "authorizationStateClosed":  # nach Abmelden: neue Instanz, wieder Nummer
+            self.account, self.username = "", ""
+            self._set("CONNECTING", login="")
+            self._start_client()
+            return
+        if kind in ("authorizationStateLoggingOut", "authorizationStateClosing"):
+            self._set("CONNECTING", login="")
+            return
+        # E-Mail-Anmeldung, Registrierung, Bestätigung auf anderem Gerät: in der Telegram-App
+        self._set(
+            "ERROR", login="", error=f"Anmeldeschritt {kind} bitte in der Telegram-App erledigen"
+        )
+
+    async def _reconcile(self) -> None:
+        """Nachrichten, die während einer Pause ankamen: je bekanntem Chat ab der zuletzt
+        gespeicherten Nachrichten-ID über getChatHistory nachholen (V0 §6)."""
+        assert self._td is not None
+        with contextlib.suppress(TdError):  # 404: alle Chats geladen
+            await self._td.call(
+                {"@type": "loadChats", "chat_list": {"@type": "chatListMain"}, "limit": 200},
+                self._timeout,
+            )
+        for chat, last_id in self.store.adapter_prefixed(PLATFORM, self.account, LAST).items():
+            chat_id, last = int(chat), int(last_id)
+            if self.tg.test_mode and chat_id not in self.tg.test_chat_ids:
+                continue
+            missed: list[dict] = []
+            start = 0
+            for _ in range(HISTORY_PAGES):
+                page = await self._td.call(
+                    {
+                        "@type": "getChatHistory",
+                        "chat_id": chat_id,
+                        "from_message_id": start,
+                        "offset": 0,
+                        "limit": 100,
+                        "only_local": False,
+                    },
+                    self._timeout,
+                )
+                batch = page.get("messages") or []
+                missed += [m for m in batch if m["id"] > last]
+                if not batch or min(m["id"] for m in batch) <= last:
+                    break
+                start = min(m["id"] for m in batch)
+            for msg in sorted(missed, key=lambda m: m["id"]):
+                await self._message(msg)
+            if missed:
+                log.info("Telegram: %d Nachricht(en) aus Chat %s nachgeholt", len(missed), chat_id)
+
+    def _remember(self, chat_id: int, message_id: int) -> None:
+        key = f"{LAST}{chat_id}"
+        known = int(self.store.adapter_get(PLATFORM, self.account, key) or 0)
+        if message_id > known:
+            self.store.adapter_set(PLATFORM, self.account, key, str(message_id))
+
+    async def _chat_type(self, chat_id: int) -> str:
+        if chat_id not in self._chats and self._td is not None:
+            chat = await self._td.call({"@type": "getChat", "chat_id": chat_id}, self._timeout)
+            self._chats[chat_id] = chat["type"]["@type"]
+        return self._chats.get(chat_id, "")
+
+    async def _message(self, msg: dict) -> None:
+        chat_id = int(msg["chat_id"])
+        if self.tg.test_mode and chat_id not in self.tg.test_chat_ids:
+            return  # Testbetrieb: fremde Chats werden nie gespeichert
+        if await self._chat_type(chat_id) != "chatTypePrivate":
+            return  # nur Einzelchats
+        content = msg["content"]
+        sent_at = datetime.fromtimestamp(msg["date"], UTC).isoformat(timespec="seconds")
+        if msg.get("is_outgoing"):
+            if msg.get("sending_state"):
+                return  # eigener Versand aus dem Postausgang (Ergebnis über Send-Updates)
+            await self._external_outgoing(chat_id, msg, content, sent_at)
+            self._remember(chat_id, int(msg["id"]))
+            return
+        sender = msg.get("sender_id") or {}
+        if sender.get("@type") != "messageSenderUser":
+            return
+        user_id = int(sender["user_id"])
+        handle, name = await self._user(user_id)
+        reply = msg.get("reply_to") or {}
+        files = files_of(content)
         inbound = self.store.record_inbound(
             PLATFORM,
             self.account,
-            str(update["update_id"]),
-            sender_id=str(sender.get("id")),
-            conversation_id=str(msg["chat"]["id"]),
-            platform_message_id=str(msg["message_id"]),
-            text=msg.get("text") or msg.get("caption") or "",
-            sent_at=datetime.fromtimestamp(msg["date"], UTC).isoformat(timespec="seconds"),
-            handle=sender.get("username"),
-            display_name=name or None,
-            reply_to=str(reply["message_id"]) if reply.get("message_id") else None,
-            attachments=[{k: v for k, v in f.items() if k != "file_id"} for f in files],
+            f"{chat_id}:{msg['id']}",
+            sender_id=str(user_id),
+            conversation_id=str(chat_id),
+            platform_message_id=str(msg["id"]),
+            text=message_text(content),
+            sent_at=sent_at,
+            handle=handle,
+            display_name=name,
+            reply_to=str(reply["message_id"])
+            if reply.get("@type") == "messageReplyToMessage"
+            else None,
+            attachments=[_pending(f) for f in files],
         )
         self.last_event_ms = int(time.time() * 1000)
+        self._remember(chat_id, int(msg["id"]))
         if inbound.message_id is None:
             return  # bereits gespeichert (erneut zugestellt)
         if files:
-            saved = [await self._save(inbound, msg, i, f) for i, f in enumerate(files)]
+            saved = [await self._save(chat_id, msg["id"], i, f) for i, f in enumerate(files)]
             self.store.set_attachments(inbound.message_id, saved)
         await self.on_inbound(inbound)
-
-    async def _save(self, inbound: Inbound, msg: dict, index: int, f: dict) -> dict:
-        """Anhang sichern: Telegram-Datei bis zur Grenze laden, Inhalts-Hash festhalten."""
-        att = {k: v for k, v in f.items() if k != "file_id"}
-        limit = int(self.tg.max_download_mb * 1024 * 1024)
-        if f.get("size", 0) > limit:
-            return att | {
-                "status": "too_large",
-                "note": f"über {self.tg.max_download_mb:.0f} MB (Bot-API-Grenze)",
+        # ehrlich gelesen: erst nach Speichern und Verarbeitung
+        assert self._td is not None
+        self._td.send(
+            {
+                "@type": "viewMessages",
+                "chat_id": chat_id,
+                "message_ids": [msg["id"]],
+                "force_read": True,
             }
+        )
+
+    async def _external_outgoing(
+        self, chat_id: int, msg: dict, content: dict, sent_at: str
+    ) -> None:
+        conv, message_id = self.store.record_external_outgoing(
+            PLATFORM, self.account, str(chat_id), str(msg["id"]), message_text(content), sent_at
+        )
+        if message_id is None:
+            return
+        self.store.add_system_card(
+            conv, f"{HANDOFF_CARD}\nNachricht direkt in der Telegram-App gesendet."
+        )
+        self.on_change_message(message_id)
+
+    async def _user(self, user_id: int) -> tuple[str | None, str | None]:
+        assert self._td is not None
         try:
-            info = await self._call("getFile", self.cfg.server.timeout_s, file_id=f["file_id"])
-            url = f"{self.tg.api_base}/file/bot{self._token}/{info['file_path']}"  # type: ignore[index]
-            assert self._session is not None
-            async with self._session.get(
-                url, timeout=aiohttp.ClientTimeout(total=self.tg.send_timeout_s)
-            ) as resp:
-                resp.raise_for_status()
-                data = await resp.read()
-        except (TelegramError, TimeoutError, aiohttp.ClientError) as exc:
-            return att | {"status": "failed", "note": str(exc)[:200]}
-        suffix = (
-            Path(str(info.get("file_path", ""))).suffix
-            or mimetypes.guess_extension(  # type: ignore[union-attr]
-                f.get("mime", "")
+            user = await self._td.call({"@type": "getUser", "user_id": user_id}, self._timeout)
+        except (TdError, TimeoutError):
+            return None, None
+        names = (user.get("usernames") or {}).get("active_usernames") or []
+        full = " ".join(filter(None, (user.get("first_name"), user.get("last_name"))))
+        return (names[0] if names else None), (full or None)
+
+    async def _save(self, chat_id: int, message_id: int, index: int, f: dict) -> dict:
+        """Anhang über TDLib laden, nach local/channels/telegram/<chat>/ kopieren, Hash
+        festhalten."""
+        att = _pending(f)
+        limit = int(self.tg.max_download_mb * 1024 * 1024)
+        if f["size"] > limit:
+            return att | {"status": "too_large", "note": f"über {self.tg.max_download_mb:.0f} MB"}
+        assert self._td is not None
+        try:
+            done = await self._td.call(
+                {
+                    "@type": "downloadFile",
+                    "file_id": f["file_id"],
+                    "priority": 1,
+                    "offset": 0,
+                    "limit": 0,
+                    "synchronous": True,
+                },
+                max(self._timeout, 600.0),
             )
-            or ".bin"
-        )
-        rel = (
-            Path("channels")
-            / PLATFORM
-            / str(msg["chat"]["id"])
-            / (f"{msg['message_id']}_{index}{suffix}")
-        )
+        except (TdError, TimeoutError) as exc:
+            return att | {"status": "failed", "note": str(exc)[:200]}
+        src = Path(done["local"]["path"])
+        suffix = src.suffix or ".bin"
+        rel = Path("channels") / PLATFORM / str(chat_id) / f"{message_id}_{index}{suffix}"
         target = self.cfg.local / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         if not target.exists():
-            target.write_bytes(data)
+            await asyncio.to_thread(shutil.copyfile, src, target)
+        # TDLib-Kopie entfernen: Anhänge liegen nur unter local/channels (V0 §6.1 Punkt 1)
+        self._td.send({"@type": "deleteFile", "file_id": f["file_id"]})
+        digest = await asyncio.to_thread(_sha256, target)
         return att | {
             "status": "saved",
             "path": rel.as_posix(),
-            "sha256": hashlib.sha256(data).hexdigest(),
-            "size": len(data),
-            "mime": f.get("mime") or mimetypes.guess_type(target.name)[0] or "",
+            "sha256": digest,
+            "size": target.stat().st_size,
         }
 
     # ------------------------------------------------------------------ Ausgang
 
     async def outbox_worker(self) -> None:
-        """Postausgang abarbeiten, wenn Arbeit da ist und der Bot verbunden ist."""
+        """Postausgang abarbeiten, wenn Arbeit da ist und das Konto verbunden ist."""
         while True:
             await self.wake.wait()
             self.wake.clear()
-            if self.state != "READY":
-                continue
-            for item in self.store.outbox(PLATFORM, self.account):
+            for item in self.store.outbox(PLATFORM, self.account) if self.state == "READY" else []:
+                await self._pace(item)
+                if self.state != "READY":
+                    break
                 await self._send(item)
 
+    async def _pace(self, item: dict) -> None:
+        """Telegram-Bremse, Höchstzahl je Minute, Antwortverzögerung und Schreibanzeige."""
+        while (wait := self.flood_until - time.time()) > 0:
+            await asyncio.sleep(wait)
+        while len(self._sent_at) >= self.tg.max_messages_per_minute:
+            wait = self._sent_at[0] + 60 - time.time()
+            if wait <= 0:
+                self._sent_at.popleft()
+                continue
+            await asyncio.sleep(wait)
+        await asyncio.sleep(random.uniform(self.tg.reply_delay_min_s, self.tg.reply_delay_max_s))
+        assert self._td is not None
+        chat = int(item["platform_conversation_id"])
+        self._td.send(
+            {"@type": "sendChatAction", "chat_id": chat, "action": {"@type": "chatActionTyping"}}
+        )
+        await asyncio.sleep(
+            min(len(item["text"]) / self.tg.typing_chars_per_s, self.tg.reply_delay_max_s)
+        )
+
     async def _send(self, item: dict) -> None:
+        assert self._td is not None
         self.store.set_message_status(item["id"], "sending")
         self.on_change_message(item["id"])
-        chat = item["platform_conversation_id"]
-        try:
-            files = [a for a in item["attachments"] if a.get("path")]
-            if files:
-                result = None
-                for att in files:  # verlustfrei als Dokument (Telegram komprimiert Fotos neu)
-                    result = await self._upload(
-                        "sendDocument",
-                        "document",
-                        self.cfg.local / att["path"],
-                        chat_id=chat,
-                        caption=item["text"] or None,
-                        reply_to_message_id=item["reply_to_platform_id"],
-                    )
-            else:
-                result = await self._call(
-                    "sendMessage",
-                    self.tg.send_timeout_s,
-                    chat_id=chat,
-                    text=item["text"],
-                    reply_to_message_id=item["reply_to_platform_id"],
+        chat = int(item["platform_conversation_id"])
+        reply = (
+            {"@type": "inputMessageReplyToMessage", "message_id": int(item["reply_to_platform_id"])}
+            if item["reply_to_platform_id"]
+            else None
+        )
+        text = {"@type": "formattedText", "text": item["text"]}
+        files = [a for a in item["attachments"] if a.get("path")]
+        contents = (
+            [
+                {  # verlustfrei als Dokument (Telegram komprimiert Fotos neu)
+                    "@type": "inputMessageDocument",
+                    "document": {
+                        "@type": "inputFileLocal",
+                        "path": str(self.cfg.local / a["path"]),
+                    },
+                    "caption": text,
+                }
+                for a in files
+            ]
+            if files
+            else [{"@type": "inputMessageText", "text": text}]
+        )
+        self._open[item["id"]] = len(contents)
+        for content in contents:
+            request = {"@type": "sendMessage", "chat_id": chat, "input_message_content": content}
+            if reply:
+                request["reply_to"] = reply
+            try:
+                sent = await self._td.call(request, self._timeout)
+            except TdError as exc:  # sicher nicht angenommen
+                self._flood(exc.message, exc.code)
+                self._open.pop(item["id"], None)
+                self.store.set_message_status(
+                    item["id"], "failed", error=f"Telegram: {exc.message}"
                 )
-            self.store.set_message_status(
-                item["id"],
-                "sent",
-                platform_message_id=str(result["message_id"]),  # type: ignore[index]
-            )
-        except TelegramError as exc:
-            self.store.set_message_status(
-                item["id"], "failed" if exc.definite else "unknown", error=str(exc)
-            )
-        self.on_change_message(item["id"])
+                self.on_change_message(item["id"])
+                return
+            except TimeoutError:  # womöglich angenommen: nie blind wiederholen
+                self._open.pop(item["id"], None)
+                self.store.set_message_status(
+                    item["id"], "unknown", error="Keine Antwort von TDLib"
+                )
+                self.on_change_message(item["id"])
+                return
+            self._sending[int(sent["id"])] = item["id"]
+            self._sent_at.append(time.time())
+
+    def _send_result(self, old_id: int, new_id: str | None, error: str | None) -> None:
+        item = self._sending.pop(int(old_id), None)
+        if item is None or item not in self._open:
+            return
+        if error is not None:
+            self._open.pop(item)
+            self.store.set_message_status(item, "failed", error=f"Telegram: {error}")
+        else:
+            self._open[item] -= 1
+            if self._open[item] > 0:
+                return
+            self._open.pop(item)
+            self.store.set_message_status(item, "sent", platform_message_id=new_id)
+        self.on_change_message(item)
+
+    def _flood(self, message: str, code: int) -> None:
+        """Telegram-Bremse (429 „retry after N“) einhalten und anzeigen."""
+        found = _RETRY_AFTER.search(message)
+        if code == 429 and found:
+            self.flood_until = time.time() + int(found.group(1))
+            log.warning("Telegram bremst %s s", found.group(1))
+            self.on_change()
 
     # Server setzt diesen Rückruf (Push des geänderten Nachrichtenstatus)
     on_change_message: Callable[[int], None] = staticmethod(lambda _id: None)  # type: ignore[assignment]
 
 
-def _files(msg: dict) -> list[dict]:
-    """Anhänge einer Telegram-Nachricht (Foto: größte Fassung)."""
-    files = []
-    if msg.get("photo"):
-        best = max(msg["photo"], key=lambda p: p.get("file_size", 0) or p["width"] * p["height"])
-        files.append(
-            {
-                "kind": "photo",
-                "file_id": best["file_id"],
-                "size": best.get("file_size", 0),
-                "mime": "image/jpeg",
-                "status": "pending",
-            }
-        )
-    for field, kind in _FILE_KINDS.items():
-        if msg.get(field):
-            item = msg[field]
-            files.append(
-                {
-                    "kind": kind,
-                    "file_id": item["file_id"],
-                    "size": item.get("file_size", 0),
-                    "mime": item.get("mime_type", ""),
-                    "status": "pending",
-                }
-            )
-    return files
+def _pending(f: dict) -> dict:
+    return {"kind": f["kind"], "size": f["size"], "mime": f["mime"], "status": "pending"}
+
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        while block := fh.read(1024 * 1024):
+            h.update(block)
+    return h.hexdigest()
