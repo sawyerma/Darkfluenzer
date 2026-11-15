@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/character.proto.
  */
 export const file_darkfluenzer_v1_character: GenFile = /*@__PURE__*/
-  fileDesc("Ch9kYXJrZmx1ZW56ZXIvdjEvY2hhcmFjdGVyLnByb3RvEg9kYXJrZmx1ZW56ZXIudjEiWgoNVHJhaW5pbmdQaG90bxIMCgRuYW1lGAEgASgJEg4KBnN0YXR1cxgCIAEoCRINCgV3aWR0aBgDIAEoDRIOCgZoZWlnaHQYBCABKA0SDAoEbm90ZRgFIAEoCSJSCg9UcmFpbmluZ0RhdGFzZXQSCgoCaWQYASABKAkSDgoGaW1hZ2VzGAIgASgNEhIKCmNyZWF0ZWRfYXQYAyABKAkSDwoHdHJpZ2dlchgEIAEoCSKUAQoNQ2hhcmFjdGVyTG9yYRILCgNrZXkYASABKAkSEwoLYmFzZV9lbmdpbmUYAiABKAkSDwoHZGF0YXNldBgDIAEoCRIPCgd0cmlnZ2VyGAQgASgJEg0KBXN0ZXBzGAUgASgNEgwKBHJhbmsYBiABKA0SDgoGc3RhdHVzGAcgASgJEhIKCmNyZWF0ZWRfYXQYCCABKAki8AEKCUNoYXJhY3RlchIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnBob3Rvc19kaXIYAyABKAkSLgoGcGhvdG9zGAQgAygLMh4uZGFya2ZsdWVuemVyLnYxLlRyYWluaW5nUGhvdG8SDgoGdXNhYmxlGAUgASgNEhIKCm1pbl9pbWFnZXMYBiABKA0SMgoIZGF0YXNldHMYByADKAsyIC5kYXJrZmx1ZW56ZXIudjEuVHJhaW5pbmdEYXRhc2V0Ei0KBWxvcmFzGAggAygLMh4uZGFya2ZsdWVuemVyLnYxLkNoYXJhY3RlckxvcmEiTQoKQ2hhcmFjdGVycxIuCgpjaGFyYWN0ZXJzGAEgAygLMhouZGFya2ZsdWVuemVyLnYxLkNoYXJhY3RlchIPCgd2ZXJzaW9uGAIgASgEYgZwcm90bzM");
+  fileDesc("Ch9kYXJrZmx1ZW56ZXIvdjEvY2hhcmFjdGVyLnByb3RvEg9kYXJrZmx1ZW56ZXIudjEiWgoNVHJhaW5pbmdQaG90bxIMCgRuYW1lGAEgASgJEg4KBnN0YXR1cxgCIAEoCRINCgV3aWR0aBgDIAEoDRIOCgZoZWlnaHQYBCABKA0SDAoEbm90ZRgFIAEoCSJSCg9UcmFpbmluZ0RhdGFzZXQSCgoCaWQYASABKAkSDgoGaW1hZ2VzGAIgASgNEhIKCmNyZWF0ZWRfYXQYAyABKAkSDwoHdHJpZ2dlchgEIAEoCSKUAQoNQ2hhcmFjdGVyTG9yYRILCgNrZXkYASABKAkSEwoLYmFzZV9lbmdpbmUYAiABKAkSDwoHZGF0YXNldBgDIAEoCRIPCgd0cmlnZ2VyGAQgASgJEg0KBXN0ZXBzGAUgASgNEgwKBHJhbmsYBiABKA0SDgoGc3RhdHVzGAcgASgJEhIKCmNyZWF0ZWRfYXQYCCABKAkimgIKCUNoYXJhY3RlchIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnBob3Rvc19kaXIYAyABKAkSLgoGcGhvdG9zGAQgAygLMh4uZGFya2ZsdWVuemVyLnYxLlRyYWluaW5nUGhvdG8SDgoGdXNhYmxlGAUgASgNEhIKCm1pbl9pbWFnZXMYBiABKA0SMgoIZGF0YXNldHMYByADKAsyIC5kYXJrZmx1ZW56ZXIudjEuVHJhaW5pbmdEYXRhc2V0Ei0KBWxvcmFzGAggAygLMh4uZGFya2ZsdWVuemVyLnYxLkNoYXJhY3RlckxvcmESEAoIcmV2aXNpb24YCSABKAQSFgoOcGhvdG9zX21pc3NpbmcYCiABKAgiTQoKQ2hhcmFjdGVycxIuCgpjaGFyYWN0ZXJzGAEgAygLMhouZGFya2ZsdWVuemVyLnYxLkNoYXJhY3RlchIPCgd2ZXJzaW9uGAIgASgEYgZwcm90bzM");
 
 /**
  * Eine Datei im Trainingsdatenordner und ihr Prüfergebnis (der Ordner wird nie verändert).
@@ -150,6 +150,8 @@ export const CharacterLoraSchema: GenMessage<CharacterLora> = /*@__PURE__*/
  */
 export type Character = Message<"darkfluenzer.v1.Character"> & {
   /**
+   * Profil-ID (Zahl als Text)
+   *
    * @generated from field: string id = 1;
    */
   id: string;
@@ -160,7 +162,7 @@ export type Character = Message<"darkfluenzer.v1.Character"> & {
   name: string;
 
   /**
-   * Trainingsdatenordner relativ zum Projekt
+   * Trainingsdatenordner, relativ zum Projekt oder absolut (wird nie verändert)
    *
    * @generated from field: string photos_dir = 3;
    */
@@ -192,6 +194,20 @@ export type Character = Message<"darkfluenzer.v1.Character"> & {
    * @generated from field: repeated darkfluenzer.v1.CharacterLora loras = 8;
    */
   loras: CharacterLora[];
+
+  /**
+   * Profilrevision (CAS für character_update)
+   *
+   * @generated from field: uint64 revision = 9;
+   */
+  revision: bigint;
+
+  /**
+   * Trainingsdatenordner existiert nicht (Pfad prüfen)
+   *
+   * @generated from field: bool photos_missing = 10;
+   */
+  photosMissing: boolean;
 };
 
 /**

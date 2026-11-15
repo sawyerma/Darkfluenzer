@@ -47,6 +47,8 @@ message Render {
   repeated InputFile files = 3;
   uint64 parent_media_id = 4;
   uint64 repeat_job_id = 5;
+  // Charakterprofil eines Trainingsworkflows (Datensatz aus dessen Trainingsdatenordner)
+  uint64 character_id = 6;
 }
 
 // Betreiberentscheidung je Workflow, gespeichert in workflows/manifest.toml.
@@ -119,6 +121,15 @@ message RetryStage {
   uint32 seq = 2;
 }
 
+// Charakterprofil anlegen (character_id 0) oder Name/Trainingsdatenordner ändern (CAS über die
+// Profilrevision). Ein geänderter Ordner muss existieren; Fotos darin werden nie verändert.
+message CharacterUpdate {
+  uint64 character_id = 1;
+  uint64 revision = 2;
+  string name = 3;
+  string photos_dir = 4;
+}
+
 // Erkannten Kloner-Auftrag starten, der auf den Betreiberstart wartet (Systemkarte mit
 // awaiting_start). Läuft mit dem aktuellen Medien-Workflow des Default-Kontakts; genau einmal.
 message StartClonerOrder {
@@ -184,6 +195,7 @@ message CommandRequest {
     MarkRead mark_read = 29;
     SendReply send_reply = 30;
     DefaultContactUpdate default_contact_update = 37;
+    CharacterUpdate character_update = 25;
     StartClonerOrder start_cloner_order = 38;
   }
 }

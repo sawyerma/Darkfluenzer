@@ -1,7 +1,8 @@
 """Charakter-LoRA (Phasenplan §6A): ein Eingangsordner → geprüfter, versionierter Datensatz →
 architekturgebundenes LoRA-Training auf Apple MPS → Vorschau → Aktivierung erst nach Freigabe.
 
-Bedienung: Bilder nach ``local/character/photos/`` kopieren. Originale werden nie verändert.
+Bedienung: Bilder in den Trainingsdatenordner des Charakterprofils kopieren (Profil 1:
+``local/character/photos/``). Originale werden nie verändert.
 Gleiche Bildmenge ergibt dieselbe Datensatzversion (Hash), neue Bilder eine neue Version.
 """
 
@@ -63,8 +64,19 @@ class Photo:
     note: str = ""
 
 
-def character_dir(local: Path) -> Path:
-    return local / "character"
+@dataclass(frozen=True)
+class Folders:
+    """Ordner eines Charakterprofils: Trainingsfotos (nur gelesen) und Datensatzversionen."""
+
+    photos: Path
+    datasets: Path
+
+
+def profile_folders(project: Path, data_dir: str, photos_dir: str) -> Folders:
+    """Ordner eines Profils: Datensätze im Projektordner, Fotos relativ zum Projekt oder absolut."""
+    photos = Path(photos_dir).expanduser()
+    photos = photos if photos.is_absolute() else project / photos
+    return Folders(photos, project / data_dir / "dataset")
 
 
 def _sha256(path: Path) -> str:
@@ -75,9 +87,8 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def scan(local: Path, now: float | None = None) -> list[Photo]:
-    """Prüft alle Dateien im Eingangsordner, ohne sie zu verändern."""
-    folder = character_dir(local) / "photos"
+def scan(folder: Path, now: float | None = None) -> list[Photo]:
+    """Prüft alle Dateien im Trainingsdatenordner ``folder``, ohne sie zu verändern."""
     now = time.time() if now is None else now
     seen: dict[str, str] = {}
     result: list[Photo] = []
@@ -113,12 +124,12 @@ def scan(local: Path, now: float | None = None) -> list[Photo]:
     return result
 
 
-def signature(local: Path, now: float | None = None) -> tuple:
+def signature(folders: Folders, now: float | None = None) -> tuple:
     """Günstiger Änderungsstempel von Trainingsordner und Datensätzen (Name, Größe, mtime) ohne
     Hashen. Solange eine Datei noch kopiert wird, ändert er sich mit der Zeit (erneut prüfen)."""
     now = time.time() if now is None else now
     entries = []
-    for folder in (character_dir(local) / "photos", character_dir(local) / "dataset"):
+    for folder in (folders.photos, folders.datasets):
         for path in sorted(folder.iterdir()) if folder.is_dir() else []:
             stat = path.stat()
             entries.append((folder.name, path.name, stat.st_size, stat.st_mtime_ns))
@@ -127,10 +138,10 @@ def signature(local: Path, now: float | None = None) -> tuple:
     return tuple(entries)
 
 
-def datasets(local: Path) -> list[dict]:
-    """Vorhandene Datensatzversionen (neueste zuerst) aus ihren ``dataset.json``."""
+def datasets(root: Path) -> list[dict]:
+    """Vorhandene Datensatzversionen unter ``root`` (neueste zuerst) aus ihren ``dataset.json``."""
     found = []
-    for meta in (character_dir(local) / "dataset").glob("ds_*/dataset.json"):
+    for meta in root.glob("ds_*/dataset.json"):
         try:
             data = json.loads(meta.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -191,16 +202,19 @@ def _fit(im: Image.Image, size: tuple[int, int]) -> tuple[Image.Image, int, int]
 
 
 def build_dataset(
-    local: Path, trigger: str = "dfchar", class_word: str = "woman", min_images: int = MIN_IMAGES
+    folders: Folders,
+    trigger: str = "dfchar",
+    class_word: str = "woman",
+    min_images: int = MIN_IMAGES,
 ) -> Path:
     """Erzeugt (oder findet) die Datensatzversion zur aktuellen geprüften Bildmenge."""
-    ok = [p for p in scan(local) if p.status == "ok"]
+    ok = [p for p in scan(folders.photos) if p.status == "ok"]
     if len(ok) < min_images:
         raise DatasetIncomplete(
-            f"{len(ok)} geeignete Bilder in local/character/photos, mindestens {min_images} nötig."
+            f"{len(ok)} geeignete Bilder in {folders.photos}, mindestens {min_images} nötig."
         )
     set_id = hashlib.sha256("".join(sorted(p.sha256 for p in ok)).encode()).hexdigest()[:12]
-    root = character_dir(local) / "dataset"
+    root = folders.datasets
     target = root / f"ds_{set_id}"
     if (target / "dataset.json").is_file():
         return target  # gleiche Bildmenge -> gleiche, unveränderte Version
@@ -209,7 +223,7 @@ def build_dataset(
     tmp.mkdir(parents=True)
     items = []
     for i, photo in enumerate(ok, 1):
-        with Image.open(character_dir(local) / "photos" / photo.name) as raw:
+        with Image.open(folders.photos / photo.name) as raw:
             im = ImageOps.exif_transpose(raw).convert("RGB")
         size = bucket(im.width, im.height)
         fitted, top, left = _fit(im, size)

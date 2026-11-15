@@ -3,8 +3,8 @@ syntax = "proto3";
 package darkfluenzer.v1;
 
 // Charaktere, Trainingsdatenordner und Charakter-LoRAs (PHASENPLAN_V0 §9.2, B1/B2).
-// B1: genau ein Charakter mit dem Trainingsdatenordner local/character/photos;
-// Profile, Referenzen und Prüfsatz folgen additiv in B2.
+// B2: Charakterprofile (SQLite) mit eigenem Trainingsdatenordner; Profil 1 = local/character.
+// Referenzen, Prüfsatz und Identitätsversionen folgen additiv mit den Charakterfotos.
 
 // Eine Datei im Trainingsdatenordner und ihr Prüfergebnis (der Ordner wird nie verändert).
 message TrainingPhoto {
@@ -39,9 +39,10 @@ message CharacterLora {
 }
 
 message Character {
+  // Profil-ID (Zahl als Text)
   string id = 1;
   string name = 2;
-  // Trainingsdatenordner relativ zum Projekt
+  // Trainingsdatenordner, relativ zum Projekt oder absolut (wird nie verändert)
   string photos_dir = 3;
   repeated TrainingPhoto photos = 4;
   // geeignete Bilder und Mindestzahl für einen Datensatz
@@ -49,6 +50,10 @@ message Character {
   uint32 min_images = 6;
   repeated TrainingDataset datasets = 7;
   repeated CharacterLora loras = 8;
+  // Profilrevision (CAS für character_update)
+  uint64 revision = 9;
+  // Trainingsdatenordner existiert nicht (Pfad prüfen)
+  bool photos_missing = 10;
 }
 
 // STATE characters

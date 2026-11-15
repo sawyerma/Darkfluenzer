@@ -587,6 +587,7 @@ function DefaultForm({
   const [workflow, setWorkflow] = useState(contact.mediaWorkflow);
   const [video, setVideo] = useState(contact.videoWorkflow);
   const registry = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
+  const characters = useStateTopic(Topic.CHARACTERS)?.value.characters ?? [];
   const usable = registry.filter((w) => w.enabled && w.modelsReady && w.instance !== "ai" && !w.training);
   const media = usable.filter((w) => w.kind === "image");
   // animate: Foto -> Video, also ein Video-Workflow mit Eingangsbild
@@ -678,7 +679,15 @@ function DefaultForm({
         <h3>KI &amp; Medien</h3>
         <div className="g-field">
           <label htmlFor="df-influencer">Influencerin</label>
-          <input id="df-influencer" value={influencer} onChange={(e) => setInfluencer(e.target.value)} />
+          <select id="df-influencer" value={influencer} onChange={(e) => setInfluencer(e.target.value)}>
+            <option value="">Nicht festgelegt</option>
+            {characters.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+            {influencer && !characters.some((c) => c.id === influencer) ? <option value={influencer}>{influencer} (unbekannt)</option> : null}
+          </select>
         </div>
         {choice("df-workflow", "Medien-Workflow", workflow, setWorkflow, media)}
         {choice("df-video", "Video-Workflow (animate)", video, setVideo, videos)}

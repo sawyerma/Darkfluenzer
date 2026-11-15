@@ -355,47 +355,64 @@ class Cockpit:
             await asyncio.sleep(self.cfg.server.observe_s)
 
     async def refresh_characters(self) -> None:
-        """Trainingsordner, Datensätze und LoRAs neu projizieren, nur wenn sich etwas änderte."""
+        """Profile, Trainingsordner, Datensätze und LoRAs neu projizieren, nur bei Änderungen."""
+        rows = self.store.characters()
+        folders = [self._folders(r) for r in rows]
         sig = (
-            await asyncio.to_thread(training.signature, self.cfg.local),
+            tuple(tuple(sorted(r.items())) for r in rows),
+            await asyncio.to_thread(lambda: tuple(training.signature(f) for f in folders)),
             tuple(sorted(self.manifest.loras.items())),
         )
         if sig != self._character_sig:
-            msg = await asyncio.to_thread(self._characters)
+            msg = await asyncio.to_thread(self._characters, rows)
             fingerprint = hashlib.sha256(msg.SerializeToString()).hexdigest()
             msg.version = self.store.bump("characters", fingerprint)  # SQLite im Loop-Thread
             self.hub.set_state(spb.TOPIC_CHARACTERS, msg.SerializeToString())
             self._character_sig = sig
 
-    def _characters(self) -> character_pb2.Characters:
-        """B1: ein Charakter mit dem Trainingsdatenordner (Profile folgen in B2). Ohne Store-
-        Zugriff, läuft im Worker-Thread (Scan hasht die Bilder)."""
-        photos = training.scan(self.cfg.local)
-        folder = training.character_dir(self.cfg.local)
-        char = character_pb2.Character(
-            id=folder.name,
-            photos_dir=(folder / "photos").relative_to(self.cfg.root).as_posix(),
-            usable=sum(p.status == "ok" for p in photos),
-            min_images=training.MIN_IMAGES,
+    def _folders(self, row: dict) -> training.Folders:
+        return training.profile_folders(self.cfg.root, row["data_dir"], row["photos_dir"])
+
+    def _characters(self, rows: list[dict]) -> character_pb2.Characters:
+        """Charakterprofile mit geprüftem Trainingsdatenordner, Datensätzen und LoRAs. Ohne
+        Store-Zugriff (Zeilen kommen aus dem Loop-Thread), läuft im Worker-Thread (Scan hasht)."""
+        out = character_pb2.Characters()
+        for row in rows:
+            folders = self._folders(row)
+            photos = training.scan(folders.photos)
+            char = out.characters.add(
+                id=str(row["id"]),
+                name=row["name"],
+                photos_dir=row["photos_dir"],
+                usable=sum(p.status == "ok" for p in photos),
+                min_images=training.MIN_IMAGES,
+                revision=row["revision"],
+                photos_missing=not folders.photos.is_dir(),
+            )
+            for p in photos:
+                char.photos.add(
+                    name=p.name, status=p.status, width=p.width, height=p.height, note=p.note
+                )
+            for d in training.datasets(folders.datasets):
+                char.datasets.add(**d)
+            ids = {d.id for d in char.datasets}
+            for lo in self.manifest.loras.values():
+                if lo.dataset in ids:
+                    self._add_lora(char, lo)
+        return out
+
+    @staticmethod
+    def _add_lora(char: character_pb2.Character, lo) -> None:
+        char.loras.add(
+            key=lo.key,
+            base_engine=lo.base_engine,
+            dataset=lo.dataset,
+            trigger=lo.trigger,
+            steps=lo.steps,
+            rank=lo.rank,
+            status=lo.status,
+            created_at=lo.created_at,
         )
-        for p in photos:
-            char.photos.add(
-                name=p.name, status=p.status, width=p.width, height=p.height, note=p.note
-            )
-        for d in training.datasets(self.cfg.local):
-            char.datasets.add(**d)
-        for lo in self.manifest.loras.values():
-            char.loras.add(
-                key=lo.key,
-                base_engine=lo.base_engine,
-                dataset=lo.dataset,
-                trigger=lo.trigger,
-                steps=lo.steps,
-                rank=lo.rank,
-                status=lo.status,
-                created_at=lo.created_at,
-            )
-        return character_pb2.Characters(characters=[char])
 
     async def refresh_comfy(self) -> None:
         for lane in self.lanes.values():
@@ -615,6 +632,7 @@ class Cockpit:
             "send_reply": self._send_reply,
             "default_contact_update": self._default_contact_update,
             "start_cloner_order": self._start_cloner_order,
+            "character_update": self._character_update,
             "set_workflow_enabled": self._set_enabled,
             "open_workflow": self._open,
             "adopt_workflow": self._adopt,
@@ -700,8 +718,12 @@ class Cockpit:
                     values.setdefault(name, value)
         inputs.update(await self._inputs(wf, msg.files))
         dataset = None
-        if wf.training:  # Datensatzversion der aktuell geeigneten Bilder (mindestens MIN_IMAGES)
-            dataset = (await asyncio.to_thread(training.build_dataset, self.cfg.local)).name
+        if wf.training:  # Datensatzversion der geeigneten Bilder des gewählten Charakters
+            if not msg.character_id:
+                return "Für ein Training einen Charakter wählen."
+            folders = self._folders(self.store.character(msg.character_id))
+            path = await asyncio.to_thread(training.build_dataset, folders)
+            dataset = path.relative_to(self.cfg.local).as_posix()
         job_id = pipeline.create_render(
             self.store,
             self.manifest,
@@ -977,6 +999,21 @@ class Cockpit:
         self._orders_changed()
         return order_no
 
+    async def _character_update(self, msg: commands_pb2.CharacterUpdate, call: _Call) -> str:
+        """Charakterprofil anlegen oder ändern; ein angegebener Trainingsdatenordner muss
+        existieren (neue Profile ohne Angabe erhalten ihren eigenen Ordner)."""
+        photos_dir = msg.photos_dir.strip()
+        if photos_dir:
+            target = training.profile_folders(self.cfg.root, "", photos_dir).photos
+            if not target.is_dir():
+                return f"Ordner {photos_dir} existiert nicht."
+        row = self.store.save_character(msg.character_id, msg.revision, msg.name, photos_dir)
+        call.entity = f"character:{row['id']}"
+        await asyncio.to_thread(self._folders(row).photos.mkdir, parents=True, exist_ok=True)
+        await self.refresh_characters()
+        log.info("Charakter %s gespeichert (%s)", row["id"], row["name"])
+        return ""
+
     async def _start_cloner_order(self, msg: commands_pb2.StartClonerOrder, call: _Call) -> str:
         """Wartenden Kloner-Auftrag starten (Automatische Produktionsaufträge aus)."""
         call.entity = f"message:{msg.item_id}"
@@ -1085,6 +1122,8 @@ class Cockpit:
         call.entity = f"customer:{current['customer_id']}"
         if msg.approval_mode not in ("direct", "cockpit", "cockpit_only"):
             return "Freigabemodus unbekannt."
+        if msg.influencer and msg.influencer not in {str(c["id"]) for c in self.store.characters()}:
+            return "Influencerin: unbekanntes Charakterprofil."
         for key, kind in ((msg.media_workflow, "image"), (msg.video_workflow, "video")):
             if reason := self._cloner_workflow_reason(key, kind):
                 return reason

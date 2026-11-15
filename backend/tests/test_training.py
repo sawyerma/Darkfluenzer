@@ -29,6 +29,10 @@ def photos(tmp_path: Path) -> Path:
     return folder
 
 
+def _folders(photos: Path) -> training.Folders:
+    return training.Folders(photos, photos.parent / "dataset")
+
+
 def test_scan_classifies_every_file(tmp_path, photos):
     _img(photos / "a.png", 1024, 1024, 1)
     _img(photos / "b.jpg", 1200, 1600, 2)
@@ -39,7 +43,7 @@ def test_scan_classifies_every_file(tmp_path, photos):
     os.utime(photos / "kaputt.png", (time.time() - 60,) * 2)
     (photos / "notiz.txt").write_text("x")
     Image.new("RGB", (1024, 1024)).save(photos / "frisch.png")  # gerade erst kopiert
-    status = {p.name: p.status for p in training.scan(tmp_path)}
+    status = {p.name: p.status for p in training.scan(photos)}
     assert status == {
         "a.png": "ok",
         "b.jpg": "ok",
@@ -54,13 +58,14 @@ def test_scan_classifies_every_file(tmp_path, photos):
 def test_dataset_requires_minimum(tmp_path, photos):
     _img(photos / "a.png", 1024, 1024, 1)
     with pytest.raises(training.DatasetIncomplete, match="1 geeignete"):
-        training.build_dataset(tmp_path)
+        training.build_dataset(_folders(photos))
 
 
 def test_dataset_is_versioned_and_leaves_originals_untouched(tmp_path, photos):
     srcs = [_img(photos / f"{i}.png", 1200 + 40 * i, 1600, i) for i in range(4)]
     before = {p.name: p.read_bytes() for p in srcs}
-    ds = training.build_dataset(tmp_path, min_images=4)
+    folders = _folders(photos)
+    ds = training.build_dataset(folders, min_images=4)
     meta = json.loads((ds / "dataset.json").read_text())
     assert len(meta["items"]) == 4 and ds.name == f"ds_{meta['id']}"
     for item in meta["items"]:
@@ -68,9 +73,9 @@ def test_dataset_is_versioned_and_leaves_originals_untouched(tmp_path, photos):
         assert (w, h) == tuple(reversed(item["target_size"])) and (w, h) in training.BUCKETS
         assert item["caption"] == "photo of dfchar woman"
     assert {p.name: p.read_bytes() for p in srcs} == before, "Originale dürfen sich nie ändern"
-    assert training.build_dataset(tmp_path, min_images=4) == ds, "gleiche Menge = gleiche Version"
+    assert training.build_dataset(folders, min_images=4) == ds, "gleiche Menge = gleiche Version"
     _img(photos / "neu.png", 1024, 1024, 99)
-    assert training.build_dataset(tmp_path, min_images=4) != ds, "neue Bilder = neue Version"
+    assert training.build_dataset(folders, min_images=4) != ds, "neue Bilder = neue Version"
 
 
 def test_bucket_picks_nearest_aspect():

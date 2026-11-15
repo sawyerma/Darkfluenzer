@@ -440,9 +440,7 @@ def _render(
     overrides: dict[tuple[str, str], object] = {}
     lora_prefix = f"loras/darkfluenzer/job{job_id}"  # SaveLoRA-Ziel unter ComfyUIs Ausgabe
     if wf.training:  # Datensatz in den ComfyUI-Eingang, Ziel der LoRA festlegen
-        folder = training.stage_dataset(
-            training.character_dir(cfg.local) / "dataset" / str(dataset), inst.folder("input")
-        )
+        folder = training.stage_dataset(cfg.local / str(dataset), inst.folder("input"))
         overrides = {(wf.train_dataset, "folder"): folder, (wf.train_lora, "prefix"): lora_prefix}
     if resume:  # vor einem Neustart eingereicht: nur abholen, nie ein zweites Mal rendern
         if comfy.prompt_state(inst, resume) == "unknown":
@@ -544,10 +542,11 @@ def _adopt_lora(
         p = wf.params[name]
         return values.get(name, graph[p.node]["inputs"][p.input])
 
-    meta_file = training.character_dir(cfg.local) / "dataset" / str(dataset) / "dataset.json"
+    meta_file = cfg.local / str(dataset) / "dataset.json"  # Datensatz relativ zu local/
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
     steps, rank = int(value("steps")), int(value("rank"))
-    key = f"{dataset}_r{rank}_s{steps}_{stamp}"
+    dataset_id = Path(str(dataset)).name
+    key = f"{dataset_id}_r{rank}_s{steps}_{stamp}"
     target = f"loras/characters/{key}.safetensors"
     dest = models.models_dir(cfg.root) / target
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -559,7 +558,7 @@ def _adopt_lora(
         sha256=sha256_file(dest),
         base_engine=wf.engine,
         base_file=man.engines[wf.engine].files[0],
-        dataset=str(dataset),
+        dataset=dataset_id,
         trigger=str(meta.get("trigger", "")),
         steps=steps,
         rank=rank,

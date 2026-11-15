@@ -452,6 +452,137 @@ const PHOTO_STATUS: Record<string, string> = {
   too_small: "zu klein",
 };
 
+// Gewähltes Charakterprofil (F7.5 „Charakter“); bleibt beim Wechsel des Workflows erhalten.
+let chosenCharacter = "";
+
+function useCharacter() {
+  const list = useStateTopic(Topic.CHARACTERS)?.value.characters ?? [];
+  const [id, setId] = useState(chosenCharacter);
+  const current = list.find((c) => c.id === id) ?? list[0];
+  function choose(next: string) {
+    chosenCharacter = next;
+    setId(next);
+  }
+  return { list, current, choose };
+}
+
+/** Charakter (Steuerung, F7.5): Profil wählen, anlegen, umbenennen; bei Trainingsworkflows den
+ *  Trainingsdatenordner übernehmen (Befehl 25, CAS über die Profilrevision). */
+function CharacterControl({ training, list, current, choose }: { training: boolean } & ReturnType<typeof useCharacter>) {
+  const cmd = useCommand();
+  const [editing, setEditing] = useState<"" | "new" | "edit">("");
+  const [name, setName] = useState("");
+  const [path, setPath] = useState(current?.photosDir ?? "");
+  useEffect(() => setPath(current?.photosDir ?? ""), [current?.id, current?.photosDir]);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    const create = editing === "new";
+    const done = await cmd.run(
+      {
+        case: "characterUpdate",
+        value: {
+          characterId: create || !current ? 0n : BigInt(current.id),
+          revision: create || !current ? 0n : current.revision,
+          name: name.trim(),
+          photosDir: create ? "" : (current?.photosDir ?? ""),
+        },
+      },
+      { done: create ? "Charakter angelegt." : "Name übernommen." },
+    );
+    if (done) setEditing("");
+  }
+
+  async function takePath() {
+    if (!current) return;
+    await cmd.run(
+      {
+        case: "characterUpdate",
+        value: { characterId: BigInt(current.id), revision: current.revision, name: current.name, photosDir: path.trim() },
+      },
+      { done: "Pfad übernommen." },
+    );
+  }
+
+  return (
+    <>
+      <div className="g-field">
+        <label htmlFor="cf-character">Charakter</label>
+        <span className="g-between">
+          <select
+            id="cf-character"
+            className="g-input"
+            value={editing === "new" ? "new" : (current?.id ?? "")}
+            onChange={(e) => {
+              if (e.target.value === "new") {
+                setName("");
+                setEditing("new");
+              } else {
+                setEditing("");
+                choose(e.target.value);
+              }
+            }}
+          >
+            {list.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+            <option value="new">Neuer Charakter …</option>
+          </select>
+          {current && editing === "" ? (
+            <button
+              type="button"
+              className="g-button"
+              onClick={() => {
+                setName(current.name);
+                setEditing("edit");
+              }}
+            >
+              Bearbeiten
+            </button>
+          ) : null}
+        </span>
+      </div>
+      {editing ? (
+        <form className="g-actions" onSubmit={save}>
+          <input
+            className="g-input"
+            aria-label="Name des Charakters"
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <button type="submit" className="g-button g-primary" disabled={cmd.pending || !name.trim()}>
+            {editing === "new" ? "Anlegen" : "Übernehmen"}
+          </button>
+          <button type="button" className="g-button" onClick={() => setEditing("")}>
+            Abbrechen
+          </button>
+        </form>
+      ) : null}
+      {training && current ? (
+        <div className="g-field">
+          <label htmlFor="cf-trainpath">Trainingsdatenordner</label>
+          <input id="cf-trainpath" className="g-input g-mono" value={path} onChange={(e) => setPath(e.target.value)} />
+          <span className="g-between">
+            <button type="button" className="g-button" disabled={cmd.pending || !path.trim() || path.trim() === current.photosDir} onClick={() => void takePath()}>
+              Pfad übernehmen
+            </button>
+            <small>Alle geeigneten Bilder</small>
+          </span>
+          {current.photosMissing ? <small className="g-error">Ordner existiert nicht.</small> : null}
+        </div>
+      ) : null}
+      {cmd.notice ? (
+        <p className="g-note" role="alert">
+          {cmd.notice}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 /** Charaktertraining (Mitte, F7): geprüfter Inhalt des Trainingsdatenordners, Datensätze, LoRAs. */
 function TrainingFolder({ character }: { character: Character | undefined }) {
   if (!character) return <p className="g-note">Keine Daten zum Trainingsordner.</p>;
@@ -639,7 +770,8 @@ function Workbench({
   canLoad: (key: string) => boolean;
 }) {
   const cmd = useCommand();
-  const character = useStateTopic(Topic.CHARACTERS)?.value.characters[0];
+  const chars = useCharacter();
+  const character = chars.current;
   const ordersState = useStateTopic(Topic.ORDERS_ACTIVE)?.value;
   const myOrders = (ordersState?.orders ?? []).filter((o) => o.stages[0]?.workflow === wf.key);
   // Kandidaten nur mit Seed (Varianten) und nicht beim Training; Fertigstellen: Bild-Workflows,
@@ -731,7 +863,10 @@ function Workbench({
           { version, done: `${candidates} Kandidaten eingereiht.` },
         )
       : await cmd.run(
-          { case: "render", value: { workflow: wf.key, values, files: inputs, parentMediaId } },
+          {
+            case: "render",
+            value: { workflow: wf.key, values, files: inputs, parentMediaId, characterId: wf.training && character ? BigInt(character.id) : 0n },
+          },
           { version, acceptedOnly: true, done: "Eingereiht." },
         );
     if (done) setChecked(false);
@@ -832,16 +967,7 @@ function Workbench({
       <aside className="g-control" aria-label="Steuerung">
         <h2>Steuerung</h2>
         <div className="g-control-part">
-          <div className="g-line">
-            <span>Charakter</span>
-            <span className="g-value">kein Profil angelegt</span>
-          </div>
-          {wf.training && character ? (
-            <div className="g-stack">
-              <span>Trainingsdatenordner</span>
-              <small className="g-mono">{character.photosDir}/</small>
-            </div>
-          ) : null}
+          <CharacterControl training={wf.training} {...chars} />
           <div className="g-line">
             <span>Workflow</span>
             <span className="g-value">

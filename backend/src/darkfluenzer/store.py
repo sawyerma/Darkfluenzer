@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -490,6 +490,22 @@ ALTER TABLE channel_messages ADD COLUMN origin_message_id INTEGER REFERENCES cha
     9: """
 -- Default-Kontakt: eigener Video-Workflow für den Befehl animate (Foto -> Video)
 ALTER TABLE default_contact ADD COLUMN video_workflow TEXT NOT NULL DEFAULT '';
+""",
+    10: """
+-- Charakterprofile (V0 §9.2, B2): Name, Projektordner für Datensätze, Trainingsdatenordner.
+-- Profil 1 übernimmt den bisherigen Ordner local/character (B1).
+CREATE TABLE characters (
+    id          INTEGER PRIMARY KEY,
+    name        TEXT    NOT NULL CHECK (length(trim(name)) > 0),
+    data_dir    TEXT    NOT NULL UNIQUE,
+    photos_dir  TEXT    NOT NULL,
+    revision    INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT    NOT NULL,
+    updated_at  TEXT    NOT NULL
+);
+INSERT INTO characters (name, data_dir, photos_dir, created_at, updated_at)
+VALUES ('Charakter 01', 'local/character', 'local/character/photos',
+        strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
 """,
 }
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
@@ -1066,6 +1082,46 @@ class Store:
         ).fetchall()
         recent = [dict(r) for r in rows[:limit]]
         return recent[::-1], len(rows) > limit
+
+    # ------------------------------------------------------------------ Charakterprofile
+
+    def characters(self) -> list[dict]:
+        return [dict(r) for r in self.db.execute("SELECT * FROM characters ORDER BY id")]
+
+    def character(self, character_id: int) -> dict:
+        row = self.db.execute("SELECT * FROM characters WHERE id = ?", (character_id,)).fetchone()
+        if row is None:
+            raise StoreError(f"Charakter {character_id} unbekannt.")
+        return dict(row)
+
+    def save_character(self, character_id: int, revision: int, name: str, photos_dir: str) -> dict:
+        """Profil anlegen (``character_id`` 0: eigener Ordner ``local/characters/<id>``) oder
+        Name/Trainingsdatenordner ändern (CAS auf die Revision)."""
+        name = name.strip()
+        if not name:
+            raise StoreError("Name des Charakters fehlt.")
+        with self.tx() as db:
+            ts = now()
+            if character_id == 0:
+                new_id = db.execute("SELECT coalesce(max(id), 0) + 1 FROM characters").fetchone()[0]
+                data_dir = f"local/characters/{new_id}"
+                db.execute(
+                    "INSERT INTO characters (id, name, data_dir, photos_dir, created_at,"
+                    " updated_at) VALUES (?,?,?,?,?,?)",
+                    (new_id, name, data_dir, photos_dir or f"{data_dir}/photos", ts, ts),
+                )
+                character_id = new_id
+            else:
+                current = self.character(character_id)
+                if current["revision"] != revision:
+                    raise StoreError("Charakter wurde inzwischen geändert – Ansicht ist aktuell.")
+                db.execute(
+                    "UPDATE characters SET name = ?, photos_dir = ?, revision = revision + 1,"
+                    " updated_at = ? WHERE id = ?",
+                    (name, photos_dir or current["photos_dir"], ts, character_id),
+                )
+            self._event("character", character_id, "saved", name=name)
+            return self.character(character_id)
 
     # ------------------------------------------------------------------ Default-Kontakt
 

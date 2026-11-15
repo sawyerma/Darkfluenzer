@@ -27,6 +27,7 @@ from pathlib import Path
 from . import __version__, comfy, models, pipeline, runtime, training
 from .config import INSTANCE_SECTIONS, ConfigError, load, project_root, setup_logging
 from .identity import FaceIdentity, IdentityError
+from .store import Store
 
 log = logging.getLogger("darkfluenzer.app")
 
@@ -229,18 +230,24 @@ def _render(args: argparse.Namespace) -> tuple[dict, int]:
 def _character(args: argparse.Namespace) -> tuple[dict, int]:
     cfg = load()
     setup_logging(cfg)
+    store = Store(cfg.local)
+    try:
+        row = store.character(args.character)
+    finally:
+        store.close()
+    folders = training.profile_folders(cfg.root, row["data_dir"], row["photos_dir"])
     if args.action == "scan":
-        photos = training.scan(cfg.local)
+        photos = training.scan(folders.photos)
         usable = sum(p.status == "ok" for p in photos)
         return {
             "ok": True,
             "photos": [asdict(p) for p in photos],
             "usable": usable,
             "min_images": training.MIN_IMAGES,
-            "folder": str(training.character_dir(cfg.local) / "photos"),
+            "folder": str(folders.photos),
         }, 0
     if args.action == "dataset":
-        path = training.build_dataset(cfg.local, args.trigger, args.class_word)
+        path = training.build_dataset(folders, args.trigger, args.class_word)
         meta = json.loads((path / "dataset.json").read_text())
         return {"ok": True, "dataset": path.name, "images": len(meta["items"])}, 0
     # train-sdxl: Architekturbindung – nur SDXL-Basismodelle
@@ -252,7 +259,7 @@ def _character(args: argparse.Namespace) -> tuple[dict, int]:
         )
     if not args.dataset:
         raise training.DatasetIncomplete("--dataset ds_… angeben (siehe character dataset).")
-    dataset = training.character_dir(cfg.local) / "dataset" / args.dataset
+    dataset = folders.datasets / args.dataset
     if not (dataset / "dataset.json").is_file():
         raise training.DatasetIncomplete(f"Datensatz {args.dataset} existiert nicht.")
     if runtime.status(cfg)["state"] == "running":  # keine parallelen GPU-Jobs
@@ -306,6 +313,7 @@ def main(argv: list[str] | None = None) -> int:
     ren.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     chp = sub.add_parser("character", help="Charakter-LoRA: Bilder prüfen, Datensatz, Training")
     chp.add_argument("action", choices=["scan", "dataset", "train-sdxl"])
+    chp.add_argument("--character", type=int, default=1, help="Charakterprofil (ID)")
     chp.add_argument("--trigger", default="dfchar")
     chp.add_argument("--class-word", default="woman")
     chp.add_argument("--dataset")

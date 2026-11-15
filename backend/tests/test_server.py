@@ -485,6 +485,48 @@ def test_characters_state_pushes_training_folder_changes(cfg):
     _run(cfg, scenario)
 
 
+def test_character_profiles_command(cfg):
+    """Befehl 25: Profil 1 = local/character; neues Profil mit eigenem Ordner; CAS; nur
+    existierende Trainingsdatenordner; Influencerin des Default-Kontakts = Profil."""
+
+    async def scenario(client, app, origin):
+        csrf = await _csrf(client)
+        store = app[server.COCKPIT_KEY].store
+
+        async def send(**kw):
+            req = commands_pb2.CommandRequest(request_id=str(uuid.uuid4()), **kw)
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body).detail
+
+        (first,) = store.characters()
+        assert (first["name"], first["photos_dir"]) == ("Charakter 01", "local/character/photos")
+        new = commands_pb2.CharacterUpdate(name="Charakter 02")
+        assert await send(character_update=new) == ""
+        second = store.characters()[1]
+        assert second["data_dir"] == "local/characters/2"
+        assert (cfg.root / "local/characters/2/photos").is_dir()  # eigener Ordner angelegt
+        upd = commands_pb2.CharacterUpdate(character_id=2, revision=5, name="X")
+        assert "geändert" in await send(character_update=upd)  # CAS
+        upd = commands_pb2.CharacterUpdate(character_id=2, name="Mia", photos_dir="gibt/es/nicht")
+        assert "existiert nicht" in await send(character_update=upd)
+        upd = commands_pb2.CharacterUpdate(character_id=2, name="Mia", photos_dir=str(cfg.root))
+        assert await send(character_update=upd) == ""
+        assert store.character(2)["photos_dir"] == str(cfg.root)
+        await app[server.COCKPIT_KEY].refresh_characters()
+        d = store.default_contact()
+        bad = commands_pb2.DefaultContactUpdate(
+            revision=d["revision"], approval_mode="cockpit", influencer="9"
+        )
+        assert "unbekanntes Charakterprofil" in await send(default_contact_update=bad)
+        ok = commands_pb2.DefaultContactUpdate(
+            revision=d["revision"], approval_mode="cockpit", influencer="2"
+        )
+        assert await send(default_contact_update=ok) == ""
+
+    _run(cfg, scenario)
+
+
 def test_order_commands_push_stages_and_retry(cfg):
     """Auftrag per Befehl: Receipt, STATE 4 per Push, fehlgeschlagene Stufe, Wiederholen."""
     cfg = dataclasses.replace(cfg, server=dataclasses.replace(cfg.server, observe_s=0.1))
