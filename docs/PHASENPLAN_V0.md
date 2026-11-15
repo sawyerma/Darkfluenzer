@@ -1,7 +1,7 @@
 # DARKFLUENZER — PHASENPLAN V0 (verbindlicher Gesamt- und Implementierungsplan)
 
-**Version:** 0.2 · **Stand:** 15.11.2026 · **Repository:** `sawyerma/Darkfluenzer`, ausschließlich `main`
-**Status:** verbindlich. Bestandsaufnahme gegen Code (`main` 62c4bc9), Chatwoot-v4.19.1-Quellcode und die Betreiber-ZIP abgeschlossen; abgeglichen mit FRONT V1.9 (DF-PUSH A–D, F7-Cockpitreferenz) und BACK V1.12; Umsetzung ab Phase P0.
+**Version:** 0.3 · **Stand:** 15.11.2026 · **Repository:** `sawyerma/Darkfluenzer`, ausschließlich `main`
+**Status:** verbindlich. Bestandsaufnahme gegen Code (`main` 62c4bc9), Chatwoot-v4.19.1-Quellcode und die Betreiber-ZIP abgeschlossen; abgeglichen mit FRONT V1.10 (DF-PUSH A–D, F7-Cockpitreferenz) und BACK V1.13; V0.3: Auflösungsregel (Original ≥ 1K, darüber Upscaler, Instagram-Ausgabeprofile, §9.7) und Default-Nutzer als Produktionsassistent mit Rückversand per Telegram (§8.1). Umsetzung ab Phase P0.
 
 ## 0. Dokumentenhierarchie
 
@@ -19,7 +19,7 @@ Jede noch nicht umgesetzte Anforderung aus FRONT/BACK ist einer V0-Phase (§12) 
 
 Darkfluenzer erzeugt auf dem MacBook Pro M4 Max (128 GB, macOS nativ) vollständig lokal fotorealistische Bilder und Videos **einer festen synthetischen erwachsenen Influencerin** – möglichst wie echte Kameraaufnahmen – für zwei gleichwertige Bereiche: **Instagram** (Lifestyle, Mode, Reise, Sport, Strand, Reels) und **Erwachsenenproduktion** (erotisch bis explizit, ausschließlich die synthetische Figur). Identität über Posen, Perspektiven, Kleidung, Szenen, Bearbeitungen und Videos stabil. **Maximale Qualität vor Geschwindigkeit.**
 
-Darkfluenzer ist zugleich Kunden-Cockpit (F4): Kunden über **Instagram und Telegram (verbindlich)**, später weitere Kanäle (WhatsApp u. a.), kanalübergreifende Kundenakte, KI-Dialog, Medienaufträge, Zahlung, Freigabe, Zustellung. Der **Content-Cloner** ist ein zusätzlicher Produktionsauslöser: freigegebene Betreiber-Accounts senden Bilder/Reels mit fünf Kurzbefehlen (§8). Die normale Medienproduktion bleibt der Kern; Bilderzeugung ohne Instagram/Telegram ist jederzeit möglich.
+Darkfluenzer ist zugleich Kunden-Cockpit (F4): Kunden über **Instagram und Telegram (verbindlich)**, später weitere Kanäle (WhatsApp u. a.), kanalübergreifende Kundenakte, KI-Dialog, Medienaufträge, Zahlung, Freigabe, Zustellung. Der **Content-Cloner** ist ein zusätzlicher Produktionsauslöser: freigegebene Betreiber-Accounts senden Bilder/Reels mit fünf Kurzbefehlen oder freien Anweisungen (§8); als **Default-Nutzer** erhält der Betreiber die postfertigen Ergebnisse per Telegram zurück und postet sie vom Handy (§8.1). Die normale Medienproduktion bleibt der Kern; Bilderzeugung ohne Instagram/Telegram ist jederzeit möglich.
 
 ## 2. Verbindliche Regeln
 
@@ -94,12 +94,13 @@ Ein **Auftrag** (manuell, Kloner-Befehl oder Kundenauftrag – derselbe Typ) bes
 
 | Phase | STATE | EVENT | Befehle (oneof) | HTTP (Protobuf, bei Aufruf) |
 |---|---|---|---|---|
-| P1 | 4 `ORDERS_ACTIVE` (laufende Aufträge + Stufen, Warten auf Betreiber) | 23 `ORDER_UPDATED` (Stufenwechsel, Kandidaten, Fehler), 29 `COMMAND_RECEIPT` (terminale Receipts aller Befehle) | 21 `create_order`, 22 `select_candidate`, 23 `reuse_media` (Wiederholen/Variieren/Als Vorlage/Video erstellen/Weiterbearbeiten), 24 `retry_stage` | `GET /api/v1/provenance/{media_id}` → `MediaProvenance`; `GET /api/v1/order-page` |
+| P1 | 4 `ORDERS_ACTIVE` (laufende Aufträge + Stufen, Warten auf Betreiber) | 23 `ORDER_UPDATED` (Stufenwechsel, Kandidaten, Fehler), 29 `COMMAND_RECEIPT` (terminale Receipts aller Befehle) | 21 `create_order`, 22 `select_candidate`, 23 `reuse_media` (Wiederholen/Variieren/Als Vorlage/Video erstellen/Weiterbearbeiten/Hochskalieren), 24 `retry_stage` | `GET /api/v1/provenance/{media_id}` → `MediaProvenance`; `GET /api/v1/order-page` |
 | P2 | 5 `CHARACTERS` (Profile, aktive Version, Training) | 24 `IDENTITY_RESULT` (Prüfwerte je Ausgabe) | 25 `character_update`, 26 `start_training`, 27 `approve_identity_version` | `GET /api/v1/character/{id}` (Referenzen, Prüfsatz) |
 | P5 | 6 `COMFY_INSTANCES` (Status je Instanz; Topic 1 bleibt bis zur Umstellung des Frontends), 7 `RESOURCES` (Speicher, geladene Modelle, Zulassung) | – | `comfy_start`/`comfy_stop` erhalten Feld `instance` | – |
 | P6 | – | 25 `REFERENCE_ADDED` (Vorlage importiert/analysiert) | 28 `clone_local` (Befehl, Vorlage, Freitext) | `GET /api/v1/reference-page`, `GET /api/v1/reference/{id}` (Analyse, Pose/Tiefe/Maske) |
-| P7 | 8 `CHANNELS` (Adapterzustand je Kanal, Token-Gültigkeit, Tunnel) | 26 `CUSTOMER_UPDATED`, 27 `CONVERSATION_EVENT` (Nachricht neu/geändert, Systemkarten) | 29 `mark_read` | `GET /api/v1/customer-page`, `GET /api/v1/conversation-page` |
-| P10 | 9 `INFLUENCERS` | 28 `DELIVERY_UPDATED` | 30 `send_reply`, 31 `ai_reply`, 32 `discard_draft`, 33 `set_dialog_mode`, 34 `approve_artifact`, 35 `influencer_update`, 36 `link_identity` | – |
+| P7 | 8 `CHANNELS` (Adapterzustand je Kanal, Token-Gültigkeit, Tunnel) | 26 `CUSTOMER_UPDATED`, 27 `CONVERSATION_EVENT` (Nachricht neu/geändert, Systemkarten) | 29 `mark_read`, 37 `default_contact_update` (Operator-Felder des Default-Kontakts) | `GET /api/v1/customer-page`, `GET /api/v1/conversation-page` |
+| P8 | – | 28 `DELIVERY_UPDATED` (Rückversand an den Default-Nutzer; ab P10 auch Kundenzustellung) | – | – |
+| P10 | 9 `INFLUENCERS` | 28 (aus P8) | 30 `send_reply`, 31 `ai_reply`, 32 `discard_draft`, 33 `set_dialog_mode`, 34 `approve_artifact`, 35 `influencer_update`, 36 `link_identity` | – |
 
 Nach Verbindungsverlust ersetzen STATE-Snapshots veraltete Werte; EVENT-Catch-up läuft ab eigenem Cursor; bei `gap` laden Kundenliste, Verlauf, Aufträge bzw. Galerie ihre erste Seite neu. Jede neue Funktion braucht vor Abnahme einen gezielten Reconnect-Test.
 
@@ -133,7 +134,7 @@ Nach Verbindungsverlust ersetzen STATE-Snapshots veraltete Werte; EVENT-Catch-up
 | Mehrere Medien | Album 2–10 Elemente (`sendMediaGroup`) | gleich | bis 10 Bilder je Nachricht |
 | Empfangen | `getFile` ≤ 20 MB | ohne Grenze | CDN-URL, sofort sichern |
 
-**Zustellkopie:** Passt das freigegebene Original (z. B. 4K-PNG, 4K-Video) nicht in die Grenze des Zielkanals, erzeugt das Backend eine **Zustellkopie** (JPEG-Qualitätsstufe bzw. H.264/HEVC-Bitrate, bei Bedarf geringere Auflösung) als abgeleitetes Artefakt mit eigenem SHA-256 und Herkunft (Original-ID, Kanal, Parameter). Der Betreiber sieht die Zustellkopie vor dem Versand; das Original bleibt unverändert in Dateien. Telegram kann das Original verlustfrei als Dokument senden. **Wer was senden darf:** Kundenmedien nur hinter `approval.py` (verifizierte Zahlung + Freigabe, Auftragsverlauf F7.4); das Antwortfeld sendet nur Text (FRONT F7.3) – kein freier Medienversand aus dem Eingabefeld; Kloner-Ergebnisse gehen nicht an den Absender zurück, sie erscheinen in Nachrichten (Default-Verlauf) und Dateien (FRONT F7.4).
+**Zustellkopie:** Passt das freigegebene Original (z. B. 4K-PNG, 4K-Video) nicht in die Grenze des Zielkanals, erzeugt das Backend eine **Zustellkopie** (JPEG-Qualitätsstufe bzw. H.264/HEVC-Bitrate; Auflösung **nie unter 1K**, §9.7) als abgeleitetes Artefakt mit eigenem SHA-256 und Herkunft (Original-ID, Kanal, Parameter). Der Betreiber sieht die Zustellkopie vor dem Versand; das Original bleibt unverändert in Dateien. Telegram kann das Original verlustfrei als Dokument senden. Passt ein Video auch so nicht (z. B. langes Video über Instagram), meldet das Backend „zu groß für Instagram“ und bietet Telegram an. **Wer was senden darf:** Kundenmedien nur hinter `approval.py` (verifizierte Zahlung + Freigabe, Auftragsverlauf F7.4); das Antwortfeld sendet nur Text (FRONT F7.3) – kein freier Medienversand aus dem Eingabefeld; Ergebnisse für den Default-Nutzer gehen als Dateien an seine verifizierte Telegram-ID zurück (§8.1) – keine Kundenzustellung, keine Zahlung, Freigabe nach Freigabemodus.
 
 **Plattformvoraussetzungen (unabhängig von der Technik):** professionelles Instagram-Konto der Influencerin, Meta-App mit Instagram-Login und Nachrichtenberechtigung, Telegram-Bot (BotFather-Token). **Instagram-Zugriffsstufe:** Mit Standard Access nur Konten mit Rolle in der Meta-App (z. B. Tester) – reicht für die Kloner-Absender (P9); Nachrichten mit fremden Kunden erst nach Meta-App-Prüfung (Advanced Access, P10).
 
@@ -155,16 +156,16 @@ Nach Verbindungsverlust ersetzen STATE-Snapshots veraltete Werte; EVENT-Catch-up
 | F4 kanalgebundene Antworten, KI antworten, Entwürfe, Übergabe | NUR SPEZIFIZIERT | P10 |
 | F4 Ereigniskarten, Auftragsverlauf (8 Schritte), Zahlungen, Freigabe, Zustellung | TEILWEISE (nur Backend-Tabellen/Gates) | P10 |
 | F4 mehrere Influencerinnen, KI-Einstellungen | NUR SPEZIFIZIERT | P10 (Profil-Grundlage P2) |
-| Interner Kontakt **Default** mit Operator-Feldern (F7.2/F7.4) | NUR SPEZIFIZIERT | P7 (Anlage, Absender-IDs), P8/P9 (Befehle) |
+| Interner Kontakt **Default** mit Operator-Feldern (F7.2/F7.4) | NUR SPEZIFIZIERT | P7 (Anlage, Absender-IDs), P6 (Anweisungen lokal), P8/P9 (Befehle, freie Anweisungen, Rückversand per Telegram) |
 | F4 Status Kanal-Adapter/Plattformen/LLM, `VERBINDUNG ERNEUERN` | NUR SPEZIFIZIERT | P7 |
 | Verbindungszustände DETACHED/UNAVAILABLE | TEILWEISE | P7 |
 | Release-Einheit, altes Release startbar | NUR SPEZIFIZIERT | P11 |
 
 ## 8. Content-Cloner über Nachrichten
 
-**Eingang:** Freigegebene Betreiber-Absenderidentitäten (je Plattform die **Absender-ID**, nicht der Anzeigename; z. B. zweiter Instagram-Account, privater Telegram-Account) senden an die Kanäle der Influencerin ein Bild/Video bzw. teilen einen Beitrag/Reel mit einem Kurzbefehl. **Die Weiche liegt vor jeder Kunden- und KI-Verarbeitung:** Nachrichten freigegebener Absender mit gültigem Befehl werden interne Produktionsaufträge; sie legen keine Kundenakte an, gehen nicht in den LLM-Kontext und lösen keine Auto-Antwort aus. Alle anderen Nachrichten bleiben normaler Kundenverkehr.
+**Eingang:** Freigegebene Betreiber-Absenderidentitäten (je Plattform die **Absender-ID**, nicht der Anzeigename; z. B. zweiter Instagram-Account, privater Telegram-Account) senden an die Kanäle der Influencerin ein Bild/Video bzw. teilen einen Beitrag/Reel mit einem Kurzbefehl. **Die Weiche liegt vor jeder Kunden- und KI-Verarbeitung:** Nachrichten freigegebener Absender mit gültigem Befehl oder Produktionsanweisung werden interne Produktionsaufträge; sie legen keine Kundenakte an, gehen nicht in den Kunden-/Persona-LLM-Kontext und lösen keine Persona-Antwort aus – Antworten an den Default-Nutzer sind nur Rückfragen und Ergebnisse (§8.1). Alle anderen Nachrichten bleiben normaler Kundenverkehr.
 
-**Freigabe über den internen Kontakt Default** (FRONT F7.2/F7.4): einmalig angelegt, kein Kunde (keine Zahlungspflicht, zählt nicht als Kundenakte). Rechte Spalte nur Operator-Felder: Instagram-Absender-ID, Telegram-Absender-ID, Interne Befehle verarbeiten (Ein/Aus), Influencerin, Medien-KI/Workflow, Freigabemodus, Automatische Produktionsaufträge (Ein/Aus), Einstellungen übernehmen. Die Absender-ID wird nach Ersteinrichtung über die unveränderliche Plattform-ID geprüft. *Interne Befehle verarbeiten = Aus*: Nachrichten des Absenders werden nur angezeigt; *Automatische Produktionsaufträge = Aus*: der erkannte Auftrag wartet auf Betreiberstart. Die fünf Befehle werden aus den Nachrichten erkannt, nicht als Schaltflächen angeboten.
+**Freigabe über den internen Kontakt Default** (FRONT F7.2/F7.4): einmalig angelegt, kein Kunde (keine Zahlungspflicht, zählt nicht als Kundenakte). Rechte Spalte nur Operator-Felder: Instagram-Absender-ID, Telegram-Absender-ID, Interne Befehle verarbeiten (Ein/Aus), Influencerin, Medien-KI/Workflow, Freigabemodus, Automatische Produktionsaufträge (Ein/Aus), Einstellungen übernehmen. Die Absender-ID wird nach Ersteinrichtung über die unveränderliche Plattform-ID geprüft. *Interne Befehle verarbeiten = Aus*: Nachrichten des Absenders werden nur angezeigt; *Automatische Produktionsaufträge = Aus*: der erkannte Auftrag wartet auf Betreiberstart. Die fünf Befehle werden aus den Nachrichten erkannt, nicht als Schaltflächen angeboten; zusätzlich versteht die KI-Instanz freie Anweisungen (§8.1).
 
 | Befehl | Funktion |
 |---|---|
@@ -176,7 +177,7 @@ Nach Verbindungsverlust ersetzen STATE-Snapshots veraltete Werte; EVENT-Catch-up
 
 Freitext nach dem Befehl (`clone gleicher Strand, roter Bikini, 9:16`) interpretiert die KI-Instanz.
 
-**Zuordnung:** Befehl + Medium in einer Nachricht, Befehl als Antwort auf ein Medium (Antwortreferenz), geteilter Beitrag/Reel mit Befehl, Telegram-Foto/-Video mit Befehl. Bei uneindeutiger Zuordnung fragt Darkfluenzer gezielt nach, statt zu raten. **Deduplizierung:** je Plattform-Nachrichten-ID höchstens ein Auftrag (Erkennung und Auftragserstellung in einer SQLite-Transaktion); ein erneut zugestelltes Ereignis erzeugt nichts, eine bewusst neu gesendete Nachricht einen neuen Auftrag.
+**Zuordnung:** Befehl + Medium in einer Nachricht, Befehl als Antwort auf ein Medium (Antwortreferenz), geteilter Beitrag/Reel mit Befehl, Telegram-Foto/-Video mit Befehl, Verweis „die letzten N Fotos/Videos, die ich dir geschickt habe“ (= die chronologisch letzten N Medien desselben Default-Absenders in diesem Chat). Bei uneindeutiger Zuordnung fragt Darkfluenzer gezielt nach, statt zu raten. **Deduplizierung:** je Plattform-Nachrichten-ID höchstens ein Auftrag (Erkennung und Auftragserstellung in einer SQLite-Transaktion); ein erneut zugestelltes Ereignis erzeugt nichts, eine bewusst neu gesendete Nachricht einen neuen Auftrag.
 
 **Medienimport je Kanal:** Telegram-Dateien über der öffentlichen Bot-API-Grenze (20 MB) → Hinweis an den Absender bzw. Abruf über den optionalen lokalen Bot-API-Server (bis 2000 MB). Instagram-Anhänge werden sofort gesichert (ablaufende CDN-URLs); liefert ein geteilter Beitrag/Reel keine abrufbare Datei, wird er als **nicht importierbar** gemeldet – nie ein erfolgreicher Import ohne Datei. Abrufbarkeit privater und fremder Beiträge wird real getestet.
 
@@ -184,7 +185,20 @@ Freitext nach dem Befehl (`clone gleicher Strand, roter Bikini, 9:16`) interpret
 
 **Analyse:** Medien-ComfyUI erzeugt Pose-Keypoints (SDPose), Tiefe (Depth Anything 3/MoGe), Masken (SAM 3.1); KI-ComfyUI erzeugt Beschreibung, Prompt-Vorschlag (negativ nur bei unterstützenden Workflows), Kopf-/Blick-/Kamera-/Licht-/Kleidungs-/Umgebungsbeschreibung. Video zusätzlich Szenenschnitte, Bewegungsablauf, Kamerabewegung, Auflösung/FPS. Bild-zu-Prompt allein reicht nicht für präzise Pose; Pose-/Tiefen-/Referenzsteuerung wird eingesetzt. Wan Animate 2 nutzt das Bewegungsvideo direkt (ohne Posen-Extraktion). Keine eigene Motion-Transfer-Engine.
 
-**Generierung:** Verfahren A (referenzgesteuerte Neugenerierung) und B (kontrollierte Bearbeitung eines eigenen Masterbilds) werden verglichen; je Auftrag drei Kandidaten, Prüfung (Identität, Anatomie, Referenztreue, Fotorealismus), Betreiberauswahl, 4K-Fertigstellung, Dateien. In **Nachrichten** erscheinen interne Aufträge in der Mitte des Default-Verlaufs als `INTERNER AUFTRAG · <BEFEHL> · <KANAL>` mit Originalnachricht, Referenz, Befehl, Influencerin, Stufe, Ergebnisvorschau, Fehlern/Freigaben; Ergebnisse zusätzlich in Dateien; kein Rückversand an den Absender, kein zusätzlicher Beschreibungsblock rechts (F7.4).
+**Generierung:** Verfahren A (referenzgesteuerte Neugenerierung) und B (kontrollierte Bearbeitung eines eigenen Masterbilds) werden verglichen; je Auftrag drei Kandidaten, Prüfung (Identität, Anatomie, Referenztreue, Fotorealismus), Betreiberauswahl, 4K-Fertigstellung, Dateien. In **Nachrichten** erscheinen interne Aufträge in der Mitte des Default-Verlaufs als `INTERNER AUFTRAG · <BEFEHL> · <KANAL>` mit Originalnachricht, Referenz, Befehl, Influencerin, Stufe, Ergebnisvorschau, Fehlern/Freigaben; Ergebnisse zusätzlich in Dateien und je Freigabemodus per Telegram an den Default-Nutzer (§8.1); kein zusätzlicher Beschreibungsblock rechts (F7.4).
+
+### 8.1 Default-Nutzer als Produktionsassistent vom Handy (Betreiberentscheidung 15.11.2026)
+
+Der Betreiber nutzt den Default-Kontakt wie einen Produktionsassistenten: Er schickt der Influencerin (Telegram-Bot bzw. Instagram-Konto) Referenzen und schreibt in normaler Sprache, z. B. *„Schau dir die letzten 3 Fotos an, die ich dir geschickt habe, und erstelle identische oder ähnliche Fotos für einen neuen Instagram-Beitrag.“*
+
+1. **Verstehen (KI-ComfyUI 2):** Die Anweisung wird auf die fünf Befehle abgebildet (identisch → `clone`, ähnlich → `remix`/`style`, Haltung → `pose`, Bewegung → `animate`) plus Ziel (Instagram-Beitrag 3:4/4:5, Karussell, Story/Reel 9:16), Anzahl, Referenzen und Wünsche. Referenzen: angehängte Medien, Antwortbezug oder „die letzten N“ (§8 Zuordnung). Ist etwas unklar (welche Bilder, Anzahl, Ziel), stellt Darkfluenzer genau eine Rückfrage im Chat, statt zu raten. Die Deutung (Befehl, Referenzen, Ziel) wird im Auftrag gespeichert und im Default-Verlauf angezeigt.
+2. **Produzieren:** derselbe Auftragspfad wie §8 (Analyse → Charakterbindung → Kandidaten → Prüfung) mit der Influencerin aus dem Default-Feld; Ausgabe im Instagram-Ausgabeprofil des Ziels in mindestens 1K (§9.7); bei mehreren Referenzen für einen Beitrag eine zusammenpassende Serie (gleiche Figur, Licht, Stil).
+3. **Zurücksenden:** Die Ergebnisse gehen in denselben Telegram-Chat an die verifizierte Default-ID, als **Dateien** (verlustfrei und postfertig, damit am Handy die volle Auflösung ankommt); der Betreiber postet selbst vom Handy auf Instagram – Darkfluenzer veröffentlicht nicht. Kam die Anfrage über Instagram, geht die Antwort an die Telegram-ID des Default-Kontakts, ohne hinterlegte Telegram-ID über Instagram innerhalb der dortigen Grenzen (§6). Postausgang mit Idempotenz: nach Neustart kein doppelter Versand.
+4. **Freigabemodus des Default-Kontakts:** *Direkt zurücksenden* (Kandidaten gehen nach der automatischen Prüfung zurück, ausgewählt wird am Handy) · *Nach Auswahl im Cockpit* · *Nur Cockpit* (kein Rückversand). Das ist keine Kundenzustellung: keine Zahlung, Ziel ausschließlich die verifizierte Default-Identität, nie ein Kunde.
+5. **Folgeanweisungen per Antwort** auf ein zurückgesandtes Ergebnis, z. B. „Nr. 2 in 4K“ (Upscaler, kein Neugenerieren, §9.7), „Nr. 1 als Reel“ (`animate` + 9:16), „Nr. 3 nochmal, Haare offen“ (Variante) – jeweils als abgeleiteter Auftrag mit Eltern-Artefakt.
+6. **Im Cockpit sichtbar:** Anfrage, Deutung, Rückfrage, Stufen und Rückversand im Default-Verlauf (Nachrichten, Mitte); alle Ergebnisse in Dateien mit vollständiger Provenienz.
+
+Phasen: lokal im Cockpit P6, Telegram P8, Instagram-Eingang P9.
 
 **Recht:** Vorlagen dienen als Referenz; keine 1:1-Kopien geschützter Fotos; Rechteverantwortung beim Betreiber; Regel 4 (Face-Swap) gilt.
 
@@ -192,7 +206,7 @@ Freitext nach dem Befehl (`clone gleicher Strand, roter Bikini, 9:16`) interpret
 
 ### 9.1 Kette
 
-Charakterfotos → Datensatz → Identitätsprofil → Masterbild (normal) → Varianten/Posen → Bearbeitung inkl. Ausziehen (maskiert) → Fertigstellung 4K → freigegebenes Foto → Video (freie Animation oder Bewegungsübertragung) → Video-Fertigstellung → Dateien → Freigabe.
+Charakterfotos → Datensatz → Identitätsprofil → Masterbild (normal) → Varianten/Posen → Bearbeitung inkl. Ausziehen (maskiert) → Original in mindestens 1K → freigegebenes Foto → Video (freie Animation oder Bewegungsübertragung) → Video-Original in mindestens 1K → Dateien → Freigabe; 2K/4K jederzeit nachträglich per Upscaler (§9.7).
 
 ### 9.2 Identitätsprofil
 
@@ -205,7 +219,7 @@ Versioniert: Referenzbilder (Gesicht/Halb-/Ganzkörper), Adapter (Modellfamilie,
 | Foto | LUSTIFY v2.0 SDXL (getestet) | Krea 2 Raw/Turbo BF16, LUSTIFY v10 Krea Raw/Turbo BF16, FLUX 3 Image Klein Base BF16 |
 | Video | Wan 2.2 I2V A14B FP16, Wan 2.2 Remix v3.0 (FP8, Lightning: 4+4 Schritte, CFG 1, euler/simple, Shift 8) | LTX 2.5 (Dev/Distilled BF16), Wan Animate 2 (Bewegungsübertragung), VACE/Fun Control (Vergleich) |
 | Analyse/Steuerung | – | SAM 3.1, SDPose, Depth Anything 3, Krea-2-Depth/Pose-Adapter (nur mit Nachweis) |
-| Fertigstellung | – | SeedVR2 3B/7B (ComfyUI-Kern), RelayVSR, FILM; native 4K (FLUX 3 Klein, LTX) im Vergleich |
+| Hochskalierung (§9.7) | – | Bild: SeedVR2 7B/3B (ComfyUI-Kern); Video: SeedVR2 Video, RelayVSR; FILM (Bildrate); native 4K (FLUX 3 Klein, LTX) im Vergleich |
 | Training | `training.py` (SDXL, diffusers) | ComfyUI-Trainingsworkflow (Medien-Instanz), mflux für Krea 2 |
 | Identitätsmetrik | – | AuraFace-v1 (`glintr100.onnx`), OpenCV SFace/YuNet |
 
@@ -223,6 +237,13 @@ Je Bild/Video dauerhaft gespeichert (soweit verwendet): positiver/negativer Prom
 
 Die bestehende Direktbedienung bleibt (freier Prompt, Workflow-Wahl, Parameter, Bearbeiten, Video, Workflow-Verwaltung, Warteschlange). **Layout nach F7.5, keine zusätzlichen Arbeitsbereiche oder Schaltflächen:** links ausschließlich Workflows der Instanz (Fotos/Videos, später KI); Mitte Prompt-/Quellbild-/Masken-/Trainings-Arbeitsfläche und echte Ergebnisse; rechts Steuerung – Charakter, Workflow-Anzeige, erweiterte Einstellungen (initial geschlossen, nur tatsächlich exponierte Eingänge), Trainingsdatenordner, **Generieren**, darunter Warteschlange und Instanzen. Produktionsfunktionen sind Felder dieses Layouts: Mitte – Kandidatenvergleich (je Kandidat ein echtes Renderergebnis, synchroner Zoom), Masken-/Pose-/Tiefenvorschau, Video-Zeitleiste; rechts – Charakter mit Profilversion, Vorlage (Artefakt-ID aus Dateien „Als Vorlage“ oder Kloner-Eingang), Format, Ausgabegröße, Kandidatenzahl (Standard 3). Charakterpflege über Charakter + Trainingsdatenordner. Abläufe: Neues Foto, Foto nach Vorlage, Foto bearbeiten (inkl. Ausziehen), Video (freie Animation oder Bewegungsübertragung). An der kreativen Stufe wählt immer der Betreiber.
 
+### 9.7 Auflösung, Hochskalierung und Instagram-Ausgabe (Betreiberentscheidung 15.11.2026)
+
+- **Original mindestens 1K:** Jedes freigegebene Foto und Video liegt mindestens in 1K vor (kurze Seite ≥ 1080 px im Zielseitenverhältnis) – genug für Instagram ohne Neugenerierung und Grundlage für spätere Hochskalierung. Erzeugt wird direkt im Zielformat (kein nachträglicher Beschnitt der Figur). Liefert ein Modell nativ weniger (SDXL-Buckets z. B. 896 × 1152, Wan 2.2 480p/720p), erreicht eine ausgewiesene Verfeinerungs- bzw. Hochskalierungsstufe 1K; native und ausgegebene Auflösung werden getrennt gespeichert (§9.5).
+- **Mehr als 1K nur per Upscaler:** 2K/4K für Bild und Video entstehen auf Wunsch aus dem freigegebenen Original – als neue abgeleitete Version mit eigenem SHA-256 und Eltern-Verweis, nie durch Neugenerieren. Bild: SeedVR2 7B/3B (A/B); Video: SeedVR2 Video vs. RelayVSR, FILM für höhere Bildrate. Auslöser: Dateien „Weiterverarbeiten → Hochskalieren“, Kundenauftrag mit HD-Wunsch, Default-Folgeanweisung („Nr. 2 in 4K“). Wer kein HD will, bekommt das 1K-Original.
+- **Instagram-Ausgabeprofile** (Stand 2026 laut Creator-Leitfäden, keine Meta-Dokumentation – mit dem ersten echten Post prüfen): Beitrag 3:4 = 1080 × 1440 (höchstes Format in der App, Profilraster ohne Beschnitt), 4:5 = 1080 × 1350 (Grenze der Veröffentlichungs-API), 1:1 = 1080 × 1080; Story/Reel 9:16 = 1080 × 1920. Fotos sRGB-JPEG hoher Qualität; Reels H.264/AAC-MP4, 30 fps. Instagram zeigt höchstens 1080 px Breite und rechnet 4K-Videos auf 1080p herunter – für Instagram genügt das 1K-Original, Hochaufgelöstes dient Kunden-HD und Archiv.
+- Das Ausgabeprofil ist eine Einstellung im Format-Feld der rechten ComfyUI-Steuerung (F7.5) und Teil jedes Default- und Kundenauftrags.
+
 ## 10. Geklärte Punkte
 
 1. **HTTPS/Erreichbarkeit:** **Telegram läuft über Long-Polling ohne öffentliche Adresse.** Nur Instagram braucht eine öffentliche HTTPS-Adresse (Webhook, OAuth-Rückruf, Abruf ausgehender Medien). Umsetzung in P7: kostenloser Tunnel mit **fester** Adresse ohne eigene Domain – bevorzugt **Tailscale Funnel** (`*.ts.net`, Pfad-Weiterleitung; laut Quellen Beta), Alternative **ngrok** mit kostenloser fester Domain; Cloudflare Quick Tunnels (wechselnde Adresse) ungeeignet. Öffentlich werden nur die drei Instagram-Pfade mit eigener Prüfung; alles andere bleibt lokal. Die Wahl zwischen Funnel und ngrok fällt im P7-Test.
@@ -233,7 +254,7 @@ Die bestehende Direktbedienung bleibt (freier Prompt, Workflow-Wahl, Parameter, 
 6. **Zwei ComfyUI-Instanzen:** §4.2; Umsetzung P5.
 7. **Übernahme aus V0.1:** §11.
 
-## 11. Übergangsmatrix V0.1 → V0.2
+## 11. Übergangsmatrix V0.1 → V0.2 / V0.3
 
 | V0.1-Inhalt | Einordnung | Begründung |
 |---|---|---|
@@ -254,6 +275,8 @@ Die bestehende Direktbedienung bleibt (freier Prompt, Workflow-Wahl, Parameter, 
 | Pakete I0 (Instagram-Machbarkeit), D1, I1, I2 | ERSETZT / GESTRICHEN | ersetzt durch P7–P9; D1 gestrichen |
 | Chatwoot als Kanalinfrastruktur (BACK/FRONT, Betreiber-ZIP) | ERSETZT | eigene Python-Adapter für Instagram und Telegram, Chatwoot nur Musterquelle (§6) |
 | Paket P0a macOS 26 | BLEIBT | als P3, vor den Videovergleichen |
+| (V0.3) Kloner-Ergebnisse nur im Cockpit | GEÄNDERT | Default-Nutzer: freie Anweisungen, Rückversand per Telegram, Folgeanweisungen (§8.1) |
+| (V0.3) Fertigstellung 4K, Zustellkopie „bei Bedarf geringere Auflösung“ | GEÄNDERT | Original ≥ 1K, 2K/4K nur per Upscaler auf Wunsch, Instagram-Ausgabeprofile, Zustellkopie nie unter 1K (§9.7, §6) |
 
 ## 12. Phasen (verbindliche Reihenfolge)
 
@@ -262,7 +285,7 @@ Jede Phase: echte Umsetzung, gezielte Tests (Normalfall, wesentlicher Fehlerfall
 **Teil A – Produktionskette (Vorrang)**
 
 **P0 – Kernkette mit vorhandenen Modellen** (= BACK §0 CHAIN-00…06) · Status: OFFEN
-- Ziel: Charakterfotos → versionierte SDXL-Charakter-LoRA → LUSTIFY-Graph mit LoraLoader → ≥ 3 Posen/Perspektiven (A/B mit/ohne LoRA) → Maskenbearbeitung + Verfeinerung → finales Standbild in Dateien → genau dieses Bild als Wan-2.2-FP16-Startbild → echtes Video in Dateien, mit Eltern-/Kind-Verknüpfung im Job-Journal.
+- Ziel: Charakterfotos → versionierte SDXL-Charakter-LoRA → LUSTIFY-Graph mit LoraLoader → ≥ 3 Posen/Perspektiven (A/B mit/ohne LoRA) → Maskenbearbeitung + Verfeinerung → finales Standbild in mindestens 1K (Skalieren + LUSTIFY-Verfeinerung, vorhandene Modelle) in Dateien → genau dieses Bild als Wan-2.2-FP16-Startbild → echtes Video in Dateien (Wan nativ 480p/720p; 1K-Video mit dem Video-Upscaler in P4), mit Eltern-/Kind-Verknüpfung im Job-Journal.
 - Vorhanden: `training.scan/build_dataset`, `train_sdxl_lora`, Inpaint mit Pixelprüfung, „Aus Dateien“, Wan-Workflow, FIFO, Galerie.
 - Fehlt: LoRA-Registry (SHA, Basis + SHA, Datensatz, Trigger, Stärke, Status) im Manifest; LoraLoader-Workflow-Version; Trainingsweg (ComfyUI-Trainingsworkflow in der Medien-Instanz zuerst testen, sonst vorhandener diffusers-Trainer als dokumentierte Ausnahme); `jobs.parent_id`/Version; Entladen bei Engine-Wechsel (`comfy.free`, `pipeline.run_render`); Speicherverlauf messen; MPS-Attention (#14837) mit Testfall untersuchen; Remix-Workflow auf Autor-Vorlage korrigieren (Vergleich erst P4).
 - Module/Verträge: `training.py`, `models.py` (Manifest), `pipeline.py`, `comfy.py`, `store.py` (Migration 4: `jobs.parent_id`, `workflow_version`), Workflows; keine neuen Protobuf-Topics (bestehende Befehle/Galerie); Training und LoRA-Wahl über die bestehenden Render-/Workflow-Befehle und die Job-Projektion, Trainingsdatenordner rechts (F7.5); terminale Receipts folgen in P1.
@@ -276,15 +299,15 @@ Jede Phase: echte Umsetzung, gezielte Tests (Normalfall, wesentlicher Fehlerfall
 - Abhängigkeit: P0. Abnahme: jede gewählte Vorlage mit 0 Abweichungen importiert; Auftrag übersteht Neustart ohne Doppelrender; Wiederholen erzeugt neue Version mit identischen Einstellungen; manipulierter Befehl abgewiesen; DF-PUSH D 1–7, 9, 11 (u. a. Doppelklick → ein Effekt, `UNKNOWN` ohne blinden Neuversuch, langsamer Client, Reconnect).
 
 **P2 – Identität und Bildqualität** · Status: OFFEN
-- Ziel: Identitätsprofil (§9.2) mit Metrik und Prüfsatz; gemeinsamer Modell-/Identitäts-A/B (vorhandene vs. Krea 2/LUSTIFY v10/FLUX 3 Klein); Produktionsbedienung im F7.5-Layout (§9.6); Bearbeiten/Ausziehen (SAM 3.1 + Inpaint + Composite); Foto-Fertigstellung 4K (nativ vs. SeedVR2/RelayVSR).
+- Ziel: Identitätsprofil (§9.2) mit Metrik und Prüfsatz; gemeinsamer Modell-/Identitäts-A/B (vorhandene vs. Krea 2/LUSTIFY v10/FLUX 3 Klein); Produktionsbedienung im F7.5-Layout (§9.6); Bearbeiten/Ausziehen (SAM 3.1 + Inpaint + Composite); Original ≥ 1K und Bild-Upscaler 2K/4K als abgeleitete Version (SeedVR2 7B/3B; nativ 4K mit FLUX 3 Klein im Vergleich), Instagram-Ausgabeprofile Foto (§9.7).
 - Fehlt: Charakterverwaltung (Backend + UI), Metrikmodul, mflux-/Trainingspfad für Krea 2, Modelle (schrittweise, nach Speicherbilanz), STATE 5, EVENT 24, Befehle 25–27, Charakterseite.
-- Abhängigkeit: P1. Abnahme: Rollen `image_master`/`image_edit` mit dokumentierten Zahlen besetzt; Identitätsprofil-Version nach Freigabe aktiv; 0 Pixel außerhalb der Maske; 4K-Datei mit ausgewiesener nativer Auflösung.
+- Abhängigkeit: P1. Abnahme: Rollen `image_master`/`image_edit` mit dokumentierten Zahlen besetzt; Identitätsprofil-Version nach Freigabe aktiv; 0 Pixel außerhalb der Maske; 4K-Datei mit ausgewiesener nativer Auflösung; Hochskalieren aus Dateien ohne Neugenerierung; Instagram-Export 1080 × 1440 / 1350 / 1080 / 1920 mit korrekten Abmessungen.
 
 **P3 – macOS 26** · Status: OFFEN (Betreiber führt aus)
 - Vorher Sicherung, keine laufenden Jobs, DarkBot sichern; danach ComfyUI, Referenzrender, Cockpit und Tests erneut bestanden; LTX Desktop lokal geprüft. Vor den Videovergleichen.
 
 **P4 – Video** · Status: OFFEN
-- Ziel: freie Animation (Wan FP16 vs. Remix vs. LTX 2.5 Dev/Distilled in ComfyUI; LTX Desktop als Vergleich), Bewegungsübertragung (Wan Animate 2 vs. VACE vs. Fun Control), Langvideo-Regeln (Länge, Fenster, Übergänge, FPS, Ton), Video-Fertigstellung 4K + Interpolation, Identität über Frames.
+- Ziel: freie Animation (Wan FP16 vs. Remix vs. LTX 2.5 Dev/Distilled in ComfyUI; LTX Desktop als Vergleich), Bewegungsübertragung (Wan Animate 2 vs. VACE vs. Fun Control), Langvideo-Regeln (Länge, Fenster, Übergänge, FPS, Ton), Video-Original ≥ 1K (Video-Upscaler aus der Nativauflösung), 2K/4K auf Wunsch (SeedVR2 Video vs. RelayVSR) + Interpolation (FILM), Reel-Profil 1080 × 1920, Identität über Frames.
 - Abhängigkeit: P2, P3. Abnahme: Rolle `video_i2v` und Bewegungsübertragung mit Zahlen besetzt; Video in Dateien mit vollständiger Provenienz.
 
 **Teil B – KI-Instanz und lokaler Kloner**
@@ -295,8 +318,8 @@ Jede Phase: echte Umsetzung, gezielte Tests (Normalfall, wesentlicher Fehlerfall
 - Abhängigkeit: P1. Abnahme: beide Instanzen starten/stoppen unabhängig; gleichzeitige Last nach Zulassungsregel ohne Absturz; getrennte Queue-/Health-Zustände (DF-PUSH D 10); Messwerte dokumentiert.
 
 **P6 – Lokaler Referenz-Kloner** · Status: OFFEN
-- Ziel: `clone`, `pose`, `style`, `remix`, `animate` mit lokal importierter Vorlage (Upload/Dateien) → Analyse → Charakterbindung → drei Kandidaten → Dateien; unabhängig von Kanälen nachgewiesen.
-- Fehlt: Vorlagenablage und Analyse-Workflows, Befehlsinterpretation (KI-Instanz), EVENT 25, Befehl 28, Vorlagenseiten, UI „Vorlagen“.
+- Ziel: `clone`, `pose`, `style`, `remix`, `animate` mit lokal importierter Vorlage (Upload/Dateien) → Analyse → Charakterbindung → drei Kandidaten → Dateien; dazu freie Anweisungen mit mehreren Referenzen (§8.1) lokal im Cockpit; unabhängig von Kanälen nachgewiesen.
+- Fehlt: Vorlagenablage und Analyse-Workflows, Befehls- und Anweisungsdeutung mit Referenzauflösung und Rückfrage (KI-Instanz), EVENT 25, Befehl 28, Vorlagenseiten, UI „Vorlagen“.
 - Abhängigkeit: P2, P4 (animate/Video), P5. Abnahme: jeder Befehl einzeln real geprüft.
 
 **Teil C – Kanäle und Kundenbetrieb (F4)**
@@ -307,21 +330,22 @@ Jede Phase: echte Umsetzung, gezielte Tests (Normalfall, wesentlicher Fehlerfall
 - Verträge: STATE 8, EVENT 26/27, Befehl 29, Kunden-/Verlaufsseiten.
 - Abhängigkeit: P1 (Aufträge), Telegram-Bot-Token, Meta-App, Tunnel-Konto. Abnahme: echte Telegram- und Instagram-Nachricht erscheinen je genau einmal; doppelt zugestelltes Ereignis erzeugt nichts; Backend-Neustart verliert nichts (Telegram-Offset, Instagram-Abgleich); ungültige Signatur abgewiesen.
 
-**P8 – Telegram-Kloner-Eingang** · Status: OFFEN
-- Ziel: freigegebener Telegram-Absender sendet Foto/Video mit Befehl → derselbe Produktionspfad wie P6; Kennzeichnung `INTERNER AUFTRAG` in Nachrichten; Datei > 20 MB → Hinweis. Abhängigkeit: P6, P7. Abnahme: Auftrag vom Smartphone bis Dateien; Duplikat-Ereignis ohne zweiten Auftrag.
+**P8 – Telegram: Default-Nutzer (Kloner, freie Anweisungen, Rückversand)** · Status: OFFEN
+- Ziel: Default-Nutzer am Telegram-Bot der Influencerin sendet Foto/Video mit Befehl **oder freier Anweisung** (§8.1) → derselbe Produktionspfad wie P6 → **Rückversand der postfertigen Ergebnisse als Dateien in denselben Chat** (Freigabemodus, Postausgang, EVENT 28); Folgeanweisungen per Antwort („Nr. 2 in 4K“, „Nr. 1 als Reel“); Kennzeichnung `INTERNER AUFTRAG` in Nachrichten; Datei > 20 MB → Hinweis.
+- Abhängigkeit: P6, P7. Abnahme: vom Handy 3 Fotos senden, dann „erstelle ähnliche Fotos für einen neuen Instagram-Beitrag“ → genau ein Auftrag mit korrekt aufgelösten Referenzen → Ergebnisse kommen im gewählten Instagram-Profil (z. B. 1080 × 1440) verlustfrei im Telegram-Chat an und liegen in Dateien mit Provenienz; „Nr. 2 in 4K“ liefert die hochskalierte Version ohne Neugenerierung; unklare Anweisung → genau eine Rückfrage; Duplikat-Ereignis ohne zweiten Auftrag; Neustart ohne doppelten Rückversand; DF-PUSH D 1, 5–7.
 
 **P9 – Instagram-DM-Kloner-Eingang** · Status: OFFEN
-- Ziel: direkt gesendete Bilder/Videos, geteilte Beiträge/Reels real prüfen; abrufbare Medien sofort sichern und wie P8 verarbeiten; nicht abrufbare als „nicht importierbar“. Voraussetzung: professionelles Instagram-Konto der Influencerin, Meta-App mit Instagram-Login und Nachrichtenberechtigung; Absender-Accounts mit App-Rolle (Standard Access genügt, §6). Abhängigkeit: P7, P8.
+- Ziel: direkt gesendete Bilder/Videos, geteilte Beiträge/Reels real prüfen; abrufbare Medien sofort sichern und wie P8 verarbeiten (freie Anweisungen eingeschlossen, Rückversand an die Telegram-ID des Default-Kontakts, sonst über Instagram, §6); nicht abrufbare als „nicht importierbar“. Voraussetzung: professionelles Instagram-Konto der Influencerin, Meta-App mit Instagram-Login und Nachrichtenberechtigung; Absender-Accounts mit App-Rolle (Standard Access genügt, §6). Abhängigkeit: P7, P8.
 
 **P10 – Kundenbetrieb F4 vollständig** · Status: OFFEN
-- Ziel: kanalgebundene Antworten (Befehl mit Kunde + Kanalidentität + Plattform-Konversations-ID + Revision; `channel=all` abgewiesen), KI antworten/Entwürfe/Modi/Übergabe-Erkennung, Influencerinnen (Profil, LLM, Bild-/Video-Workflow, Identitätsprofil, Freigabemodus), Kundengedächtnis, Instagram→Telegram-Token-Verknüpfung, Medienaufträge mit 8-Schritt-Verlauf, Zahlungen (nur verifizierter Provider), Admin-Freigabe (Zweit-KI erst nach eigener Abnahme), Zustellung über die Adapter nur hinter `approval.py` mit Zustellkopie je Kanalgrenze (§6), Zustellstatus, Ereigniskarten; Übersicht-Karte Freigaben ausstehend; Instagram Advanced Access (Meta-App-Prüfung) für fremde Kunden.
+- Ziel: kanalgebundene Antworten (Befehl mit Kunde + Kanalidentität + Plattform-Konversations-ID + Revision; `channel=all` abgewiesen), KI antworten/Entwürfe/Modi/Übergabe-Erkennung, Influencerinnen (Profil, LLM, Bild-/Video-Workflow, Identitätsprofil, Freigabemodus), Kundengedächtnis, Instagram→Telegram-Token-Verknüpfung, Medienaufträge mit 8-Schritt-Verlauf (HD-Wunsch → Upscaler-Version, §9.7), Zahlungen (nur verifizierter Provider), Admin-Freigabe (Zweit-KI erst nach eigener Abnahme), Zustellung über die Adapter nur hinter `approval.py` mit Zustellkopie je Kanalgrenze (§6), Zustellstatus, Ereigniskarten; Übersicht-Karte Freigaben ausstehend; Instagram Advanced Access (Meta-App-Prüfung) für fremde Kunden.
 - Verträge: STATE 9, EVENT 28, Befehle 30–36. Abhängigkeit: P5, P7. Abnahme: FRONT-F4-Abnahmefälle (drei Kunden, Kanaltreue, Gesamt nur lesbar, Entwurf/Kanalwechsel, Dubletten, Neustart, KI aus, Übergabe, zwei Influencerinnen, zwei Aufträge, Zahlung/Freigabe/Zustellung genau einmal; Foto und Video je Kanal innerhalb der Grenze zugestellt, Zustellkopie mit eigenem SHA-256; DF-PUSH D 6–8).
 
 **P12 – Weitere Kanäle (später)** · Status: OFFEN
 - WhatsApp (Cloud API), danach Fanvue/TikTok/Shop jeweils als weiterer Adapter derselben Schnittstelle, nur mit freigegebener offizieller API; je Kanal ein realer End-to-End-Test.
 
 **P11 – Gesamtabnahme** · Status: OFFEN
-- Alle fünf Kurzbefehle über alle verfügbaren Eingänge, Neustart/Wiederaufnahme, Fehler, keine Doppelaufträge, keine Charakterverwechslung, vollständige Metadaten, freie Prompt-Generierung und Workflow-Verwaltung weiter funktionsfähig, Dateien dauerhaft, Kundendaten unbeschädigt, Release-Einheit/Rückfall.
+- Alle fünf Kurzbefehle und freie Default-Anweisungen über alle verfügbaren Eingänge inkl. Rückversand per Telegram, Neustart/Wiederaufnahme, Fehler, keine Doppelaufträge, keine Charakterverwechslung, vollständige Metadaten, freie Prompt-Generierung und Workflow-Verwaltung weiter funktionsfähig, Dateien dauerhaft, Kundendaten unbeschädigt, Release-Einheit/Rückfall.
 
 ## 13. Widerspruchsauflösung gegenüber BACK V1.10/1.11 und FRONT V1.7/1.8
 
@@ -347,7 +371,8 @@ Jede Phase: echte Umsetzung, gezielte Tests (Normalfall, wesentlicher Fehlerfall
 | Produktionsarbeitsbereich (V0.2-Entwurf) vs. F7.5 | eigene drei Spalten + Schaltflächen | F7.5-Layout; Produktionsfunktionen als Felder darin (§9.6) |
 | Kandidaten vs. F7.5 „keine fiktiven Kandidatenflächen“ | drei Kandidaten | je Kandidat ein echtes Renderergebnis, keine Platzhalter |
 | Chatwoot im DF-PUSH-Vertrag und in F7 (BACK 1.11, FRONT 1.8) | Chatwoot-Adapter/-Conversation | eigene Kanal-Adapter, Plattform-Konversation (BACK 1.12, FRONT 1.9) |
-| Medienversand und Kloner-Rückversand | ungeregelt | Eingabefeld nur Text; Kundenmedien nur nach Zahlung + Freigabe, als Zustellkopie bei Kanalgrenze; Kloner-Ergebnisse nur in Nachrichten (Default) und Dateien (§6, §8) |
+| Medienversand und Kloner-Rückversand | ungeregelt | Eingabefeld nur Text; Kundenmedien nur nach Zahlung + Freigabe, als Zustellkopie bei Kanalgrenze; Ergebnisse des Default-Nutzers per Telegram an ihn zurück (Betreiberentscheidung 15.11.2026; ändert FRONT F7.4 „ausschließlich Mitte und Dateien“), zusätzlich in Nachrichten und Dateien (§6, §8.1) |
+| Fertigstellung 4K (BACK, V0.1) | 4K als Fertigstellungsstufe | Original ≥ 1K; 2K/4K nur per Upscaler auf Wunsch (§9.7) |
 | Modellbestand | „nicht pauschal löschen“ | Betreiberauftrag 15.11.2026: RealCore, Qwen-Image 20B/2.1, FLUX.2 Dev entfernt (§9.3) |
 
 ## 14. Voraussetzungen durch den Betreiber

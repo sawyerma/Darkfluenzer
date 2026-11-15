@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN BACK V1
 
-**Version:** 1.12 — technische Backend-Referenz zum verbindlichen Gesamtplan [PHASENPLAN_V0.md](PHASENPLAN_V0.md); native M4-Architektur; Kanäle über eigene Python-Adapter (Chatwoot entfällt, V0 §6)
+**Version:** 1.13 — technische Backend-Referenz zum verbindlichen Gesamtplan [PHASENPLAN_V0.md](PHASENPLAN_V0.md); native M4-Architektur; Kanäle über eigene Python-Adapter (Chatwoot entfällt, V0 §6)
 **Stand:** 15.11.2026  
 **Status:** Zielarchitektur verabschiedet; Medien-ComfyUI 1 vorhanden; KI-ComfyUI 2 verbindlich beschlossen, Implementierung und Mac-Abnahme OFFEN (V0 P5). Gesamtstatus und Reihenfolge: PHASENPLAN_V0 §3/§12  
 **Repository:** `sawyerma/Darkfluenzer`, Branch `main`  
@@ -324,7 +324,7 @@ Ein gesamter Kundenauftrag ist anhand seiner Kunden- und Bestellnummer wieder au
 - **Generierung:** Nach gültiger Zahlung aus dem Chat einen typisierten Auftrag erstellen; die Engine erzeugt genau drei Kandidaten. Erneute Generierung schafft neue Kandidaten-IDs, keine stille Überschreibung.
 - **Freigabe:** Betreiber erhält private Handy-Vorschau oder lokale UI, sieht Kundennummer, Auftrag, Bezahlstatus, drei Bilder/Videos und kann **Freigeben, Ablehnen, Neu erzeugen**.
 - **Lieferbedingung:** `PAYMENT_CONFIRMED && OPERATOR_APPROVED && ARTIFACT_HASH_MATCH && CUSTOMER_MATCH`. Der Delivery-Service prüft alle Bedingungen **erneut im Versandmoment**. Abbruch, Refund oder veränderte Datei sperren die Lieferung.
-- **Zustellungsgenauigkeit:** idempotente Versand-ID; keine Doppelzustellung bei Neustart/Timeout. Nicht lieferbare bezahlte Aufträge bekommen eine geregelte Überarbeitung/Erstattung.
+- **Zustellungsgenauigkeit:** idempotente Versand-ID; keine Doppelzustellung bei Neustart/Timeout. Der Rückversand an den verifizierten Default-Absender ist keine Kundenzustellung (keine Zahlung, Freigabemodus des Default-Kontakts), läuft aber über denselben Postausgang (→ V0 §8.1). Nicht lieferbare bezahlte Aufträge bekommen eine geregelte Überarbeitung/Erstattung.
 - **Trennung der Autoritäten:** Das Sprachmodell darf Kunden antworten und Prompts schreiben, aber keine Bestätigung von Zahlung/Freigabe oder freie Dateisystem-/Shellbefehle ausführen.
 
 ## 6A. Character-LoRA — Drag-and-drop ohne Einrichtung
@@ -470,6 +470,8 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 10. **Fiktive erwachsene Figur:** keine fremde Person imitieren; Transparenz über künstliche Identität, vereinbarte Inhalte und kommerzielle Rechte. Face-Swap ausschließlich auf eigenen, synthetisch erzeugten Bildern; fremde Vorlagen liefern nur Pose, Komposition, Licht, Stil bzw. Bewegung (→ V0 Regel 4).
 
 ## 9. Änderungsprotokoll
+
+**V1.13 — DEFAULT-RÜCKVERSAND UND AUFLÖSUNG (15.11.2026):** Rückversand an den Default-Absender über den Postausgang ohne Zahlungs-Gate (→ V0 §8.1); Original mindestens 1K, 2K/4K nur per Upscaler (→ V0 §9.7).
 
 **V1.12 — V0-ABGLEICH (15.11.2026):** PHASENPLAN_V0 ist verbindlicher Gesamtplan, dieses Dokument technische Backend-Referenz. Mit „→ V0“ gekennzeichnet: Autorität, Produktziel (Content-Cloner über Nachrichten), Master-/Benchmark-Rollen (Kandidaten im A/B, FLUX.2 Dev nicht eingeplant), „eine Engine pro Auftrag“ (→ je Stufe), gemeinsame Ressourcensteuerung beider Instanzen, Trainingsausnahme, Reproduzierbarkeit, Face-Swap-Regel, Telegram-gebundene Tabellen (Migration P7), Status S4 und Phasen-Zuordnung. **Chatwoot entfällt** (Betreiberentscheidung): Instagram und Telegram über eigene Python-Adapter, WhatsApp später; Chatwoot-Installation, -Gates und -Parameter gestrichen; im Systemvertrag DF-PUSH Chatwoot durch die eigenen Adapter ersetzt. Modellbestand 15.11. bereinigt (Qwen-Image 20B/2.1, RealCore, FLUX.2 Dev).
 
