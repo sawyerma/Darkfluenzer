@@ -1,0 +1,157 @@
+{
+ "id": "664fc98b-1745-546d-9077-1ab9f4d87d66",
+ "revision": 0,
+ "last_node_id": 3,
+ "last_link_id": 2,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "LoadImage",
+   "pos": [
+    40,
+    40
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "source.png"
+   ],
+   "title": "Eingabe · Freigegebenes Original"
+  },
+  {
+   "id": 2,
+   "type": "ResizeImageMaskNode",
+   "pos": [
+    460,
+    40
+   ],
+   "size": [
+    360,
+    214
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "input",
+     "type": "IMAGE,MASK",
+     "link": 1
+    }
+   ],
+   "outputs": [
+    {
+     "name": "resized",
+     "type": "*",
+     "links": [
+      2
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ResizeImageMaskNode"
+   },
+   "widgets_values": [
+    "scale dimensions",
+    1080,
+    1440,
+    "center",
+    "area"
+   ],
+   "title": "Ausgabe · Instagram-Format (1080 Breite, mittig)"
+  },
+  {
+   "id": 3,
+   "type": "SaveImage",
+   "pos": [
+    880,
+    40
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 2
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "darkfluenzer/instagram"
+   ],
+   "title": "Ausgabe · Ergebnis"
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   0,
+   2,
+   0,
+   "IMAGE"
+  ],
+  [
+   2,
+   2,
+   0,
+   3,
+   0,
+   "*"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {
+  "ds": {
+   "scale": 0.75,
+   "offset": [
+    0,
+    0
+   ]
+  }
+ },
+ "version": 0.4
+}

@@ -216,7 +216,9 @@ class Cockpit:
                 continue  # inzwischen entfernt
             self._resuming.discard(job_id)
             engine = job["engine"]
-            if not await self._admit(lane, job_id, engine):
+            eng = self.manifest.engines.get(engine)
+            modelfree = eng is not None and eng.modelfree  # lässt geladene Modelle in Ruhe
+            if not modelfree and not await self._admit(lane, job_id, engine):
                 continue  # während des Wartens auf Speicher entfernt
             lane.running_job = job_id
             try:
@@ -227,11 +229,11 @@ class Cockpit:
                     job_id,
                     client_id=lane.client_id,
                     is_cancelled=lambda job=job_id: job in self._cancelled,
-                    unload_first=bool(lane.engine) and lane.engine != engine,
+                    unload_first=bool(lane.engine) and lane.engine != engine and not modelfree,
                 )
             except Exception as exc:  # im Journal als fehlgeschlagen festgehalten
                 log.error("Renderjob %s fehlgeschlagen: %s", job_id, exc)
-            lane.engine, lane.running_job = engine, 0
+            lane.engine, lane.running_job = lane.engine if modelfree else engine, 0
             pipeline.advance_order(self.store, job_id)  # Stufe vollständig? (SQLite im Loop)
             self._orders_changed()
             self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
@@ -469,6 +471,9 @@ class Cockpit:
                 instance=eng.instance,
                 training=wf.training,
             )
+            if {"width", "height"} <= set(wf.params):
+                for name, (width, height) in eng.formats.items():
+                    info.formats.add(name=name, width=width, height=height)
             graph = comfy.load_graph(self.manifest, wf)
             for name, p in wf.params.items():
                 param = info.params.add(
@@ -477,7 +482,7 @@ class Cockpit:
                     required=p.required,
                     upload=p.upload,
                     multiple_of=p.multiple_of or 0,
-                    choices=list(p.choices),
+                    choices=[str(c) for c in p.choices],
                     label=p.label,
                     expert=p.is_expert,
                 )

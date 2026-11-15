@@ -667,6 +667,7 @@ function Workbench({
   const [picking, setPicking] = useState<WorkflowParam | null>(null);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const [checked, setChecked] = useState(false);
+  const format = wf.formats.find((f) => String(f.width) === raw.width && String(f.height) === raw.height)?.name ?? "";
   const [expert, setExpert] = useState(false); // erweiterte Einstellungen: anfangs geschlossen
   // Mitte: Grundeinstellungen (Texte, Eingabebilder); rechts die Experten-Eingänge (F7.5, V0 §7)
   const inMain = (p: WorkflowParam) => !p.expert;
@@ -878,20 +879,46 @@ function Workbench({
             </button>
           </div>
         </div>
-        {canCandidates ? (
+        {wf.formats.length > 0 || canCandidates ? (
           <div className="g-form">
-            <div className="g-field">
-              <label htmlFor={`${wf.key}-candidates`}>Kandidaten</label>
-              <input
-                id={`${wf.key}-candidates`}
-                type="number"
-                min={1}
-                max={ordersState?.candidatesMax ?? 1}
-                value={count === "" ? String(candidates) : count}
-                onChange={(e) => setCount(e.target.value)}
-              />
-            </div>
-            {finishers.length > 0 ? (
+            {wf.formats.length > 0 ? (
+              <div className="g-field">
+                <label htmlFor={`${wf.key}-format`}>Format</label>
+                <select
+                  id={`${wf.key}-format`}
+                  value={format}
+                  onChange={(e) => {
+                    const f = wf.formats.find((x) => x.name === e.target.value);
+                    if (f) setRaw({ ...raw, width: String(f.width), height: String(f.height) });
+                  }}
+                >
+                  {format === "" ? (
+                    <option value="">
+                      frei · {raw.width} × {raw.height}
+                    </option>
+                  ) : null}
+                  {wf.formats.map((f) => (
+                    <option key={f.name} value={f.name}>
+                      {f.name} · {f.width} × {f.height}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+            {canCandidates ? (
+              <div className="g-field">
+                <label htmlFor={`${wf.key}-candidates`}>Kandidaten</label>
+                <input
+                  id={`${wf.key}-candidates`}
+                  type="number"
+                  min={1}
+                  max={ordersState?.candidatesMax ?? 1}
+                  value={count === "" ? String(candidates) : count}
+                  onChange={(e) => setCount(e.target.value)}
+                />
+              </div>
+            ) : null}
+            {canCandidates && finishers.length > 0 ? (
               <div className="g-field">
                 <label htmlFor={`${wf.key}-finish`}>Fertigstellen mit</label>
                 <select id={`${wf.key}-finish`} value={finish} onChange={(e) => setFinish(e.target.value)}>

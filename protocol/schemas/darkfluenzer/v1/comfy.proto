@@ -133,6 +133,15 @@ message WorkflowInfo {
   string instance = 13;
   // Trainingsworkflow: trainiert eine Charakter-LoRA aus dem Trainingsdatenordner (B1)
   bool training = 14;
+  // Ausgabeprofile der Engine (V0 §9.7), nur bei Workflows mit Breite und Höhe
+  repeated OutputFormat formats = 15;
+}
+
+message OutputFormat {
+  // z. B. 3:4
+  string name = 1;
+  uint32 width = 2;
+  uint32 height = 3;
 }
 
 // STATE comfy.workflows

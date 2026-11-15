@@ -17,7 +17,7 @@ import threading
 import time
 import tomllib
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import tomlkit
@@ -74,6 +74,13 @@ class Engine:
     note: str
     # ausführende ComfyUI-Instanz (PHASENPLAN_V0 §4.2): media (Foto/Video) oder ai (KI-Workflows)
     instance: str
+    # Ausgabeprofile (V0 §9.7): Name -> (Breite, Höhe), in denen diese Engine erzeugt
+    formats: dict[str, tuple[int, int]] = field(default_factory=dict)
+
+    @property
+    def modelfree(self) -> bool:
+        """Reine Bildverarbeitung ohne Modell (arch "none"): kein Laden, kein Entladen."""
+        return not self.files
 
 
 PARAM_TYPES = {"str": str, "int": int, "float": float}
@@ -241,8 +248,13 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             raise ManifestError(f"Manifest: {w}.gates braucht {GATES} mit Werten {GATE_VALUES}.")
         refs = t.get("files") or []
         missing = [r for r in refs if r not in files]
-        if not refs or missing:
+        if missing or (not refs and t.get("arch") != "none"):
             raise ManifestError(f"Manifest: {w}.files leer oder unbekannt: {missing}")
+        formats = {}
+        for name, size in (t.get("formats") or {}).items():
+            if not (isinstance(size, list) and len(size) == 2 and all(int(v) > 0 for v in size)):
+                raise ManifestError(f"Manifest: {w}.formats.{name} braucht [Breite, Höhe].")
+            formats[name] = (int(size[0]), int(size[1]))
         eng = Engine(
             key=key,
             title=_str(t, "title", w),
@@ -257,6 +269,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             gates=dict(gates),
             note=str(t.get("note", "")),
             instance=str(t.get("instance", "media")),
+            formats=formats,
         )
         if eng.instance not in INSTANCES:
             raise ManifestError(f"Manifest: {w}.instance muss {INSTANCES} sein.")
@@ -321,6 +334,8 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
                 raise ManifestError(
                     f"Manifest: {w}.params.{name}.type muss {set(PARAM_TYPES)} sein."
                 )
+            if any(type(c) is not PARAM_TYPES[params[name].type] for c in params[name].choices):
+                raise ManifestError(f"Manifest: {w}.params.{name}.choices passen nicht zum Typ.")
         enabled = t.get("enabled", True)
         if not isinstance(enabled, bool):
             raise ManifestError(f"Manifest: {w}.enabled muss true oder false sein.")
@@ -386,12 +401,12 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
     ]
     if wf.mask_output and (graph.get(wf.mask_output) or {}).get("class_type") != "SaveImage":
         problems.append(f"mask_output -> {wf.mask_output} ist kein SaveImage-Node im API-Graph.")
-    for role, node, field in (
+    for role, node, name in (
         ("training.dataset", wf.train_dataset, "folder"),
         ("training.lora", wf.train_lora, "prefix"),
     ):
-        if node and field not in (graph.get(node) or {}).get("inputs", {}):
-            problems.append(f"{role} -> {node} hat keinen Eingang '{field}' im API-Graph.")
+        if node and name not in (graph.get(node) or {}).get("inputs", {}):
+            problems.append(f"{role} -> {node} hat keinen Eingang '{name}' im API-Graph.")
     for node_id, node in graph.items():
         for value in node.get("inputs", {}).values():
             is_model = isinstance(value, str) and value.endswith((".safetensors", ".gguf"))

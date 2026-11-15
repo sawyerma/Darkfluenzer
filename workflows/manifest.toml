@@ -32,6 +32,7 @@ license = "Krea 2 Community License"
 usage = "evaluation"
 gates = { load = "PASS", render = "PASS", quality = "OFFEN", license_pass = "OFFEN" }
 note = "Inferenzmodell (destilliert): Vorlage image_krea2_turbo_t2i – 8 Schritte, CFG 1, euler/simple, Negativ leer; Prompt-Erweiterer der Vorlage nicht übernommen (bekleidet jede Person). Raw = Trainingsbasis, nicht für Inferenz (Modellkarte). Mac-Test 15.11.2026: 1104 × 1472, 8 Schritte 201 s (geladen) bzw. 251 s (mit Laden), Spitze ≈ 42 GB, kein Swap-Zuwachs, keine MPS-Bildstörung; sehr fotografisch, Altersangabe im Prompt in 1 von 2 Läufen nicht getroffen."
+formats = { "3:4" = [1104, 1472], "4:5" = [1088, 1360], "1:1" = [1088, 1088], "9:16" = [1088, 1936] }
 
 [engines.flux3_klein_base]
 title = "FLUX 3 Image Klein Base (BF16, undestilliert)"
@@ -58,6 +59,7 @@ license = "unbekannt – HF-Spiegel ohne Lizenzangabe (Original auf Civitai prü
 usage = "evaluation"
 gates = { load = "PASS", render = "PASS", quality = "OFFEN", license_pass = "OFFEN" }
 note = "Mac-Test 14.11.2026: 896×1152/36 Schritte 84–139 s, Peak 13 GB, Seed bitidentisch reproduzierbar; Inpaint 0 Pixel außerhalb der Maske verändert. Ohne Kleidungsangabe Tendenz zu unbekleideten Motiven; Rechteckmasken erzeugen sichtbare Kanten (Objektmasken nötig)."
+formats = { "3:4" = [896, 1216], "4:5" = [896, 1152], "1:1" = [1024, 1024], "9:16" = [768, 1344] }
 
 [engines.lustify_sam31_edit]
 title = "LUSTIFY! v2.0 (SDXL) + SAM 3.1 – Bearbeiten mit Objektmaske"
@@ -71,6 +73,19 @@ license = "LUSTIFY: unbekannt (HF-Spiegel); SAM 3.1: SAM License (Meta)"
 usage = "evaluation"
 gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
 note = "Mac-Test 15.11.2026: SAM 3.1 FP16 auf MPS 5–11 s. Erkennungswerte trennen vorhanden/nicht vorhanden nicht (fehlende Begriffe 0,42–0,90, echte 0,67–0,99): ein nicht vorhandener Bereich maskiert oft die ganze Person – deshalb Maske immer mit ausgegeben, Gesicht/Haare ausgespart."
+
+[engines.output_image]
+title = "Ausgabe (ohne Modell)"
+kind = "image"
+role = "output"
+arch = "none"
+precision = "-"
+wave = 0
+files = []
+license = "-"
+usage = "evaluation"
+gates = { load = "PASS", render = "OFFEN", quality = "OFFEN", license_pass = "PASS" }
+note = "Reine Bildverarbeitung in ComfyUI (Skalieren, Zuschnitt); lädt und entlädt keine Modelle."
 
 [engines.wan22_i2v]
 title = "Wan 2.2 I2V 14B (offiziell, FP16) – Referenz"
@@ -440,3 +455,14 @@ steps = { node = "4", input = "steps", type = "int", min = 50, max = 10000, labe
 rank = { node = "4", input = "rank", type = "int", min = 4, max = 128, label = "LoRA-Rang" }
 learning_rate = { node = "4", input = "learning_rate", type = "float", min = 0.000001, max = 0.01, label = "Lernrate" }
 seed = { node = "4", input = "seed", type = "int", min = 0, max = 4294967295 }
+
+[workflows.output_instagram]
+engine = "output_image"
+ui = "image/output_instagram.ui.json"
+api = "image/output_instagram.api.json"
+status = "OFFEN"
+title = "Ausgabe · Instagram-Format"
+
+[workflows.output_instagram.params]
+image = { node = "1", input = "image", type = "str", required = true, upload = true }
+height = { node = "2", input = "resize_type.height", type = "int", choices = [1440, 1350, 1080, 1920], label = "Höhe bei 1080 Breite (3:4 · 4:5 · 1:1 · 9:16)" }
