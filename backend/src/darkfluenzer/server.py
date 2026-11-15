@@ -470,6 +470,7 @@ class Cockpit:
                 and editor.read_bytes() != registry_ui.read_bytes(),
                 instance=eng.instance,
                 training=wf.training,
+                role=eng.role,
             )
             if {"width", "height"} <= set(wf.params):
                 for name, (width, height) in eng.formats.items():

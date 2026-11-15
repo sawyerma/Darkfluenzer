@@ -42,8 +42,12 @@ stop_timeout_s = 30
 
 [comfyui.env]
 PYTORCH_ENABLE_MPS_FALLBACK = "1"
-# PYTORCH_MPS_HIGH_WATERMARK_RATIO wird bewusst NICHT gesetzt (PyTorch-Standard).
-# 0.0 hebt die MPS-Speichergrenze komplett auf und darf nur nach einem Speichertest gesetzt werden.
+# MPS-Obergrenze (Speichertest 15.11.2026, M4 Max 128 GB): Der PyTorch-Standard erlaubt ≈ 163 GiB
+# und treibt große Läufe (Krea-2-Training) in massiven Swap. 0.9 begrenzt auf ≈ 86 GiB, ein
+# Überlauf bricht dann sauber ab. Die untere Grenze muss ≤ der oberen sein. 0.0 (keine Grenze)
+# ist ausgeschlossen.
+PYTORCH_MPS_HIGH_WATERMARK_RATIO = "0.9"
+PYTORCH_MPS_LOW_WATERMARK_RATIO = "0.8"
 
 # KI-ComfyUI 2 (PHASENPLAN_V0 §4.2): Dialog, Bildbeschreibung, Prompt, KI-Prüfung. Gleicher
 # ComfyUI-Code und gemeinsame Modellablage, eigener Port und eigene Ordner (user/input/output/temp

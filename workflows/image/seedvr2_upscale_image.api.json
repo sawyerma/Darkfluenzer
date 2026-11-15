@@ -1,0 +1,14 @@
+{
+ "1": {"class_type": "LoadImage", "inputs": {"image": "source.png"}, "_meta": {"title": "Eingabe · Freigegebenes Original"}},
+ "2": {"class_type": "JoinImageWithAlpha", "inputs": {"image": ["1", 0], "alpha": ["1", 1]}, "_meta": {"title": "Eingabe · mit Alpha"}},
+ "3": {"class_type": "ResizeImageMaskNode", "inputs": {"input": ["2", 0], "resize_type": "scale by multiplier", "resize_type.multiplier": 2.0, "scale_method": "lanczos"}, "_meta": {"title": "Hochskalieren · Zielgröße"}},
+ "4": {"class_type": "SeedVR2Preprocess", "inputs": {"resized_images": ["3", 0]}, "_meta": {"title": "Hochskalieren · Vorbereiten"}},
+ "5": {"class_type": "VAELoader", "inputs": {"vae_name": "seedvr2/seedvr2_ema_vae_fp16.safetensors"}, "_meta": {"title": "Modell · SeedVR2-VAE (FP16)"}},
+ "6": {"class_type": "UNETLoader", "inputs": {"unet_name": "seedvr2/seedvr2_7b_fp16.safetensors", "weight_dtype": "default"}, "_meta": {"title": "Modell · SeedVR2 (FP16)"}},
+ "7": {"class_type": "VAEEncodeTiled", "inputs": {"pixels": ["4", 0], "vae": ["5", 0], "tile_size": 512, "overlap": 128, "temporal_size": 4096, "temporal_overlap": 8}, "_meta": {"title": "Hochskalieren · Kodieren (gekachelt)"}},
+ "8": {"class_type": "SeedVR2Conditioning", "inputs": {"model": ["6", 0], "vae_conditioning": ["7", 0]}, "_meta": {"title": "Hochskalieren · Bedingung"}},
+ "9": {"class_type": "KSampler", "inputs": {"model": ["6", 0], "positive": ["8", 0], "negative": ["8", 1], "latent_image": ["7", 0], "seed": 20261115, "steps": 1, "cfg": 1.0, "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0}, "_meta": {"title": "Hochskalieren · Sampler (1 Schritt)"}},
+ "10": {"class_type": "VAEDecodeTiled", "inputs": {"samples": ["9", 0], "vae": ["5", 0], "tile_size": 512, "overlap": 128, "temporal_size": 4096, "temporal_overlap": 8}, "_meta": {"title": "Hochskalieren · Dekodieren (gekachelt)"}},
+ "11": {"class_type": "SeedVR2PostProcessing", "inputs": {"images": ["10", 0], "original_resized_images": ["3", 0], "color_correction_method": "lab"}, "_meta": {"title": "Ausgabe · Farbabgleich"}},
+ "12": {"class_type": "SaveImage", "inputs": {"images": ["11", 0], "filename_prefix": "darkfluenzer/seedvr2_upscale"}, "_meta": {"title": "Ausgabe · Ergebnis"}}
+}

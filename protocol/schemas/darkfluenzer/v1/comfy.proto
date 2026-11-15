@@ -135,6 +135,8 @@ message WorkflowInfo {
   bool training = 14;
   // Ausgabeprofile der Engine (V0 §9.7), nur bei Workflows mit Breite und Höhe
   repeated OutputFormat formats = 15;
+  // Rolle der Engine laut Manifest (master, edit, upscale, output, …)
+  string role = 16;
 }
 
 message OutputFormat {

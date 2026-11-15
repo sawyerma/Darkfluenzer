@@ -1,0 +1,135 @@
+{
+ "1": {
+  "class_type": "UNETLoader",
+  "inputs": {
+   "unet_name": "krea2/krea2_raw_bf16.safetensors",
+   "weight_dtype": "default"
+  },
+  "_meta": {
+   "title": "Modell · Krea 2 Raw (Trainingsbasis, BF16)"
+  }
+ },
+ "2": {
+  "class_type": "CLIPLoader",
+  "inputs": {
+   "clip_name": "krea2/qwen3vl_4b_bf16.safetensors",
+   "type": "krea2",
+   "device": "default"
+  },
+  "_meta": {
+   "title": "Modell · Textencoder Qwen3-VL-4B (BF16)"
+  }
+ },
+ "3": {
+  "class_type": "VAELoader",
+  "inputs": {
+   "vae_name": "qwen-image/qwen_image_vae.safetensors"
+  },
+  "_meta": {
+   "title": "Modell · VAE"
+  }
+ },
+ "4": {
+  "class_type": "LoadImageTextDataSetFromFolder",
+  "inputs": {
+   "folder": "darkfluenzer_datasets"
+  },
+  "_meta": {
+   "title": "Eingabe · Datensatz (setzt Darkfluenzer)"
+  }
+ },
+ "5": {
+  "class_type": "MakeTrainingDataset",
+  "inputs": {
+   "images": [
+    "8",
+    0
+   ],
+   "vae": [
+    "3",
+    0
+   ],
+   "clip": [
+    "2",
+    0
+   ],
+   "texts": [
+    "4",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "Training · Latents und Captions"
+  }
+ },
+ "6": {
+  "class_type": "TrainLoraNode",
+  "inputs": {
+   "model": [
+    "1",
+    0
+   ],
+   "latents": [
+    "5",
+    0
+   ],
+   "positive": [
+    "5",
+    1
+   ],
+   "batch_size": 1,
+   "grad_accumulation_steps": 1,
+   "steps": 1500,
+   "learning_rate": 0.0001,
+   "rank": 16,
+   "optimizer": "AdamW",
+   "loss_function": "MSE",
+   "seed": 1,
+   "training_dtype": "bf16",
+   "lora_dtype": "bf16",
+   "quantized_backward": false,
+   "algorithm": "LoRA",
+   "gradient_checkpointing": true,
+   "checkpoint_depth": 3,
+   "offloading": false,
+   "existing_lora": "[None]",
+   "bucket_mode": false,
+   "bypass_mode": true
+  },
+  "_meta": {
+   "title": "Training · Charakter-LoRA"
+  }
+ },
+ "7": {
+  "class_type": "SaveLoRA",
+  "inputs": {
+   "lora": [
+    "6",
+    0
+   ],
+   "prefix": "loras/darkfluenzer/character",
+   "steps": [
+    "6",
+    2
+   ]
+  },
+  "_meta": {
+   "title": "Ausgabe · LoRA (übernimmt Darkfluenzer)"
+  }
+ },
+ "8": {
+  "class_type": "ResizeImageMaskNode",
+  "inputs": {
+   "input": [
+    "4",
+    0
+   ],
+   "resize_type": "scale longer dimension",
+   "resize_type.longer_size": 768,
+   "scale_method": "area"
+  },
+  "_meta": {
+   "title": "Training · Trainingsauflösung (längere Seite)"
+  }
+ }
+}

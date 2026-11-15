@@ -34,6 +34,20 @@ gates = { load = "PASS", render = "PASS", quality = "OFFEN", license_pass = "OFF
 note = "Inferenzmodell (destilliert): Vorlage image_krea2_turbo_t2i – 8 Schritte, CFG 1, euler/simple, Negativ leer; Prompt-Erweiterer der Vorlage nicht übernommen (bekleidet jede Person). Raw = Trainingsbasis, nicht für Inferenz (Modellkarte). Mac-Test 15.11.2026: 1104 × 1472, 8 Schritte 201 s (geladen) bzw. 251 s (mit Laden), Spitze ≈ 42 GB, kein Swap-Zuwachs, keine MPS-Bildstörung; sehr fotografisch, Altersangabe im Prompt in 1 von 2 Läufen nicht getroffen."
 formats = { "3:4" = [1104, 1472], "4:5" = [1088, 1360], "1:1" = [1088, 1088], "9:16" = [1088, 1936] }
 
+[engines.krea2_raw]
+title = "Krea 2 Raw (BF16) – Trainingsbasis"
+kind = "image"
+role = "training_base"
+arch = "krea2"
+precision = "bf16"
+wave = 1
+files = ["krea2_raw_bf16", "krea2_qwen3vl_4b_bf16", "qwen_image_vae", "krea2_turbo_lora_r64"]
+license = "Krea 2 Community License"
+usage = "evaluation"
+gates = { load = "PASS", render = "PASS", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Modellkarte: nicht für Inferenz, Basis für Finetuning/LoRAs (52 Schritte, CFG 3,5). Charakter-LoRAs werden auf Raw trainiert und mit der Turbo-LoRA (rank 64) im Turbo-Tempo genutzt. Mac-Test 15.11.2026: Raw + Turbo-LoRA, 8 Schritte, 1104 × 1472, 234 s mit Laden, gleicher Seed wie Turbo → nahezu gleiches Bild und gleiche Qualität. Training (ComfyUI TrainLoraNode, Bypass, MPS-Grenze 86 GiB): 1024 px und 768 px mit Checkpoint-Tiefe 1 zu groß; 512 px Tiefe 1: 8,4 s/Schritt; 768 px Tiefe 3: 23,9 s/Schritt (Standard, 1500 Schritte ≈ 10 h)."
+formats = { "3:4" = [1104, 1472], "4:5" = [1088, 1360], "1:1" = [1088, 1088], "9:16" = [1088, 1936] }
+
 [engines.flux3_klein_base]
 title = "FLUX 3 Image Klein Base (BF16, undestilliert)"
 kind = "image"
@@ -86,6 +100,19 @@ license = "-"
 usage = "evaluation"
 gates = { load = "PASS", render = "OFFEN", quality = "OFFEN", license_pass = "PASS" }
 note = "Reine Bildverarbeitung in ComfyUI (Skalieren, Zuschnitt); lädt und entlädt keine Modelle."
+
+[engines.seedvr2]
+title = "SeedVR2 3B/7B (FP16) – Hochskalieren"
+kind = "image"
+role = "upscale"
+arch = "seedvr2"
+precision = "fp16"
+wave = 2
+files = ["seedvr2_3b_fp16", "seedvr2_7b_fp16", "seedvr2_vae_fp16"]
+license = "Apache-2.0"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Vorlage utility_seedvr2_7b_int8_upscale_image mit den FP16-Originalen; Farbabgleich lab (treueste Methode) statt none. 2K/4K nur aus dem freigegebenen Original (§9.7)."
 
 [engines.wan22_i2v]
 title = "Wan 2.2 I2V 14B (offiziell, FP16) – Referenz"
@@ -161,6 +188,22 @@ target = "diffusion_models/krea2/krea2_turbo_bf16.safetensors"
 size = 26283332608
 sha256 = "78bbf8f4165eda19cea3cb06c78089221932a39e2eed8af9da741f942c47ffb3"
 
+[files.krea2_raw_bf16]
+repo = "Comfy-Org/Krea-2"
+revision = "588feaf955b08b9ac4723eeb751752ab045dba71"
+source = "diffusion_models/krea2_raw_bf16.safetensors"
+target = "diffusion_models/krea2/krea2_raw_bf16.safetensors"
+size = 26283332608
+sha256 = "f99bb0ff8e362b77342bc4994e0c50906fe7ef7074864b181b7d48d2fa6d03d7"
+
+[files.krea2_turbo_lora_r64]
+repo = "Comfy-Org/Krea-2"
+revision = "588feaf955b08b9ac4723eeb751752ab045dba71"
+source = "loras/krea2_turbo_lora_rank_64_bf16.safetensors"
+target = "loras/krea2/krea2_turbo_lora_rank_64_bf16.safetensors"
+size = 469423778
+sha256 = "db8c5bae0a415d448da9d842111d6e51f7d32e47143a3118eb267e5c4773de87"
+
 # Krea-2-Textencoder; Datei weicht von der FLUX-3-Fassung ab (anderer SHA-256, 24 Byte Kopf)
 [files.krea2_qwen3vl_4b_bf16]
 repo = "Comfy-Org/Krea-2"
@@ -169,6 +212,30 @@ source = "text_encoders/qwen3vl_4b_bf16.safetensors"
 target = "text_encoders/krea2/qwen3vl_4b_bf16.safetensors"
 size = 8875719384
 sha256 = "36f3ff447ef59201722e8f9ce6020c9819fdcfba6aa2608c4e09b1c0ce114e34"
+
+[files.seedvr2_3b_fp16]
+repo = "Comfy-Org/SeedVR2"
+revision = "df48879708206a403d2a61acd55578c2e80fd233"
+source = "diffusion_models/seedvr2_3b_fp16.safetensors"
+target = "diffusion_models/seedvr2/seedvr2_3b_fp16.safetensors"
+size = 6784268336
+sha256 = "98669fd2c06df5eca88baf68cd5c478775c8e61fc110e598c52b350145ea2660"
+
+[files.seedvr2_7b_fp16]
+repo = "Comfy-Org/SeedVR2"
+revision = "df48879708206a403d2a61acd55578c2e80fd233"
+source = "diffusion_models/seedvr2_7b_fp16.safetensors"
+target = "diffusion_models/seedvr2/seedvr2_7b_fp16.safetensors"
+size = 16480583960
+sha256 = "2742ca6fee63bc5cc1773f426dd4b07b78cad27f51c9ea5cd42b035e6b592252"
+
+[files.seedvr2_vae_fp16]
+repo = "Comfy-Org/SeedVR2"
+revision = "df48879708206a403d2a61acd55578c2e80fd233"
+source = "vae/seedvr2_ema_vae_fp16.safetensors"
+target = "vae/seedvr2/seedvr2_ema_vae_fp16.safetensors"
+size = 501324814
+sha256 = "20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1"
 
 # dieselbe Datei (SHA-256) wie Comfy-Org/Krea-2 vae/qwen_image_vae.safetensors (Krea 2)
 [files.qwen_image_vae]
@@ -466,3 +533,47 @@ title = "Ausgabe · Instagram-Format"
 [workflows.output_instagram.params]
 image = { node = "1", input = "image", type = "str", required = true, upload = true }
 height = { node = "2", input = "resize_type.height", type = "int", choices = [1440, 1350, 1080, 1920], label = "Höhe bei 1080 Breite (3:4 · 4:5 · 1:1 · 9:16)" }
+
+[workflows.seedvr2_upscale_image]
+engine = "seedvr2"
+ui = "image/seedvr2_upscale_image.ui.json"
+api = "image/seedvr2_upscale_image.api.json"
+status = "OFFEN"
+title = "SeedVR2 · Hochskalieren"
+
+[workflows.seedvr2_upscale_image.params]
+image = { node = "1", input = "image", type = "str", required = true, upload = true }
+factor = { node = "3", input = "resize_type.multiplier", type = "float", min = 1.0, max = 4.0, label = "Faktor (aus 1080 px: 1,33 = 2K · 2 = 4K)" }
+model = { node = "6", input = "unet_name", type = "str", choices = ["seedvr2/seedvr2_7b_fp16.safetensors", "seedvr2/seedvr2_3b_fp16.safetensors"], label = "Modell (7B Qualität · 3B schnell)", expert = true }
+color = { node = "11", input = "color_correction_method", type = "str", choices = ["lab", "wavelet", "adain", "none"], label = "Farbabgleich", expert = true }
+seed = { node = "9", input = "seed", type = "int", min = 0, max = 4294967295 }
+
+[workflows.krea2_raw_lora_train]
+engine = "krea2_raw"
+ui = "image/krea2_raw_lora_train.ui.json"
+api = "image/krea2_raw_lora_train.api.json"
+status = "OFFEN"
+title = "Krea 2 · Charakter-LoRA trainieren"
+training = { dataset = "4", lora = "7" }
+
+[workflows.krea2_raw_lora_train.params]
+steps = { node = "6", input = "steps", type = "int", min = 50, max = 10000, label = "Trainingsschritte" }
+rank = { node = "6", input = "rank", type = "int", min = 4, max = 128, label = "LoRA-Rang" }
+learning_rate = { node = "6", input = "learning_rate", type = "float", min = 0.000001, max = 0.01, label = "Lernrate" }
+seed = { node = "6", input = "seed", type = "int", min = 0, max = 4294967295 }
+train_size = { node = "8", input = "resize_type.longer_size", type = "int", min = 512, max = 1024, multiple_of = 64, label = "Trainingsauflösung (längere Seite, px)" }
+
+[workflows.krea2_raw_turbo_lora_t2i]
+engine = "krea2_raw"
+ui = "image/krea2_raw_turbo_lora_t2i.ui.json"
+api = "image/krea2_raw_turbo_lora_t2i.api.json"
+status = "PASS"
+title = "Krea 2 Raw + Turbo-LoRA · Text zu Bild"
+
+[workflows.krea2_raw_turbo_lora_t2i.params]
+prompt = { node = "5", input = "text", type = "str", required = true }
+seed = { node = "8", input = "seed", type = "int", min = 0, max = 4294967295 }
+steps = { node = "8", input = "steps", type = "int", min = 4, max = 50 }
+turbo_strength = { node = "2", input = "strength_model", type = "float", min = 0.0, max = 1.5, label = "Turbo-LoRA-Stärke" }
+width = { node = "7", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
+height = { node = "7", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
