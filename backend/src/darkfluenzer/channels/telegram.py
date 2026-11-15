@@ -41,6 +41,7 @@ PLATFORM = "telegram"
 HANDOFF_CARD = "ÜBERGABE AN BETREIBER"
 LAST = "last:"  # adapter_state: letzte gespeicherte Nachrichten-ID je Chat (Abgleich nach Neustart)
 HISTORY_PAGES = 20  # Obergrenze Seiten je Chat beim Abgleich (je bis zu 100 Nachrichten)
+REJECTED_SHOWN = 5  # Testbetrieb: zuletzt verworfene Einzelchat-IDs (nur im Speicher, ohne Inhalt)
 # TDLib-Inhaltsart -> (Anhangart, Feld mit der Datei)
 _FILE_CONTENT = {
     "messageVideo": ("video", "video", "video"),
@@ -119,6 +120,9 @@ class TelegramAccount:
         self._sending: dict[int, int] = {}  # vorläufige TDLib-Nachrichten-ID -> Postausgang-ID
         self._open: dict[int, int] = {}  # Postausgang-ID -> noch unbestätigte Teilnachrichten
         self._sent_at: deque[float] = deque()
+        # Testbetrieb: verworfene Einzelchats (ID, Zeit) nur im Speicher, damit der Betreiber die
+        # ID seines Testpartners findet – nie in SQLite, nie in TDLib-Dateien, ohne Inhalt/Namen
+        self.rejected: deque[tuple[int, int]] = deque(maxlen=REJECTED_SHOWN)
         self._api: tuple[str, str] = ("", "")  # api_id, api_hash (nur im Speicher)
         self._key = ""  # TDLib-Datenbankschlüssel (nur im Speicher)
 
@@ -145,6 +149,9 @@ class TelegramAccount:
             "test_mode": self.tg.test_mode,
             "automation": self.automation,
             "flood_until_ms": int(self.flood_until * 1000) if self.flood_until > time.time() else 0,
+            "rejected_chats": [
+                {"chat_id": chat, "at_ms": at} for chat, at in self.rejected if self.tg.test_mode
+            ],
         }
 
     def _set(
@@ -385,6 +392,12 @@ class TelegramAccount:
     async def _message(self, msg: dict) -> None:
         chat_id = int(msg["chat_id"])
         if self.tg.test_mode and chat_id not in self.tg.test_chat_ids:
+            if chat_id > 0 and not msg.get("is_outgoing"):  # Einzelchat (TDLib: positive ID)
+                self.rejected = deque(
+                    [r for r in self.rejected if r[0] != chat_id], maxlen=REJECTED_SHOWN
+                )
+                self.rejected.append((chat_id, int(time.time() * 1000)))
+                self.on_change()
             return  # Testbetrieb: fremde Chats werden nie gespeichert
         if await self._chat_type(chat_id) != "chatTypePrivate":
             return  # nur Einzelchats

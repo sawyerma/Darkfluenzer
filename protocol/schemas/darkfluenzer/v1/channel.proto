@@ -7,6 +7,13 @@ import "darkfluenzer/v1/order.proto";
 // Nachrichten-Cockpit und Kanal-Adapter (PHASENPLAN_V0 §6/§8, FRONT F4/F7.2–F7.4).
 // Plattformen: telegram | instagram | whatsapp. Plattform-Tokens erscheinen nie im Frontend.
 
+// Testbetrieb: zuletzt verworfener Einzelchat (nur ID und Zeit, nur im Speicher des Backends),
+// damit der Betreiber die Chat-ID seines Testpartners in test_chat_ids übernehmen kann.
+message RejectedChat {
+  int64 chat_id = 1;
+  int64 at_ms = 2;
+}
+
 // Zustand eines Kanal-Adapters (STATE channels).
 message ChannelStatus {
   string platform = 1;
@@ -30,6 +37,7 @@ message ChannelStatus {
   bool automation = 10;
   // Telegram bremst den Versand bis zu dieser Zeit (Unix-ms; 0 = keine Bremse)
   int64 flood_until_ms = 11;
+  repeated RejectedChat rejected_chats = 12;
 }
 
 // STATE channels

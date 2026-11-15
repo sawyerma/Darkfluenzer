@@ -130,6 +130,9 @@ def test_inbound_test_mode_once_then_read_and_handoff(cfg, tmp_path):
     async def scenario():
         await acc._message(_msg(7, 1))  # fremder Chat im Testbetrieb: verworfen
         assert store.db.execute("SELECT count(*) FROM channel_messages").fetchone()[0] == 0
+        # nur die ID (für test_chat_ids) flüchtig im Status, ohne Inhalt und Namen
+        assert [r["chat_id"] for r in acc.status()["rejected_chats"]] == [7]
+        assert acc._td.calls == []  # für fremde Chats nicht einmal getChat/getUser
         await acc._message(_msg(TEST_CHAT, 10, photo=True))
         await acc._message(_msg(TEST_CHAT, 10, photo=True))  # erneut zugestellt
         assert len(inbound) == 1

@@ -12,7 +12,32 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/channel.proto.
  */
 export const file_darkfluenzer_v1_channel: GenFile = /*@__PURE__*/
-  fileDesc("Ch1kYXJrZmx1ZW56ZXIvdjEvY2hhbm5lbC5wcm90bxIPZGFya2ZsdWVuemVyLnYxIuABCg1DaGFubmVsU3RhdHVzEhAKCHBsYXRmb3JtGAEgASgJEg8KB2FjY291bnQYAiABKAkSDQoFc3RhdGUYAyABKAkSDQoFZXJyb3IYBCABKAkSFQoNbGFzdF9ldmVudF9tcxgFIAEoAxIPCgdtaXNzaW5nGAYgASgJEhMKC2xvZ2luX3N0YXRlGAcgASgJEhIKCmxvZ2luX2hpbnQYCCABKAkSEQoJdGVzdF9tb2RlGAkgASgIEhIKCmF1dG9tYXRpb24YCiABKAgSFgoOZmxvb2RfdW50aWxfbXMYCyABKAMiTQoIQ2hhbm5lbHMSMAoIY2hhbm5lbHMYASADKAsyHi5kYXJrZmx1ZW56ZXIudjEuQ2hhbm5lbFN0YXR1cxIPCgd2ZXJzaW9uGAIgASgEIs4BCg9DdXN0b21lclN1bW1hcnkSEwoLY3VzdG9tZXJfaWQYASABKAQSEwoLY3VzdG9tZXJfbm8YAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEgwKBGtpbmQYBCABKAkSEQoJcGxhdGZvcm1zGAUgAygJEhEKCWxhc3RfdGV4dBgGIAEoCRIVCg1sYXN0X3BsYXRmb3JtGAcgASgJEg8KB2xhc3RfbXMYCCABKAMSDgoGdW5yZWFkGAkgASgNEg8KB2hhbmRsZXMYCiADKAkiRQoPQ3VzdG9tZXJVcGRhdGVkEjIKCGN1c3RvbWVyGAEgASgLMiAuZGFya2ZsdWVuemVyLnYxLkN1c3RvbWVyU3VtbWFyeSJUCgxDdXN0b21lclBhZ2USMwoJY3VzdG9tZXJzGAEgAygLMiAuZGFya2ZsdWVuemVyLnYxLkN1c3RvbWVyU3VtbWFyeRIPCgd2ZXJzaW9uGAIgASgEInkKEU1lc3NhZ2VBdHRhY2htZW50EgwKBGtpbmQYASABKAkSDAoEcGF0aBgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBHNpemUYBCABKAQSDgoGc2hhMjU2GAUgASgJEg4KBnN0YXR1cxgGIAEoCRIMCgRub3RlGAcgASgJIs4CChBDb252ZXJzYXRpb25JdGVtEg8KB2l0ZW1faWQYASABKAQSEwoLY3VzdG9tZXJfaWQYAiABKAQSEAoIcGxhdGZvcm0YAyABKAkSEQoJZGlyZWN0aW9uGAQgASgJEgwKBHRleHQYBSABKAkSNwoLYXR0YWNobWVudHMYBiADKAsyIi5kYXJrZmx1ZW56ZXIudjEuTWVzc2FnZUF0dGFjaG1lbnQSDgoGc3RhdHVzGAcgASgJEg0KBWF0X21zGAggASgDEg4KBnNlbmRlchgJIAEoCRINCgVlcnJvchgKIAEoCRIMCgRyZWFkGAsgASgIEhcKD2NvbnZlcnNhdGlvbl9pZBgMIAEoBBIrCgVvcmRlchgNIAEoCzIcLmRhcmtmbHVlbnplci52MS5BY3RpdmVPcmRlchIWCg5hd2FpdGluZ19zdGFydBgOIAEoCCJEChFDb252ZXJzYXRpb25FdmVudBIvCgRpdGVtGAEgASgLMiEuZGFya2ZsdWVuemVyLnYxLkNvbnZlcnNhdGlvbkl0ZW0isAEKD0NoYW5uZWxJZGVudGl0eRITCgtpZGVudGl0eV9pZBgBIAEoBBIQCghwbGF0Zm9ybRgCIAEoCRIPCgdhY2NvdW50GAMgASgJEhgKEHBsYXRmb3JtX3VzZXJfaWQYBCABKAkSDgoGaGFuZGxlGAUgASgJEhAKCHZlcmlmaWVkGAYgASgIEhcKD2NvbnZlcnNhdGlvbl9pZBgHIAEoBBIQCghyZXZpc2lvbhgIIAEoBCL6AQoORGVmYXVsdENvbnRhY3QSEwoLY3VzdG9tZXJfaWQYASABKAQSGgoSdGVsZWdyYW1fc2VuZGVyX2lkGAIgASgJEhsKE2luc3RhZ3JhbV9zZW5kZXJfaWQYAyABKAkSGAoQcHJvY2Vzc19jb21tYW5kcxgEIAEoCBITCgthdXRvX29yZGVycxgFIAEoCBIVCg1hcHByb3ZhbF9tb2RlGAYgASgJEhIKCmluZmx1ZW5jZXIYByABKAkSFgoObWVkaWFfd29ya2Zsb3cYCCABKAkSEAoIcmV2aXNpb24YCSABKAQSFgoOdmlkZW9fd29ya2Zsb3cYCiABKAkihwIKEENvbnZlcnNhdGlvblBhZ2USMgoIY3VzdG9tZXIYASABKAsyIC5kYXJrZmx1ZW56ZXIudjEuQ3VzdG9tZXJTdW1tYXJ5EjAKBWl0ZW1zGAIgAygLMiEuZGFya2ZsdWVuemVyLnYxLkNvbnZlcnNhdGlvbkl0ZW0SDAoEbW9yZRgDIAEoCBI0CgppZGVudGl0aWVzGAQgAygLMiAuZGFya2ZsdWVuemVyLnYxLkNoYW5uZWxJZGVudGl0eRI4Cg9kZWZhdWx0X2NvbnRhY3QYBSABKAsyHy5kYXJrZmx1ZW56ZXIudjEuRGVmYXVsdENvbnRhY3QSDwoHdmVyc2lvbhgGIAEoBGIGcHJvdG8z", [file_darkfluenzer_v1_order]);
+  fileDesc("Ch1kYXJrZmx1ZW56ZXIvdjEvY2hhbm5lbC5wcm90bxIPZGFya2ZsdWVuemVyLnYxIi4KDFJlamVjdGVkQ2hhdBIPCgdjaGF0X2lkGAEgASgDEg0KBWF0X21zGAIgASgDIpcCCg1DaGFubmVsU3RhdHVzEhAKCHBsYXRmb3JtGAEgASgJEg8KB2FjY291bnQYAiABKAkSDQoFc3RhdGUYAyABKAkSDQoFZXJyb3IYBCABKAkSFQoNbGFzdF9ldmVudF9tcxgFIAEoAxIPCgdtaXNzaW5nGAYgASgJEhMKC2xvZ2luX3N0YXRlGAcgASgJEhIKCmxvZ2luX2hpbnQYCCABKAkSEQoJdGVzdF9tb2RlGAkgASgIEhIKCmF1dG9tYXRpb24YCiABKAgSFgoOZmxvb2RfdW50aWxfbXMYCyABKAMSNQoOcmVqZWN0ZWRfY2hhdHMYDCADKAsyHS5kYXJrZmx1ZW56ZXIudjEuUmVqZWN0ZWRDaGF0Ik0KCENoYW5uZWxzEjAKCGNoYW5uZWxzGAEgAygLMh4uZGFya2ZsdWVuemVyLnYxLkNoYW5uZWxTdGF0dXMSDwoHdmVyc2lvbhgCIAEoBCLOAQoPQ3VzdG9tZXJTdW1tYXJ5EhMKC2N1c3RvbWVyX2lkGAEgASgEEhMKC2N1c3RvbWVyX25vGAIgASgJEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRIMCgRraW5kGAQgASgJEhEKCXBsYXRmb3JtcxgFIAMoCRIRCglsYXN0X3RleHQYBiABKAkSFQoNbGFzdF9wbGF0Zm9ybRgHIAEoCRIPCgdsYXN0X21zGAggASgDEg4KBnVucmVhZBgJIAEoDRIPCgdoYW5kbGVzGAogAygJIkUKD0N1c3RvbWVyVXBkYXRlZBIyCghjdXN0b21lchgBIAEoCzIgLmRhcmtmbHVlbnplci52MS5DdXN0b21lclN1bW1hcnkiVAoMQ3VzdG9tZXJQYWdlEjMKCWN1c3RvbWVycxgBIAMoCzIgLmRhcmtmbHVlbnplci52MS5DdXN0b21lclN1bW1hcnkSDwoHdmVyc2lvbhgCIAEoBCJ5ChFNZXNzYWdlQXR0YWNobWVudBIMCgRraW5kGAEgASgJEgwKBHBhdGgYAiABKAkSDAoEbWltZRgDIAEoCRIMCgRzaXplGAQgASgEEg4KBnNoYTI1NhgFIAEoCRIOCgZzdGF0dXMYBiABKAkSDAoEbm90ZRgHIAEoCSLOAgoQQ29udmVyc2F0aW9uSXRlbRIPCgdpdGVtX2lkGAEgASgEEhMKC2N1c3RvbWVyX2lkGAIgASgEEhAKCHBsYXRmb3JtGAMgASgJEhEKCWRpcmVjdGlvbhgEIAEoCRIMCgR0ZXh0GAUgASgJEjcKC2F0dGFjaG1lbnRzGAYgAygLMiIuZGFya2ZsdWVuemVyLnYxLk1lc3NhZ2VBdHRhY2htZW50Eg4KBnN0YXR1cxgHIAEoCRINCgVhdF9tcxgIIAEoAxIOCgZzZW5kZXIYCSABKAkSDQoFZXJyb3IYCiABKAkSDAoEcmVhZBgLIAEoCBIXCg9jb252ZXJzYXRpb25faWQYDCABKAQSKwoFb3JkZXIYDSABKAsyHC5kYXJrZmx1ZW56ZXIudjEuQWN0aXZlT3JkZXISFgoOYXdhaXRpbmdfc3RhcnQYDiABKAgiRAoRQ29udmVyc2F0aW9uRXZlbnQSLwoEaXRlbRgBIAEoCzIhLmRhcmtmbHVlbnplci52MS5Db252ZXJzYXRpb25JdGVtIrABCg9DaGFubmVsSWRlbnRpdHkSEwoLaWRlbnRpdHlfaWQYASABKAQSEAoIcGxhdGZvcm0YAiABKAkSDwoHYWNjb3VudBgDIAEoCRIYChBwbGF0Zm9ybV91c2VyX2lkGAQgASgJEg4KBmhhbmRsZRgFIAEoCRIQCgh2ZXJpZmllZBgGIAEoCBIXCg9jb252ZXJzYXRpb25faWQYByABKAQSEAoIcmV2aXNpb24YCCABKAQi+gEKDkRlZmF1bHRDb250YWN0EhMKC2N1c3RvbWVyX2lkGAEgASgEEhoKEnRlbGVncmFtX3NlbmRlcl9pZBgCIAEoCRIbChNpbnN0YWdyYW1fc2VuZGVyX2lkGAMgASgJEhgKEHByb2Nlc3NfY29tbWFuZHMYBCABKAgSEwoLYXV0b19vcmRlcnMYBSABKAgSFQoNYXBwcm92YWxfbW9kZRgGIAEoCRISCgppbmZsdWVuY2VyGAcgASgJEhYKDm1lZGlhX3dvcmtmbG93GAggASgJEhAKCHJldmlzaW9uGAkgASgEEhYKDnZpZGVvX3dvcmtmbG93GAogASgJIocCChBDb252ZXJzYXRpb25QYWdlEjIKCGN1c3RvbWVyGAEgASgLMiAuZGFya2ZsdWVuemVyLnYxLkN1c3RvbWVyU3VtbWFyeRIwCgVpdGVtcxgCIAMoCzIhLmRhcmtmbHVlbnplci52MS5Db252ZXJzYXRpb25JdGVtEgwKBG1vcmUYAyABKAgSNAoKaWRlbnRpdGllcxgEIAMoCzIgLmRhcmtmbHVlbnplci52MS5DaGFubmVsSWRlbnRpdHkSOAoPZGVmYXVsdF9jb250YWN0GAUgASgLMh8uZGFya2ZsdWVuemVyLnYxLkRlZmF1bHRDb250YWN0Eg8KB3ZlcnNpb24YBiABKARiBnByb3RvMw", [file_darkfluenzer_v1_order]);
+
+/**
+ * Testbetrieb: zuletzt verworfener Einzelchat (nur ID und Zeit, nur im Speicher des Backends),
+ * damit der Betreiber die Chat-ID seines Testpartners in test_chat_ids übernehmen kann.
+ *
+ * @generated from message darkfluenzer.v1.RejectedChat
+ */
+export type RejectedChat = Message<"darkfluenzer.v1.RejectedChat"> & {
+  /**
+   * @generated from field: int64 chat_id = 1;
+   */
+  chatId: bigint;
+
+  /**
+   * @generated from field: int64 at_ms = 2;
+   */
+  atMs: bigint;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.RejectedChat.
+ * Use `create(RejectedChatSchema)` to create a new message.
+ */
+export const RejectedChatSchema: GenMessage<RejectedChat> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_channel, 0);
 
 /**
  * Zustand eines Kanal-Adapters (STATE channels).
@@ -93,6 +118,11 @@ export type ChannelStatus = Message<"darkfluenzer.v1.ChannelStatus"> & {
    * @generated from field: int64 flood_until_ms = 11;
    */
   floodUntilMs: bigint;
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.RejectedChat rejected_chats = 12;
+   */
+  rejectedChats: RejectedChat[];
 };
 
 /**
@@ -100,7 +130,7 @@ export type ChannelStatus = Message<"darkfluenzer.v1.ChannelStatus"> & {
  * Use `create(ChannelStatusSchema)` to create a new message.
  */
 export const ChannelStatusSchema: GenMessage<ChannelStatus> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_channel, 0);
+  messageDesc(file_darkfluenzer_v1_channel, 1);
 
 /**
  * STATE channels
@@ -124,7 +154,7 @@ export type Channels = Message<"darkfluenzer.v1.Channels"> & {
  * Use `create(ChannelsSchema)` to create a new message.
  */
 export const ChannelsSchema: GenMessage<Channels> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_channel, 1);
+  messageDesc(file_darkfluenzer_v1_channel, 2);
 
 /**
  * Eine Kundenakte in der linken Liste (F7.2). Der interne Kontakt Default hat kind "internal".
@@ -194,7 +224,7 @@ export type CustomerSummary = Message<"darkfluenzer.v1.CustomerSummary"> & {
  * Use `create(CustomerSummarySchema)` to create a new message.
  */
 export const CustomerSummarySchema: GenMessage<CustomerSummary> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_channel, 2);
+  messageDesc(file_darkfluenzer_v1_channel, 3);
 
 /**
  * EVENT customers.updated: geänderte Kundenakte (neu, gelesen, umbenannt …)
@@ -213,7 +243,7 @@ export type CustomerUpdated = Message<"darkfluenzer.v1.CustomerUpdated"> & {
  * Use `create(CustomerUpdatedSchema)` to create a new message.
  */
 export const CustomerUpdatedSchema: GenMessage<CustomerUpdated> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_channel, 3);
+  messageDesc(file_darkfluenzer_v1_channel, 4);
 
 /**
  * HTTP GET /api/v1/customer-page: alle Kundenakten (bei Aufruf und nach Lücken)
@@ -239,7 +269,7 @@ export type CustomerPage = Message<"darkfluenzer.v1.CustomerPage"> & {
  * Use `create(CustomerPageSchema)` to create a new message.
  */
 export const CustomerPageSchema: GenMessage<CustomerPage> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_channel, 4);
+  messageDesc(file_darkfluenzer_v1_channel, 5);
 
 /**
  * @generated from message darkfluenzer.v1.MessageAttachment
@@ -292,7 +322,7 @@ export type MessageAttachment = Message<"darkfluenzer.v1.MessageAttachment"> & {
  * Use `create(MessageAttachmentSchema)` to create a new message.
  */
 export const MessageAttachmentSchema: GenMessage<MessageAttachment> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_channel, 5);
+  messageDesc(file_darkfluenzer_v1_channel, 6);
 
 /**
  * Ein Eintrag im Verlauf einer Kundenakte (Nachricht oder Systemkarte).
@@ -390,7 +420,7 @@ export type ConversationItem = Message<"darkfluenzer.v1.ConversationItem"> & {
  * Use `create(ConversationItemSchema)` to create a new message.
  */
 export const ConversationItemSchema: GenMessage<ConversationItem> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_channel, 6);
+  messageDesc(file_darkfluenzer_v1_channel, 7);
 
 /**
  * EVENT conversations.event: Nachricht neu oder geändert (Status, Anhänge)
@@ -409,7 +439,7 @@ export type ConversationEvent = Message<"darkfluenzer.v1.ConversationEvent"> & {
  * Use `create(ConversationEventSchema)` to create a new message.
  */
 export const ConversationEventSchema: GenMessage<ConversationEvent> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_channel, 7);
+  messageDesc(file_darkfluenzer_v1_channel, 8);
 
 /**
  * Verknüpftes Plattformkonto einer Kundenakte mit seiner Konversation (Antwortziel).
@@ -465,7 +495,7 @@ export type ChannelIdentity = Message<"darkfluenzer.v1.ChannelIdentity"> & {
  * Use `create(ChannelIdentitySchema)` to create a new message.
  */
 export const ChannelIdentitySchema: GenMessage<ChannelIdentity> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_channel, 8);
+  messageDesc(file_darkfluenzer_v1_channel, 9);
 
 /**
  * Operator-Felder des internen Kontakts Default (F7.4, V0 §8/§8.1).
@@ -533,7 +563,7 @@ export type DefaultContact = Message<"darkfluenzer.v1.DefaultContact"> & {
  * Use `create(DefaultContactSchema)` to create a new message.
  */
 export const DefaultContactSchema: GenMessage<DefaultContact> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_channel, 9);
+  messageDesc(file_darkfluenzer_v1_channel, 10);
 
 /**
  * HTTP GET /api/v1/conversation-page?customer=ID[&before=ITEM]: Verlauf (neueste zuerst
@@ -580,5 +610,5 @@ export type ConversationPage = Message<"darkfluenzer.v1.ConversationPage"> & {
  * Use `create(ConversationPageSchema)` to create a new message.
  */
 export const ConversationPageSchema: GenMessage<ConversationPage> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_channel, 10);
+  messageDesc(file_darkfluenzer_v1_channel, 11);
 

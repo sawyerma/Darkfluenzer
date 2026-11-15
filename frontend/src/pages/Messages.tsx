@@ -213,6 +213,12 @@ function ChannelLines({ channels, stale }: { channels: readonly ChannelStatus[] 
             </span>
             {detail ? ch.state === "ERROR" ? <span className="g-error">{detail}</span> : <small>{detail}</small> : null}
             {ch.testMode && ch.state !== "OFF" ? <small>TESTBETRIEB · nur freigegebene Test-Chats</small> : null}
+            {ch.testMode && ch.rejectedChats.length ? (
+              <small className="g-mono">
+                Verworfen (für test_chat_ids):{" "}
+                {ch.rejectedChats.map((r) => `${String(r.chatId)} · ${shortTime(r.atMs)}`).join(", ")}
+              </small>
+            ) : null}
             {flood ? <small className="g-error">{flood}</small> : null}
             {ch.state === "READY" && ch.automation ? <small>Automatik freigegeben</small> : null}
             <AccountControls ch={ch} />
