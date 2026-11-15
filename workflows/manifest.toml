@@ -562,7 +562,7 @@ height = { node = "2", input = "resize_type.height", type = "int", choices = [14
 engine = "seedvr2"
 ui = "image/seedvr2_upscale_image.ui.json"
 api = "image/seedvr2_upscale_image.api.json"
-status = "OFFEN"
+status = "PASS"
 title = "SeedVR2 · Hochskalieren"
 
 [workflows.seedvr2_upscale_image.params]
