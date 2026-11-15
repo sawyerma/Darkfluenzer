@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -506,6 +506,19 @@ CREATE TABLE characters (
 INSERT INTO characters (name, data_dir, photos_dir, created_at, updated_at)
 VALUES ('Charakter 01', 'local/character', 'local/character/photos',
         strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+""",
+    11: """
+-- Vorlagenbibliothek (C1): inhaltsadressiert, Herkunft Dateien oder Kloner-Eingang
+CREATE TABLE reference_files (
+    id          INTEGER PRIMARY KEY,
+    sha256      TEXT    NOT NULL UNIQUE CHECK (length(sha256) = 64),
+    path        TEXT    NOT NULL,
+    kind        TEXT    NOT NULL CHECK (kind IN ('image', 'video')),
+    source      TEXT    NOT NULL,
+    analysis    TEXT    NOT NULL DEFAULT 'none'
+                CHECK (analysis IN ('none', 'pending', 'done', 'failed')),
+    created_at  TEXT    NOT NULL
+);
 """,
 }
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
@@ -1128,6 +1141,49 @@ class Store:
         rows = self.db.execute(
             "SELECT e.id AS cursor, e.created_at AS committed_at, e.entity_id AS customer_id"
             " FROM events e WHERE e.entity = 'customer' AND e.id > ? ORDER BY e.id DESC LIMIT ?",
+            (after, limit + 1),
+        ).fetchall()
+        recent = [dict(r) for r in rows[:limit]]
+        return recent[::-1], len(rows) > limit
+
+    # ------------------------------------------------------------------ Vorlagen (C1)
+
+    def add_reference(self, path: str, sha256: str, kind: str, source: str) -> tuple[int, bool]:
+        """Vorlage genau einmal je Inhalt; liefert (ID, neu angelegt)."""
+        with self.tx() as db:
+            row = db.execute(
+                "SELECT id FROM reference_files WHERE sha256 = ?", (sha256,)
+            ).fetchone()
+            if row:
+                return row[0], False
+            cur = db.execute(
+                "INSERT INTO reference_files (sha256, path, kind, source, created_at)"
+                " VALUES (?,?,?,?,?)",
+                (sha256, path, kind, source, now()),
+            )
+            self._event("reference", cur.lastrowid, "added")
+            self.bump("references")
+            return cur.lastrowid, True
+
+    def reference(self, reference_id: int) -> dict:
+        row = self.db.execute(
+            "SELECT * FROM reference_files WHERE id = ?", (reference_id,)
+        ).fetchone()
+        if row is None:
+            raise StoreError(f"Vorlage {reference_id} unbekannt.")
+        return dict(row)
+
+    def reference_page(self, before: int, limit: int) -> tuple[list[dict], bool]:
+        rows = self.db.execute(
+            "SELECT * FROM reference_files WHERE (? = 0 OR id < ?) ORDER BY id DESC LIMIT ?",
+            (before, before, limit + 1),
+        ).fetchall()
+        return [dict(r) for r in rows[:limit]], len(rows) > limit
+
+    def reference_events(self, after: int, limit: int) -> tuple[list[dict], bool]:
+        rows = self.db.execute(
+            "SELECT e.id AS cursor, e.created_at AS committed_at, e.entity_id AS reference_id"
+            " FROM events e WHERE e.entity = 'reference' AND e.id > ? ORDER BY e.id DESC LIMIT ?",
             (after, limit + 1),
         ).fetchall()
         recent = [dict(r) for r in rows[:limit]]

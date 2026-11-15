@@ -28,7 +28,15 @@ from .channels.telegram import TelegramAccount
 from .config import ComfyConfig, Config
 from .store import Store, StoreError
 from .stream import Hub, schema_id
-from .v1 import channel_pb2, character_pb2, comfy_pb2, commands_pb2, media_pb2, order_pb2
+from .v1 import (
+    channel_pb2,
+    character_pb2,
+    comfy_pb2,
+    commands_pb2,
+    media_pb2,
+    order_pb2,
+    reference_pb2,
+)
 from .v1 import stream_pb2 as spb
 
 log = logging.getLogger("darkfluenzer.server")
@@ -527,6 +535,7 @@ class Cockpit:
                     choices=[str(c) for c in p.choices],
                     label=p.label,
                     expert=p.is_expert,
+                    reference=p.reference,
                 )
                 if p.min is not None:
                     param.min = p.min
@@ -747,20 +756,41 @@ class Cockpit:
         return ""
 
     async def _inputs(self, wf: models.Workflow, files) -> dict[str, str]:
-        """Eingabedateien eines Befehls: Galerie-Medium per ID (SHA-256 geprüft) oder Upload."""
+        """Eingabedateien eines Befehls: Galerie-Medium per ID (SHA-256 geprüft), Vorlage aus der
+        Bibliothek oder Upload; Vorlagen-Parameter landen zusätzlich in der Bibliothek (C1)."""
         inputs: dict[str, str] = {}
         for f in files:
-            if f.param not in wf.params or not wf.params[f.param].upload:
+            p = wf.params.get(f.param)
+            if p is None or not p.upload:
                 raise pipeline.PipelineError(f"{f.param}: kein Upload-Parameter von {wf.key}.")
-            if f.media_id:  # exakte Galerie-Datei über ihre unveränderliche ID
+            if f.reference_id:
+                if not p.reference:
+                    raise pipeline.PipelineError(f"{f.param}: hier wird keine Vorlage erwartet.")
+                ref = self.store.reference(f.reference_id)
+                inputs[f.param] = await asyncio.to_thread(
+                    pipeline.input_from_file, self.cfg, ref["path"], ref["sha256"]
+                )
+                source = f"reference:{f.reference_id}"
+            elif f.media_id:  # exakte Galerie-Datei über ihre unveränderliche ID
                 inputs[f.param] = await asyncio.to_thread(
                     pipeline.input_from_media, self.cfg, f.media_id
                 )
+                source = f"media:{f.media_id}"
             else:
                 inputs[f.param] = await asyncio.to_thread(
                     pipeline.store_input, self.cfg, f.data, f.filename
                 )
+                source = "upload"
+            if p.reference:
+                await self._register_reference(inputs[f.param], source)
         return inputs
+
+    async def _register_reference(self, rel: str, source: str) -> None:
+        """Datei unter local/ als Vorlage führen (gleicher Inhalt = dieselbe Vorlage)."""
+        digest = await asyncio.to_thread(pipeline.sha256_file, self.cfg.local / rel)
+        _, new = self.store.add_reference(rel, digest, "image", source)
+        if new:
+            self.hub.push_events(spb.TOPIC_REFERENCE_ADDED)
 
     def _journal_entry(self, call: _Call) -> dict:
         return {
@@ -984,6 +1014,8 @@ class Cockpit:
             inputs["image"] = await asyncio.to_thread(
                 pipeline.store_input, self.cfg, ref.read_bytes(), ref.name
             )
+            # Vorlagen kommen auch aus dem Kloner-Eingang (FRONT, C1)
+            await self._register_reference(inputs["image"], f"{msg['platform']}:{msg['id']}")
         values = {"prompt": wish} if wish and "prompt" in wf.params else {}
         order_no, jobs = pipeline.create_order(
             self.store,
@@ -1399,6 +1431,19 @@ class Cockpit:
             for r in rows
         ], gap
 
+    def read_references(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
+        rows, gap = self.store.reference_events(after, limit)
+        return [
+            (
+                r["cursor"],
+                _unix_ms(r["committed_at"]),
+                reference_pb2.ReferenceAdded(
+                    reference=_reference_item(self.store.reference(r["reference_id"]))
+                ).SerializeToString(),
+            )
+            for r in rows
+        ], gap
+
     def read_removed(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
         rows, gap = self.store.media_removed(after, limit)
         return [
@@ -1702,8 +1747,39 @@ async def _media_page(request: web.Request) -> web.Response:
     return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
 
 
+def _reference_item(row: dict) -> reference_pb2.ReferenceItem:
+    return reference_pb2.ReferenceItem(
+        reference_id=row["id"],
+        path=row["path"],
+        sha256=row["sha256"],
+        kind=row["kind"],
+        source=row["source"],
+        created_ms=_unix_ms(row["created_at"]),
+        analysis=row["analysis"],
+    )
+
+
+async def _reference_page(request: web.Request) -> web.Response:
+    """Vorlagenbibliothek seitenweise (neueste zuerst), Protobuf."""
+    if request.app[GUARD_KEY].csrf_of(request) is None:
+        return web.Response(status=401, text="Keine gültige Sitzung")
+    try:
+        before = int(request.query.get("before", "0"))
+        limit = min(max(int(request.query.get("limit", "48")), 1), 100)
+    except ValueError:
+        return web.Response(status=400, text="before/limit müssen Zahlen sein")
+    store = request.app[COCKPIT_KEY].store
+    rows, more = store.reference_page(before, limit)
+    page = reference_pb2.ReferencePage(
+        items=[_reference_item(r) for r in rows],
+        more=more,
+        version=store.domain_version("references"),
+    )
+    return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
+
+
 async def _provenance_route(request: web.Request) -> web.Response:
-    """Herkunft eines Mediums (Protobuf, bei Aufruf; Medien sind unveränderlich)."""
+    """Herkunft eines Mediums (Protobuf, bei Aufruf; abgeleitete Versionen kommen hinzu)."""
     if request.app[GUARD_KEY].csrf_of(request) is None:
         return web.Response(status=401, text="Keine gültige Sitzung")
     try:
@@ -1713,7 +1789,7 @@ async def _provenance_route(request: web.Request) -> web.Response:
     msg = _provenance(request.app[COCKPIT_KEY], media_id)
     if msg is None:
         raise web.HTTPNotFound()
-    headers = {"Cache-Control": "private, max-age=31536000, immutable"}
+    headers = {"Cache-Control": "no-cache"}  # Kinder-Versionen ändern sich
     return web.Response(body=msg.SerializeToString(), content_type=PROTOBUF, headers=headers)
 
 
@@ -1917,6 +1993,11 @@ def create_app(cfg: Config) -> web.Application:
         spb.TOPIC_ORDER_UPDATED, order_pb2.OrderUpdated.DESCRIPTOR.full_name, cockpit.read_orders
     )
     hub.offer_events(
+        spb.TOPIC_REFERENCE_ADDED,
+        reference_pb2.ReferenceAdded.DESCRIPTOR.full_name,
+        cockpit.read_references,
+    )
+    hub.offer_events(
         spb.TOPIC_COMMAND_RECEIPT,
         commands_pb2.CommandReceipt.DESCRIPTOR.full_name,
         cockpit.read_receipts,
@@ -1937,6 +2018,7 @@ def create_app(cfg: Config) -> web.Application:
     app.router.add_get("/api/v1/media/{path:.+}", _media(cfg.local))
     app.router.add_get("/api/v1/media-page", _media_page)
     app.router.add_get("/api/v1/provenance/{media_id}", _provenance_route)
+    app.router.add_get("/api/v1/reference-page", _reference_page)
     app.router.add_get("/api/v1/customer-page", _customer_page)
     app.router.add_get("/api/v1/conversation-page", _conversation_page)
 

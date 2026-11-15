@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package darkfluenzer.v1;
+
+// Vorlagenbibliothek (PHASENPLAN_V0 C1, FRONT „Produktionsbedienung, Charakter und Vorlagen“):
+// Vorlagen kommen aus Dateien („Als Vorlage“) und aus dem Kloner-Eingang; inhaltsadressiert
+// (gleiche Bytes = dieselbe Vorlage). Analyse (Pose/Tiefe/Maske/Beschreibung) folgt additiv.
+
+message ReferenceItem {
+  uint64 reference_id = 1;
+  // Pfad relativ zu local/
+  string path = 2;
+  string sha256 = 3;
+  // image | video
+  string kind = 4;
+  // media:<id> | upload | telegram:<nachricht> | instagram:<nachricht>
+  string source = 5;
+  int64 created_ms = 6;
+  // none | pending | done | failed (Analyse-Workflows folgen)
+  string analysis = 7;
+}
+
+// EVENT references.added: neue Vorlage in der Bibliothek
+message ReferenceAdded {
+  ReferenceItem reference = 1;
+}
+
+// HTTP GET /api/v1/reference-page[?before=ID&limit=N]: neueste zuerst
+message ReferencePage {
+  repeated ReferenceItem items = 1;
+  bool more = 2;
+  // Domain-Version „references“
+  uint64 version = 3;
+}

@@ -506,6 +506,7 @@ Jede Phase: echte Umsetzung, gezielte Tests (Normalfall, wesentlicher Fehlerfall
 **C1 – Lokaler Referenz-Kloner** · Status: OFFEN
 - Ziel: `clone`, `pose`, `style`, `remix`, `animate` mit lokal importierter Vorlage (Upload/Dateien) → Analyse → Charakterbindung → drei Kandidaten → Dateien; dazu freie Anweisungen mit mehreren Referenzen (§8.1) lokal im Cockpit; unabhängig von Kanälen nachgewiesen.
 - Fehlt: Vorlagenablage und Analyse-Workflows, Befehls- und Anweisungsdeutung mit Referenzauflösung und Rückfrage (KI-Instanz), EVENT 25, Befehl 28, Vorlagenseiten, „Als Vorlage“ in Dateien.
+- **Teilnachweis 16.11.2026 – Vorlagenbibliothek:** Migration 11 `reference_files` (inhaltsadressiert, Herkunft `media:<id>`/`upload`/`telegram:<nachricht>`, Analyse-Status), EVENT 25 `REFERENCE_ADDED`, `GET /api/v1/reference-page`; Workflow-Parameter `reference = true` erscheint rechts als **Vorlage** (nur wenn der Workflow sie exponiert) mit *Aus Dateien* und *Aus Vorlagen*; `InputFile.reference_id` 5 (SHA-256 geprüft); Dateien-Detail **Als Vorlage** (nur bei bereitem Vorlagen-Workflow); der Kloner-Eingang landet ebenfalls in der Bibliothek. Im Browser an einer getrennten Testinstanz nachgewiesen. Offen: echter Vorlagen-Workflow (FLUX 3 Klein Multi-Referenz, nach Download), Analyse, Befehl 28 `clone_local`, `GET /api/v1/reference/{id}`.
 - Abhängigkeit: die benötigten Block-B-Workflows (Analyse, Charakterbindung, Kandidaten). Abnahme: jeder Befehl einzeln real geprüft.
 
 **C2 – Kanal-Basis** · Status: TEILWEISE (15.11.2026)

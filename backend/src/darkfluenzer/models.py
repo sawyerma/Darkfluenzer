@@ -99,6 +99,7 @@ class Param:
     upload: bool = False  # Datei wird vor dem Lauf zu ComfyUI hochgeladen
     label: str = ""  # Feldname im Cockpit (leer: Standardbezeichnung des Parameternamens)
     expert: bool | None = None  # None: Zahlen sind Experte, Texte und Dateien Grundeinstellung
+    reference: bool = False  # Vorlage (Bild aus Dateien/Kloner-Eingang), nur mit upload
 
     @property
     def is_expert(self) -> bool:
@@ -330,6 +331,8 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
                 params[name] = Param(**{**spec, "choices": tuple(spec.get("choices", ()))})
             except TypeError as exc:
                 raise ManifestError(f"Manifest: {w}.params.{name}: {exc}") from exc
+            if params[name].reference and not params[name].upload:
+                raise ManifestError(f"Manifest: {w}.params.{name}: reference nur mit upload.")
             if params[name].type not in PARAM_TYPES:
                 raise ManifestError(
                     f"Manifest: {w}.params.{name}.type muss {set(PARAM_TYPES)} sein."

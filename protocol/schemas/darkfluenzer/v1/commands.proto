@@ -35,6 +35,8 @@ message InputFile {
   string filename = 2;
   bytes data = 3;
   uint64 media_id = 4;
+  // Vorlage aus der Bibliothek (nur für Vorlagen-Parameter, SHA-256 geprüft)
+  uint64 reference_id = 5;
 }
 
 // Renderauftrag ohne Kundenbezug über den registrierten API-Workflow; FIFO im Backend.

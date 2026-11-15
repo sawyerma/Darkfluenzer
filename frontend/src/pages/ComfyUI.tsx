@@ -10,7 +10,8 @@ import {
 } from "../core/generated/darkfluenzer/v1/comfy_pb";
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
 import { takeRenderIntent, type RenderIntent } from "../core/intent";
-import { mediaUrl } from "../core/media";
+import { fetchReferences, mediaUrl } from "../core/media";
+import { type ReferenceItem } from "../core/generated/darkfluenzer/v1/reference_pb";
 import { useConnection } from "../core/realtime";
 import { type MediaItem } from "../core/generated/darkfluenzer/v1/media_pb";
 import { type Character } from "../core/generated/darkfluenzer/v1/character_pb";
@@ -452,6 +453,51 @@ const PHOTO_STATUS: Record<string, string> = {
   too_small: "zu klein",
 };
 
+/** Vorlagenbibliothek (C1): Vorlagen aus Dateien und dem Kloner-Eingang, bei Aufruf geladen. */
+function ReferencePicker({ onPick, onClose }: { onPick: (ref: ReferenceItem) => void; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [items, setItems] = useState<ReferenceItem[] | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    dialog.current?.showModal();
+    fetchReferences()
+      .then(setItems)
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+  }, []);
+  return (
+    <dialog ref={dialog} className="g-dialog g-media" aria-labelledby="ref-pick" onClose={onClose}>
+      <div className="g-line g-head">
+        <h2 id="ref-pick">Vorlage wählen</h2>
+        <button type="button" className="g-button" onClick={() => dialog.current?.close()}>
+          Schließen
+        </button>
+      </div>
+      {items && items.length > 0 ? (
+        <div className="g-gallery">
+          {items.map((r) => (
+            <div key={String(r.referenceId)} className="g-tile">
+              <button
+                type="button"
+                className="g-tile-open"
+                title={`local/${r.path}`}
+                onClick={() => {
+                  onPick(r);
+                  dialog.current?.close();
+                }}
+              >
+                <img src={mediaUrl(r.path)} alt={`Vorlage ${String(r.referenceId)}`} />
+                <small>{r.source}</small>
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="g-note">{error || (items ? "Noch keine Vorlagen – „Als Vorlage“ in Dateien oder Kloner-Eingang." : "Lädt …")}</p>
+      )}
+    </dialog>
+  );
+}
+
 // Gewähltes Charakterprofil (F7.5 „Charakter“); bleibt beim Wechsel des Workflows erhalten.
 let chosenCharacter = "";
 
@@ -756,6 +802,7 @@ function Workbench({
   comfyUrl,
   draft,
   start,
+  startParam,
   onLoad,
   canLoad,
 }: {
@@ -766,6 +813,7 @@ function Workbench({
   comfyUrl: string;
   draft?: Record<string, string>;
   start?: MediaItem; // aus Dateien übernommenes Eingabebild (Weiterverarbeiten, Video erstellen)
+  startParam?: string; // Eingang dafür (Standard „image“, „Als Vorlage“: Vorlagen-Parameter)
   onLoad: LoadDraft;
   canLoad: (key: string) => boolean;
 }) {
@@ -803,8 +851,11 @@ function Workbench({
   }, [draft]);
   const [files, setFiles] = useState<Record<string, File | undefined>>({});
   // Eingabebild aus der Galerie: exakt dieses Medium über seine ID (Backend prüft den SHA-256)
-  const [picked, setPicked] = useState<Record<string, MediaItem | undefined>>(() => (start ? { image: start } : {}));
+  const [picked, setPicked] = useState<Record<string, MediaItem | undefined>>(() => (start ? { [startParam ?? "image"]: start } : {}));
   const [picking, setPicking] = useState<WorkflowParam | null>(null);
+  // Vorlage aus der Bibliothek (C1): exakt diese Datei über ihre ID (Backend prüft den SHA-256)
+  const [pickedRef, setPickedRef] = useState<Record<string, ReferenceItem | undefined>>({});
+  const [refPicking, setRefPicking] = useState<WorkflowParam | null>(null);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const [checked, setChecked] = useState(false);
   const format = wf.formats.find((f) => String(f.width) === raw.width && String(f.height) === raw.height)?.name ?? "";
@@ -812,7 +863,7 @@ function Workbench({
   // Mitte: Grundeinstellungen (Texte, Eingabebilder); rechts die Experten-Eingänge (F7.5, V0 §7)
   const inMain = (p: WorkflowParam) => !p.expert;
   const errors = Object.fromEntries(
-    wf.params.map((p) => [p.name, validate(p, raw[p.name] ?? "", Boolean(files[p.name] || picked[p.name]))]),
+    wf.params.map((p) => [p.name, validate(p, raw[p.name] ?? "", Boolean(files[p.name] || picked[p.name] || pickedRef[p.name]))]),
   );
   const blocked = !wf.enabled
     ? "Deaktiviert"
@@ -844,8 +895,10 @@ function Workbench({
       });
     const inputs = await Promise.all(
       wf.params
-        .filter((p) => p.upload && (files[p.name] || picked[p.name]))
+        .filter((p) => p.upload && (files[p.name] || picked[p.name] || pickedRef[p.name]))
         .map(async (p) => {
+          const ref = pickedRef[p.name];
+          if (ref) return { param: p.name, filename: ref.path.split("/").pop() ?? "", referenceId: ref.referenceId };
           const item = picked[p.name];
           if (item) return { param: p.name, filename: item.path.split("/").pop() ?? "", mediaId: item.mediaId };
           const file = files[p.name]!;
@@ -877,6 +930,7 @@ function Workbench({
     if (input) input.value = ""; // Galerie-Medium ersetzt eine lokal gewählte Datei
     setFiles((f) => ({ ...f, [param]: undefined }));
     setPicked((p) => ({ ...p, [param]: item }));
+    setPickedRef((r) => ({ ...r, [param]: undefined }));
   }
 
   async function openInEditor() {
@@ -959,7 +1013,9 @@ function Workbench({
           </p>
         ) : null}
         {wf.training ? <TrainingFolder character={character} /> : null}
-        <div className="g-form">{[...wf.params.filter((p) => inMain(p) && !p.upload), ...wf.params.filter((p) => p.upload)].map(field)}</div>
+        <div className="g-form">
+          {[...wf.params.filter((p) => inMain(p) && !p.upload), ...wf.params.filter((p) => p.upload && !p.reference)].map(field)}
+        </div>
         <Candidates orders={myOrders} titles={titles} />
         <WorkflowResults wf={wf} running={running} waiting={waiting} onLoad={onLoad} canLoad={canLoad} />
       </div>
@@ -968,6 +1024,32 @@ function Workbench({
         <h2>Steuerung</h2>
         <div className="g-control-part">
           <CharacterControl training={wf.training} {...chars} />
+          {wf.params
+            .filter((p) => p.reference)
+            .map((p) => {
+              const chosen = pickedRef[p.name]?.path ?? picked[p.name]?.path;
+              return (
+                <div className="g-field" key={p.name}>
+                  <label>
+                    Vorlage{p.required ? " *" : ""}
+                  </label>
+                  {chosen ? (
+                    <img className="g-thumb" src={mediaUrl(chosen)} alt="Gewählte Vorlage" />
+                  ) : (
+                    <small>Keine Vorlage gewählt</small>
+                  )}
+                  <span className="g-between">
+                    <button type="button" className="g-button" onClick={() => setPicking(p)}>
+                      Aus Dateien
+                    </button>
+                    <button type="button" className="g-button" onClick={() => setRefPicking(p)}>
+                      Aus Vorlagen
+                    </button>
+                  </span>
+                  {checked && errors[p.name] ? <small className="g-error">{errors[p.name]}</small> : null}
+                </div>
+              );
+            })}
           <div className="g-line">
             <span>Workflow</span>
             <span className="g-value">
@@ -1086,6 +1168,15 @@ function Workbench({
         <Instances live={live} />
       </aside>
 
+      {refPicking ? (
+        <ReferencePicker
+          onPick={(ref) => {
+            setPickedRef((r) => ({ ...r, [refPicking.name]: ref }));
+            setPicked((p) => ({ ...p, [refPicking.name]: undefined }));
+          }}
+          onClose={() => setRefPicking(null)}
+        />
+      ) : null}
       {picking ? (
         <MediaPicker title={`${paramLabel(picking, wf.kind)} aus Dateien`} onPick={(item) => pick(picking.name, item)} onClose={() => setPicking(null)} />
       ) : null}
@@ -1222,6 +1313,7 @@ export function ComfyUI() {
             comfyUrl={comfyUrl}
             draft={draft?.key === current.key ? draft.params : undefined}
             start={intent?.workflow === current.key ? intent.media : undefined}
+            startParam={intent?.workflow === current.key ? intent.param : undefined}
             onLoad={loadDraft}
             canLoad={canLoad}
           />

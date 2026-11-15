@@ -5,6 +5,8 @@ import type { MediaItem } from "./generated/darkfluenzer/v1/media_pb";
 export interface RenderIntent {
   workflow: string;
   media: MediaItem;
+  /** Eingang, der das Medium erhält (Standard „image“; „Als Vorlage“: der Vorlagen-Parameter) */
+  param?: string;
 }
 
 let pending: RenderIntent | null = null;

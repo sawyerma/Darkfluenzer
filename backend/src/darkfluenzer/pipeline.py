@@ -93,6 +93,16 @@ def store_input(cfg: Config, data: bytes, filename: str) -> str:
     return target.relative_to(cfg.local).as_posix()
 
 
+def input_from_file(cfg: Config, rel: str, sha256: str) -> str:
+    """Datei unter local/ (z. B. Vorlage) als Eingabebild: Inhalt gegen den gespeicherten
+    SHA-256 geprüft, inhaltsadressiert unter ``local/evaluation/inputs`` abgelegt."""
+    path = cfg.local / rel
+    data = path.read_bytes() if path.is_file() else b""
+    if hashlib.sha256(data).hexdigest() != sha256:
+        raise PipelineError(f"{rel}: Datei fehlt oder wurde verändert.")
+    return store_input(cfg, data, path.name)
+
+
 def input_from_media(cfg: Config, media_id: int) -> str:
     """Vorhandenes Galerie-Medium als Eingabebild: exakt diese Datei (SHA-256 gegen den Index
     geprüft), inhaltsadressiert unter ``local/evaluation/inputs`` abgelegt wie ein Upload."""

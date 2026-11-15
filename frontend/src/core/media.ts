@@ -7,6 +7,7 @@ import {
   type MediaPage,
   type MediaProvenance,
 } from "./generated/darkfluenzer/v1/media_pb";
+import { ReferencePageSchema, type ReferenceItem } from "./generated/darkfluenzer/v1/reference_pb";
 import { Topic } from "./generated/darkfluenzer/v1/stream_pb";
 import { refreshSession, useConnection } from "./realtime";
 import { useEventTopic } from "./state";
@@ -118,4 +119,10 @@ export function useGallery() {
     loadOlder: () => load(items.at(-1)?.mediaId ?? 0n),
     drop: (ids: bigint[]) => setDropped((s) => new Set([...s, ...ids])),
   };
+}
+
+/** Vorlagenbibliothek (C1), neueste zuerst; bei Aufruf geladen. */
+export async function fetchReferences(): Promise<ReferenceItem[]> {
+  const resp = await protectedGet("/api/v1/reference-page?limit=100");
+  return fromBinary(ReferencePageSchema, new Uint8Array(await resp.arrayBuffer())).items;
 }

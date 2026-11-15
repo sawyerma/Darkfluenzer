@@ -24,6 +24,7 @@ enum Topic {
   TOPIC_MEDIA_ADDED = 21; // EVENT darkfluenzer.v1.MediaItem
   TOPIC_MEDIA_REMOVED = 22; // EVENT darkfluenzer.v1.MediaRemoved
   TOPIC_ORDER_UPDATED = 23; // EVENT darkfluenzer.v1.OrderUpdated
+  TOPIC_REFERENCE_ADDED = 25; // EVENT darkfluenzer.v1.ReferenceAdded
   TOPIC_CUSTOMER_UPDATED = 26; // EVENT darkfluenzer.v1.CustomerUpdated
   TOPIC_CONVERSATION_EVENT = 27; // EVENT darkfluenzer.v1.ConversationEvent
   TOPIC_COMMAND_RECEIPT = 29; // EVENT darkfluenzer.v1.CommandReceipt

@@ -109,6 +109,8 @@ message WorkflowParam {
   string label = 12;
   // in „Erweiterte Workflow-Einstellungen“ (sonst Grundeinstellung in der Mitte)
   bool expert = 13;
+  // Vorlagen-Parameter: erscheint rechts als „Vorlage“ (aus Dateien bzw. Kloner-Eingang), C1
+  bool reference = 14;
 }
 
 // Registrierter Workflow (workflows/manifest.toml) und Bereitschaft seiner Modelldateien.

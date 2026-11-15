@@ -146,6 +146,10 @@ function MediaDetail({
   const takes = isImage ? workflows.filter((w) => w.enabled && w.params.some((p) => p.upload && p.name === "image")) : [];
   const toVideo = takes.find((w) => w.kind === "video");
   const toUpscale = takes.find((w) => w.role === "upscale");
+  // „Als Vorlage“ (F7.6, C1): erster bereite Workflow mit Vorlagen-Parameter
+  const asTemplate = isImage
+    ? workflows.find((w) => w.enabled && w.modelsReady && w.params.some((p) => p.reference))
+    : undefined;
   const source = prov?.jobId ? workflows.find((w) => w.key === prov.workflow && w.enabled) : undefined;
   const seed = source?.params.find((p) => p.name === "seed");
   const parent = prov?.parentMediaId ? known(prov.parentMediaId) : undefined;
@@ -268,6 +272,17 @@ function MediaDetail({
                 </button>
               ) : null}
             </>
+          ) : null}
+          {asTemplate ? (
+            <button
+              type="button"
+              className="g-button"
+              onClick={() =>
+                setRenderIntent({ workflow: asTemplate.key, media: item, param: asTemplate.params.find((p) => p.reference)?.name })
+              }
+            >
+              Als Vorlage
+            </button>
           ) : null}
           {toUpscale ? (
             <button type="button" className="g-button" onClick={() => setRenderIntent({ workflow: toUpscale.key, media: item })}>

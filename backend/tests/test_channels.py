@@ -3,6 +3,7 @@ Default-Kontakt, Postausgang nach Neustart."""
 
 from __future__ import annotations
 
+import dataclasses
 import uuid
 
 import pytest
@@ -308,5 +309,69 @@ def test_animate_uses_the_video_workflow(cloner_cfg):
             ).read()
         )
         assert page.default_contact.video_workflow == "wan22_remix_v30_i2v"
+
+    _run(cfg, scenario)
+
+
+def test_reference_library_from_files_and_cloner(cloner_cfg):
+    """Vorlagen (C1): ein Vorlagen-Parameter legt die Datei genau einmal in der Bibliothek an
+    (EVENT 25, reference-page); Vorlage per ID nur für Vorlagen-Parameter; der Kloner-Eingang
+    landet ebenfalls in der Bibliothek."""
+    import hashlib
+
+    from PIL import Image
+
+    from darkfluenzer.v1 import reference_pb2
+
+    cfg = cloner_cfg
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+        # „image“ von Verfeinern als Vorlagen-Parameter (wie ein künftiger Vorlagen-Workflow)
+        params = cockpit.manifest.workflows["lustify_sdxl_refine"].params
+        params["image"] = dataclasses.replace(params["image"], reference=True)
+        img = cfg.local / "evaluation" / "x" / "bild.png"
+        img.parent.mkdir(parents=True)
+        Image.new("RGB", (64, 80), (10, 120, 200)).save(img)
+        data = img.read_bytes()
+        media = store.add_media(
+            img.relative_to(cfg.local).as_posix(), hashlib.sha256(data).hexdigest(), len(data)
+        )
+        csrf = await _csrf(client)
+        version = cockpit._registry_version
+
+        async def render(**file):
+            req = commands_pb2.CommandRequest(
+                request_id=str(uuid.uuid4()),
+                expected_version=version,
+                render=commands_pb2.Render(
+                    workflow="lustify_sdxl_refine",
+                    files=[commands_pb2.InputFile(param="image", filename="bild.png", **file)],
+                ),
+            )
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body).detail
+
+        assert await render(media_id=media) == ""
+        assert await render(media_id=media) == ""  # gleicher Inhalt: keine zweite Vorlage
+        page = reference_pb2.ReferencePage.FromString(
+            await (await client.get("/api/v1/reference-page")).read()
+        )
+        (ref,) = page.items
+        assert ref.source == f"media:{media}" and ref.analysis == "none"
+        assert ref.sha256 == hashlib.sha256(data).hexdigest()
+        events, _ = store.reference_events(0, 10)
+        assert [e["reference_id"] for e in events] == [ref.reference_id]
+        assert await render(reference_id=ref.reference_id) == ""  # Vorlage aus der Bibliothek
+        (cfg.local / ref.path).write_bytes(b"anders")
+        assert "verändert" in await render(reference_id=ref.reference_id)  # SHA-Prüfung
+
+        send, photo = _cloner_setup(cfg, store, auto=True)
+        first = send("1", "clone", "1", [photo])
+        await cockpit._on_inbound(first)
+        sources = [r["source"] for r in store.reference_page(0, 10)[0]]
+        assert sources[0] == f"telegram:{first.message_id}" and len(sources) == 2
 
     _run(cfg, scenario)
