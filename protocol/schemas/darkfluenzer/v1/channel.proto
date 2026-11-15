@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package darkfluenzer.v1;
 
+import "darkfluenzer/v1/order.proto";
+
 // Nachrichten-Cockpit und Kanal-Adapter (PHASENPLAN_V0 §6/§8, FRONT F4/F7.2–F7.4).
 // Plattformen: telegram | instagram | whatsapp. Plattform-Tokens erscheinen nie im Frontend.
 
@@ -85,6 +87,12 @@ message ConversationItem {
   string error = 10;
   bool read = 11;
   uint64 conversation_id = 12;
+  // Systemkarte INTERNER AUFTRAG: Auftrag mit Stufe, Kandidaten/Ergebnis und Fehlern (F4/F7.4);
+  // jedes Auftragsereignis liefert die Karte erneut als conversations.event
+  ActiveOrder order = 13;
+  // Systemkarte eines erkannten Kloner-Auftrags, der auf den Betreiberstart wartet
+  // („Automatische Produktionsaufträge“ aus, V0 §8)
+  bool awaiting_start = 14;
 }
 
 // EVENT conversations.event: Nachricht neu oder geändert (Status, Anhänge)

@@ -146,12 +146,42 @@ def test_pages_reply_guard_and_mark_read(cfg):
     _run(cfg, scenario)
 
 
-def test_cloner_switch_creates_one_internal_order(cfg):
-    """Default-Absender + Befehl + Referenzbild -> genau ein Kloner-Auftrag mit Systemkarte;
-    freie Anweisung -> genau eine Rückfrage; erneut zugestelltes Ereignis -> nichts."""
-    import shutil
-
+def _cloner_setup(cfg, store: Store, *, auto: bool):
+    """Default-Kontakt mit Telegram-ID 99, Medien-Workflow „Verfeinern“ und einem Referenzfoto;
+    liefert ``send(update, text, message, files)`` und den Fotoanhang."""
     from PIL import Image
+
+    default = store.default_contact()
+    store.update_default_contact(
+        default["revision"],
+        {"media_workflow": "lustify_sdxl_refine", "approval_mode": "direct", "auto_orders": auto},
+        {("telegram", BOT): "99"},
+    )
+    ref = cfg.local / "channels" / "telegram" / "99" / "1_0.png"
+    ref.parent.mkdir(parents=True)
+    Image.new("RGB", (64, 64), (200, 30, 30)).save(ref)
+    photo = {
+        "kind": "photo",
+        "status": "saved",
+        "path": "channels/telegram/99/1_0.png",
+        "sha256": "a" * 64,
+        "size": ref.stat().st_size,
+        "mime": "image/png",
+    }
+
+    def send(update: str, text: str, message: str, files=()):
+        inbound = _inbound(store, update, "99", text, message)
+        if inbound.message_id and files:
+            store.set_attachments(inbound.message_id, list(files))
+        return inbound
+
+    return send, photo
+
+
+@pytest.fixture
+def cloner_cfg(cfg):
+    """Projekt mit den echten Workflows und (leeren) LUSTIFY-Modelldateien."""
+    import shutil
 
     from darkfluenzer import models
     from darkfluenzer.config import project_root
@@ -162,33 +192,18 @@ def test_cloner_switch_creates_one_internal_order(cfg):
         target.parent.mkdir(parents=True, exist_ok=True)
         with open(target, "wb") as fh:
             fh.truncate(mf.size)
+    return cfg
+
+
+def test_cloner_switch_creates_one_internal_order(cloner_cfg):
+    """Default-Absender + Befehl + Referenzbild -> genau ein Kloner-Auftrag mit Systemkarte;
+    freie Anweisung -> genau eine Rückfrage; erneut zugestelltes Ereignis -> nichts."""
+    cfg = cloner_cfg
 
     async def scenario(client, app, origin):
         cockpit = app[server.COCKPIT_KEY]
         store = cockpit.store
-        default = store.default_contact()
-        store.update_default_contact(
-            default["revision"],
-            {"media_workflow": "lustify_sdxl_refine", "approval_mode": "direct"},
-            {("telegram", BOT): "99"},
-        )
-        ref = cfg.local / "channels" / "telegram" / "99" / "1_0.png"
-        ref.parent.mkdir(parents=True)
-        Image.new("RGB", (64, 64), (200, 30, 30)).save(ref)
-        photo = {
-            "kind": "photo",
-            "status": "saved",
-            "path": "channels/telegram/99/1_0.png",
-            "sha256": "a" * 64,
-            "size": ref.stat().st_size,
-            "mime": "image/png",
-        }
-
-        def send(update: str, text: str, message: str, files=()):
-            inbound = _inbound(store, update, "99", text, message)
-            if inbound.message_id and files:
-                store.set_attachments(inbound.message_id, list(files))
-            return inbound
+        send, photo = _cloner_setup(cfg, store, auto=True)
 
         first = send("1", "remix roter Bikini", "1", [photo])
         assert first.customer.kind == "internal"
@@ -199,10 +214,67 @@ def test_cloner_switch_creates_one_internal_order(cfg):
         items, _ = store.conversation_items(first.customer.id, 0, 20)
         assert [i["direction"] for i in items] == ["in", "system"]
         assert items[1]["text"].startswith("INTERNER AUFTRAG · REMIX · TELEGRAM")
+        await _csrf(client)  # Sitzung für die Verlaufsseite
+        conv = channel_pb2.ConversationPage.FromString(
+            await (
+                await client.get(f"/api/v1/conversation-page?customer={first.customer.id}")
+            ).read()
+        )
+        card = conv.items[1]  # Karte trägt den Auftrag mit Stufe und Kandidaten (F4)
+        assert card.order.order_no == "DF-O-000001" and not card.awaiting_start
+        assert [st.kind for st in card.order.stages] == ["candidates"]
+        assert len(card.order.stages[0].jobs) == cfg.production.candidates_default
+        # jedes Auftragsereignis liefert die Karte erneut (Push statt Abfrage)
+        events, _ = store.message_events(0, 100)
+        before = [e["message_id"] for e in events].count(card.item_id)
+        store.transition("DF-O-000001", "cancelled")
+        events, _ = store.message_events(0, 100)
+        assert [e["message_id"] for e in events].count(card.item_id) == before + 1
         free = send("2", "mach mir schöne Fotos", "2")
         await cockpit._on_inbound(free)
         items, _ = store.conversation_items(first.customer.id, 0, 20)
         assert items[-1]["direction"] == "out" and items[-1]["status"] == "queued"
         assert "Befehl" in items[-1]["text"]
+
+    _run(cfg, scenario)
+
+
+def test_cloner_waits_for_operator_start(cloner_cfg):
+    """Automatische Produktionsaufträge aus: der erkannte Auftrag wartet sichtbar und startet
+    genau einmal per Befehl aus dem Cockpit (V0 §8)."""
+    cfg = cloner_cfg
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+        send, photo = _cloner_setup(cfg, store, auto=False)
+        first = send("1", "clone 9:16", "1", [photo])
+        await cockpit._on_inbound(first)
+        assert store.db.execute("SELECT count(*) FROM orders").fetchone()[0] == 0
+        csrf = await _csrf(client)
+        conv = channel_pb2.ConversationPage.FromString(
+            await (
+                await client.get(f"/api/v1/conversation-page?customer={first.customer.id}")
+            ).read()
+        )
+        card = conv.items[-1]
+        assert card.direction == "system" and card.awaiting_start and not card.order.order_no
+
+        async def start(item_id):
+            req = commands_pb2.CommandRequest(
+                request_id=str(uuid.uuid4()),
+                start_cloner_order=commands_pb2.StartClonerOrder(item_id=item_id),
+            )
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body).detail
+
+        assert await start(conv.items[0].item_id) == "Kein wartender Kloner-Auftrag."
+        assert await start(card.item_id) == ""
+        assert "bereits gestartet" in await start(card.item_id)  # genau einmal
+        orders = store.db.execute("SELECT order_no, source FROM orders").fetchall()
+        assert [tuple(o) for o in orders] == [("DF-O-000001", "cloner")]
+        row = store.message(card.item_id)
+        assert row["order_id"] and "DF-O-000001" in row["text"]
 
     _run(cfg, scenario)

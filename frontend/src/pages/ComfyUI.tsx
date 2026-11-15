@@ -502,14 +502,22 @@ const STAGE_LABEL: Record<string, [string, Tone]> = {
 
 /** Kandidatenvergleich (Mitte, V0 §9.6): je Kandidat ein echtes Ergebnis, synchroner Zoom,
  * Auswahl durch den Betreiber; danach Fertigstellen. */
-function Candidates({ orders, titles }: { orders: ActiveOrder[]; titles: Record<string, string> }) {
+export function Candidates({
+  orders,
+  titles,
+  heading = true,
+}: {
+  orders: ActiveOrder[];
+  titles: Record<string, string>;
+  heading?: boolean;
+}) {
   const cmd = useCommand();
   const jobs = useStateTopic(Topic.JOBS_ACTIVE)?.value.jobs ?? [];
   const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
   if (orders.length === 0) return null;
   return (
     <div className="g-result">
-      <h2>Kandidaten</h2>
+      {heading ? <h2>Kandidaten</h2> : null}
       {orders.map((order) => (
         <div key={order.orderNo} className="g-order">
           {order.stages.map((stage) => {

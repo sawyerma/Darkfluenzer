@@ -28,6 +28,7 @@ import type {
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
 import { mediaUrl } from "../core/media";
 import { useStateTopic } from "../core/state";
+import { Candidates } from "./ComfyUI";
 
 // Nachrichten (FRONT F4, F7.2–F7.4): links Kundenliste mit Kanalstatus, Mitte Register,
 // Unterregister und Verlauf, rechts die Kundensteuerung. „Gesamter Verlauf“ ist nur lesbar;
@@ -295,10 +296,60 @@ function Attachment({ a }: { a: MessageAttachment }) {
   );
 }
 
+const ORDER_STATUS: Record<string, string> = {
+  producing: "In Produktion",
+  review: "Zur Prüfung",
+  approved: "Freigegeben",
+  delivered: "Ausgeliefert",
+  cancelled: "Abgebrochen",
+};
+
+/** INTERNER AUFTRAG (F4/F7.4): Befehl, Wunsch, Stufe mit Kandidaten (Auswahl, Wiederholen) und
+ *  Fehlern; solange der Auftrag läuft, live aus dem Auftragszustand. Wartet der erkannte Auftrag
+ *  auf den Betreiber (Automatische Produktionsaufträge aus), startet ihn genau ein Knopf. */
+function OrderCard({ item }: { item: ConversationItem }) {
+  const cmd = useCommand();
+  const active = useStateTopic(Topic.ORDERS_ACTIVE)?.value.orders ?? [];
+  const workflows = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
+  const [head, ...detail] = item.text.split("\n");
+  const order = item.order && (active.find((o) => o.orderNo === item.order?.orderNo) ?? item.order);
+  return (
+    <div className="g-event">
+      <strong>{head}</strong>
+      {detail.length ? <p>{detail.join(" ")}</p> : null}
+      {order ? (
+        <>
+          <small>{ORDER_STATUS[order.status] ?? order.status}</small>
+          <Candidates orders={[order]} titles={Object.fromEntries(workflows.map((w) => [w.key, w.title]))} heading={false} />
+        </>
+      ) : null}
+      {item.awaitingStart ? (
+        <div className="g-actions">
+          <button
+            type="button"
+            className="g-button g-primary"
+            disabled={cmd.pending}
+            onClick={() => cmd.run({ case: "startClonerOrder", value: { itemId: item.itemId } })}
+          >
+            Auftrag starten
+          </button>
+        </div>
+      ) : null}
+      {cmd.notice ? (
+        <p className="g-note" role="alert">
+          {cmd.notice}
+        </p>
+      ) : null}
+      <small>{shortTime(item.atMs)}</small>
+    </div>
+  );
+}
+
 /** Nachricht als Blase in Kanalfarbe mit Kanalname (eingehend links, ausgehend rechts) oder
  *  neutrale Systemkarte. */
 function Entry({ item }: { item: ConversationItem }) {
   const attachments = item.attachments.map((a, n) => <Attachment key={n} a={a} />);
+  if (item.order?.orderNo || item.awaitingStart) return <OrderCard item={item} />;
   if (item.platform === "system" || item.direction === "system") {
     return (
       <div className="g-event">

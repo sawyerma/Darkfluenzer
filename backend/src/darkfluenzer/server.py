@@ -614,6 +614,7 @@ class Cockpit:
             "mark_read": self._mark_read,
             "send_reply": self._send_reply,
             "default_contact_update": self._default_contact_update,
+            "start_cloner_order": self._start_cloner_order,
             "set_workflow_enabled": self._set_enabled,
             "open_workflow": self._open,
             "adopt_workflow": self._adopt,
@@ -753,6 +754,7 @@ class Cockpit:
     def _orders_changed(self) -> None:
         self.hub.set_state(spb.TOPIC_ORDERS_ACTIVE, self._orders_active())
         self.hub.push_events(spb.TOPIC_ORDER_UPDATED)
+        self.hub.push_events(spb.TOPIC_CONVERSATION_EVENT)  # Systemkarten der Aufträge
         self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
 
     async def _create_order(self, msg: commands_pb2.CreateOrder, call: _Call) -> str:
@@ -881,36 +883,58 @@ class Cockpit:
                 self._reply_internal(inbound.conversation_id, cloner.ASK_COMMAND)
             return
         command, wish = parsed
-        refs = [a for a in msg["attachments"] if a.get("status") == "saved"]
-        if not refs and msg["reply_to_platform_id"]:
-            replied = self.store.message_by_platform_id(
-                inbound.conversation_id, msg["reply_to_platform_id"]
-            )
-            refs = [a for a in (replied or {}).get("attachments", []) if a.get("status") == "saved"]
-        key = default["media_workflow"]
-        if not key or key not in self.manifest.workflows:
-            self.store.add_system_card(
-                inbound.conversation_id,
-                cloner.card(
-                    command, msg["platform"], "Kein Medien-Workflow im Default-Kontakt gewählt."
-                ),
-            )
-            self._message_changed(0)
-            return
-        wf = self.manifest.workflows[key]
-        takes_image = "image" in wf.params and wf.params["image"].upload
-        if takes_image and not refs:
-            self._reply_internal(inbound.conversation_id, cloner.ASK_REFERENCE)
+        plan = self._cloner_plan(msg, default)
+        if isinstance(plan, str):
+            if plan == cloner.ASK_REFERENCE:
+                self._reply_internal(inbound.conversation_id, plan)
+            else:
+                self.store.add_system_card(
+                    inbound.conversation_id, cloner.card(command, msg["platform"], plan)
+                )
+                self._message_changed(0)
             return
         if not default["auto_orders"]:
             self.store.add_system_card(
                 inbound.conversation_id,
-                cloner.card(
-                    command, msg["platform"], f"{wish or '–'} · wartet auf Start im Cockpit"
-                ),
+                cloner.card(command, msg["platform"], f"{wish or '–'} · wartet auf Start"),
+                origin_message_id=inbound.message_id,
             )
             self._message_changed(0)
             return
+        order_no = await self._cloner_order(msg, command, wish, *plan)
+        self.store.add_system_card(
+            inbound.conversation_id,
+            cloner.card(command, msg["platform"], self._cloner_detail(order_no, plan[0], wish)),
+            order_id=self.store.order(order_no).id,
+        )
+        self._message_changed(0)
+
+    def _cloner_plan(self, msg: dict, default: dict) -> tuple[str, list[dict]] | str:
+        """Medien-Workflow des Default-Kontakts und Referenzen (angehängt oder beantwortete
+        Nachricht); bei fehlenden Voraussetzungen der Grund."""
+        refs = [a for a in msg["attachments"] if a.get("status") == "saved"]
+        if not refs and msg["reply_to_platform_id"]:
+            replied = self.store.message_by_platform_id(
+                msg["conversation_id"], msg["reply_to_platform_id"]
+            )
+            refs = [a for a in (replied or {}).get("attachments", []) if a.get("status") == "saved"]
+        key = default["media_workflow"]
+        if not key or key not in self.manifest.workflows:
+            return "Kein Medien-Workflow im Default-Kontakt gewählt."
+        wf = self.manifest.workflows[key]
+        if "image" in wf.params and wf.params["image"].upload and not refs:
+            return cloner.ASK_REFERENCE
+        return key, refs
+
+    def _cloner_detail(self, order_no: str, key: str, wish: str) -> str:
+        return f"{order_no} · {self.manifest.workflows[key].title} · {wish or '–'}"
+
+    async def _cloner_order(
+        self, msg: dict, command: str, wish: str, key: str, refs: list[dict]
+    ) -> str:
+        """Kloner-Auftrag (Quelle ``cloner``) mit Kandidaten anlegen und einreihen."""
+        wf = self.manifest.workflows[key]
+        takes_image = "image" in wf.params and wf.params["image"].upload
         inputs = {}
         if takes_image:
             ref = self.cfg.local / refs[0]["path"]
@@ -926,21 +950,40 @@ class Cockpit:
             inputs,
             count=self.cfg.production.candidates_default,
             source="cloner",
-            origin=inbound.message_id,
+            origin=msg["id"],
         )
-        order = self.store.order(order_no)
-        self.store.link_order(inbound.message_id, order.id)
-        self.store.add_system_card(
-            inbound.conversation_id,
-            cloner.card(command, msg["platform"], f"{order_no} · {wf.title} · {wish or '–'}"),
-            order_id=order.id,
-        )
+        self.store.link_order(msg["id"], self.store.order(order_no).id)
         log.info(
             "Kloner: %s %s → %s (%d Kandidaten)", command, msg["platform"], order_no, len(jobs)
         )
         self._enqueue(jobs)
         self._orders_changed()
-        self._message_changed(0)
+        return order_no
+
+    async def _start_cloner_order(self, msg: commands_pb2.StartClonerOrder, call: _Call) -> str:
+        """Wartenden Kloner-Auftrag starten (Automatische Produktionsaufträge aus)."""
+        call.entity = f"message:{msg.item_id}"
+        card = self.store.message(msg.item_id)  # unbekannt: StoreError -> Ablehnung
+        if card["direction"] != "system" or not card["origin_message_id"]:
+            return "Kein wartender Kloner-Auftrag."
+        if card["order_id"]:
+            return "Auftrag wurde bereits gestartet."
+        origin = self.store.message(card["origin_message_id"])
+        parsed = cloner.parse(origin["text"])
+        if parsed is None:
+            return "Ursprungsnachricht enthält keinen Befehl."
+        command, wish = parsed
+        plan = self._cloner_plan(origin, self.store.default_contact())
+        if isinstance(plan, str):
+            return plan
+        order_no = await self._cloner_order(origin, command, wish, *plan)
+        self.store.start_card(
+            card["id"],
+            self.store.order(order_no).id,
+            cloner.card(command, origin["platform"], self._cloner_detail(order_no, plan[0], wish)),
+        )
+        self._message_changed(card["id"])
+        return ""
 
     def _cloner_delivery(self, order_id: int, selected: int | None = None) -> None:
         """Rückversand eines Kloner-Auftrags je Freigabemodus (V0 §8.1): direkt die Kandidaten,
@@ -1083,7 +1126,7 @@ class Cockpit:
                     r["cursor"],
                     _unix_ms(r["committed_at"]),
                     channel_pb2.ConversationEvent(
-                        item=_conversation_item(item)
+                        item=_conversation_item(item, self.store)
                     ).SerializeToString(),
                 )
             )
@@ -1098,34 +1141,7 @@ class Cockpit:
             candidates_max=prod.candidates_max,
         )
         for order in self.store.active_orders():
-            item = msg.orders.add(
-                order_no=order.order_no,
-                source=order.source,
-                kind=order.kind,
-                request=order.request,
-                status=order.status,
-            )
-            for st in self.store.stages(order.id):
-                stage = item.stages.add(
-                    seq=st.seq,
-                    kind=st.kind,
-                    status=st.status,
-                    workflow=st.workflow,
-                    count=st.count,
-                    selected_media_id=st.selected_media_id or 0,
-                    error=st.error or "",
-                    finish_workflow=str(st.params.get("finish") or ""),
-                    attempts=st.attempts,
-                )
-                for j in self.store.stage_jobs(st.id):
-                    stage.jobs.add(
-                        job_id=j["id"],
-                        seed=int(j["seeds"][0]) if j["seeds"] else 0,
-                        status=j["status"],
-                        media_id=j["media_id"] or 0,
-                        path=j["path"] or "",
-                        error=j["error"] or "",
-                    )
+            _fill_order(msg.orders.add(), self.store, order)
         return msg.SerializeToString()
 
     def read_orders(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
@@ -1632,7 +1648,34 @@ def _customer_summary(row: dict) -> channel_pb2.CustomerSummary:
     )
 
 
-def _conversation_item(row: dict) -> channel_pb2.ConversationItem:
+def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
+    """Auftrag mit Stufen, Jobs und Kandidaten (STATE orders.active, Systemkarte)."""
+    item.order_no, item.source, item.kind = order.order_no, order.source, order.kind
+    item.request, item.status = order.request, order.status
+    for st in store.stages(order.id):
+        stage = item.stages.add(
+            seq=st.seq,
+            kind=st.kind,
+            status=st.status,
+            workflow=st.workflow,
+            count=st.count,
+            selected_media_id=st.selected_media_id or 0,
+            error=st.error or "",
+            finish_workflow=str(st.params.get("finish") or ""),
+            attempts=st.attempts,
+        )
+        for j in store.stage_jobs(st.id):
+            stage.jobs.add(
+                job_id=j["id"],
+                seed=int(j["seeds"][0]) if j["seeds"] else 0,
+                status=j["status"],
+                media_id=j["media_id"] or 0,
+                path=j["path"] or "",
+                error=j["error"] or "",
+            )
+
+
+def _conversation_item(row: dict, store: Store) -> channel_pb2.ConversationItem:
     item = channel_pb2.ConversationItem(
         item_id=row["id"],
         customer_id=row["customer_id"],
@@ -1645,7 +1688,12 @@ def _conversation_item(row: dict) -> channel_pb2.ConversationItem:
         error=row["error"] or "",
         read=bool(row["read_at"]) or row["direction"] == "out",
         conversation_id=row["conversation_id"],
+        awaiting_start=row["direction"] == "system"
+        and bool(row["origin_message_id"])
+        and not row["order_id"],
     )
+    if row["order_id"]:
+        _fill_order(item.order, store, store.order_by_id(row["order_id"]))
     for att in row["attachments"]:
         item.attachments.add(
             kind=str(att.get("kind", "")),
@@ -1688,7 +1736,7 @@ async def _conversation_page(request: web.Request) -> web.Response:
     items, more = store.conversation_items(customer_id, before, limit)
     page = channel_pb2.ConversationPage(
         customer=_customer_summary(summary[0]),
-        items=[_conversation_item(i) for i in items],
+        items=[_conversation_item(i, store) for i in items],
         more=more,
         version=store.domain_version("conversations"),
     )

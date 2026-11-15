@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -483,6 +483,10 @@ CREATE UNIQUE INDEX channel_messages_request ON channel_messages(request_id)
     WHERE request_id IS NOT NULL;
 CREATE INDEX channel_messages_order ON channel_messages(order_id) WHERE order_id IS NOT NULL;
 """,
+    8: """
+-- Karte eines wartenden Kloner-Auftrags verweist auf die auslösende Nachricht (Start im Cockpit)
+ALTER TABLE channel_messages ADD COLUMN origin_message_id INTEGER REFERENCES channel_messages(id);
+""",
 }
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
 REBUILDS = {5, 6, 7}
@@ -772,7 +776,12 @@ class Store:
             return Inbound(customer, identity, conv, cur.lastrowid, created)
 
     def add_system_card(
-        self, conversation_id: int, text: str, *, order_id: int | None = None
+        self,
+        conversation_id: int,
+        text: str,
+        *,
+        order_id: int | None = None,
+        origin_message_id: int | None = None,
     ) -> int:
         """Systemkarte im Verlauf (z. B. INTERNER AUFTRAG, Rückfrage-Hinweis) – nie gesendet."""
         with self.tx() as db:
@@ -784,9 +793,9 @@ class Store:
             ts = now()
             cur = db.execute(
                 "INSERT INTO channel_messages (customer_id, conversation_id, direction, text,"
-                " status, order_id, sent_at, read_at, created_at)"
-                " VALUES (?,?,'system',?,'sent',?,?,?,?)",
-                (customer, conversation_id, text, order_id, ts, ts, ts),
+                " status, order_id, origin_message_id, sent_at, read_at, created_at)"
+                " VALUES (?,?,'system',?,'sent',?,?,?,?,?)",
+                (customer, conversation_id, text, order_id, origin_message_id, ts, ts, ts),
             )
             self._event("message", cur.lastrowid, "added", customer_id=customer)
             self.bump("conversations")
@@ -797,6 +806,19 @@ class Store:
             db.execute(
                 "UPDATE channel_messages SET order_id = ? WHERE id = ?", (order_id, message_id)
             )
+
+    def start_card(self, card_id: int, order_id: int, text: str) -> None:
+        """Wartende Kloner-Karte mit dem gestarteten Auftrag verbinden – genau einmal."""
+        with self.tx() as db:
+            n = db.execute(
+                "UPDATE channel_messages SET order_id = ?, text = ? WHERE id = ?"
+                " AND direction = 'system' AND origin_message_id IS NOT NULL AND order_id IS NULL",
+                (order_id, text, card_id),
+            ).rowcount
+            if n != 1:
+                raise StoreError("Auftrag wurde bereits gestartet.")
+            self._event("message", card_id, "started", order_id=order_id)
+            self.bump("conversations")
 
     def conversation_revision(self, conversation_id: int) -> int:
         row = self.db.execute(
@@ -1017,11 +1039,17 @@ class Store:
             return n
 
     def message_events(self, after: int, limit: int) -> tuple[list[dict], bool]:
-        """Nachrichtenereignisse (neu, Status, Anhänge) mit Cursor > ``after``."""
+        """Nachrichtenereignisse (neu, Status, Anhänge) mit Cursor > ``after``; jedes Ereignis
+        eines Auftrags mit Systemkarte liefert diese Karte erneut (Stufe, Ergebnis, Fehler)."""
         rows = self.db.execute(
             "SELECT e.id AS cursor, e.created_at AS committed_at, e.entity_id AS message_id"
-            " FROM events e WHERE e.entity = 'message' AND e.id > ? ORDER BY e.id DESC LIMIT ?",
-            (after, limit + 1),
+            " FROM events e WHERE e.entity = 'message' AND e.id > ?"
+            " UNION ALL"
+            " SELECT e.id, e.created_at, m.id FROM events e"
+            " JOIN channel_messages m ON m.order_id = e.entity_id AND m.direction = 'system'"
+            " WHERE e.entity = 'order' AND e.id > ?"
+            " ORDER BY cursor DESC LIMIT ?",
+            (after, after, limit + 1),
         ).fetchall()
         recent = [dict(r) for r in rows[:limit]]
         return recent[::-1], len(rows) > limit

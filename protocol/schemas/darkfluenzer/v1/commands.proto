@@ -119,6 +119,12 @@ message RetryStage {
   uint32 seq = 2;
 }
 
+// Erkannten Kloner-Auftrag starten, der auf den Betreiberstart wartet (Systemkarte mit
+// awaiting_start). Läuft mit dem aktuellen Medien-Workflow des Default-Kontakts; genau einmal.
+message StartClonerOrder {
+  uint64 item_id = 1;
+}
+
 // Ungelesene Nachrichten einer Kundenakte bis einschließlich item_id als gelesen markieren.
 message MarkRead {
   uint64 customer_id = 1;
@@ -176,6 +182,7 @@ message CommandRequest {
     MarkRead mark_read = 29;
     SendReply send_reply = 30;
     DefaultContactUpdate default_contact_update = 37;
+    StartClonerOrder start_cloner_order = 38;
   }
 }
 
