@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN FRONT V1
 
-**Version:** 1.6 · **Stand:** 15.11.2026  
+**Version:** 1.7 · **Stand:** 15.11.2026  
 **Zuständigkeit:** ausschließlich React-Frontend, Bedienbarkeit und typisierter Frontend-/Backend-Vertrag  
 **Backend-Gegenstück:** [PHASENPLAN_BACK_V1.md](PHASENPLAN_BACK_V1.md)  
 **Status:** F1–F3b am Mac abgenommen (PASS); F4 Nachrichten fachlich spezifiziert, Implementierung/Abnahme OFFEN; F5–F6 OFFEN.
@@ -141,6 +141,21 @@ Die vorhandene ComfyUI-Seite (F3 PASS: Laufzeit, Queue, Ergebnisse und reine Wor
 **Einzige Registrierungsquelle:** `workflows/manifest.toml` bleibt autoritativ für Engines, Dateien, zulässige Workflow-Parameter, Aktivierung und referenzierte UI-/API-Graphen. Änderungen an dieser Quelle sind kontrolliert atomar zu speichern und dem laufenden Backend ohne konkurrierende Registrierungsdaten bekannt zu machen. Kein zweiter Workflow-Katalog in React/SQLite.
 
 
+### F3c — Priorität VOR F4: fertige Character-LoRA-/Bild-/Videokette
+
+**Verbindlicher Backend-Vertrag:** [PHASENPLAN_BACK_V1.md §0](PHASENPLAN_BACK_V1.md) und die Gates CHAIN-00 bis CHAIN-06 haben jetzt **Vorrang vor Chatwoot/F4**. Die bestehenden F3a-/F3b-Einzelfunktionen bleiben PASS, die **durchgehende Identitäts-/Bearbeitungs-/Videokette ist OFFEN**. Im bestehenden Hauptreiter ComfyUI/Fotos/Videos und Dateien ausführen; **kein fünfter Hauptreiter**, keine neue isolierte Trainings-GUI, keine eigene KI-/GPU-Rechenengine im Backend.
+
+**Operatorablauf in genau dieser Reihenfolge:**
+1. **Charakter/LoRA:** Datensatz aus \`local/character/photos/\` anzeigen (Anzahl, Qualitäts-/Identitätsprüfung, Hash), M4-kompatiblen ComfyUI-Trainingsworkflow auswählen/ausführen, trainierte LoRA-Version, Basismodell und reale Freigabe anzeigen. \`Nicht trainiert\`, \`Modell falsch\`, \`Trainingsnode fehlt\` und \`Nicht freigegeben\` müssen von \`Bereit\` unterscheidbar sein. **Kein** Scheinerfolg aus existierender \`train_sdxl_lora\`-Python-Funktion; ComfyUI ist der festgelegte Rechner. Die aktuelle Trainingsroutine im Backend ist keine bestandene ComfyUI-Abnahme.
+2. **Foto/Identität:** Für die Figur bewusst ausgewählte **SDXL/LUSTIFY-LoRA** laden, Trigger/Stärke und Version im bestehenden Foto-Workflow sichtbar/konfigurierbar machen, einen Master plus weitere Pose-/Perspektivvarianten erzeugen. Bei falscher Modellfamilie oder fehlender LoRA Blockade mit Grund; keine stille Base-only-Generierung. Alternativen Qwen/RealCore bleiben einzelne OFFENE Workflows, bis eigene qualifizierte Identity-Ladepfade existieren.
+3. **Maskierte Bearbeitung/Verfeinerung:** Vorhandene Dateien-Galerie als echte Quelle verwenden, Bild und passende Maske explizit auswählen und an den Inpainting-Workflow senden. Weiße Maske = bearbeitbare Region, schwarze Maske = geschützte Region. Ursprungsbild/Masken- und Ergebnisversionen sichtbar verknüpfen, nachfolgende Verfeinerung mit **ausgewähltem** Ergebnis statt Default ausführen. Maskenschutz (\`0\` Pixel außerhalb der Region) ist ein eigenständiger Test, kein Beleg für Figurenidentität.
+4. **Videoübergabe:** Unter Videos → \`Wan 2.2 · Bild zu Video\` das **konkrete fertige Foto** per \`Aus Dateien\` auswählen. Im Formular ein sichtbares Startbild mit Dateiname/Vorschau; bei fehlender Datei **kein Start**. Vor dem Enqueue tatsächliche Datei-Bytes via Protobuf übermitteln, der Python-/ComfyUI-Upload setzt \`LoadImage.image\` und speist \`WanImageToVideo.start_image\`. Keinen Default \`start.png\` oder ein anderes Bild verwenden. Job-/Galerieansicht zeigt Referenz zum echten Startbild.
+5. **Videoausgabe:** Echte Wan-2.2-FP16-Videoausgabe als Datei, Fortschritt/Fehler, Frames/FPS, Modell-/LoRA-/Quellbild-Version und Video-Vorschau unter Dateien. Wan Remix FP8 bleibt **nicht abgenommen**, da bislang kein kompatibler MPS-Ladeweg nachgewiesen ist. Nicht mit \`bereit\` gleichsetzen.
+
+**Nachgewiesener Quellbefund zum Übergabeproblem:** \`frontend/src/pages/ComfyUI.tsx\` besitzt schon Datei-Upload und \`Aus Dateien\`. In \`generate\` werden nur \`files[p.name]\` versandt; es muss am echten Mac geprüft werden, ob nach Galerieauswahl und/oder \`In Formular laden\` wirklich ein \`File\` bereitsteht und der korrekte \`input\`-Hash den gesamten Protobuf-/Python-/ComfyUI-Pfad durchläuft. Kein pauschaler Neuaufbau der Galerie oder Dateieingaben ohne konkret reproduzierten Fehler.
+
+**Minimale UI-Abnahme:** (a) zunächst eigener synthetischer Testcharakter mit echten Trainingsfotos, (b) echte LoRA aktiviert und A/B-Master-/Posebilder, (c) Quelle+Maske+Refinement mit unveränderten geschützten Pixeln, (d) Auswahl eines konkreten Galerie-Fotos als Wan-Startbild und dessen tatsächlicher Input-SHA/Node-Prüfung, (e) echter Wan-FP16-Clip mit Video-Datei in der Galerie, (f) gezielter Wiederanlauf/Retry ohne versehentliche Dateiverwechslung. Auch wenn neue Bedienelemente schon sichtbar sind, Status **OFFEN** bis echter Mac-Test. Bestehende F1–F3b-PASS-Angaben nicht zurücksetzen.
+
 ### Zweite ComfyUI-Instanz – KI-Workflows (verbindlicher F4-Ausbau, noch OFFEN)
 
 **Beschlossene Oberfläche:** Innerhalb des **vorhandenen** Hauptreiters `ComfyUI` drei Unterregister `Fotos`, `Videos`, **`KI`**. Keine fünfte Hauptansicht und kein zweites unabhängiges Frontend. `Fotos/Videos` zeigen weiterhin ausschließlich die bisherige **Medieninstanz 1** und deren globale Medien-FIFO, gespeicherte Bild-/Video-Workflows und Artefakte. **`KI`** zeigt ausschließlich **ComfyUI-Instanz 2**, mit eigenem tatsächlichen Health-/Queue-/Jobstatus, lokalen Text-/Vision-/TTS-Modellen und grafischen KI-Workflows. Wenn Instanz 2 fehlt oder gestoppt ist, ehrlicher Zustand `NICHT EINGERICHTET`/`GESTOPPT` statt Demo-Daten.
@@ -218,6 +233,7 @@ Handshake `Hello/Welcome` prüft Major-/Minor-Kompatibilität und angebotene Top
 | **F3 – ComfyUI Basis** | Echte Laufzeit, Jobs/Queue/Outputs, Öffnen/Start/Stop | Mac-/Browser-Test mit einem echten LUSTIFY-Job (bereits PASS) |
 | **F3a – ComfyUI-Bedienung** | Fotos/Videos getrennt; alle Workflows einzeln auswählen, aktivieren/deaktivieren, öffnen/bearbeiten, löschen; parameterspezifisches Formular und echter Renderstart im Cockpit | Ein echter LUSTIFY-Render komplett aus dem Cockpit; Video-/Fototrennung; kein Start bei fehlenden Modellen oder deaktiviertem Workflow; Öffnen des **richtigen** Graphen im ComfyUI-Editor; persistente Aktivierung und bestätigte Löschung eines entbehrlichen Testworkflows ohne Verlust von Modellen/Artefakten |
 | **F3b – Dateien** | Vierter Hauptreiter mit vollständiger Bild-/Videogalerie, Kundenname oder Nummer, Medienvorschau/Download, persistenter Index, paginierte Protobuf-Metadaten und neue Medien als Push | Echte Ausgabe von LUSTIFY im Galerie-Raster, Kundenfall mit richtiger Namensunterschrift, Evaluationsfall mit stabiler Nummer, Video-Filter, Datei nach Neustart weiterhin sichtbar; keine Dubletten nach Reconnect |
+| **F3c – reale LoRA-/Medienkette VOR F4** | Charakter-Trainingsdatensatz, ComfyUI-LoRA, identitätskonsistente Master-/Pose-/Inpainting-/Refinement-Workflows, unveränderlicher Galerie-Startbildbezug und echter Wan-FP16-Videoabschluss | CHAIN-00…06 gemäß Backend §0 alle auf realem M4 Mac PASS; bestehende F3a/F3b nicht neu bauen |
 | **F4 – Nachrichten / Kundenakten + KI-ComfyUI** | Chatwoot-CE v4.19.1; React-Kunden-/Kanalakten; **ComfyUI-Instanz 2 für grafische KI-Workflows im Unterregister KI**; eigenständige Queue/Nodes/Modelle; Persona-/LLM-/Intent-/Prüf-/TTS-Profile | Zwei getrennte ComfyUI-Prozesse, echter LLM-Workflow mit Verzweigung/Schleife, Kontextbindung, drei Kunden ohne Vermischung, Instagram→Telegram→Instagram, Echtzeitstatus, Kanalantwort-Gates und paralleler Medienrender |
 | **F5 – Freigabe** | Drei echte Kandidaten je Auftrag, Operatorentscheidung, Gate-Anzeige | Ohne Zahlung/Operatorfreigabe keine Versandaktion |
 | **F6 – Weitere Kanäle** | Instagram/Fanvue/TikTok/Shop je nur bei tatsächlich freigegebener API | Ein realer Adapter-E2E-Test je angebundenem Kanal; bestehende Kanäle bleiben intakt |
@@ -238,10 +254,14 @@ Handshake `Hello/Welcome` prüft Major-/Minor-Kompatibilität und angebotene Top
 
 ## Implementierungsreihenfolge ab diesem Beschluss
 
+**Aktueller bindender Vorrang vom 15.11.2026:** **F3c / Backend §0 CHAIN-00…06 zuerst abschließen**. Die nachstehenden historischen F3a-/F3b-Arbeitsschritte sind bereits PASS und sind **kein Auftrag zur Wiederholung**. Bis die reale LoRA→identische Figur→Bearbeitung→Video-Kette abgenommen wurde, keine neue Chatwoot-/F4-Feature-Arbeit vorziehen.
+
 1. **F3a zuerst:** Workflow-Liste in **Fotos/Videos** aufteilen, je Workflow Enable/Disable, Öffnen/Bearbeiten, Löschen und echte Parameterbedienung mit Start über bestehenden Backend-Renderpfad. Für bestehende Workflows die beiden Formulartypen konsequent aus Registry-Spezifikation ableiten.
 2. **F3b danach:** vierter Hauptreiter **Dateien**, alle erzeugten Medien aus realem Backend-Index; Kundenname oder stabile Nummer als Beschriftung; Vorschau, Video, Download; paginierte Protobuf-Metadaten und EVENT-Push.
 3. Bestehende F1–F3 unverändert funktionsfähig halten; laufende Modelldownloads, `local/`-Daten, Jobs und Launcher nicht unterbrechen. Je Paket gezielter Build/Test, **ein echter Mac-Render**, anschließend Commit und Push direkt auf `main`.
 4. **F4 jetzt verbindlich ausgearbeitet:** Nachrichten-Reiter nach der Chatwoot-basierten Spezifikation und dem interaktiven HTML-Prototyp bauen. Zuerst Kanal-Bridge + SQLite-/Protobuf-Zuordnung und echte Telegram-Nachricht/Antwort; danach Instagram samt bestätigtem Telegram-Übergang, WhatsApp, Cydonia und die gemeinsame Medien-/Zahlungs-/Freigabekette. **Übersicht** danach separat präzisieren. F3a/F3b nicht erneut umbauen.
+
+**Änderungsnachtrag V1.7 (15.11.2026):** F3c als vorrangige Nachweiskette in bestehenden ComfyUI-/Dateien-Reitern aufgenommen; echte LoRA-/Bild-/Masken-/Videoübergabe und klarer OFFEN-Status, kein neues Hauptmenü. F4 Chatwoot nach CHAIN-06.
 
 ## Migrationsauftrag
 
