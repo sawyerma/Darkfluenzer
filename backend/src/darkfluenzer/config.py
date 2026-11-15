@@ -88,11 +88,20 @@ class ServerConfig:
 
 
 @dataclass(frozen=True)
+class IdentityConfig:
+    """Gesichtsprüfung (identity.py): kleinere oder unsicherere Gesichter sind „nicht prüfbar“."""
+
+    min_face_px: int
+    min_score: float
+
+
+@dataclass(frozen=True)
 class Config:
     root: Path
     comfyui: ComfyConfig  # Medien-Instanz (immer vorhanden)
     comfyui_ai: ComfyConfig | None  # KI-Instanz, sobald [comfyui_ai] konfiguriert ist
     server: ServerConfig
+    identity: IdentityConfig
 
     @property
     def instances(self) -> tuple[ComfyConfig, ...]:
@@ -266,7 +275,21 @@ def load(root: Path | None = None) -> Config:
             raise ConfigError(
                 "Konfiguration: comfyui_ai.data_dir fehlt (eigene Ordner der KI-Instanz)."
             )
-    return Config(root=root, comfyui=media, comfyui_ai=ai, server=_parse_server(data["server"]))
+    ident = data.get("identity", {})
+    if not isinstance(ident, dict):
+        raise ConfigError(f"Konfiguration {path}: [identity] muss ein Abschnitt sein.")
+    score = _positive(ident, "min_score", 0.8, "identity")
+    if score > 1:
+        raise ConfigError("Konfiguration: identity.min_score muss zwischen 0 und 1 liegen.")
+    return Config(
+        root=root,
+        comfyui=media,
+        comfyui_ai=ai,
+        server=_parse_server(data["server"]),
+        identity=IdentityConfig(
+            min_face_px=int(_positive(ident, "min_face_px", 64, "identity")), min_score=score
+        ),
+    )
 
 
 def setup_logging(cfg: Config, name: str = "darkfluenzer.log") -> Path:

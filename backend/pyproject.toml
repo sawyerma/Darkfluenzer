@@ -12,6 +12,7 @@ dependencies = [
     "tomlkit>=0.13",
     # Laufzeit passend zum Generator libprotoc 33.x (protocol/buf.gen.yaml)
     "protobuf>=6.33,<7",
+    "opencv-python-headless>=4.11",
 ]
 
 [project.scripts]
