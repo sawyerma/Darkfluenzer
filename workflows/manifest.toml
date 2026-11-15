@@ -30,8 +30,8 @@ wave = 1
 files = ["krea2_turbo_bf16", "krea2_qwen3vl_4b_bf16", "qwen_image_vae"]
 license = "Krea 2 Community License"
 usage = "evaluation"
-gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
-note = "Inferenzmodell (destilliert): Vorlage image_krea2_turbo_t2i – 8 Schritte, CFG 1, euler/simple, Negativ leer; Prompt-Erweiterer der Vorlage nicht übernommen (bekleidet jede Person). Raw = Trainingsbasis, nicht für Inferenz (Modellkarte)."
+gates = { load = "PASS", render = "PASS", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Inferenzmodell (destilliert): Vorlage image_krea2_turbo_t2i – 8 Schritte, CFG 1, euler/simple, Negativ leer; Prompt-Erweiterer der Vorlage nicht übernommen (bekleidet jede Person). Raw = Trainingsbasis, nicht für Inferenz (Modellkarte). Mac-Test 15.11.2026: 1104 × 1472, 8 Schritte 201 s (geladen) bzw. 251 s (mit Laden), Spitze ≈ 42 GB, kein Swap-Zuwachs, keine MPS-Bildstörung; sehr fotografisch, Altersangabe im Prompt in 1 von 2 Läufen nicht getroffen."
 
 [engines.flux3_klein_base]
 title = "FLUX 3 Image Klein Base (BF16, undestilliert)"
@@ -417,7 +417,7 @@ threshold = { node = "4", input = "threshold", type = "float", min = 0.05, max =
 engine = "krea2_turbo"
 ui = "image/krea2_turbo_t2i.ui.json"
 api = "image/krea2_turbo_t2i.api.json"
-status = "OFFEN"
+status = "PASS"
 title = "Krea 2 Turbo · Text zu Bild"
 
 [workflows.krea2_turbo_t2i.params]
