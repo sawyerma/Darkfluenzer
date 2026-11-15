@@ -160,6 +160,7 @@ def run_render(
     timeout_s: float = 3600.0,
     client_id: str | None = None,
     is_cancelled: Callable[[], bool] = lambda: False,
+    unload_first: bool = False,
 ) -> comfy.RenderResult:
     """Führt einen angelegten Job über den registrierten API-Workflow aus und hält das Ergebnis im
     Journal fest (``job.completed``). Ein bereits bei ComfyUI eingereichter Job (prompt_id, z. B.
@@ -200,6 +201,7 @@ def run_render(
                 client_id,
                 resume=job["prompt_id"],
                 on_submit=submitted,
+                unload_first=unload_first,
             )
         except BaseException as exc:
             if is_cancelled():
@@ -218,6 +220,7 @@ def run_render(
             prompt_id=result.prompt_id,
             duration_s=result.duration_s,
             outputs=outputs,
+            memory=result.memory,
         )
         return result
     finally:
@@ -254,6 +257,7 @@ def _render(
     *,
     resume: str | None = None,
     on_submit: Callable[[str, dict], None] | None = None,
+    unload_first: bool = False,
 ) -> tuple[comfy.RenderResult, list[dict]]:
     workflow_key = wf.key
     from . import runtime
@@ -291,6 +295,7 @@ def _render(
             job_id=job_id,
             client_id=client_id,
             on_submit=on_submit,
+            unload_first=unload_first,
         )
     checks: dict = {}
     if {"image", "mask"} <= set(uploads):
@@ -318,6 +323,7 @@ def _render(
             for k, p in uploads.items()
         },
         "checks": checks,
+        "memory": result.memory,
         "provenance": result.provenance,
     }
     sidecar = dest / f"{workflow_key}_{stamp}.json"

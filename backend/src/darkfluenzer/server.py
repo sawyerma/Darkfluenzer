@@ -110,6 +110,7 @@ class Cockpit:
         self._manifest_mtime = self._manifest_path().stat().st_mtime_ns
         self._tasks: set[asyncio.Task] = set()
         self._inflight: dict[str, asyncio.Future] = {}  # request_id -> laufende Ausführung
+        self._last_engine = ""  # Engine des letzten Renders (Entladen beim Wechsel)
         for key in self.manifest.workflows:  # Editor-Kopien für "Öffnen" bereitstellen
             comfy.install_editor_copy(cfg, self.manifest, key)
         self._registry_version = store.bump("workflows", self._fingerprint())
@@ -182,6 +183,7 @@ class Cockpit:
             if status != "queued" and not (status == "running" and job_id in resume):
                 continue  # inzwischen entfernt
             resume.discard(job_id)
+            engine = self.store.job(job_id)["engine"]
             try:
                 await asyncio.to_thread(
                     pipeline.run_render,
@@ -190,9 +192,11 @@ class Cockpit:
                     job_id,
                     client_id=self.client_id,
                     is_cancelled=lambda job=job_id: job in self._cancelled,
+                    unload_first=bool(self._last_engine) and self._last_engine != engine,
                 )
             except Exception as exc:  # im Journal als fehlgeschlagen festgehalten
                 log.error("Renderjob %s fehlgeschlagen: %s", job_id, exc)
+            self._last_engine = engine
             self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
             self.hub.push_events(spb.TOPIC_MEDIA_ADDED)
             self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)

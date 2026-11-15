@@ -60,6 +60,55 @@ class RenderResult:
     outputs: list[OutputFile] = field(default_factory=list)
     duration_s: float = 0.0
     provenance: dict = field(default_factory=dict)
+    # Speicherverlauf während des Laufs (MemoryTrace.summary)
+    memory: dict = field(default_factory=dict)
+
+
+def swap_used_mb() -> float:
+    """Belegter macOS-Swap in MB (``sysctl vm.swapusage``)."""
+    out = subprocess.run(
+        ["sysctl", "-n", "vm.swapusage"], capture_output=True, text=True, timeout=5, check=False
+    ).stdout
+    for part in out.split("  "):
+        key, _, value = part.strip().partition(" = ")
+        if key == "used" and value.endswith("M"):
+            return float(value[:-1])
+    return 0.0
+
+
+class MemoryTrace:
+    """Speicherverlauf eines Laufs: freier Arbeitsspeicher laut ComfyUI (Unified Memory) und
+    macOS-Swap – zu Beginn, Extremwert während des Wartens und am Ende."""
+
+    def __init__(self, client: ComfyClient) -> None:
+        self.client = client
+        self.ram_total = 0
+        self.free = []
+        self.swap = []
+
+    def sample(self) -> None:
+        try:
+            stats = self.client._json("GET", "/system_stats").get("system") or {}
+        except ComfyError:
+            return
+        self.ram_total = int(stats.get("ram_total") or 0)
+        self.free.append(int(stats.get("ram_free") or 0))
+        self.swap.append(swap_used_mb())
+
+    def summary(self) -> dict:
+        if not self.free:
+            return {}
+        gb = 1024**3
+        return {
+            "ram_total_gb": round(self.ram_total / gb, 2),
+            "ram_free_start_gb": round(self.free[0] / gb, 2),
+            "ram_free_min_gb": round(min(self.free) / gb, 2),
+            "ram_free_end_gb": round(self.free[-1] / gb, 2),
+            "swap_start_mb": round(self.swap[0], 1),
+            "swap_max_mb": round(max(self.swap), 1),
+            "swap_end_mb": round(self.swap[-1], 1),
+            "samples": len(self.free),
+        }
 
 
 class ComfyClient:
@@ -129,6 +178,10 @@ class ComfyClient:
             raise ComfyError("Workflow-Validierung fehlgeschlagen", node_errors=res["node_errors"])
         return res.get("prompt_id", prompt_id)
 
+    def free(self) -> None:
+        """Modelle entladen und Speicher freigeben (Engine-Wechsel, PHASENPLAN_V0 §4.2)."""
+        self._request("POST", "/free", {"unload_models": True, "free_memory": True})
+
     def history(self, prompt_id: str) -> dict | None:
         return self._json("GET", f"/history/{prompt_id}").get(prompt_id)
 
@@ -155,9 +208,17 @@ class ComfyClient:
         elif any(item[1] == prompt_id for item in q.get("queue_running", [])):
             self._request("POST", "/interrupt", {"prompt_id": prompt_id})
 
-    def wait(self, prompt_id: str, timeout_s: float, poll_s: float = 1.0) -> dict:
+    def wait(
+        self,
+        prompt_id: str,
+        timeout_s: float,
+        poll_s: float = 1.0,
+        on_poll: Callable[[], None] | None = None,
+    ) -> dict:
         deadline = time.monotonic() + timeout_s
         while True:
+            if on_poll is not None:
+                on_poll()
             entry = self.history(prompt_id)
             if entry is not None:
                 status = entry.get("status") or {}
@@ -287,6 +348,7 @@ def run_workflow(
     job_id: int | None = None,
     client_id: str | None = None,
     on_submit: Callable[[str, dict], None] | None = None,
+    unload_first: bool = False,
 ) -> RenderResult:
     """Server sicherstellen, Workflow ausführen, alle Ausgabedateien unter ``dest`` sichern.
 
@@ -302,6 +364,9 @@ def run_workflow(
     graph = apply_params(load_graph(man, wf), wf, values)
     runtime.start(cfg)  # einzige Startlogik; idempotent
     client = ComfyClient(cfg.comfyui.url, client_id=client_id)
+    if unload_first:  # andere Engine als zuletzt: deren Modelle vorher kontrolliert entladen
+        client.free()
+        log.info("Engine-Wechsel zu %s: Modelle entladen", wf.engine)
     t0 = time.monotonic()
     prompt_id = client.submit(graph, job_id)
     log.info("Auftrag %s: Workflow %s übermittelt", prompt_id, workflow_key)
@@ -329,7 +394,9 @@ def collect_workflow(
     wf = man.workflows[workflow_key]
     client = ComfyClient(cfg.comfyui.url)
     start = time.monotonic() if t0 is None else t0
-    entry = client.wait(prompt_id, timeout_s)
+    trace = MemoryTrace(client)
+    entry = client.wait(prompt_id, timeout_s, on_poll=trace.sample)
+    trace.sample()
     dest.mkdir(parents=True, exist_ok=True)
     result = RenderResult(
         prompt_id=prompt_id,
@@ -337,6 +404,7 @@ def collect_workflow(
         engine=wf.engine,
         params=values,
         provenance=provenance(man, wf, values),
+        memory=trace.summary(),
     )
     index = 0
     for node_id, out in (entry.get("outputs") or {}).items():
@@ -359,10 +427,11 @@ def collect_workflow(
         raise ComfyError(f"Auftrag {prompt_id} lieferte keine Ausgabedatei.", prompt_id=prompt_id)
     result.duration_s = round(time.monotonic() - start, 1)
     log.info(
-        "Auftrag %s fertig: %d Datei(en) in %.1f s",
+        "Auftrag %s fertig: %d Datei(en) in %.1f s, Speicher %s",
         prompt_id,
         len(result.outputs),
         result.duration_s,
+        result.memory,
     )
     return result
 
@@ -401,6 +470,10 @@ def _execution_error(status: dict) -> str:
 # -------------------------------------------------------------------- Workflow-Verträge
 
 _WIDGET_TYPES = {"INT", "FLOAT", "STRING", "BOOLEAN", "COMBO"}
+# Widgets, die das ComfyUI-Frontend zusätzlich anlegt; Listenwerte sendet es als {"__value__": …}
+_FRONTEND_WIDGET_TYPES = {"IMAGECOMPARE", "BOUNDING_BOXES"}
+# Startwert reiner Anzeige-Widgets, die der Editor nicht speichert (Frontend sendet ihn trotzdem)
+_FRONTEND_WIDGET_DEFAULTS = {"IMAGECOMPARE": ("", "")}
 
 
 def _is_link(value: object) -> bool:
@@ -420,10 +493,26 @@ def _combo_values(spec: list) -> list | None:
 
 
 def _is_widget(spec: list) -> bool:
-    return isinstance(spec[0], list) or spec[0] in _WIDGET_TYPES
+    """Eingang mit Widget im Editor (Wert in ``widgets_values``) – nicht bei ``forceInput``."""
+    opts = _spec_options(spec)
+    if opts.get("forceInput"):
+        return False
+    return (
+        isinstance(spec[0], list)
+        or spec[0] in _WIDGET_TYPES
+        or spec[0] in _FRONTEND_WIDGET_TYPES
+        or opts.get("widgetType") in _WIDGET_TYPES
+    )
+
+
+def _widget_value(value: object) -> object:
+    """Wie ``graphToPrompt``: Listenwerte von Widgets als ``{"__value__": …}``."""
+    return {"__value__": value} if isinstance(value, list) else value
 
 
 def _default(spec: list) -> object:
+    if spec[0] in _FRONTEND_WIDGET_DEFAULTS:
+        return list(_FRONTEND_WIDGET_DEFAULTS[spec[0]])
     opts = _spec_options(spec)
     if "default" in opts:
         return opts["default"]
@@ -610,17 +699,6 @@ def api_to_ui(graph: dict, object_info: dict) -> dict:
 _NOTE_NODES = {"Note", "MarkdownNote"}
 
 
-def _ui_links(ui: dict) -> dict[int, tuple[int, int]]:
-    """Link-ID -> (Quell-Node, Quell-Slot); Array- (0.4) und Objektformat (1.x) des Editors."""
-    out: dict[int, tuple[int, int]] = {}
-    for link in ui.get("links") or []:
-        if isinstance(link, dict):
-            out[link["id"]] = (link["origin_id"], link["origin_slot"])
-        else:
-            out[link[0]] = (link[1], link[2])
-    return out
-
-
 def _take_dynamic(name: str, spec: list, values: list, inputs: dict) -> None:
     """Umkehrung von ``_dynamic_widgets``: Wert und Unterwerte aus der Widget-Liste lesen."""
     value = values.pop(0)
@@ -637,57 +715,145 @@ def _take_dynamic(name: str, spec: list, values: list, inputs: dict) -> None:
             inputs[f"{name}.{sub}"] = values.pop(0)
 
 
+# Virtuelle Editor-Nodes: werden nicht ausgeführt, nur durchgereicht bzw. als Wert eingesetzt
+_VIRTUAL = {"Reroute", "PrimitiveNode"}
+_SUBGRAPH_IN, _SUBGRAPH_OUT = -10, -20
+_MUTED, _BYPASSED = 2, 4
+
+
+class _Scope:
+    """Ein Graph (Hauptgraph oder Untergraph-Instanz) mit API-ID-Präfix und den Quellen seiner
+    Untergraph-Eingänge (``boundary``: Eingang -> ("node", id, slot) | ("value", v) | None)."""
+
+    def __init__(self, graph: dict, prefix: str, boundary: list) -> None:
+        self.nodes = {n["id"]: n for n in graph.get("nodes") or []}
+        self.links = {}
+        self.outputs: dict[int, int] = {}  # Untergraph-Ausgang -> Link zum Ausgangsknoten
+        for link in graph.get("links") or []:
+            if isinstance(link, dict):
+                lid, origin, oslot = link["id"], link["origin_id"], link["origin_slot"]
+                target, tslot, typ = link["target_id"], link["target_slot"], link.get("type")
+            else:
+                lid, origin, oslot, target, tslot = link[:5]
+                typ = link[5] if len(link) > 5 else None
+            self.links[lid] = (origin, oslot, typ)
+            if target == _SUBGRAPH_OUT:
+                self.outputs[tslot] = lid
+        self.prefix = prefix
+        self.boundary = boundary
+
+
 def ui_to_api(ui: dict, object_info: dict) -> dict:
-    """Umkehrung von ``api_to_ui`` für einen im ComfyUI-Editor gespeicherten Workflow.
+    """Editor-Workflow (UI-Format) -> API-Graph wie ``graphToPrompt`` des ComfyUI-Frontends.
 
-    Übersetzt Nodes, Widgets und Links (über Reroutes hinweg); Anmerkungen entfallen.
-    Subgraphen, Primitive-Nodes und stumme/umgangene Nodes werden abgewiesen statt geraten.
+    Löst Untergraphen auf (innere Nodes als ``Instanz:Node``, hochgereichte Widget-Werte und
+    Verbindungen über die Untergraph-Grenzen), setzt Primitive-Node-Werte ein, reicht Reroutes und
+    umgangene Nodes (Bypass) durch und lässt stumme Nodes und Anmerkungen weg.
     """
-    if (ui.get("definitions") or {}).get("subgraphs"):
-        raise ComfyError("Subgraphen werden nicht übernommen – im Editor auflösen und speichern.")
-    nodes = {n["id"]: n for n in ui.get("nodes") or []}
-    links = _ui_links(ui)
-
-    def source(link_id: int) -> list:
-        origin, slot = links[link_id]
-        while nodes[origin]["type"] == "Reroute":
-            upstream = (nodes[origin].get("inputs") or [{}])[0].get("link")
-            if upstream is None:
-                raise ComfyError(f"Reroute {origin} hat keinen Eingang.")
-            origin, slot = links[upstream]
-        return [str(origin), slot]
-
+    defs = {sg["id"]: sg for sg in (ui.get("definitions") or {}).get("subgraphs") or []}
     graph: dict[str, dict] = {}
-    for nid, node in nodes.items():
-        typ = node["type"]
-        if typ in _NOTE_NODES or typ == "Reroute":
-            continue
-        if node.get("mode", 0) != 0:
-            raise ComfyError(f"Node {nid} ({typ}) ist stumm oder umgangen – aktivieren/entfernen.")
-        if typ == "PrimitiveNode":
-            raise ComfyError(f"Primitive-Node {nid} wird nicht übernommen – Wert direkt setzen.")
-        if not isinstance(node.get("widgets_values", []), list):
-            raise ComfyError(f"Node {nid} ({typ}): Widget-Format wird nicht unterstützt.")
-        linked = {
-            i["name"]: i["link"] for i in node.get("inputs") or [] if i.get("link") is not None
-        }
-        values = list(node.get("widgets_values") or [])
-        inputs: dict = {}
-        for name, sp in _node_spec(object_info, typ).items():
-            if _is_dynamic_combo(sp):
-                _take_dynamic(name, sp, values, inputs)
-            elif _is_widget(sp):
-                value = values.pop(0) if values else _default(sp)
-                inputs[name] = source(linked[name]) if name in linked else value
-                if _spec_options(sp).get("control_after_generate") and values:
-                    values.pop(0)
-            elif isinstance(sp[0], str) and sp[0].startswith("COMFY_AUTOGROW"):
-                inputs.update({k: source(v) for k, v in linked.items() if k.startswith(f"{name}.")})
-            elif name in linked:
-                inputs[name] = source(linked[name])
-        graph[str(nid)] = {"class_type": typ, "inputs": inputs}
-        if node.get("title"):
-            graph[str(nid)]["_meta"] = {"title": node["title"]}
+
+    def resolve(scope: _Scope, link_id: int, trail: frozenset = frozenset()):
+        """Quelle eines Links: ("node", api_id, slot), ("value", v) oder None (stumm)."""
+        if link_id not in scope.links:
+            raise ComfyError(f"Link {link_id} fehlt im Workflow.")
+        origin, slot, typ = scope.links[link_id]
+        if origin == _SUBGRAPH_IN:
+            return scope.boundary[slot]
+        node = scope.nodes.get(origin)
+        if node is None:
+            raise ComfyError(f"Link {link_id} verweist auf fehlenden Node {origin}.")
+        key = (scope.prefix, origin)
+        if key in trail:
+            raise ComfyError(f"Zyklus über Node {origin}.")
+        trail = trail | {key}
+        if node["type"] == "Reroute":
+            upstream = (node.get("inputs") or [{}])[0].get("link")
+            return None if upstream is None else resolve(scope, upstream, trail)
+        if node["type"] == "PrimitiveNode":
+            return ("value", (node.get("widgets_values") or [None])[0])
+        mode = node.get("mode", 0)
+        if mode == _MUTED:
+            return None
+        if mode == _BYPASSED:  # Ausgang -> passender Eingang (gleicher Index, sonst gleicher Typ)
+            ins = node.get("inputs") or []
+            out_type = (node.get("outputs") or [{}] * (slot + 1))[slot].get("type", typ)
+            same = ins[slot] if slot < len(ins) and ins[slot].get("type") == out_type else None
+            match = same or next((i for i in ins if i.get("type") == out_type), None)
+            if match is None or match.get("link") is None:
+                return None
+            return resolve(scope, match["link"], trail)
+        if node["type"] in defs:  # Ausgang einer Untergraph-Instanz: innere Quelle
+            inner = instance_scope(scope, node)
+            lid = inner.outputs.get(slot)
+            return None if lid is None else resolve(inner, lid, trail)
+        return ("node", f"{scope.prefix}{origin}", slot)
+
+    def instance_scope(scope: _Scope, inst: dict) -> _Scope:
+        """Untergraph-Instanz: Grenzquellen aus äußeren Links bzw. Widget-Werten der Instanz."""
+        sub = defs[inst["type"]]
+        if (inst.get("properties") or {}).get("proxyWidgets"):
+            raise ComfyError(f"Untergraph {inst['id']}: proxyWidgets-Format nicht unterstützt.")
+        sockets = {i["name"]: i for i in inst.get("inputs") or []}
+        values = list(inst.get("widgets_values") or [])
+        boundary = []
+        for sin in sub.get("inputs") or []:
+            sock = sockets.get(sin["name"])
+            is_widget = sock is None or "widget" in sock
+            value = values.pop(0) if is_widget and values else None
+            if sock is not None and sock.get("link") is not None:
+                boundary.append(resolve(scope, sock["link"]))
+            else:
+                boundary.append(("value", value) if is_widget else None)
+        return _Scope(sub, f"{scope.prefix}{inst['id']}:", boundary)
+
+    def emit(scope: _Scope) -> None:
+        for nid, node in scope.nodes.items():
+            typ = node["type"]
+            if typ in _NOTE_NODES or typ in _VIRTUAL or node.get("mode", 0) in (_MUTED, _BYPASSED):
+                continue
+            if typ in defs:
+                emit(instance_scope(scope, node))
+                continue
+            if not isinstance(node.get("widgets_values", []), list):
+                raise ComfyError(f"Node {nid} ({typ}): Widget-Format wird nicht unterstützt.")
+            linked = {
+                i["name"]: i["link"] for i in node.get("inputs") or [] if i.get("link") is not None
+            }
+            values = list(node.get("widgets_values") or [])
+            inputs: dict = {}
+
+            def put(name: str, link_id: int, into: dict) -> None:
+                src = resolve(scope, link_id)
+                if src is not None:  # stumme Quelle: Eingang entfällt wie im Frontend
+                    into[name] = src[1] if src[0] == "value" else [src[1], src[2]]
+
+            for name, sp in _node_spec(object_info, typ).items():
+                if _is_dynamic_combo(sp):
+                    _take_dynamic(name, sp, values, inputs)
+                    for k, v in linked.items():  # verbundene Unterwerte ersetzen ihr Widget
+                        if k.startswith(f"{name}."):
+                            put(k, v, inputs)
+                elif _is_widget(sp):
+                    value = values.pop(0) if values else _default(sp)
+                    if name in linked:
+                        put(name, linked[name], inputs)
+                    else:
+                        inputs[name] = _widget_value(value)
+                    if _spec_options(sp).get("control_after_generate") and values:
+                        values.pop(0)
+                elif isinstance(sp[0], str) and sp[0].startswith("COMFY_AUTOGROW"):
+                    for k, v in linked.items():
+                        if k.startswith(f"{name}."):
+                            put(k, v, inputs)
+                elif name in linked:
+                    put(name, linked[name], inputs)
+            api_id = f"{scope.prefix}{nid}"
+            graph[api_id] = {"class_type": typ, "inputs": inputs}
+            if node.get("title"):
+                graph[api_id]["_meta"] = {"title": node["title"]}
+
+    emit(_Scope(ui, "", []))
     return graph
 
 
