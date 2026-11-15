@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/commands.proto.
  */
 export const file_darkfluenzer_v1_commands: GenFile = /*@__PURE__*/
-  fileDesc("Ch5kYXJrZmx1ZW56ZXIvdjEvY29tbWFuZHMucHJvdG8SD2RhcmtmbHVlbnplci52MSIeCgpDb21meVN0YXJ0EhAKCGluc3RhbmNlGAEgASgJIh0KCUNvbWZ5U3RvcBIQCghpbnN0YW5jZRgBIAEoCSJYCgpQYXJhbVZhbHVlEgwKBG5hbWUYASABKAkSDgoEdGV4dBgCIAEoCUgAEhEKB2ludGVnZXIYAyABKANIABIQCgZudW1iZXIYBCABKAFIAEIHCgV2YWx1ZSJMCglJbnB1dEZpbGUSDQoFcGFyYW0YASABKAkSEAoIZmlsZW5hbWUYAiABKAkSDAoEZGF0YRgDIAEoDBIQCghtZWRpYV9pZBgEIAEoBCKiAQoGUmVuZGVyEhAKCHdvcmtmbG93GAEgASgJEisKBnZhbHVlcxgCIAMoCzIbLmRhcmtmbHVlbnplci52MS5QYXJhbVZhbHVlEikKBWZpbGVzGAMgAygLMhouZGFya2ZsdWVuemVyLnYxLklucHV0RmlsZRIXCg9wYXJlbnRfbWVkaWFfaWQYBCABKAQSFQoNcmVwZWF0X2pvYl9pZBgFIAEoBCI3ChJTZXRXb3JrZmxvd0VuYWJsZWQSEAoId29ya2Zsb3cYASABKAkSDwoHZW5hYmxlZBgCIAEoCCIgCgxPcGVuV29ya2Zsb3cSEAoId29ya2Zsb3cYASABKAkiIQoNQWRvcHRXb3JrZmxvdxIQCgh3b3JrZmxvdxgBIAEoCSIiCg5EZWxldGVXb3JrZmxvdxIQCgh3b3JrZmxvdxgBIAEoCSIvCg5DcmVhdGVXb3JrZmxvdxIOCgZzb3VyY2UYASABKAkSDQoFdGl0bGUYAiABKAkiGwoJQ2FuY2VsSm9iEg4KBmpvYl9pZBgBIAEoBCIuCgpQYXVzZVF1ZXVlEg4KBnBhdXNlZBgBIAEoCBIQCghpbnN0YW5jZRgCIAEoCSIgCgtEZWxldGVNZWRpYRIRCgltZWRpYV9pZHMYASADKAQivQEKC0NyZWF0ZU9yZGVyEhAKCHdvcmtmbG93GAEgASgJEisKBnZhbHVlcxgCIAMoCzIbLmRhcmtmbHVlbnplci52MS5QYXJhbVZhbHVlEikKBWZpbGVzGAMgAygLMhouZGFya2ZsdWVuemVyLnYxLklucHV0RmlsZRISCgpjYW5kaWRhdGVzGAQgASgNEhcKD2ZpbmlzaF93b3JrZmxvdxgFIAEoCRIXCg9wYXJlbnRfbWVkaWFfaWQYBiABKAQiNQoPU2VsZWN0Q2FuZGlkYXRlEhAKCG9yZGVyX25vGAEgASgJEhAKCG1lZGlhX2lkGAIgASgEIisKClJldHJ5U3RhZ2USEAoIb3JkZXJfbm8YASABKAkSCwoDc2VxGAIgASgNIs0GCg5Db21tYW5kUmVxdWVzdBISCgpyZXF1ZXN0X2lkGAEgASgJEhgKEGV4cGVjdGVkX3ZlcnNpb24YAiABKAQSMgoLY29tZnlfc3RhcnQYCiABKAsyGy5kYXJrZmx1ZW56ZXIudjEuQ29tZnlTdGFydEgAEjAKCmNvbWZ5X3N0b3AYCyABKAsyGi5kYXJrZmx1ZW56ZXIudjEuQ29tZnlTdG9wSAASKQoGcmVuZGVyGAwgASgLMhcuZGFya2ZsdWVuemVyLnYxLlJlbmRlckgAEkMKFHNldF93b3JrZmxvd19lbmFibGVkGA0gASgLMiMuZGFya2ZsdWVuemVyLnYxLlNldFdvcmtmbG93RW5hYmxlZEgAEjYKDW9wZW5fd29ya2Zsb3cYDiABKAsyHS5kYXJrZmx1ZW56ZXIudjEuT3BlbldvcmtmbG93SAASOAoOYWRvcHRfd29ya2Zsb3cYDyABKAsyHi5kYXJrZmx1ZW56ZXIudjEuQWRvcHRXb3JrZmxvd0gAEjoKD2RlbGV0ZV93b3JrZmxvdxgQIAEoCzIfLmRhcmtmbHVlbnplci52MS5EZWxldGVXb3JrZmxvd0gAEjoKD2NyZWF0ZV93b3JrZmxvdxgRIAEoCzIfLmRhcmtmbHVlbnplci52MS5DcmVhdGVXb3JrZmxvd0gAEjAKCmNhbmNlbF9qb2IYEiABKAsyGi5kYXJrZmx1ZW56ZXIudjEuQ2FuY2VsSm9iSAASMgoLcGF1c2VfcXVldWUYEyABKAsyGy5kYXJrZmx1ZW56ZXIudjEuUGF1c2VRdWV1ZUgAEjQKDGRlbGV0ZV9tZWRpYRgUIAEoCzIcLmRhcmtmbHVlbnplci52MS5EZWxldGVNZWRpYUgAEjQKDGNyZWF0ZV9vcmRlchgVIAEoCzIcLmRhcmtmbHVlbnplci52MS5DcmVhdGVPcmRlckgAEjwKEHNlbGVjdF9jYW5kaWRhdGUYFiABKAsyIC5kYXJrZmx1ZW56ZXIudjEuU2VsZWN0Q2FuZGlkYXRlSAASMgoLcmV0cnlfc3RhZ2UYGCABKAsyGy5kYXJrZmx1ZW56ZXIudjEuUmV0cnlTdGFnZUgAQgkKB2NvbW1hbmQidQoPQ29tbWFuZFJlc3BvbnNlEhIKCnJlcXVlc3RfaWQYASABKAkSLgoGc3RhdHVzGAIgASgOMh4uZGFya2ZsdWVuemVyLnYxLkNvbW1hbmRTdGF0dXMSDgoGZGV0YWlsGAMgASgJEg4KBmVudGl0eRgEIAEoCSKWAQoOQ29tbWFuZFJlY2VpcHQSEgoKcmVxdWVzdF9pZBgBIAEoCRIuCgZzdGF0dXMYAiABKA4yHi5kYXJrZmx1ZW56ZXIudjEuQ29tbWFuZFN0YXR1cxIPCgdjb21tYW5kGAMgASgJEg4KBmVudGl0eRgEIAEoCRIOCgZkZXRhaWwYBSABKAkSDwoHdmVyc2lvbhgGIAEoBCrcAQoNQ29tbWFuZFN0YXR1cxIeChpDT01NQU5EX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF0NPTU1BTkRfU1RBVFVTX0FDQ0VQVEVEEAESGwoXQ09NTUFORF9TVEFUVVNfUkVKRUNURUQQAhIcChhDT01NQU5EX1NUQVRVU19DT01QTEVURUQQAxIZChVDT01NQU5EX1NUQVRVU19GQUlMRUQQBBIaChZDT01NQU5EX1NUQVRVU19VTktOT1dOEAUSHAoYQ09NTUFORF9TVEFUVVNfQ0FOQ0VMTEVEEAZiBnByb3RvMw");
+  fileDesc("Ch5kYXJrZmx1ZW56ZXIvdjEvY29tbWFuZHMucHJvdG8SD2RhcmtmbHVlbnplci52MSIeCgpDb21meVN0YXJ0EhAKCGluc3RhbmNlGAEgASgJIh0KCUNvbWZ5U3RvcBIQCghpbnN0YW5jZRgBIAEoCSJYCgpQYXJhbVZhbHVlEgwKBG5hbWUYASABKAkSDgoEdGV4dBgCIAEoCUgAEhEKB2ludGVnZXIYAyABKANIABIQCgZudW1iZXIYBCABKAFIAEIHCgV2YWx1ZSJMCglJbnB1dEZpbGUSDQoFcGFyYW0YASABKAkSEAoIZmlsZW5hbWUYAiABKAkSDAoEZGF0YRgDIAEoDBIQCghtZWRpYV9pZBgEIAEoBCKiAQoGUmVuZGVyEhAKCHdvcmtmbG93GAEgASgJEisKBnZhbHVlcxgCIAMoCzIbLmRhcmtmbHVlbnplci52MS5QYXJhbVZhbHVlEikKBWZpbGVzGAMgAygLMhouZGFya2ZsdWVuemVyLnYxLklucHV0RmlsZRIXCg9wYXJlbnRfbWVkaWFfaWQYBCABKAQSFQoNcmVwZWF0X2pvYl9pZBgFIAEoBCI3ChJTZXRXb3JrZmxvd0VuYWJsZWQSEAoId29ya2Zsb3cYASABKAkSDwoHZW5hYmxlZBgCIAEoCCIgCgxPcGVuV29ya2Zsb3cSEAoId29ya2Zsb3cYASABKAkiIQoNQWRvcHRXb3JrZmxvdxIQCgh3b3JrZmxvdxgBIAEoCSIiCg5EZWxldGVXb3JrZmxvdxIQCgh3b3JrZmxvdxgBIAEoCSIvCg5DcmVhdGVXb3JrZmxvdxIOCgZzb3VyY2UYASABKAkSDQoFdGl0bGUYAiABKAkiGwoJQ2FuY2VsSm9iEg4KBmpvYl9pZBgBIAEoBCIuCgpQYXVzZVF1ZXVlEg4KBnBhdXNlZBgBIAEoCBIQCghpbnN0YW5jZRgCIAEoCSIgCgtEZWxldGVNZWRpYRIRCgltZWRpYV9pZHMYASADKAQivQEKC0NyZWF0ZU9yZGVyEhAKCHdvcmtmbG93GAEgASgJEisKBnZhbHVlcxgCIAMoCzIbLmRhcmtmbHVlbnplci52MS5QYXJhbVZhbHVlEikKBWZpbGVzGAMgAygLMhouZGFya2ZsdWVuemVyLnYxLklucHV0RmlsZRISCgpjYW5kaWRhdGVzGAQgASgNEhcKD2ZpbmlzaF93b3JrZmxvdxgFIAEoCRIXCg9wYXJlbnRfbWVkaWFfaWQYBiABKAQiNQoPU2VsZWN0Q2FuZGlkYXRlEhAKCG9yZGVyX25vGAEgASgJEhAKCG1lZGlhX2lkGAIgASgEIisKClJldHJ5U3RhZ2USEAoIb3JkZXJfbm8YASABKAkSCwoDc2VxGAIgASgNIjMKCE1hcmtSZWFkEhMKC2N1c3RvbWVyX2lkGAEgASgEEhIKCnVwX3RvX2l0ZW0YAiABKAQigAEKCVNlbmRSZXBseRITCgtjdXN0b21lcl9pZBgBIAEoBBITCgtpZGVudGl0eV9pZBgCIAEoBBIXCg9jb252ZXJzYXRpb25faWQYAyABKAQSEAoIcGxhdGZvcm0YBCABKAkSEAoIcmV2aXNpb24YBSABKAQSDAoEdGV4dBgGIAEoCSLTAQoURGVmYXVsdENvbnRhY3RVcGRhdGUSEAoIcmV2aXNpb24YASABKAQSGgoSdGVsZWdyYW1fc2VuZGVyX2lkGAIgASgJEhsKE2luc3RhZ3JhbV9zZW5kZXJfaWQYAyABKAkSGAoQcHJvY2Vzc19jb21tYW5kcxgEIAEoCBITCgthdXRvX29yZGVycxgFIAEoCBIVCg1hcHByb3ZhbF9tb2RlGAYgASgJEhIKCmluZmx1ZW5jZXIYByABKAkSFgoObWVkaWFfd29ya2Zsb3cYCCABKAki+AcKDkNvbW1hbmRSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSGAoQZXhwZWN0ZWRfdmVyc2lvbhgCIAEoBBIyCgtjb21meV9zdGFydBgKIAEoCzIbLmRhcmtmbHVlbnplci52MS5Db21meVN0YXJ0SAASMAoKY29tZnlfc3RvcBgLIAEoCzIaLmRhcmtmbHVlbnplci52MS5Db21meVN0b3BIABIpCgZyZW5kZXIYDCABKAsyFy5kYXJrZmx1ZW56ZXIudjEuUmVuZGVySAASQwoUc2V0X3dvcmtmbG93X2VuYWJsZWQYDSABKAsyIy5kYXJrZmx1ZW56ZXIudjEuU2V0V29ya2Zsb3dFbmFibGVkSAASNgoNb3Blbl93b3JrZmxvdxgOIAEoCzIdLmRhcmtmbHVlbnplci52MS5PcGVuV29ya2Zsb3dIABI4Cg5hZG9wdF93b3JrZmxvdxgPIAEoCzIeLmRhcmtmbHVlbnplci52MS5BZG9wdFdvcmtmbG93SAASOgoPZGVsZXRlX3dvcmtmbG93GBAgASgLMh8uZGFya2ZsdWVuemVyLnYxLkRlbGV0ZVdvcmtmbG93SAASOgoPY3JlYXRlX3dvcmtmbG93GBEgASgLMh8uZGFya2ZsdWVuemVyLnYxLkNyZWF0ZVdvcmtmbG93SAASMAoKY2FuY2VsX2pvYhgSIAEoCzIaLmRhcmtmbHVlbnplci52MS5DYW5jZWxKb2JIABIyCgtwYXVzZV9xdWV1ZRgTIAEoCzIbLmRhcmtmbHVlbnplci52MS5QYXVzZVF1ZXVlSAASNAoMZGVsZXRlX21lZGlhGBQgASgLMhwuZGFya2ZsdWVuemVyLnYxLkRlbGV0ZU1lZGlhSAASNAoMY3JlYXRlX29yZGVyGBUgASgLMhwuZGFya2ZsdWVuemVyLnYxLkNyZWF0ZU9yZGVySAASPAoQc2VsZWN0X2NhbmRpZGF0ZRgWIAEoCzIgLmRhcmtmbHVlbnplci52MS5TZWxlY3RDYW5kaWRhdGVIABIyCgtyZXRyeV9zdGFnZRgYIAEoCzIbLmRhcmtmbHVlbnplci52MS5SZXRyeVN0YWdlSAASLgoJbWFya19yZWFkGB0gASgLMhkuZGFya2ZsdWVuemVyLnYxLk1hcmtSZWFkSAASMAoKc2VuZF9yZXBseRgeIAEoCzIaLmRhcmtmbHVlbnplci52MS5TZW5kUmVwbHlIABJHChZkZWZhdWx0X2NvbnRhY3RfdXBkYXRlGCUgASgLMiUuZGFya2ZsdWVuemVyLnYxLkRlZmF1bHRDb250YWN0VXBkYXRlSABCCQoHY29tbWFuZCJ1Cg9Db21tYW5kUmVzcG9uc2USEgoKcmVxdWVzdF9pZBgBIAEoCRIuCgZzdGF0dXMYAiABKA4yHi5kYXJrZmx1ZW56ZXIudjEuQ29tbWFuZFN0YXR1cxIOCgZkZXRhaWwYAyABKAkSDgoGZW50aXR5GAQgASgJIpYBCg5Db21tYW5kUmVjZWlwdBISCgpyZXF1ZXN0X2lkGAEgASgJEi4KBnN0YXR1cxgCIAEoDjIeLmRhcmtmbHVlbnplci52MS5Db21tYW5kU3RhdHVzEg8KB2NvbW1hbmQYAyABKAkSDgoGZW50aXR5GAQgASgJEg4KBmRldGFpbBgFIAEoCRIPCgd2ZXJzaW9uGAYgASgEKtwBCg1Db21tYW5kU3RhdHVzEh4KGkNPTU1BTkRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGwoXQ09NTUFORF9TVEFUVVNfQUNDRVBURUQQARIbChdDT01NQU5EX1NUQVRVU19SRUpFQ1RFRBACEhwKGENPTU1BTkRfU1RBVFVTX0NPTVBMRVRFRBADEhkKFUNPTU1BTkRfU1RBVFVTX0ZBSUxFRBAEEhoKFkNPTU1BTkRfU1RBVFVTX1VOS05PV04QBRIcChhDT01NQU5EX1NUQVRVU19DQU5DRUxMRUQQBmIGcHJvdG8z");
 
 /**
  * Instanz: media | ai (leer = media)
@@ -433,6 +433,131 @@ export const RetryStageSchema: GenMessage<RetryStage> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_commands, 15);
 
 /**
+ * Ungelesene Nachrichten einer Kundenakte bis einschließlich item_id als gelesen markieren.
+ *
+ * @generated from message darkfluenzer.v1.MarkRead
+ */
+export type MarkRead = Message<"darkfluenzer.v1.MarkRead"> & {
+  /**
+   * @generated from field: uint64 customer_id = 1;
+   */
+  customerId: bigint;
+
+  /**
+   * @generated from field: uint64 up_to_item = 2;
+   */
+  upToItem: bigint;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.MarkRead.
+ * Use `create(MarkReadSchema)` to create a new message.
+ */
+export const MarkReadSchema: GenMessage<MarkRead> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 16);
+
+/**
+ * Manuelle Textantwort des Betreibers (F4): nur an die gewählte, verifizierte Konversation dieses
+ * Kunden, auf der gesehenen Gesprächsrevision (CAS). Kein Sammelversand, kein „alle Kanäle“.
+ *
+ * @generated from message darkfluenzer.v1.SendReply
+ */
+export type SendReply = Message<"darkfluenzer.v1.SendReply"> & {
+  /**
+   * @generated from field: uint64 customer_id = 1;
+   */
+  customerId: bigint;
+
+  /**
+   * @generated from field: uint64 identity_id = 2;
+   */
+  identityId: bigint;
+
+  /**
+   * @generated from field: uint64 conversation_id = 3;
+   */
+  conversationId: bigint;
+
+  /**
+   * telegram | instagram | whatsapp (muss zur Identität passen)
+   *
+   * @generated from field: string platform = 4;
+   */
+  platform: string;
+
+  /**
+   * @generated from field: uint64 revision = 5;
+   */
+  revision: bigint;
+
+  /**
+   * @generated from field: string text = 6;
+   */
+  text: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.SendReply.
+ * Use `create(SendReplySchema)` to create a new message.
+ */
+export const SendReplySchema: GenMessage<SendReply> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 17);
+
+/**
+ * Operator-Felder des Default-Kontakts (F7.4) speichern; CAS über DefaultContact.revision.
+ *
+ * @generated from message darkfluenzer.v1.DefaultContactUpdate
+ */
+export type DefaultContactUpdate = Message<"darkfluenzer.v1.DefaultContactUpdate"> & {
+  /**
+   * @generated from field: uint64 revision = 1;
+   */
+  revision: bigint;
+
+  /**
+   * @generated from field: string telegram_sender_id = 2;
+   */
+  telegramSenderId: string;
+
+  /**
+   * @generated from field: string instagram_sender_id = 3;
+   */
+  instagramSenderId: string;
+
+  /**
+   * @generated from field: bool process_commands = 4;
+   */
+  processCommands: boolean;
+
+  /**
+   * @generated from field: bool auto_orders = 5;
+   */
+  autoOrders: boolean;
+
+  /**
+   * @generated from field: string approval_mode = 6;
+   */
+  approvalMode: string;
+
+  /**
+   * @generated from field: string influencer = 7;
+   */
+  influencer: string;
+
+  /**
+   * @generated from field: string media_workflow = 8;
+   */
+  mediaWorkflow: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.DefaultContactUpdate.
+ * Use `create(DefaultContactUpdateSchema)` to create a new message.
+ */
+export const DefaultContactUpdateSchema: GenMessage<DefaultContactUpdate> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 18);
+
+/**
  * @generated from message darkfluenzer.v1.CommandRequest
  */
 export type CommandRequest = Message<"darkfluenzer.v1.CommandRequest"> & {
@@ -541,6 +666,24 @@ export type CommandRequest = Message<"darkfluenzer.v1.CommandRequest"> & {
      */
     value: RetryStage;
     case: "retryStage";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.MarkRead mark_read = 29;
+     */
+    value: MarkRead;
+    case: "markRead";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.SendReply send_reply = 30;
+     */
+    value: SendReply;
+    case: "sendReply";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.DefaultContactUpdate default_contact_update = 37;
+     */
+    value: DefaultContactUpdate;
+    case: "defaultContactUpdate";
   } | { case: undefined; value?: undefined };
 };
 
@@ -549,7 +692,7 @@ export type CommandRequest = Message<"darkfluenzer.v1.CommandRequest"> & {
  * Use `create(CommandRequestSchema)` to create a new message.
  */
 export const CommandRequestSchema: GenMessage<CommandRequest> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 16);
+  messageDesc(file_darkfluenzer_v1_commands, 19);
 
 /**
  * Sofortige Antwort: ACCEPTED oder REJECTED, nie ein terminales Ergebnis.
@@ -587,7 +730,7 @@ export type CommandResponse = Message<"darkfluenzer.v1.CommandResponse"> & {
  * Use `create(CommandResponseSchema)` to create a new message.
  */
 export const CommandResponseSchema: GenMessage<CommandResponse> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 17);
+  messageDesc(file_darkfluenzer_v1_commands, 20);
 
 /**
  * EVENT command.receipt: persistierter Lebenszyklus eines Befehls (je Statuswechsel ein Eintrag).
@@ -635,7 +778,7 @@ export type CommandReceipt = Message<"darkfluenzer.v1.CommandReceipt"> & {
  * Use `create(CommandReceiptSchema)` to create a new message.
  */
 export const CommandReceiptSchema: GenMessage<CommandReceipt> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 18);
+  messageDesc(file_darkfluenzer_v1_commands, 21);
 
 /**
  * @generated from enum darkfluenzer.v1.CommandStatus

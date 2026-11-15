@@ -78,3 +78,16 @@ min_score = 0.8
 candidates_default = 3
 candidates_max = 6
 stage_attempts_max = 3
+
+# Telegram-Adapter (PHASENPLAN_V0 §6, C2): Bot der Influencerin, Long-Polling ohne öffentlichen
+# Zugang. Der Bot-Token liegt ausschließlich im macOS-Schlüsselbund:
+#   security add-generic-password -U -a darkfluenzer -s darkfluenzer.telegram.bot_token -w
+# Ohne diesen Abschnitt ist Telegram nicht eingerichtet. api_base kann auf einen lokalen
+# Bot-API-Server zeigen (Dateien über 20 MB); max_download_mb ist dann entsprechend höher.
+[telegram]
+keychain_service = "darkfluenzer.telegram.bot_token"
+api_base = "https://api.telegram.org"
+poll_timeout_s = 50
+max_download_mb = 20
+send_timeout_s = 60
+

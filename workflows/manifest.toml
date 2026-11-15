@@ -48,6 +48,20 @@ gates = { load = "PASS", render = "PASS", quality = "OFFEN", license_pass = "OFF
 note = "Modellkarte: nicht für Inferenz, Basis für Finetuning/LoRAs (52 Schritte, CFG 3,5). Charakter-LoRAs werden auf Raw trainiert und mit der Turbo-LoRA (rank 64) im Turbo-Tempo genutzt. Mac-Test 15.11.2026: Raw + Turbo-LoRA, 8 Schritte, 1104 × 1472, 234 s mit Laden, gleicher Seed wie Turbo → nahezu gleiches Bild und gleiche Qualität. Training (ComfyUI TrainLoraNode, Bypass, MPS-Grenze 86 GiB): 1024 px und 768 px mit Checkpoint-Tiefe 1 zu groß; 512 px Tiefe 1: 8,4 s/Schritt; 768 px Tiefe 3: 23,9 s/Schritt (Standard, 1500 Schritte ≈ 10 h)."
 formats = { "3:4" = [1104, 1472], "4:5" = [1088, 1360], "1:1" = [1088, 1088], "9:16" = [1088, 1936] }
 
+[engines.lustify_v10_krea]
+title = "LUSTIFY v10 (Krea 2, BF16) – explizit"
+kind = "image"
+role = "master"
+arch = "krea2"
+precision = "bf16"
+wave = 1
+files = ["lustify_v10_krea_bf16", "krea2_qwen3vl_4b_bf16", "qwen_image_vae", "krea2_turbo_lora_r64"]
+license = "LUSTIFY (Civitai 573152 v10): Bedingungen der Civitai-Seite"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Krea-2-Finetune (nur Diffusionsteil, Encoder/VAE von Krea 2). Datei bitgleich mit Civitai 573152 v10 (SHA-256 017f3363…), geladen vom HF-Spiegel ffkk200/Krea2. Turbo-LoRA abschaltbar (Stärke 0) für den Raw-Weg mit mehr Schritten und CFG."
+formats = { "3:4" = [1104, 1472], "4:5" = [1088, 1360], "1:1" = [1088, 1088], "9:16" = [1088, 1936] }
+
 [engines.flux3_klein_base]
 title = "FLUX 3 Image Klein Base (BF16, undestilliert)"
 kind = "image"
@@ -60,6 +74,7 @@ license = "FLUX Kommunity License v1.0 – nicht-kommerziell; kommerzieller Outp
 usage = "evaluation"
 gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
 note = "Modellkarte: 50 Schritte, Guidance 3,5, Prompt-Upsampling empfohlen. Repo gated – Lizenz auf HF akzeptieren."
+formats = { "3:4" = [1104, 1472], "4:5" = [1088, 1360], "1:1" = [1088, 1088], "9:16" = [1088, 1936] }
 
 [engines.lustify_sdxl]
 title = "LUSTIFY! v2.0 (SDXL)"
@@ -195,6 +210,15 @@ source = "diffusion_models/krea2_raw_bf16.safetensors"
 target = "diffusion_models/krea2/krea2_raw_bf16.safetensors"
 size = 26283332608
 sha256 = "f99bb0ff8e362b77342bc4994e0c50906fe7ef7074864b181b7d48d2fa6d03d7"
+
+# LUSTIFY v10 Krea: Civitai 573152 v10; bitgleicher öffentlicher HF-Spiegel (SHA-256 geprüft)
+[files.lustify_v10_krea_bf16]
+repo = "ffkk200/Krea2"
+revision = "e79af65dc72b518a7d4d808393c71aaadbbab699"
+source = "lustifyNSFWCheckpoint_v10Krea2_3015315.safetensors"
+target = "diffusion_models/lustify/lustifyNSFWCheckpoint_v10Krea2_3015315.safetensors"
+size = 26283309273
+sha256 = "017f3363cab2c9245cb156a70e41d12d67938dd6af052b8432ff565436febba4"
 
 [files.krea2_turbo_lora_r64]
 repo = "Comfy-Org/Krea-2"
@@ -575,5 +599,22 @@ prompt = { node = "5", input = "text", type = "str", required = true }
 seed = { node = "8", input = "seed", type = "int", min = 0, max = 4294967295 }
 steps = { node = "8", input = "steps", type = "int", min = 4, max = 50 }
 turbo_strength = { node = "2", input = "strength_model", type = "float", min = 0.0, max = 1.5, label = "Turbo-LoRA-Stärke" }
+width = { node = "7", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
+height = { node = "7", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
+
+[workflows.lustify_v10_krea_t2i]
+engine = "lustify_v10_krea"
+ui = "image/lustify_v10_krea_t2i.ui.json"
+api = "image/lustify_v10_krea_t2i.api.json"
+status = "OFFEN"
+title = "LUSTIFY v10 (Krea) · Text zu Bild"
+
+[workflows.lustify_v10_krea_t2i.params]
+prompt = { node = "5", input = "text", type = "str", required = true }
+negative_prompt = { node = "6", input = "text", type = "str" }
+seed = { node = "8", input = "seed", type = "int", min = 0, max = 4294967295 }
+steps = { node = "8", input = "steps", type = "int", min = 4, max = 80 }
+cfg = { node = "8", input = "cfg", type = "float", min = 1.0, max = 8.0 }
+turbo_strength = { node = "2", input = "strength_model", type = "float", min = 0.0, max = 1.5, label = "Turbo-LoRA-Stärke (0 = Raw)" }
 width = { node = "7", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
 height = { node = "7", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }

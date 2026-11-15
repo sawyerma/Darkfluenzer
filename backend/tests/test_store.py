@@ -24,7 +24,7 @@ def store(tmp_path: Path):
 
 
 def _paid_order_in_review(store: Store, user: int = 100, candidates: int = 3):
-    customer, _ = store.customer_for_telegram(BOT, user)
+    customer, _ = store.customer_for_identity("telegram", BOT, str(user))[::2]
     order = store.create_order(customer.id, "image", "Portrait am Meer")
     store.set_offer(order.order_no, "1 Bild", 250, "XTR")
     store.transition(order.order_no, "accepted")
@@ -44,10 +44,10 @@ def _paid_order_in_review(store: Store, user: int = 100, candidates: int = 3):
 
 
 def test_customer_numbers_are_stable_and_sequential(store):
-    a, created_a = store.customer_for_telegram(BOT, 111)
-    again, created_again = store.customer_for_telegram(BOT, 111)
-    b, _ = store.customer_for_telegram(BOT, 222)
-    other_bot, _ = store.customer_for_telegram("bot-2", 111)
+    a, created_a = store.customer_for_identity("telegram", BOT, str(111))[::2]
+    again, created_again = store.customer_for_identity("telegram", BOT, str(111))[::2]
+    b, _ = store.customer_for_identity("telegram", BOT, str(222))[::2]
+    other_bot, _ = store.customer_for_identity("telegram", "bot-2", "111")[::2]
     assert (a.customer_no, created_a) == ("DF-C-000001", True)
     assert (again.customer_no, created_again) == ("DF-C-000001", False)
     assert b.customer_no == "DF-C-000002"
@@ -64,7 +64,7 @@ def test_parallel_first_messages_create_exactly_one_customer(tmp_path):
         s = Store(local)
         try:
             barrier.wait()
-            results.append(s.customer_for_telegram(BOT, 4242)[0].customer_no)
+            results.append(s.customer_for_identity("telegram", BOT, "4242")[0].customer_no)
         except Exception as exc:  # pragma: no cover - würde Test scheitern lassen
             errors.append(exc)
         finally:
@@ -83,18 +83,19 @@ def test_parallel_first_messages_create_exactly_one_customer(tmp_path):
 
 
 def test_duplicate_telegram_update_is_stored_once(store):
-    c, _ = store.customer_for_telegram(BOT, 1)
-    first = store.add_message(c.id, "in", 1, "hallo", "2026-11-14T10:00:00Z", 77)
-    retry = store.add_message(c.id, "in", 1, "hallo", "2026-11-14T10:00:00Z", 77)
-    assert first[1] is True and retry == (first[0], False)
-    assert store.db.execute("SELECT count(*) FROM messages").fetchone()[0] == 1
+    kw = {"sender_id": "1", "conversation_id": "1", "platform_message_id": "77", "text": "hallo"}
+    first = store.record_inbound("telegram", BOT, "u-500", sent_at="2026-11-14T10:00:00Z", **kw)
+    retry = store.record_inbound("telegram", BOT, "u-500", sent_at="2026-11-14T10:00:00Z", **kw)
+    assert first.message_id and first.new_customer and retry.message_id is None
+    assert retry.customer.id == first.customer.id
+    assert store.db.execute("SELECT count(*) FROM channel_messages").fetchone()[0] == 1
 
 
 # ---------------------------------------------------------------------- Aufträge & Zahlungen
 
 
 def test_order_folders_and_transitions(store):
-    c, _ = store.customer_for_telegram(BOT, 5)
+    c, _ = store.customer_for_identity("telegram", BOT, str(5))[::2]
     order = store.create_order(c.id, "video", "kurzer Clip")
     assert order.order_no == "DF-O-000001"
     base = store.local / "customers" / "DF-C-000001" / "orders" / "DF-O-000001"
@@ -106,7 +107,7 @@ def test_order_folders_and_transitions(store):
 
 
 def test_payment_must_match_offer_and_is_idempotent(store):
-    c, _ = store.customer_for_telegram(BOT, 6)
+    c, _ = store.customer_for_identity("telegram", BOT, str(6))[::2]
     order = store.create_order(c.id, "image", "x")
     store.set_offer(order.order_no, "1 Bild", 250, "XTR")
     with pytest.raises(StoreError, match="nur im Status accepted"):
@@ -161,7 +162,7 @@ def test_happy_path_delivers_exactly_once(store):
 
 
 def test_unpaid_order_never_delivers(store):
-    c, _ = store.customer_for_telegram(BOT, 9)
+    c, _ = store.customer_for_identity("telegram", BOT, str(9))[::2]
     order = store.create_order(c.id, "image", "x")
     store.set_offer(order.order_no, "1 Bild", 250, "XTR")
     store.transition(order.order_no, "accepted")
@@ -195,7 +196,7 @@ def test_modified_file_is_blocked(store):
 
 def test_wrong_customer_is_blocked(store):
     _, order, arts = _paid_order_in_review(store, user=1)
-    other, _ = store.customer_for_telegram(BOT, 2)
+    other, _ = store.customer_for_identity("telegram", BOT, str(2))[::2]
     store.record_approval(order.order_no, arts[0].id, "approved", "betreiber")
     gate = approval.check_gate(store, order.order_no, arts[0].id, other.customer_no)
     assert any(r.startswith("CUSTOMER_MISMATCH") for r in gate.reasons)
@@ -257,7 +258,7 @@ def test_media_index_migrates_v1_dedupes_numbers_and_customer_names(tmp_path):
     s = Store(local)
     try:
         assert s.db.execute("PRAGMA user_version").fetchone()[0] == store_module.SCHEMA_VERSION
-        assert s.customer("DF-C-000001").telegram_user_id == 77  # Bestand bleibt
+        assert s.identities(1)[0]["platform_user_id"] == "77"  # Bestand bleibt als Identität
         assert s.add_media("evaluation/x/a.png", "a" * 64, 10)
         assert s.add_media("evaluation/x/b.png", "b" * 64, 10)
         assert s.add_media("ComfyUI/output/a.png", "a" * 64, 10) is None  # gleiche Bytes

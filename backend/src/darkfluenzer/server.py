@@ -24,10 +24,11 @@ from aiohttp import web
 from google.protobuf.message import DecodeError
 
 from . import comfy, models, pipeline, runtime, training
+from .channels.telegram import TelegramAdapter
 from .config import ComfyConfig, Config
 from .store import Store, StoreError
 from .stream import Hub, schema_id
-from .v1 import character_pb2, comfy_pb2, commands_pb2, media_pb2, order_pb2
+from .v1 import channel_pb2, character_pb2, comfy_pb2, commands_pb2, media_pb2, order_pb2
 from .v1 import stream_pb2 as spb
 
 log = logging.getLogger("darkfluenzer.server")
@@ -131,6 +132,15 @@ class Cockpit:
         self._install_editor_copies()
         self._registry_version = store.bump("workflows", self._fingerprint())
         self._settle_open_commands()
+        store.settle_sending()  # vor dem Neustart begonnener Versand: Ergebnis unbekannt
+        store.default_contact()  # interner Kontakt Default existiert genau einmal
+        self.telegram = (
+            TelegramAdapter(cfg, store, self._on_inbound, self._channels_changed)
+            if cfg.telegram
+            else None
+        )
+        if self.telegram:
+            self.telegram.on_change_message = self._message_changed
 
     def _install_editor_copies(self) -> None:
         """Editor-Kopien für "Öffnen" in der jeweils ausführenden, eingerichteten Instanz."""
@@ -320,6 +330,7 @@ class Cockpit:
                 self.hub.set_state(spb.TOPIC_COMFY_WORKFLOWS, workflows)
                 await self.refresh_characters()
                 self.hub.set_state(spb.TOPIC_ORDERS_ACTIVE, self._orders_active())
+                self.hub.set_state(spb.TOPIC_CHANNELS, self._channels())
                 self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
                 self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
                 await asyncio.to_thread(
@@ -587,6 +598,9 @@ class Cockpit:
             "create_order": self._create_order,
             "select_candidate": self._select_candidate,
             "retry_stage": self._retry_stage,
+            "mark_read": self._mark_read,
+            "send_reply": self._send_reply,
+            "default_contact_update": self._default_contact_update,
             "set_workflow_enabled": self._set_enabled,
             "open_workflow": self._open,
             "adopt_workflow": self._adopt,
@@ -794,6 +808,144 @@ class Cockpit:
         self._enqueue(jobs)
         self._orders_changed()
         return ""
+
+    # ------------------------------------------------------------ Nachrichten (C2/C5)
+
+    def _channels(self) -> bytes:
+        """STATE channels: Zustand je Kanal; nicht eingerichtete Kanäle mit dem, was fehlt."""
+        msg = channel_pb2.Channels(version=self.store.domain_version("channels"))
+        if self.telegram:
+            msg.channels.add(**self.telegram.status())
+        else:
+            msg.channels.add(platform="telegram", state="OFF", missing="Abschnitt [telegram]")
+        msg.channels.add(platform="instagram", state="OFF", missing="Meta-App und Tunnel")
+        msg.channels.add(platform="whatsapp", state="OFF", missing="WhatsApp folgt später (C7)")
+        return msg.SerializeToString()
+
+    def _channels_changed(self) -> None:
+        self.hub.set_state(spb.TOPIC_CHANNELS, self._channels())
+
+    def _message_changed(self, _message_id: int) -> None:
+        self.hub.push_events(spb.TOPIC_CONVERSATION_EVENT)
+        self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)
+
+    async def _on_inbound(self, inbound) -> None:
+        """Neue Nachricht gespeichert: Cockpit per Push aktualisieren. (Kloner-Weiche C3.)"""
+        self._message_changed(inbound.message_id or 0)
+
+    def _default_identity_account(self, platform: str) -> str:
+        if platform == "telegram":
+            if not self.telegram or not self.telegram.account:
+                raise pipeline.PipelineError("Telegram ist noch nicht verbunden (Bot-Token).")
+            return self.telegram.account
+        raise pipeline.PipelineError(f"{platform} ist noch nicht eingerichtet.")
+
+    async def _mark_read(self, msg: commands_pb2.MarkRead, call: _Call) -> str:
+        call.entity = f"customer:{msg.customer_id}"
+        self.store.customer_by_id(msg.customer_id)
+        if self.store.mark_read(msg.customer_id, msg.up_to_item):
+            self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)
+        return ""
+
+    async def _send_reply(self, msg: commands_pb2.SendReply, call: _Call) -> str:
+        """Manuelle Textantwort nur an die gewählte, verifizierte Konversation dieses Kunden
+        (F4): Plattform, Identität und Konversation müssen zusammenpassen; Revision = CAS."""
+        call.entity = f"customer:{msg.customer_id}"
+        if not msg.text.strip():
+            return "Leere Antwort."
+        ident = next(
+            (i for i in self.store.identities(msg.customer_id) if i["id"] == msg.identity_id),
+            None,
+        )
+        if ident is None or ident["platform"] != msg.platform or not msg.platform:
+            return "Kanal passt nicht zu dieser Kundenakte."
+        if ident["conversation_id"] != msg.conversation_id:
+            return "Konversation passt nicht zu diesem Kanal."
+        adapter = self.telegram if msg.platform == "telegram" else None
+        if adapter is None or adapter.state != "READY":
+            return f"{msg.platform} ist nicht verbunden."
+        message_id = self.store.queue_outbound(
+            msg.customer_id,
+            msg.conversation_id,
+            msg.text.strip(),
+            revision=msg.revision,
+            request_id=call.request_id,
+        )
+        call.entity = f"message:{message_id}"
+        adapter.wake.set()
+        self._message_changed(message_id)
+        return ""
+
+    async def _default_contact_update(
+        self, msg: commands_pb2.DefaultContactUpdate, call: _Call
+    ) -> str:
+        current = self.store.default_contact()
+        call.entity = f"customer:{current['customer_id']}"
+        if msg.approval_mode not in ("direct", "cockpit", "cockpit_only"):
+            return "Freigabemodus unbekannt."
+        if msg.media_workflow and msg.media_workflow not in self.manifest.workflows:
+            return f"Workflow '{msg.media_workflow}' ist nicht registriert."
+        senders = {}
+        if msg.telegram_sender_id.strip() != current["sender_ids"].get("telegram", ""):
+            senders[("telegram", self._default_identity_account("telegram"))] = (
+                msg.telegram_sender_id.strip()
+            )
+        if msg.instagram_sender_id.strip() != current["sender_ids"].get("instagram", ""):
+            senders[("instagram", self._default_identity_account("instagram"))] = (
+                msg.instagram_sender_id.strip()
+            )
+        self.store.update_default_contact(
+            msg.revision,
+            {
+                "process_commands": int(msg.process_commands),
+                "auto_orders": int(msg.auto_orders),
+                "approval_mode": msg.approval_mode,
+                "influencer": msg.influencer.strip(),
+                "media_workflow": msg.media_workflow,
+            },
+            senders,
+        )
+        self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)
+        return ""
+
+    def read_customers(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
+        rows, gap = self.store.customer_events(after, limit)
+        out = []
+        for r in rows:
+            summary = self.store.customers_overview(r["customer_id"])
+            customer = (
+                _customer_summary(summary[0])
+                if summary
+                else channel_pb2.CustomerSummary(customer_id=r["customer_id"])
+            )  # entfernte Akte: nur die ID
+            out.append(
+                (
+                    r["cursor"],
+                    _unix_ms(r["committed_at"]),
+                    channel_pb2.CustomerUpdated(customer=customer).SerializeToString(),
+                )
+            )
+        return out, gap
+
+    def read_conversation(
+        self, after: int, limit: int
+    ) -> tuple[list[tuple[int, int, bytes]], bool]:
+        rows, gap = self.store.message_events(after, limit)
+        out = []
+        for r in rows:
+            item = self.store.conversation_item(r["message_id"])
+            if item is None:
+                continue
+            out.append(
+                (
+                    r["cursor"],
+                    _unix_ms(r["committed_at"]),
+                    channel_pb2.ConversationEvent(
+                        item=_conversation_item(item)
+                    ).SerializeToString(),
+                )
+            )
+        return out, gap
 
     def _orders_active(self) -> bytes:
         """STATE orders.active: Aufträge in Produktion mit Stufen und deren Jobs/Kandidaten."""
@@ -1278,8 +1430,9 @@ def _media(local: Path):
         if request.app[GUARD_KEY].csrf_of(request) is None:
             return web.Response(status=401, text="Keine gültige Sitzung")
         rel = request.match_info["path"]
-        if request.app[COCKPIT_KEY].store.media_by_path(rel) is None:
-            raise web.HTTPNotFound()
+        store = request.app[COCKPIT_KEY].store
+        if store.media_by_path(rel) is None and not store.message_file_known(rel):
+            raise web.HTTPNotFound()  # nur Galerie-Index und gesicherte Nachrichtenanhänge
         path = (local / rel).resolve()
         if not path.is_relative_to(local.resolve()) or not path.is_file():
             raise web.HTTPNotFound()
@@ -1320,6 +1473,109 @@ async def _provenance_route(request: web.Request) -> web.Response:
     return web.Response(body=msg.SerializeToString(), content_type=PROTOBUF, headers=headers)
 
 
+def _customer_summary(row: dict) -> channel_pb2.CustomerSummary:
+    return channel_pb2.CustomerSummary(
+        customer_id=row["id"],
+        customer_no=row["customer_no"],
+        display_name=row["display_name"] or "",
+        kind=row["kind"],
+        platforms=sorted(filter(None, (row["platforms"] or "").split(","))),
+        last_text=row["last_text"] or "",
+        last_platform=row["last_platform"] or "",
+        last_ms=_unix_ms(row["last_at"]) if row["last_at"] else 0,
+        unread=row["unread"] or 0,
+    )
+
+
+def _conversation_item(row: dict) -> channel_pb2.ConversationItem:
+    item = channel_pb2.ConversationItem(
+        item_id=row["id"],
+        customer_id=row["customer_id"],
+        platform=row["platform"],
+        direction=row["direction"],
+        text=row["text"],
+        status=row["status"],
+        at_ms=_unix_ms(row["sent_at"]),
+        sender=(row["handle"] or "") if row["direction"] == "in" else "Darkfluenzer",
+        error=row["error"] or "",
+        read=bool(row["read_at"]) or row["direction"] == "out",
+        conversation_id=row["conversation_id"],
+    )
+    for att in row["attachments"]:
+        item.attachments.add(
+            kind=str(att.get("kind", "")),
+            path=str(att.get("path", "")),
+            mime=str(att.get("mime", "")),
+            size=int(att.get("size") or 0),
+            sha256=str(att.get("sha256", "")),
+            status=str(att.get("status", "")),
+            note=str(att.get("note", "")),
+        )
+    return item
+
+
+async def _customer_page(request: web.Request) -> web.Response:
+    """Alle Kundenakten (bei Aufruf, nach Lücken/Reconnect), Protobuf."""
+    if request.app[GUARD_KEY].csrf_of(request) is None:
+        return web.Response(status=401, text="Keine gültige Sitzung")
+    store = request.app[COCKPIT_KEY].store
+    page = channel_pb2.CustomerPage(
+        customers=[_customer_summary(r) for r in store.customers_overview()],
+        version=store.domain_version("customers"),
+    )
+    return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
+
+
+async def _conversation_page(request: web.Request) -> web.Response:
+    """Verlauf einer Kundenakte über alle Kanäle mit Identitäten (Antwortziele), Protobuf."""
+    if request.app[GUARD_KEY].csrf_of(request) is None:
+        return web.Response(status=401, text="Keine gültige Sitzung")
+    try:
+        customer_id = int(request.query["customer"])
+        before = int(request.query.get("before", "0"))
+        limit = min(max(int(request.query.get("limit", "60")), 1), 200)
+    except (KeyError, ValueError):
+        return web.Response(status=400, text="customer/before/limit müssen Zahlen sein")
+    store = request.app[COCKPIT_KEY].store
+    summary = store.customers_overview(customer_id)
+    if not summary:
+        raise web.HTTPNotFound()
+    items, more = store.conversation_items(customer_id, before, limit)
+    page = channel_pb2.ConversationPage(
+        customer=_customer_summary(summary[0]),
+        items=[_conversation_item(i) for i in items],
+        more=more,
+        version=store.domain_version("conversations"),
+    )
+    for ident in store.identities(customer_id):
+        page.identities.add(
+            identity_id=ident["id"],
+            platform=ident["platform"],
+            account=ident["account"],
+            platform_user_id=ident["platform_user_id"],
+            handle=ident["handle"] or "",
+            verified=bool(ident["verified"]),
+            conversation_id=ident["conversation_id"] or 0,
+            revision=ident["revision"] or 0,
+        )
+    if summary[0]["kind"] == "internal":
+        d = store.default_contact()
+        page.default_contact.CopyFrom(
+            channel_pb2.DefaultContact(
+                customer_id=d["customer_id"],
+                telegram_sender_id=d["sender_ids"].get("telegram", ""),
+                instagram_sender_id=d["sender_ids"].get("instagram", ""),
+                process_commands=bool(d["process_commands"]),
+                auto_orders=bool(d["auto_orders"]),
+                approval_mode=d["approval_mode"],
+                influencer=d["influencer"],
+                media_workflow=d["media_workflow"],
+                revision=d["revision"],
+            )
+        )
+    return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
+
+
 def _static(dist: Path):
     """index.html stets revalidieren, gehashte Vite-Assets unveränderlich cachen."""
     assets = dist / "assets"
@@ -1357,6 +1613,17 @@ def create_app(cfg: Config) -> web.Application:
     hub.offer_state(spb.TOPIC_COMFY_WORKFLOWS, comfy_pb2.Workflows.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_CHARACTERS, character_pb2.Characters.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_ORDERS_ACTIVE, order_pb2.OrdersActive.DESCRIPTOR.full_name)
+    hub.offer_state(spb.TOPIC_CHANNELS, channel_pb2.Channels.DESCRIPTOR.full_name)
+    hub.offer_events(
+        spb.TOPIC_CUSTOMER_UPDATED,
+        channel_pb2.CustomerUpdated.DESCRIPTOR.full_name,
+        cockpit.read_customers,
+    )
+    hub.offer_events(
+        spb.TOPIC_CONVERSATION_EVENT,
+        channel_pb2.ConversationEvent.DESCRIPTOR.full_name,
+        cockpit.read_conversation,
+    )
     hub.offer_events(
         spb.TOPIC_JOB_COMPLETED, comfy_pb2.JobCompleted.DESCRIPTOR.full_name, cockpit.read_jobs
     )
@@ -1390,6 +1657,8 @@ def create_app(cfg: Config) -> web.Application:
     app.router.add_get("/api/v1/media/{path:.+}", _media(cfg.local))
     app.router.add_get("/api/v1/media-page", _media_page)
     app.router.add_get("/api/v1/provenance/{media_id}", _provenance_route)
+    app.router.add_get("/api/v1/customer-page", _customer_page)
+    app.router.add_get("/api/v1/conversation-page", _conversation_page)
 
     async def lifecycle(_: web.Application):
         cockpit.enqueue_existing()
@@ -1401,6 +1670,11 @@ def create_app(cfg: Config) -> web.Application:
                 for lane in cockpit.lanes.values()
             ),
         ]
+        if cockpit.telegram:
+            tasks += [
+                asyncio.create_task(cockpit.telegram.run()),
+                asyncio.create_task(cockpit.telegram.outbox_worker()),
+            ]
         yield
         for task in tasks:
             task.cancel()

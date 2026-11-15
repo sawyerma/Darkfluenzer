@@ -92,6 +92,18 @@ class ServerConfig:
 
 
 @dataclass(frozen=True)
+class TelegramConfig:
+    """Telegram-Adapter (V0 §6): Bot-Token im Schlüsselbund, Long-Polling ohne öffentlichen
+    Zugang; api_base auch für einen lokalen Bot-API-Server (größere Dateien)."""
+
+    keychain_service: str
+    api_base: str
+    poll_timeout_s: float
+    max_download_mb: float
+    send_timeout_s: float
+
+
+@dataclass(frozen=True)
 class ProductionConfig:
     """Aufträge mit Stufen (V0 §4.3): Kandidatenzahl und Wiederholungen je Stufe."""
 
@@ -116,6 +128,7 @@ class Config:
     server: ServerConfig
     identity: IdentityConfig
     production: ProductionConfig
+    telegram: TelegramConfig | None  # None: Abschnitt fehlt (Kanal nicht eingerichtet)
 
     @property
     def instances(self) -> tuple[ComfyConfig, ...]:
@@ -305,11 +318,26 @@ def load(root: Path | None = None) -> Config:
     )
     if production.candidates_default > production.candidates_max:
         raise ConfigError("Konfiguration: production.candidates_default > candidates_max.")
+    tg = data.get("telegram")
+    if tg is not None and not isinstance(tg, dict):
+        raise ConfigError(f"Konfiguration {path}: [telegram] muss ein Abschnitt sein.")
+    telegram = (
+        TelegramConfig(
+            keychain_service=str(tg.get("keychain_service", "darkfluenzer.telegram.bot_token")),
+            api_base=str(tg.get("api_base", "https://api.telegram.org")).rstrip("/"),
+            poll_timeout_s=_positive(tg, "poll_timeout_s", 50, "telegram"),
+            max_download_mb=_positive(tg, "max_download_mb", 20, "telegram"),
+            send_timeout_s=_positive(tg, "send_timeout_s", 60, "telegram"),
+        )
+        if tg is not None
+        else None
+    )
     return Config(
         root=root,
         comfyui=media,
         comfyui_ai=ai,
         server=_parse_server(data["server"]),
+        telegram=telegram,
         identity=IdentityConfig(
             min_face_px=int(_positive(ident, "min_face_px", 64, "identity")), min_score=score
         ),

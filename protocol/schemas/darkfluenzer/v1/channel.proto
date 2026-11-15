@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package darkfluenzer.v1;
+
+// Nachrichten-Cockpit und Kanal-Adapter (PHASENPLAN_V0 §6/§8, FRONT F4/F7.2–F7.4).
+// Plattformen: telegram | instagram | whatsapp. Plattform-Tokens erscheinen nie im Frontend.
+
+// Zustand eines Kanal-Adapters (STATE channels).
+message ChannelStatus {
+  string platform = 1;
+  // Konto der Influencerin auf der Plattform (Bot-Benutzername, Instagram-Konto)
+  string account = 2;
+  // OFF (nicht eingerichtet) | CONNECTING | READY | ERROR
+  string state = 3;
+  string error = 4;
+  // Zeit des letzten Plattform-Ereignisses (Unix-ms, 0 = noch keins)
+  int64 last_event_ms = 5;
+  // Was zur Einrichtung fehlt (z. B. „Bot-Token im Schlüsselbund“); leer, wenn eingerichtet
+  string missing = 6;
+}
+
+// STATE channels
+message Channels {
+  repeated ChannelStatus channels = 1;
+  uint64 version = 2;
+}
+
+// Eine Kundenakte in der linken Liste (F7.2). Der interne Kontakt Default hat kind "internal".
+message CustomerSummary {
+  uint64 customer_id = 1;
+  string customer_no = 2;
+  string display_name = 3;
+  // customer | internal
+  string kind = 4;
+  // verknüpfte Plattformen
+  repeated string platforms = 5;
+  string last_text = 6;
+  string last_platform = 7;
+  int64 last_ms = 8;
+  uint32 unread = 9;
+}
+
+// EVENT customers.updated: geänderte Kundenakte (neu, gelesen, umbenannt …)
+message CustomerUpdated {
+  CustomerSummary customer = 1;
+}
+
+// HTTP GET /api/v1/customer-page: alle Kundenakten (bei Aufruf und nach Lücken)
+message CustomerPage {
+  repeated CustomerSummary customers = 1;
+  // Domain-Version „customers“
+  uint64 version = 2;
+}
+
+message MessageAttachment {
+  // photo | video | voice | audio | document | sticker | share | reel | post | other
+  string kind = 1;
+  // Pfad relativ zu local/ (leer, solange nicht gesichert oder nicht importierbar)
+  string path = 2;
+  string mime = 3;
+  uint64 size = 4;
+  string sha256 = 5;
+  // saved | pending | too_large | not_importable | failed
+  string status = 6;
+  string note = 7;
+}
+
+// Ein Eintrag im Verlauf einer Kundenakte (Nachricht oder Systemkarte).
+message ConversationItem {
+  uint64 item_id = 1;
+  uint64 customer_id = 2;
+  // telegram | instagram | whatsapp | system
+  string platform = 3;
+  // in | out | system
+  string direction = 4;
+  string text = 5;
+  repeated MessageAttachment attachments = 6;
+  // received | queued | sending | sent | failed | unknown
+  string status = 7;
+  int64 at_ms = 8;
+  // Absender (Handle bzw. „Darkfluenzer“)
+  string sender = 9;
+  string error = 10;
+  bool read = 11;
+  uint64 conversation_id = 12;
+}
+
+// EVENT conversations.event: Nachricht neu oder geändert (Status, Anhänge)
+message ConversationEvent {
+  ConversationItem item = 1;
+}
+
+// Verknüpftes Plattformkonto einer Kundenakte mit seiner Konversation (Antwortziel).
+message ChannelIdentity {
+  uint64 identity_id = 1;
+  string platform = 2;
+  string account = 3;
+  string platform_user_id = 4;
+  string handle = 5;
+  bool verified = 6;
+  uint64 conversation_id = 7;
+  // Gesprächsrevision (CAS für Antworten)
+  uint64 revision = 8;
+}
+
+// Operator-Felder des internen Kontakts Default (F7.4, V0 §8/§8.1).
+message DefaultContact {
+  uint64 customer_id = 1;
+  string telegram_sender_id = 2;
+  string instagram_sender_id = 3;
+  bool process_commands = 4;
+  bool auto_orders = 5;
+  // direct | cockpit | cockpit_only
+  string approval_mode = 6;
+  string influencer = 7;
+  string media_workflow = 8;
+  uint64 revision = 9;
+}
+
+// HTTP GET /api/v1/conversation-page?customer=ID[&before=ITEM]: Verlauf (neueste zuerst
+// abgeschnitten, aufsteigend geliefert) mit Identitäten und ggf. Default-Feldern.
+message ConversationPage {
+  CustomerSummary customer = 1;
+  repeated ConversationItem items = 2;
+  bool more = 3;
+  repeated ChannelIdentity identities = 4;
+  // nur beim internen Kontakt
+  DefaultContact default_contact = 5;
+  uint64 version = 6;
+}

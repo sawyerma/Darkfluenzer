@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -335,9 +335,123 @@ CREATE TABLE order_stages (
 ALTER TABLE jobs ADD COLUMN stage_id INTEGER REFERENCES order_stages(id);
 CREATE INDEX jobs_stage ON jobs(stage_id) WHERE stage_id IS NOT NULL;
 """,
+    6: """
+-- Kanal-Basis (V0 §6, C2): kanalunabhängige Kundenakte; Plattformkonten als Identitäten;
+-- Konversationen je Plattform-Chat; Nachrichten mit Ein-/Ausgang und Status (ersetzt die
+-- Telegram-Tabelle messages); Eingangsereignisse zur Deduplizierung; Adapterzustand.
+CREATE TABLE customers_v6 (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_no  TEXT GENERATED ALWAYS AS ('DF-C-' || printf('%06d', id)) STORED,
+    kind         TEXT    NOT NULL DEFAULT 'customer' CHECK (kind IN ('customer', 'internal')),
+    display_name TEXT,
+    status       TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'blocked')),
+    created_at   TEXT    NOT NULL
+);
+INSERT INTO customers_v6 (id, display_name, status, created_at)
+SELECT id, display_name, status, created_at FROM customers;
+
+CREATE TABLE channel_identities (
+    id               INTEGER PRIMARY KEY,
+    customer_id      INTEGER NOT NULL REFERENCES customers(id),
+    platform         TEXT    NOT NULL CHECK (platform IN ('telegram', 'instagram', 'whatsapp')),
+    account          TEXT    NOT NULL,
+    platform_user_id TEXT    NOT NULL,
+    handle           TEXT,
+    verified         INTEGER NOT NULL DEFAULT 0 CHECK (verified IN (0, 1)),
+    created_at       TEXT    NOT NULL,
+    UNIQUE (platform, account, platform_user_id)
+);
+INSERT INTO channel_identities (customer_id, platform, account, platform_user_id, verified,
+                                created_at)
+SELECT id, 'telegram', bot_id, CAST(telegram_user_id AS TEXT), 1, created_at FROM customers;
+
+CREATE TABLE channel_conversations (
+    id                       INTEGER PRIMARY KEY,
+    identity_id              INTEGER NOT NULL REFERENCES channel_identities(id),
+    platform_conversation_id TEXT    NOT NULL,
+    revision                 INTEGER NOT NULL DEFAULT 0,
+    created_at               TEXT    NOT NULL,
+    UNIQUE (identity_id, platform_conversation_id)
+);
+INSERT INTO channel_conversations (identity_id, platform_conversation_id, created_at)
+SELECT DISTINCT i.id, CAST(m.chat_id AS TEXT), min(m.created_at) FROM messages m
+JOIN channel_identities i ON i.customer_id = m.customer_id AND i.platform = 'telegram'
+GROUP BY i.id, m.chat_id;
+
+CREATE TABLE channel_messages (
+    id                   INTEGER PRIMARY KEY,
+    customer_id          INTEGER NOT NULL REFERENCES customers(id),
+    conversation_id      INTEGER NOT NULL REFERENCES channel_conversations(id),
+    direction            TEXT    NOT NULL CHECK (direction IN ('in', 'out')),
+    platform_message_id  TEXT,
+    reply_to_platform_id TEXT,
+    text                 TEXT    NOT NULL DEFAULT '',
+    attachments          TEXT    NOT NULL DEFAULT '[]',
+    status               TEXT    NOT NULL CHECK (status IN
+                         ('received', 'queued', 'sending', 'sent', 'failed', 'unknown')),
+    error                TEXT,
+    request_id           TEXT,
+    sent_at              TEXT    NOT NULL,
+    read_at              TEXT,
+    created_at           TEXT    NOT NULL,
+    UNIQUE (conversation_id, direction, platform_message_id)
+);
+CREATE INDEX channel_messages_customer ON channel_messages(customer_id, id);
+CREATE UNIQUE INDEX channel_messages_request ON channel_messages(request_id)
+    WHERE request_id IS NOT NULL;
+INSERT INTO channel_messages (customer_id, conversation_id, direction, platform_message_id,
+                              text, status, sent_at, created_at)
+SELECT m.customer_id, c.id, m.direction, CAST(m.telegram_message_id AS TEXT), m.text,
+       CASE m.direction WHEN 'in' THEN 'received' ELSE 'sent' END, m.sent_at, m.created_at
+FROM messages m JOIN channel_identities i ON i.customer_id = m.customer_id
+JOIN channel_conversations c ON c.identity_id = i.id
+     AND c.platform_conversation_id = CAST(m.chat_id AS TEXT);
+DROP TABLE messages;
+DROP TABLE customers;
+ALTER TABLE customers_v6 RENAME TO customers;
+CREATE UNIQUE INDEX customers_no ON customers(customer_no);
+
+-- Eingangsereignisse je Plattform genau einmal (Telegram update_id, Instagram mid)
+CREATE TABLE inbound_events (
+    id          INTEGER PRIMARY KEY,
+    platform    TEXT NOT NULL,
+    account     TEXT NOT NULL,
+    event_id    TEXT NOT NULL,
+    received_at TEXT NOT NULL,
+    UNIQUE (platform, account, event_id)
+);
+-- Gesicherte Anhänge eingehender Nachrichten (Medien-Endpunkt liefert nur diese und die Galerie)
+CREATE TABLE message_files (
+    path       TEXT    PRIMARY KEY,
+    message_id INTEGER NOT NULL REFERENCES channel_messages(id),
+    sha256     TEXT    NOT NULL CHECK (length(sha256) = 64),
+    size       INTEGER NOT NULL CHECK (size > 0),
+    mime       TEXT    NOT NULL DEFAULT ''
+);
+-- Dauerhafter Adapterzustand (z. B. Telegram-Update-Offset)
+CREATE TABLE adapter_state (
+    platform TEXT NOT NULL,
+    account  TEXT NOT NULL,
+    key      TEXT NOT NULL,
+    value    TEXT NOT NULL,
+    PRIMARY KEY (platform, account, key)
+);
+-- Interner Kontakt Default (V0 §8, FRONT F7.4): Operator-Felder, Revision für CAS
+CREATE TABLE default_contact (
+    customer_id      INTEGER PRIMARY KEY REFERENCES customers(id),
+    process_commands INTEGER NOT NULL DEFAULT 1 CHECK (process_commands IN (0, 1)),
+    auto_orders      INTEGER NOT NULL DEFAULT 1 CHECK (auto_orders IN (0, 1)),
+    approval_mode    TEXT    NOT NULL DEFAULT 'cockpit'
+                     CHECK (approval_mode IN ('direct', 'cockpit', 'cockpit_only')),
+    influencer       TEXT    NOT NULL DEFAULT '',
+    media_workflow   TEXT    NOT NULL DEFAULT '',
+    revision         INTEGER NOT NULL DEFAULT 0,
+    updated_at       TEXT    NOT NULL
+);
+""",
 }
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
-REBUILDS = {5}
+REBUILDS = {5, 6}
 # Artefaktrollen, die in die Galerie gehören (Eingaben, Masken, Vorschauen nicht)
 GALLERY_ROLES = {"master", "candidate", "edit", "refined", "sent"}
 MEDIA_KINDS = {
@@ -359,9 +473,20 @@ class StoreError(Exception):
 class Customer:
     id: int
     customer_no: str
-    bot_id: str
-    telegram_user_id: int
+    kind: str  # customer | internal (Default-Kontakt)
+    display_name: str | None
     status: str
+
+
+@dataclass(frozen=True)
+class Inbound:
+    """Ergebnis eines gespeicherten Eingangs."""
+
+    customer: Customer
+    identity_id: int
+    conversation_id: int
+    message_id: int | None  # None: Ereignis war bereits bekannt (Duplikat)
+    new_customer: bool
 
 
 @dataclass(frozen=True)
@@ -485,30 +610,53 @@ class Store:
 
     # ------------------------------------------------------------------ Kunden & Nachrichten
 
-    def customer_for_telegram(self, bot_id: str, telegram_user_id: int) -> tuple[Customer, bool]:
-        """Stabile Kundennummer: existierend zurückgeben oder genau einmal anlegen.
-
-        Erst suchen, dann einfügen – innerhalb von BEGIN IMMEDIATE serialisiert. (Ein
-        INSERT … ON CONFLICT würde bei AUTOINCREMENT trotzdem eine Nummer verbrauchen und die
-        fortlaufende Kundennummerierung lückenhaft machen.) UNIQUE bleibt Sicherheitsnetz.
-        """
+    def customer_for_identity(
+        self,
+        platform: str,
+        account: str,
+        platform_user_id: str,
+        *,
+        handle: str | None = None,
+        display_name: str | None = None,
+    ) -> tuple[Customer, int, bool]:
+        """Kundenakte zu einer Plattform-Absender-ID: vorhanden zurückgeben oder genau einmal mit
+        Identität anlegen (Zuordnung nur über die unveränderliche Plattform-ID, nie über Namen).
+        Liefert (Kunde, Identitäts-ID, neu angelegt)."""
         with self.tx() as db:
-            query = "SELECT * FROM customers WHERE bot_id = ? AND telegram_user_id = ?"
-            row = db.execute(query, (bot_id, telegram_user_id)).fetchone()
-            if row is not None:
-                return _customer(row), False
-            db.execute(
-                "INSERT INTO customers (bot_id, telegram_user_id, created_at) VALUES (?,?,?)",
-                (bot_id, telegram_user_id, now()),
-            )
-            created = True
             row = db.execute(
-                "SELECT * FROM customers WHERE bot_id = ? AND telegram_user_id = ?",
-                (bot_id, telegram_user_id),
+                "SELECT i.id AS identity_id, c.* FROM channel_identities i"
+                " JOIN customers c ON c.id = i.customer_id"
+                " WHERE i.platform = ? AND i.account = ? AND i.platform_user_id = ?",
+                (platform, account, platform_user_id),
             ).fetchone()
-            if created:
-                self._event("customer", row["id"], "created", customer_no=row["customer_no"])
-        return _customer(row), created
+            if row is not None:
+                if handle:
+                    db.execute(
+                        "UPDATE channel_identities SET handle = ? WHERE id = ?",
+                        (handle, row["identity_id"]),
+                    )
+                return _customer(row), row["identity_id"], False
+            ts = now()
+            cur = db.execute(
+                "INSERT INTO customers (kind, display_name, created_at) VALUES ('customer',?,?)",
+                (display_name, ts),
+            )
+            customer_id = cur.lastrowid
+            identity = db.execute(
+                "INSERT INTO channel_identities (customer_id, platform, account, platform_user_id,"
+                " handle, verified, created_at) VALUES (?,?,?,?,?,1,?)",
+                (customer_id, platform, account, platform_user_id, handle, ts),
+            ).lastrowid
+            customer = self.customer_by_id(customer_id)
+            self._event("customer", customer_id, "created", customer_no=customer.customer_no)
+            self.bump("customers")
+            return customer, identity, True
+
+    def customer_by_id(self, customer_id: int) -> Customer:
+        row = self.db.execute("SELECT * FROM customers WHERE id = ?", (customer_id,)).fetchone()
+        if row is None:
+            raise StoreError(f"Kunde {customer_id} unbekannt.")
+        return _customer(row)
 
     def customer(self, customer_no: str) -> Customer:
         row = self.db.execute("SELECT * FROM customers WHERE customer_no = ?", (customer_no,))
@@ -517,33 +665,408 @@ class Store:
             raise StoreError(f"Kunde {customer_no} unbekannt.")
         return _customer(found)
 
-    def add_message(
+    def conversation(self, identity_id: int, platform_conversation_id: str) -> int:
+        """Konversation einer Identität (Telegram-Chat, Instagram-Thread), genau einmal angelegt."""
+        with self.tx() as db:
+            row = db.execute(
+                "SELECT id FROM channel_conversations WHERE identity_id = ?"
+                " AND platform_conversation_id = ?",
+                (identity_id, platform_conversation_id),
+            ).fetchone()
+            if row is not None:
+                return row[0]
+            return db.execute(
+                "INSERT INTO channel_conversations (identity_id, platform_conversation_id,"
+                " created_at) VALUES (?,?,?)",
+                (identity_id, platform_conversation_id, now()),
+            ).lastrowid
+
+    def record_inbound(
         self,
-        customer_id: int,
-        direction: str,
-        chat_id: int,
+        platform: str,
+        account: str,
+        event_id: str,
+        *,
+        sender_id: str,
+        conversation_id: str,
+        platform_message_id: str,
         text: str,
         sent_at: str,
-        telegram_message_id: int | None = None,
-    ) -> tuple[int, bool]:
-        """Speichert eine Nachricht; doppelt zugestellte Telegram-Updates werden erkannt."""
+        handle: str | None = None,
+        display_name: str | None = None,
+        reply_to: str | None = None,
+        attachments: list[dict] | None = None,
+    ) -> Inbound:
+        """Eingang vor der Bestätigung an die Plattform dauerhaft speichern: Ereignis genau
+        einmal, Kundenakte/Identität/Konversation, Nachricht – alles in einer Transaktion. Ein
+        erneut zugestelltes Ereignis ändert nichts (message_id None)."""
         with self.tx() as db:
-            cur = db.execute(
-                "INSERT INTO messages (customer_id, direction, chat_id, telegram_message_id, text,"
-                " sent_at, created_at) VALUES (?,?,?,?,?,?,?) "
-                "ON CONFLICT (chat_id, direction, telegram_message_id) DO NOTHING",
-                (customer_id, direction, chat_id, telegram_message_id, text, sent_at, now()),
+            customer, identity, created = self.customer_for_identity(
+                platform, account, sender_id, handle=handle, display_name=display_name
             )
-            if cur.rowcount == 1:
-                return cur.lastrowid, True
-            row = db.execute(
-                "SELECT id, customer_id FROM messages WHERE chat_id = ? AND direction = ? "
-                "AND telegram_message_id = ?",
-                (chat_id, direction, telegram_message_id),
+            conv = self.conversation(identity, conversation_id)
+            fresh = db.execute(
+                "INSERT INTO inbound_events (platform, account, event_id, received_at)"
+                " VALUES (?,?,?,?) ON CONFLICT DO NOTHING",
+                (platform, account, event_id, now()),
+            ).rowcount
+            if not fresh:
+                return Inbound(customer, identity, conv, None, created)
+            cur = db.execute(
+                "INSERT INTO channel_messages (customer_id, conversation_id, direction,"
+                " platform_message_id, reply_to_platform_id, text, attachments, status, sent_at,"
+                " created_at) VALUES (?,?,'in',?,?,?,?,'received',?,?)"
+                " ON CONFLICT (conversation_id, direction, platform_message_id) DO NOTHING",
+                (
+                    customer.id,
+                    conv,
+                    platform_message_id,
+                    reply_to,
+                    text,
+                    json.dumps(attachments or [], ensure_ascii=False),
+                    sent_at,
+                    now(),
+                ),
+            )
+            if not cur.rowcount:  # gleiche Nachricht über ein anderes Ereignis
+                return Inbound(customer, identity, conv, None, created)
+            db.execute(
+                "UPDATE channel_conversations SET revision = revision + 1 WHERE id = ?", (conv,)
+            )
+            self._event("message", cur.lastrowid, "added", customer_id=customer.id)
+            self.bump("conversations")
+            return Inbound(customer, identity, conv, cur.lastrowid, created)
+
+    def set_attachments(self, message_id: int, attachments: list[dict]) -> None:
+        """Anhänge nach dem Sichern (Datei, SHA-256, Status) festhalten."""
+        with self.tx() as db:
+            db.execute(
+                "UPDATE channel_messages SET attachments = ? WHERE id = ?",
+                (json.dumps(attachments, ensure_ascii=False), message_id),
+            )
+            for att in attachments:
+                if att.get("status") == "saved" and att.get("path"):
+                    db.execute(
+                        "INSERT INTO message_files (path, message_id, sha256, size, mime)"
+                        " VALUES (?,?,?,?,?) ON CONFLICT (path) DO NOTHING",
+                        (att["path"], message_id, att["sha256"], att["size"], att.get("mime", "")),
+                    )
+            self._event("message", message_id, "updated")
+            self.bump("conversations")
+
+    def queue_outbound(
+        self,
+        customer_id: int,
+        conversation_id: int,
+        text: str,
+        *,
+        revision: int,
+        request_id: str | None = None,
+        attachments: list[dict] | None = None,
+        reply_to: str | None = None,
+    ) -> int:
+        """Ausgehende Nachricht in den Postausgang (Status queued). Nur an eine Konversation
+        dieses Kunden und nur auf der gesehenen Gesprächsrevision (CAS gegen überholte
+        Antworten)."""
+        with self.tx() as db:
+            conv = db.execute(
+                "SELECT c.revision, i.customer_id FROM channel_conversations c"
+                " JOIN channel_identities i ON i.id = c.identity_id WHERE c.id = ?",
+                (conversation_id,),
             ).fetchone()
-            if row["customer_id"] != customer_id:
-                raise StoreError("Nachricht ist bereits einem anderen Kunden zugeordnet.")
-            return row["id"], False
+            if conv is None or conv["customer_id"] != customer_id:
+                raise StoreError("Konversation gehört nicht zu diesem Kunden.")
+            if conv["revision"] != revision:
+                raise StoreError(
+                    "Gespräch wurde inzwischen fortgesetzt – Ansicht ist aktualisiert."
+                )
+            cur = db.execute(
+                "INSERT INTO channel_messages (customer_id, conversation_id, direction, text,"
+                " attachments, status, reply_to_platform_id, request_id, sent_at, created_at)"
+                " VALUES (?,?,'out',?,?,'queued',?,?,?,?)",
+                (
+                    customer_id,
+                    conversation_id,
+                    text,
+                    json.dumps(attachments or [], ensure_ascii=False),
+                    reply_to,
+                    request_id,
+                    now(),
+                    now(),
+                ),
+            )
+            db.execute(
+                "UPDATE channel_conversations SET revision = revision + 1 WHERE id = ?",
+                (conversation_id,),
+            )
+            self._event("message", cur.lastrowid, "added", customer_id=customer_id)
+            self.bump("conversations")
+            return cur.lastrowid
+
+    def set_message_status(
+        self,
+        message_id: int,
+        status: str,
+        *,
+        platform_message_id: str | None = None,
+        error: str | None = None,
+    ) -> None:
+        with self.tx() as db:
+            db.execute(
+                "UPDATE channel_messages SET status = ?, platform_message_id ="
+                " coalesce(?, platform_message_id), error = ?, sent_at = CASE WHEN ? = 'sent'"
+                " THEN ? ELSE sent_at END WHERE id = ?",
+                (status, platform_message_id, error, status, now(), message_id),
+            )
+            self._event("message", message_id, "status", status=status, error=error)
+            self.bump("conversations")
+
+    def outbox(self, platform: str, account: str) -> list[dict]:
+        """Wartende ausgehende Nachrichten eines Kanals in Eingangsreihenfolge."""
+        rows = self.db.execute(
+            "SELECT m.*, c.platform_conversation_id FROM channel_messages m"
+            " JOIN channel_conversations c ON c.id = m.conversation_id"
+            " JOIN channel_identities i ON i.id = c.identity_id"
+            " WHERE m.direction = 'out' AND m.status = 'queued' AND i.platform = ?"
+            " AND i.account = ? ORDER BY m.id",
+            (platform, account),
+        )
+        return [dict(r) | {"attachments": json.loads(r["attachments"])} for r in rows]
+
+    def settle_sending(self) -> list[int]:
+        """Nach einem Neustart: Nachrichten, deren Versand begonnen hatte, sind „unbekannt“
+        (kein blindes Wiederholen – die Plattform kann sie angenommen haben)."""
+        rows = [
+            r[0]
+            for r in self.db.execute("SELECT id FROM channel_messages WHERE status = 'sending'")
+        ]
+        for message_id in rows:
+            self.set_message_status(
+                message_id, "unknown", error="Backend während des Versands beendet."
+            )
+        return rows
+
+    def message(self, message_id: int) -> dict:
+        row = self.db.execute(
+            "SELECT m.*, c.platform_conversation_id, i.platform, i.account FROM channel_messages m"
+            " JOIN channel_conversations c ON c.id = m.conversation_id"
+            " JOIN channel_identities i ON i.id = c.identity_id WHERE m.id = ?",
+            (message_id,),
+        ).fetchone()
+        if row is None:
+            raise StoreError(f"Nachricht {message_id} unbekannt.")
+        return dict(row) | {"attachments": json.loads(row["attachments"])}
+
+    def message_file_known(self, rel: str) -> bool:
+        row = self.db.execute("SELECT 1 FROM message_files WHERE path = ?", (rel,)).fetchone()
+        return row is not None
+
+    def adapter_get(self, platform: str, account: str, key: str) -> str | None:
+        row = self.db.execute(
+            "SELECT value FROM adapter_state WHERE platform = ? AND account = ? AND key = ?",
+            (platform, account, key),
+        ).fetchone()
+        return row[0] if row else None
+
+    def adapter_set(self, platform: str, account: str, key: str, value: str) -> None:
+        with self.tx() as db:
+            db.execute(
+                "INSERT INTO adapter_state (platform, account, key, value) VALUES (?,?,?,?)"
+                " ON CONFLICT (platform, account, key) DO UPDATE SET value = excluded.value",
+                (platform, account, key, value),
+            )
+
+    def customers_overview(self, customer_id: int | None = None) -> list[dict]:
+        """Kundenliste (F7.2): letzte Nachricht, Kanal, Zeit, ungelesen; Kanäle je Akte."""
+        rows = self.db.execute(
+            "SELECT c.*, (SELECT group_concat(DISTINCT platform) FROM channel_identities"
+            " WHERE customer_id = c.id) AS platforms,"
+            " (SELECT count(*) FROM channel_messages WHERE customer_id = c.id"
+            "  AND direction = 'in' AND read_at IS NULL) AS unread,"
+            " lm.text AS last_text, lm.sent_at AS last_at, li.platform AS last_platform"
+            " FROM customers c"
+            " LEFT JOIN channel_messages lm ON lm.id = (SELECT max(id) FROM channel_messages"
+            "  WHERE customer_id = c.id)"
+            " LEFT JOIN channel_conversations lc ON lc.id = lm.conversation_id"
+            " LEFT JOIN channel_identities li ON li.id = lc.identity_id"
+            " WHERE ? IS NULL OR c.id = ?"
+            " ORDER BY c.kind = 'internal' DESC, coalesce(lm.id, 0) DESC, c.id DESC",
+            (customer_id, customer_id),
+        )
+        return [dict(r) for r in rows]
+
+    def conversation_item(self, message_id: int) -> dict | None:
+        row = self.db.execute(
+            "SELECT m.*, i.platform, i.handle, c.platform_conversation_id FROM channel_messages m"
+            " JOIN channel_conversations c ON c.id = m.conversation_id"
+            " JOIN channel_identities i ON i.id = c.identity_id WHERE m.id = ?",
+            (message_id,),
+        ).fetchone()
+        return dict(row) | {"attachments": json.loads(row["attachments"])} if row else None
+
+    def identities(self, customer_id: int) -> list[dict]:
+        rows = self.db.execute(
+            "SELECT i.*, c.id AS conversation_id, c.platform_conversation_id, c.revision"
+            " FROM channel_identities i LEFT JOIN channel_conversations c ON c.identity_id = i.id"
+            " WHERE i.customer_id = ? ORDER BY i.id",
+            (customer_id,),
+        )
+        return [dict(r) for r in rows]
+
+    def conversation_items(
+        self, customer_id: int, before: int, limit: int
+    ) -> tuple[list[dict], bool]:
+        """Verlauf einer Kundenakte über alle Kanäle (neueste ``limit`` vor ``before``,
+        aufsteigend); zweiter Wert: ältere vorhanden."""
+        rows = self.db.execute(
+            "SELECT m.*, i.platform, i.handle, c.platform_conversation_id FROM channel_messages m"
+            " JOIN channel_conversations c ON c.id = m.conversation_id"
+            " JOIN channel_identities i ON i.id = c.identity_id"
+            " WHERE m.customer_id = ? AND (? = 0 OR m.id < ?) ORDER BY m.id DESC LIMIT ?",
+            (customer_id, before, before, limit + 1),
+        ).fetchall()
+        items = [dict(r) | {"attachments": json.loads(r["attachments"])} for r in rows[:limit]]
+        return items[::-1], len(rows) > limit
+
+    def mark_read(self, customer_id: int, up_to: int) -> int:
+        with self.tx() as db:
+            n = db.execute(
+                "UPDATE channel_messages SET read_at = ? WHERE customer_id = ? AND direction = 'in'"
+                " AND read_at IS NULL AND id <= ?",
+                (now(), customer_id, up_to),
+            ).rowcount
+            if n:
+                self._event("customer", customer_id, "read", up_to=up_to)
+                self.bump("customers")
+            return n
+
+    def message_events(self, after: int, limit: int) -> tuple[list[dict], bool]:
+        """Nachrichtenereignisse (neu, Status, Anhänge) mit Cursor > ``after``."""
+        rows = self.db.execute(
+            "SELECT e.id AS cursor, e.created_at AS committed_at, e.entity_id AS message_id"
+            " FROM events e WHERE e.entity = 'message' AND e.id > ? ORDER BY e.id DESC LIMIT ?",
+            (after, limit + 1),
+        ).fetchall()
+        recent = [dict(r) for r in rows[:limit]]
+        return recent[::-1], len(rows) > limit
+
+    def customer_events(self, after: int, limit: int) -> tuple[list[dict], bool]:
+        rows = self.db.execute(
+            "SELECT e.id AS cursor, e.created_at AS committed_at, e.entity_id AS customer_id"
+            " FROM events e WHERE e.entity = 'customer' AND e.id > ? ORDER BY e.id DESC LIMIT ?",
+            (after, limit + 1),
+        ).fetchall()
+        recent = [dict(r) for r in rows[:limit]]
+        return recent[::-1], len(rows) > limit
+
+    # ------------------------------------------------------------------ Default-Kontakt
+
+    def _move_identity(self, identity_id: int, old: int, new: int) -> None:
+        """Identität samt Verlauf einer anderen Akte zuordnen (ausdrückliche Betreiberzuordnung,
+        z. B. eigene Telegram-ID als Default-Absender). Eine dadurch leere Akte ohne Aufträge
+        entfällt; Akten mit Aufträgen bleiben unangetastet."""
+        db = self.db
+        if db.execute("SELECT 1 FROM orders WHERE customer_id = ?", (old,)).fetchone():
+            raise StoreError("Diese Plattform-ID gehört zu einer Kundenakte mit Aufträgen.")
+        db.execute("UPDATE channel_identities SET customer_id = ? WHERE id = ?", (new, identity_id))
+        db.execute(
+            "UPDATE channel_messages SET customer_id = ? WHERE conversation_id IN"
+            " (SELECT id FROM channel_conversations WHERE identity_id = ?)",
+            (new, identity_id),
+        )
+        if not db.execute(
+            "SELECT 1 FROM channel_identities WHERE customer_id = ?", (old,)
+        ).fetchone():
+            db.execute("DELETE FROM customers WHERE id = ?", (old,))
+            self._event("customer", old, "removed", merged_into=new)
+
+    def default_contact(self) -> dict:
+        """Interner Kontakt Default (genau einer, beim ersten Zugriff angelegt)."""
+        with self.tx() as db:
+            row = db.execute(
+                "SELECT d.*, c.customer_no FROM default_contact d"
+                " JOIN customers c ON c.id = d.customer_id"
+            ).fetchone()
+            if row is None:
+                ts = now()
+                cid = db.execute(
+                    "INSERT INTO customers (kind, display_name, created_at)"
+                    " VALUES ('internal', 'Default', ?)",
+                    (ts,),
+                ).lastrowid
+                db.execute(
+                    "INSERT INTO default_contact (customer_id, updated_at) VALUES (?,?)", (cid, ts)
+                )
+                self._event("customer", cid, "created", internal=True)
+                self.bump("customers")
+                row = db.execute(
+                    "SELECT d.*, c.customer_no FROM default_contact d"
+                    " JOIN customers c ON c.id = d.customer_id"
+                ).fetchone()
+            ids = {
+                r["platform"]: r["platform_user_id"]
+                for r in db.execute(
+                    "SELECT platform, platform_user_id FROM channel_identities"
+                    " WHERE customer_id = ?",
+                    (row["customer_id"],),
+                )
+            }
+            return dict(row) | {"sender_ids": ids}
+
+    def update_default_contact(self, revision: int, fields: dict, sender_ids: dict) -> dict:
+        """Operator-Felder speichern (CAS auf die Revision); Absender-IDs sind Identitäten des
+        internen Kontakts je Plattform (Konto = Kanal der Influencerin)."""
+        allowed = {
+            "process_commands",
+            "auto_orders",
+            "approval_mode",
+            "influencer",
+            "media_workflow",
+        }
+        unknown = set(fields) - allowed
+        if unknown:
+            raise StoreError(f"Unbekannte Felder: {sorted(unknown)}")
+        with self.tx() as db:
+            current = self.default_contact()
+            if current["revision"] != revision:
+                raise StoreError(
+                    "Default-Kontakt wurde inzwischen geändert – Ansicht ist aktualisiert."
+                )
+            if fields:
+                cols = ", ".join(f"{k} = ?" for k in fields)
+                db.execute(
+                    f"UPDATE default_contact SET {cols}, revision = revision + 1, updated_at = ?",
+                    (*fields.values(), now()),
+                )
+            else:
+                db.execute(
+                    "UPDATE default_contact SET revision = revision + 1, updated_at = ?", (now(),)
+                )
+            cid = current["customer_id"]
+            for (platform, account), sender in sender_ids.items():
+                db.execute(
+                    "DELETE FROM channel_identities WHERE customer_id = ? AND platform = ?"
+                    " AND NOT EXISTS (SELECT 1 FROM channel_conversations WHERE identity_id ="
+                    " channel_identities.id)",
+                    (cid, platform),
+                )
+                if sender:
+                    taken = db.execute(
+                        "SELECT id, customer_id FROM channel_identities WHERE platform = ? AND"
+                        " account = ? AND platform_user_id = ?",
+                        (platform, account, sender),
+                    ).fetchone()
+                    if taken and taken["customer_id"] != cid:
+                        self._move_identity(taken["id"], taken["customer_id"], cid)
+                    if not taken:
+                        db.execute(
+                            "INSERT INTO channel_identities (customer_id, platform, account,"
+                            " platform_user_id, verified, created_at) VALUES (?,?,?,?,0,?)",
+                            (cid, platform, account, sender, now()),
+                        )
+            self._event("customer", cid, "updated", default=True)
+            self.bump("customers")
+            return self.default_contact()
 
     # ------------------------------------------------------------------ Aufträge
 
@@ -1315,8 +1838,8 @@ def _customer(row: sqlite3.Row) -> Customer:
     return Customer(
         id=row["id"],
         customer_no=row["customer_no"],
-        bot_id=row["bot_id"],
-        telegram_user_id=row["telegram_user_id"],
+        kind=row["kind"],
+        display_name=row["display_name"],
         status=row["status"],
     )
 

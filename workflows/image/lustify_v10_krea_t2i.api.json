@@ -1,0 +1,12 @@
+{
+ "1": {"class_type": "UNETLoader", "inputs": {"unet_name": "lustify/lustifyNSFWCheckpoint_v10Krea2_3015315.safetensors", "weight_dtype": "default"}, "_meta": {"title": "Modell · LUSTIFY v10 (Krea 2, BF16)"}},
+ "2": {"class_type": "LoraLoaderModelOnly", "inputs": {"model": ["1", 0], "lora_name": "krea2/krea2_turbo_lora_rank_64_bf16.safetensors", "strength_model": 1.0}, "_meta": {"title": "Modell · Turbo-LoRA (0 = aus)"}},
+ "3": {"class_type": "CLIPLoader", "inputs": {"clip_name": "krea2/qwen3vl_4b_bf16.safetensors", "type": "krea2", "device": "default"}, "_meta": {"title": "Modell · Textencoder Qwen3-VL-4B (BF16)"}},
+ "4": {"class_type": "VAELoader", "inputs": {"vae_name": "qwen-image/qwen_image_vae.safetensors"}, "_meta": {"title": "Modell · VAE"}},
+ "5": {"class_type": "CLIPTextEncode", "inputs": {"text": "candid photograph of an adult woman in her late twenties lying on a bed in soft morning light, natural skin texture, 50mm lens", "clip": ["3", 0]}, "_meta": {"title": "Generierung · Motiv"}},
+ "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "illustration, CGI, plastic skin, distorted anatomy, extra fingers, blurry, watermark, text", "clip": ["3", 0]}, "_meta": {"title": "Generierung · Negativ (wirkt nur bei CFG > 1)"}},
+ "7": {"class_type": "EmptyLatentImage", "inputs": {"width": 1104, "height": 1472, "batch_size": 1}, "_meta": {"title": "Generierung · Format"}},
+ "8": {"class_type": "KSampler", "inputs": {"model": ["2", 0], "seed": 20261115, "steps": 8, "cfg": 1.0, "sampler_name": "euler", "scheduler": "simple", "positive": ["5", 0], "negative": ["6", 0], "latent_image": ["7", 0], "denoise": 1.0}, "_meta": {"title": "Generierung · Sampler"}},
+ "9": {"class_type": "VAEDecode", "inputs": {"samples": ["8", 0], "vae": ["4", 0]}, "_meta": {"title": "Ausgabe · Dekodieren"}},
+ "10": {"class_type": "SaveImage", "inputs": {"images": ["9", 0], "filename_prefix": "darkfluenzer/lustify_v10_krea_t2i"}, "_meta": {"title": "Ausgabe · Ergebnis"}}
+}
