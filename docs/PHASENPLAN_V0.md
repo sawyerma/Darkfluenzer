@@ -1,194 +1,381 @@
-# DARKFLUENZER — PHASENPLAN V0: Produktionskette, Charakteridentität, Content-Cloner, Desktop-App
+# DARKFLUENZER — PHASENPLAN V0 (verbindlicher Gesamt- und Implementierungsplan)
 
-**Version:** 0.1 · **Stand:** 15.11.2026 · **Status:** Konzept, Umsetzung offen
-**Abgleich offen:** Am 15.11.2026 kamen auf `main` PHASENPLAN_BACK_V1 V1.10 (§0 Sofortpriorität LoRA→Foto→Wan-Kette mit vorhandenen Modellen, natives M4 ohne Docker, zweite KI-ComfyUI-Instanz) und PHASENPLAN_FRONT_V1-Ergänzungen hinzu. Dieses Dokument ist damit **noch nicht abgeglichen**; vor Umsetzungsbeginn werden Widersprüche (insbesondere Modellwahl und Reihenfolge gegenüber BACK §0) mit dem Betreiber aufgelöst.
-**Bezug:** ergänzt PHASENPLAN_BACK_V1 (S1 Starter, S2 Foto, S3 Video, §6B) und PHASENPLAN_FRONT_V1 (Reiter ComfyUI). F4 Nachrichten ist pausiert.
+**Version:** 0.2 · **Stand:** 15.11.2026 · **Repository:** `sawyerma/Darkfluenzer`, ausschließlich `main`
+**Status:** verbindlich. Bestandsaufnahme gegen Code (`main` 62c4bc9), Chatwoot-v4.19.1-Quellcode und die Betreiber-ZIP abgeschlossen; abgeglichen mit FRONT V1.9 (DF-PUSH A–D, F7-Cockpitreferenz) und BACK V1.12; Umsetzung ab Phase P0.
 
-> **Vorrangbeschluss DF-PUSH-PROTOBUF-E2E-2026-11-15:** Jeder Medien-/Referenz-/Chat-/Kunden-/Job-Workflow und jedes bedienbare Feld erhalten **im selben Implementierungspaket** den vollständigen Python-Owner→typisiertes Protobuf→ein vorhandener WebSocket→React-Push-Hinweg sowie bei Bedienung den Protobuf-Command→Python→persistierte Receipt→Push-Rückweg. **Keine periodischen fachlichen Browserabfragen**, große Historien nur versionsgebunden/on-demand. Verbindliche Details, Ist/Soll und Abnahme: [PHASENPLAN_FRONT_V1.md](PHASENPLAN_FRONT_V1.md) (Abschnitt `DF-PUSH-PROTOBUF-E2E-2026-11-15`) und [PHASENPLAN_BACK_V1.md](PHASENPLAN_BACK_V1.md) (gleicher Beschluss). Python-/ComfyUI-/Chatwoot-Architektur bleibt eigenständig; kein Rust-/DarkBot-Gateway, kein zusätzliches Dashboard. Vorhandene Phasen-/Designverträge bleiben gültig, soweit sie dem neuen Push-/Protobuf-Rundweg nicht widersprechen.
+## 0. Dokumentenhierarchie
+
+| Dokument | Rolle |
+|---|---|
+| **`PHASENPLAN_V0.md`** (dieses) | **Verbindlicher Gesamtplan:** Ziele, Architekturentscheidungen, Reihenfolge, Abhängigkeiten, Status, Abnahme. Bei Widerspruch gilt V0. |
+| `PHASENPLAN_FRONT_V1.md` | **Verbindliche technische Frontend-Spezifikation:** UI/UX, Graphite-Gestaltung, Bedienlogik, Protobuf-Bindung und die Push-Aktualisierungsarchitektur ohne Frontend-Polling. V0 übernimmt diese Regeln vollständig (§5). |
+| `PHASENPLAN_BACK_V1.md` | **Technische Backend-Referenz:** gilt weiter, soweit sie V0 nicht widerspricht; überholte Festlegungen sind dort als „→ V0“ gekennzeichnet. |
+
+Jede noch nicht umgesetzte Anforderung aus FRONT/BACK ist einer V0-Phase (§12) zugeordnet. Kein PASS ohne echten Funktionstest auf dem Mac.
+
+> **Vorrangbeschluss DF-PUSH-PROTOBUF-E2E-2026-11-15:** Jeder Medien-/Referenz-/Chat-/Kunden-/Job-Workflow und jedes bedienbare Feld erhalten **im selben Implementierungspaket** den vollständigen Python-Owner→typisiertes Protobuf→ein vorhandener WebSocket→React-Push-Hinweg sowie bei Bedienung den Protobuf-Command→Python→persistierte Receipt→Push-Rückweg. **Keine periodischen fachlichen Browserabfragen**, große Historien nur versionsgebunden/on-demand. Verbindliche Details, Ist/Soll und Abnahme: [PHASENPLAN_FRONT_V1.md](PHASENPLAN_FRONT_V1.md) (Abschnitt `DF-PUSH-PROTOBUF-E2E-2026-11-15`) und [PHASENPLAN_BACK_V1.md](PHASENPLAN_BACK_V1.md) (gleicher Beschluss). In V0 umgesetzt in §5 und in den Abnahmen jeder Phase (§12). Python-/ComfyUI-/Kanal-Adapter-Architektur bleibt eigenständig (Chatwoot entfällt, §6); kein Rust-/DarkBot-Gateway, kein zusätzliches Dashboard. Vorhandene Phasen-/Designverträge bleiben gültig, soweit sie dem neuen Push-/Protobuf-Rundweg nicht widersprechen.
 
 ## 1. Ziel
 
-Darkfluenzer produziert mit **einer festen, vollständig synthetischen, erwachsenen Influencerin** in zwei gleichwertigen Bereichen: **professionelle Instagram-Fotografie und -Videos** sowie **realistisch wirkende erotische bis explizite Foto- und Filmproduktion** – möglichst nicht von echten Kameraaufnahmen zu unterscheiden, Fotos und Videos bis 4K, lokal auf dem MacBook Pro M4 Max (128 GB), mit frei verfügbaren Modellen, ohne Cloud.
+Darkfluenzer erzeugt auf dem MacBook Pro M4 Max (128 GB, macOS nativ) vollständig lokal fotorealistische Bilder und Videos **einer festen synthetischen erwachsenen Influencerin** – möglichst wie echte Kameraaufnahmen – für zwei gleichwertige Bereiche: **Instagram** (Lifestyle, Mode, Reise, Sport, Strand, Reels) und **Erwachsenenproduktion** (erotisch bis explizit, ausschließlich die synthetische Figur). Identität über Posen, Perspektiven, Kleidung, Szenen, Bearbeitungen und Videos stabil. **Maximale Qualität vor Geschwindigkeit.**
 
-Bedient wird alles aus der **Darkfluenzer-Desktop-App**: Charakter wählen, Motiv oder Vorlage festlegen, erzeugen, vergleichen, freigeben. Modelle und ComfyUI-Workflows sind darunter austauschbare, geprüfte Werkzeuge. Vorlagen kommen zusätzlich automatisch aus **Instagram-Sammlungen eines separaten Sammelkontos**, das in der Desktop-App eingebunden ist (Content-Cloner).
+Darkfluenzer ist zugleich Kunden-Cockpit (F4): Kunden über **Instagram und Telegram (verbindlich)**, später weitere Kanäle (WhatsApp u. a.), kanalübergreifende Kundenakte, KI-Dialog, Medienaufträge, Zahlung, Freigabe, Zustellung. Der **Content-Cloner** ist ein zusätzlicher Produktionsauslöser: freigegebene Betreiber-Accounts senden Bilder/Reels mit fünf Kurzbefehlen (§8). Die normale Medienproduktion bleibt der Kern; Bilderzeugung ohne Instagram/Telegram ist jederzeit möglich.
 
 ## 2. Verbindliche Regeln
 
-1. **Qualität vor Geschwindigkeit:** maximale, reproduzierbar nachgewiesene Fotorealität und Identitätskonsistenz; lange Renderzeiten sind akzeptabel.
-2. **Nur echte Vergleiche entscheiden:** Modell, Identitätsmethode und Auflösungsweg werden durch reale A/B-Tests mit den Charakterbildern des Betreibers auf diesem Mac festgelegt; Ranglisten, Modellgröße und Herstellerangaben sind nur Kandidatenquellen, keine Abnahmekriterien.
-3. **Identitätsbindung:** gleiches Gesicht, gleiche Figur und Anmutung über alle Stufen. LoRA ist Mittel, nicht Ziel. „Identität gesperrt“ heißt: Der Auftrag verwendet verbindlich dieses Profil – keine Garantie; abweichende Ergebnisse werden zurückgewiesen.
-4. **Module getrennt:** Identität | Pose/Szene/Vorlage | Bearbeitung (inkl. Ausziehen) | Video | Ausgabe.
-5. **Explizite Bearbeitung nur abgeleitet:** maskiert vom freigegebenen Bild; im Bearbeitungsschritt bleibt außerhalb der Maske jedes Pixel gleich (automatisch geprüft; spätere Skalierung verändert Pixel bewusst).
-6. **Video nur vom freigegebenen Foto** bzw. bei Bewegungsübertragung mit dem freigegebenen Charakterbild als Identitätsreferenz.
-7. **Lokal und lizenzsauber:** keine Cloud-Generierung; jede eingesetzte Modelldatei mit Quelle, Revision, SHA-256 und Nutzungsbedingungen im Manifest; Umsatzgrenzen beachten.
-8. **Präzision je Komponente:** Generierungsmodell, Text- und Bildencoder, VAE/Decoder, Adapter und Hilfsmodelle einzeln festlegen. Originalgewichte in der besten verfügbaren und kompatiblen Präzision; erforderliche FP32-Komponenten bleiben FP32 (z. B. RelayVSR-Decoder); aus quantisierten Dateien umgewandelte Gewichte gewinnen keine Genauigkeit zurück; Speicherformat und tatsächlicher Rechendatentyp werden dokumentiert.
-9. **Weiter gültig (PHASENPLAN_BACK_V1):** Drag-and-drop-Ordner `local/character/photos/`, Master-First, Gates Laden/Rendern/Qualität/Lizenz, Betreiberfreigabe vor jeder Auslieferung, eine gemeinsame GPU-Warteschlange, Protobuf zwischen Cockpit und Backend, kein Frontend-Polling.
-10. **Ehrliche Erwartung:** Einzelfotos, die in vielen Szenen praktisch nicht von echten Fotos zu unterscheiden sind, sind mit dieser Kette, Kandidatenauswahl und Prüfung erreichbar. Für jede Szene und für Video garantiert das 2026 kein lokales Modell; Ziel ist die maximal messbare Annäherung.
+1. **Qualität vor Geschwindigkeit;** Modell, Identitätsmethode und Auflösungsweg entscheiden reale A/B-Tests mit den Charakterbildern des Betreibers auf diesem Mac – Ranglisten und Herstellerangaben sind nur Kandidatenquellen.
+2. **Identität hat Vorrang:** gleiches Gesicht, gleiche Figur/Anmutung über alle Stufen. LoRA ist Mittel, nicht Ziel; die messbar stabilste Methode oder Kombination gewinnt. „Identität gesperrt“ = Auftrag nutzt verbindlich dieses Profil; Abweichungen werden zurückgewiesen, keine Garantie.
+3. **Explizite Bearbeitung nur abgeleitet** (maskiert vom freigegebenen Bild; im Bearbeitungsschritt 0 Pixel außerhalb der Maske, automatisch geprüft). **Video nur vom freigegebenen Foto** bzw. bei Bewegungsübertragung mit dem freigegebenen Charakterbild als Identitätsreferenz.
+4. **Face-Swap ausschließlich auf eigenen, synthetisch erzeugten Bildern.** Nie auf fremden Referenzfotos/-videos; fremde Vorlagen liefern nur Pose, Komposition, Licht, Stil bzw. Bewegung. Gesichtszüge abgebildeter Personen werden nie Teil eines Charakterprofils; kein Ersetzen realer Personen in fremden Videos.
+5. **Vollständige Reproduzierbarkeit** jedes Bildes/Videos (§9.5).
+6. **Lokal, lizenzsauber, nativ:** keine Cloud-Generierung, **kein Docker**, keine Electron-Pflicht, keine Parallelarchitektur; jede Modelldatei mit Quelle, Revision, SHA-256 und Nutzungsbedingungen im Manifest; Umsatzgrenzen beachten. Modelle und Dateien werden nur auf Betreiberauftrag gelöscht oder neu installiert (15.11.2026: RealCore Illustrious, Qwen-Image 20B, Qwen-Image 2.1 und der FLUX.2-Dev-Eintrag entfernt, §9.3).
+7. **Präzision je Komponente** (Generierungsmodell, Encoder, VAE/Decoder, Adapter, Hilfsmodelle): beste verfügbare kompatible Originalpräzision; FP32-Komponenten bleiben FP32 (z. B. RelayVSR-Decoder); Umwandlung aus quantisierten Dateien gewinnt keine Genauigkeit zurück; Speicherformat und Rechendatentyp dokumentiert. Dokumentierte Ausnahme: mflux trainiert mit 8-Bit-Basis.
+8. **Ein Cockpit:** die bestehende React-Oberfläche (vier Hauptreiter **Übersicht · Nachrichten · ComfyUI · Dateien**, Graphite, ein Stylesheet); Gestaltung und Bedienlogik nach der freigegebenen Klickreferenz F7 (`docs/design/Darkfluenzer_Cockpit_Interaktiv.html`, FRONT F7). React spricht nur mit dem Python-Backend; **nie direkt mit Plattform- oder ComfyUI-APIs**.
+9. **Zwei ComfyUI-Instanzen** (§4.2) mit getrennten Warteschlangen und gemeinsamer Ressourcensteuerung; keine dritte KI-Engine.
+10. **Eigene Kanal-Adapter im Python-Backend** (Betreiberentscheidung 15.11.2026): Instagram und Telegram verbindlich, weitere Kanäle später über dieselbe Adapter-Schnittstelle. Chatwoot entfällt; seine bewährten Muster werden übernommen (§6). Kein zusätzlicher Kanaldienst, keine zweite Datenbank, kein Rust-Gateway.
+11. **Ehrliche Erwartung:** Einzelfotos in vielen Szenen praktisch nicht von echten Fotos unterscheidbar ist mit Kandidatenauswahl erreichbar; für jede Szene und für Video garantiert das 2026 kein lokales Modell.
 
-## 3. Ist-Zustand (geprüft am 15.11.2026)
+## 3. Ist-Stand (belegt, `main` 62c4bc9)
 
-- **Modelle vorhanden:** LUSTIFY v2.0 (SDXL), RealCore Illustrious, Qwen-Image 20B BF16, Qwen-Image 2.1 BF16 (nicht kommerziell), Wan 2.2 I2V A14B FP16 (high+low), Wan 2.2 Remix NSFW v3.0 FP8 „lighting“, Encoder (umt5, Qwen-VL), Qwen-Image-VAE.
-- **ComfyUI 0.45.3**, Vorlagenpaket `comfyui_workflow_templates_json` 0.1.133 mit offiziellen Vorlagen für Krea 2, FLUX 3 Image Klein, LTX 2.5, Wan 2.2 / Animate 2 / VACE / Fun Control, SAM 3.1, SDPose, Depth Anything 3, SeedVR2, RelayVSR, FILM. Mehrere Komponenten sind im ComfyUI-Kern implementiert. Die Vorlagen verweisen standardmäßig auf int8-/fp8-Dateien. **Vorlage vorhanden ≠ Modelle vorhanden, importierbar oder auf diesem Mac gerendert.**
-- **Blocker Workflow-Import:** `comfy.ui_to_api` weist Untergraphen, Primitive-Nodes und umgangene/stumme Nodes ab ([comfy.py:602](../backend/src/darkfluenzer/comfy.py)). **13 der 15 vorgesehenen Vorlagen enthalten Untergraphen**; Wan 2.2 Fun Control hat 23, VACE v2v 6 umgangene Nodes.
-- **Bestanden:** LUSTIFY-SDXL Text-zu-Bild, Verfeinern, maskiertes Inpainting (0 Pixel außerhalb der Maske); Eingabebild aus Dateien (Job 22 nutzte nachweislich Bild 0024); Workflow-Verwaltung F3a (aktivieren/deaktivieren, öffnen, bearbeiten, übernehmen, löschen).
-- **Noch nie ein Wan-Video fertig:** Job 21 (Remix 512×320, 49 Frames) 22 min für die ersten 12 Schritte, in ComfyUI abgebrochen. Laut Autor gehören zu Remix 4+4 Schritte, CFG 1, euler/simple, Shift 8 (verwendet: 12+12, CFG 5, Shift 5). Hoher Swap während des Laufs – **vermutete** Ursache: Modelle werden zwischen Engines nicht entladen (nicht gemessen).
-- **Manifest:** Rollen `image_master`, `image_edit`, `video_i2v` unbesetzt; neun Einzel-Workflows ohne Charakterbindung, Referenzanalyse, Posen-/Bewegungsübertragung und 4K-Stufe.
-- `training.py` nur SDXL-LoRA; Charakterfotos legt der Betreiber noch ab; LUSTIFY v10 lädt der Betreiber selbst (Civitai).
-- Starter: Swift-App (pinkes C) startet Backend und öffnet das Cockpit im Browser (S1 PASS).
-
-## 4. Kandidaten (Stand 15.11.2026; Quellen: Primärquellen, Artificial-Analysis-Ranglisten, HF-/Civitai-Ranglisten, YouTube 01.10.–15.11., Praxisberichte; Reddit/civitai.com für Abruf gesperrt)
-
-| Aufgabe | Kandidaten | Lizenz / Mac-Hinweise |
+| Bereich | Status | Beleg |
 |---|---|---|
-| Foto normal (Instagram) | Krea 2 (Raw/Turbo), FLUX 3 Image Klein (Base/destilliert; laut BFL nativ 4K, bis 10 Referenzbilder); Qwen-Image 2.1 nur als Qualitätsreferenz | Krea 2: Community License (kommerziell < 1 Mio. $; Inhaltsfilter-Maßnahmen Pflicht, menschliche Prüfung ist eine genannte mögliche Maßnahme; übrige Bedingungen gelten). FLUX 3 Klein: Kommunity License < 5 Mio. $. Qwen 2.1: nicht kommerziell |
-| Foto explizit | LUSTIFY v10 (Krea 2), GonzaLomo, SNOFS, Krea 2 + Refusal-Reduction-LoRA | Civitai-Finetunes; Bedingungen je Datei prüfen |
-| Identität | Charakter-LoRA auf Krea 2 Raw (mflux, dokumentiert als QLoRA mit 8-Bit-Basis); LoKr (**experimentell, Training für Krea nicht belegt**); Referenz-Conditioning: Krea 2 Identity Edit v1.x, Krea 2 ReID, FLUX 3 Klein Multi-Referenz | Identity Edit V2 nicht kommerziell → v1.x. ai-toolkit-Mac-Unterstützung experimentell. FLUX-3-Klein- und LTX-Training nur CUDA/Linux dokumentiert |
-| Pose/Tiefe Foto | Krea 2: Depth-Control (Community: facok/comfyui-krea2-controlnet + Krea-2-Depth-Modell); Pose nur mit einem konkret nachgewiesenen Pose-Adapter (Kandidat: thedeoxen/Krea-2-pose-controlnet); Analyse SDPose, Depth Anything 3 | Depth ≠ Pose; Kombination mit Charakter-LoRA gemeinsam testen |
-| Bearbeiten/Ausziehen | SAM 3.1 (Kern) + maskiertes Inpainting mit LUSTIFY v10 + `ImageCompositeMasked` | — |
-| Video aus Foto | LTX 2.5 (Dev BF16 / Distilled BF16, x2-Raum-/Zeit-Upscaler, Gemma-4-Encoder); Wan 2.2 I2V (Remix bzw. FP16 + NSFW-LoRA) | LTX < 10 Mio. $; Wan Apache 2.0. LTX Desktop lokal nur macOS 26; ComfyUI-Pfad im Test |
-| Bewegungsübertragung | **Wan Animate 2** (Charakterbild + Bewegungsvideo direkt, **ohne Posen-Extraktion**); Vergleich: Wan 2.1 VACE v2v (Kontrollvideo), Wan 2.2 Fun Control (Posen-/Tiefen-Kontrollvideo) | VACE ref2v allein überträgt keine Referenzbewegung |
-| 4K | SeedVR2 3B/7B (**Hauptpfad ComfyUI-Kern**; numz-Wrapper nur Vergleich), RelayVSR (FP32-Decoder), nativ: FLUX 3 Klein, LTX | A/B nativ gegen Upscaling |
-| Interpolation | FILM (Kern), RIFE | — |
-| Identitätsmetrik | AuraFace-v1 (`glintr100.onnx`, Apache 2.0) + OpenCV SFace/YuNet (Apache 2.0) | InsightFace: Code MIT, mitgelieferte Gewichte eingeschränkt → nicht verwenden |
+| Cockpit-Grundlage F1/F2 (React, Graphite, Protobuf-WS, Befehle, Sitzung/CSRF) | IMPLEMENTIERT | `App.tsx`, `core/realtime.ts`, `state.ts`, `commands.ts`, `stream.py`, `server.py` |
+| ComfyUI-Betrieb F3/F3a (Status, Start/Stopp, Workflows, Formular, FIFO, Abbrechen/Anhalten, Öffnen/Übernehmen/Löschen/Neu) | IMPLEMENTIERT | Befehle 10–19, `Cockpit.render_worker` |
+| Dateien F3b (Galerie, Push, Download, Löschen, „Aus Dateien“) | IMPLEMENTIERT | `media`-Tabelle v2/v3, Topics 21/22, Befehl 20 |
+| Starter S1 (pinkes C, Health, eigene Prozesse) | IMPLEMENTIERT | `launcher/`, `runtime.cockpit_up/down/restart` |
+| Kundenakte/Zahlung/Freigabe/Zustellung (Store, Gates) | TEILWEISE | 10 Tabellen, `approval.check_gate/prepare_delivery`, Trigger; **Kunden fest an Telegram gebunden** (`telegram_user_id NOT NULL`, `chat_id`) |
+| LoRA-Kette F3c / BACK §0 | TEILWEISE | `training.scan/build_dataset` (≥ 15 Bilder), `train_sdxl_lora` (diffusers); **kein LoraLoader** in den 6 Graphen; kein Wan-Video je fertig |
+| Engine-Entladen, Untergraphen-Import, Reproduzierbarkeit, Auftrag mit Stufen | FEHLT | kein `/free`; `ui_to_api` weist Untergraphen ab (13/15 vorgesehene Vorlagen betroffen); kein Graph-Snapshot; `jobs` ohne Parent/Version |
+| Zweite KI-ComfyUI, Ressourcensteuerung | NUR SPEZIFIZIERT | eine `[comfyui]`-Konfiguration, ein Zustand `local/comfyui.json` |
+| Kanal-Adapter Instagram/Telegram, LLM, Influencerinnen | FEHLT / NUR SPEZIFIZIERT | kein Adapter-Code; `Messages.tsx` zeigt „Telegram NICHT VERBUNDEN“; Chatwoot-ZIP nur Musterquelle |
+| Befehls-Idempotenz | TEILWEISE | je `request_id`, nur im Speicher (max. 256, Neustart verliert sie) |
+| DF-PUSH: Domain-Versionen, versionsgebundene Detailqueries, persistierte Receipts, CAS, begrenzte STATE-Queue | FEHLT (Push-Grundweg IMPLEMENTIERT) | `CommandResponse` nur ACCEPTED/REJECTED; `_Client.queue` unbeschränkt; einzige Seitenabfrage `media-page` |
+| Modellbestand | BEREINIGT 15.11.2026 | vorhanden: LUSTIFY v2.0 SDXL, Wan 2.2 I2V A14B FP16 (high/low), Wan 2.2 Remix v3.0 FP8, umt5-xxl FP16, Wan-2.1-VAE, FLUX-2-VAE, Qwen-Image-VAE (= Krea-2-VAE, gleicher SHA-256); entfernt: RealCore Illustrious, Qwen-Image 20B + Qwen2.5-VL-7B, Qwen-Image 2.1 + Qwen3-VL-8B + VAE (≈ 97 GB) |
 
-**Nicht eingeplant:** MiniMax H3 / H3-Image (Lizenz schließt die EU aus), FLUX.2 Dev (nicht kommerziell), HunyuanVideo 1.5 (EU ausgeschlossen), NVIDIA Cosmos 3 (64 B, CUDA).
+## 4. Zielarchitektur
 
-**Mac-Grenzen (zu prüfen, nicht angenommen):** kein FP8-Rechnen auf MPS; Krea 2 braucht FP16-VAE; Krea 2 Raw + CFG neigt zu NaN; MPS-Attention-Korruption bei großen Sequenzen (ComfyUI #14837): betroffen sind laut Meldung auch PyTorch-Attention, Fix in PyTorch-Nightly ≥ 2.14.0.dev20260715 teilweise wirksam, Chunking-PR offen – **das Startflag `--use-pytorch-cross-attention` ist kein belegter Fix**. Herstellerwerte LTX stammen von einem M5 Max.
+### 4.1 Komponenten (alle nativ, `launchd`-verwaltet laut BACK §4B; keine zusätzlichen Dienste)
 
-## 5. Desktop-App (Betreiberentscheidung 15.11.2026)
+```
+React-Cockpit ── Protobuf-WS/Befehle ── Python-Backend (aiohttp, SQLite = einzige Autorität)
+                                            ├── Medien-ComfyUI 1 (:8188) – Produktion
+                                            ├── KI-ComfyUI 2 (:8189) – Dialog, Vision, Prompt, KI-Prüfung
+                                            └── Kanal-Adapter (Modul `channels/`): Telegram (Long-Polling, kein öffentlicher Zugang nötig)
+                                                                                  Instagram (Webhook + OAuth + Medienabruf über kostenlosen Tunnel, §10.1)
+```
 
-- **Beschluss:** Das gesamte Cockpit läuft als **Desktop-App** mit integrierter Instagram-Ansicht. Damit wird PHASENPLAN_BACK_V1 §6B („keine native zweite GUI, keine WKWebView“) für diese eine Desktop-Hülle ausdrücklich geändert: Die Hülle zeigt **dieselbe** React-Oberfläche vom lokalen Same-Origin-Server – keine zweite GUI.
-- **Technik:** Electron (Chromium) – Hauptfenster lädt das Cockpit von `127.0.0.1:<Port>`; Instagram läuft in einer **isolierten Webansicht** (`WebContentsView`) mit eigener dauerhafter Sitzungspartition, ohne Node-Integration, ohne Zugriff auf Backend-Befehle oder Cockpit-Sitzung. Elektron-Version gepinnt.
-- **Ersetzt den Swift-Starter** (keine Parallelarchitektur): gleiches pinkes „C“, Start über `darkfluenzer up` erst nach Health-Check, Stoppen nur eigener Prozesse, zweiter Doppelklick idempotent – die S1-Abnahme wird mit der neuen App wiederholt. Das Cockpit bleibt zusätzlich im normalen Browser erreichbar (ohne Instagram-Ansicht).
-- **Ersatzlösung**, falls Instagram die Anmeldung in der Hülle nicht dauerhaft akzeptiert: vom Backend gesteuertes, getrenntes Browserfenster mit eigenem Profil – ausdrücklich als Ersatz, nicht als Erfüllung der Anforderung.
+### 4.2 Zwei ComfyUI-Instanzen und Ressourcensteuerung
 
-## 6. Bedienkonzept
-
-Hauptreiter bleiben **Übersicht · Nachrichten · ComfyUI · Dateien**. Im Reiter **ComfyUI** bleiben die Unterregister **Fotos** und **Videos**; über Schaltflächen öffnen sich **Charakter verwalten**, **Vorlagen** (inkl. Instagram) und **Workflows verwalten**. Die bestehende Workflow-Verwaltung (aktivieren/deaktivieren, exakt öffnen, bearbeiten, übernehmen, löschen) bleibt erhalten.
-
-**Arbeitsbereich in drei Spalten** – links Auftrag (Produktionsart, gespeicherte Produktionsprofile, zugehörige Vorlagen, aktueller Auftrag mit Stufen), Mitte Arbeitsfläche (Referenz bzw. Ergebnis, Kandidatenvergleich, Masken-/Pose-/Tiefenvorschau, Video mit Zeitleiste), rechts Einstellungen (Charakter mit Profilversion, Motiv/Vorlage, Format, Ausgabegröße, bei Video Dauer, Kandidatenzahl Standard 3, **Generieren**, aufklappbare **Details**). Warteschlange als aufklappbare Leiste unten. **Details** zeigt nur Parameter, die der gewählte Workflow tatsächlich unterstützt (Motiv, Bildaufbau, Generierung, Identität, Referenzsteuerung, Bearbeitung, Video, Ausgabe, Ausführung); kein pauschaler Qualitätsregler, kein wirkungsloser Negativprompt.
-
-**Abläufe:**
-- **A – Neues Foto:** Charakter → Motiv → Format → drei Kandidaten → vergleichen → auswählen → fertigstellen.
-- **B – Foto nach Vorlage:** Vorlage laden bzw. aus Instagram-Sammlung → übernommene Eigenschaften wählen (Pose, Ausschnitt/Komposition, Perspektive, Licht/Farbe, Umgebung, Kleidung/Requisiten) → Analyse kontrollieren → erzeugen → vergleichen → fertigstellen.
-- **C – Foto bearbeiten (inkl. Ausziehen):** eigenes Bild → Änderung beschreiben → vorgeschlagenen Bereich kontrollieren/korrigieren → vergleichen → speichern.
-- **D – Video:** freigegebenes Foto → **freie Animation** (Bewegung beschreiben) **oder** **Bewegungsübertragung** (Referenzvideo) → Dauer/Format → erzeugen → prüfen → fertigstellen.
-
-**Wer wählt aus:** An der kreativen Stufe wählt immer der Betreiber einen der drei Kandidaten; automatische Aufträge (Instagram) laufen bis zu dieser Auswahl und warten dann sichtbar. Nachbearbeitung arbeitet auf dem ausgewählten Kandidaten.
-
-**Vergleichsansicht:** synchronisierter Zoom, Vorher/Nachher, Identitätswert mit Unsicherheit, Charakter- und Workflowversion; **Auswählen · Verwerfen · Variante erzeugen · Weiterverarbeiten**; bei Video synchronisierte Wiedergabe und markierte Problemstellen.
-
-**Dateien:** Status (Entwurf/ausgewählt/freigegeben), Herkunft (Vorlage, Auftrag, Stufe), native und ausgegebene Abmessungen getrennt (z. B. 3840 × 2160), Modell-, Workflow-, Charakterversion, Seed und alle Einstellungen.
-
-## 7. Auftragsmodell, Workflows, Warteschlange
-
-- **Auftrag mit Stufen** (z. B. Vorlage analysieren → Kandidaten → Auswahl → Fertigstellen → Video → Freigabe), jede Stufe mit dauerhaftem Zustand in SQLite; manuelle Bedienung, Cloner und spätere Chat-Aufträge erzeugen denselben Auftragstyp.
-- **FIFO für ausführbare Stufen** (bestehender `render_worker`): feste Reihenfolgenummer, höchstens ein schwerer Generierungs- oder Trainingsschritt gleichzeitig; wartende Betreiberentscheidungen blockieren andere Aufträge nicht; Wiederholungen gezielt und mit Obergrenze; Anhalten und Abbrechen je Auftrag.
-- **Wiederanlauf:** Vor einem erneuten Start einer Stufe wird mit ComfyUI abgeglichen (Warteschlange und Verlauf zur gespeicherten `prompt_id`), ob sie noch läuft oder schon fertig ist – fertige Ausgaben werden übernommen statt neu gerendert.
-- **Engine-Wechsel:** Modelle werden kontrolliert entladen (`/free`); Speicherverlauf gemessen.
-- **Parameterbeschreibung im Manifest:** Typ, Standard, Minimum/Maximum/Schritt, zulässige Werte, Abhängigkeiten, Graph-Eingang, Grund/Experte; Backend validiert erneut; Produktionsprofile speichern Einstellungen (wirksam ab dem nächsten Auftrag).
-- **Workflow-Übernahme (Pflicht vor Nutzung der Vorlagen):** Für jede ausgewählte Vorlage erzeugt Darkfluenzer einen zur installierten ComfyUI-Version passenden, geprüften API-Graphen – **Untergraphen werden aufgelöst**, umgangene Nodes durchgereicht, stumme entfernt, dynamische Eingänge, Schalter und Schleifen korrekt abgebildet. Abgleich gegen den API-Export des echten ComfyUI-Frontends (`graphToPrompt`) mit 0 Abweichungen. UI-Graph, API-Graph und Parameterbindungen bleiben derselben Version zugeordnet; Öffnen, Bearbeiten und erneutes Übernehmen werden getestet. Der Betreiber muss nie selbst Nodes auflösen.
-- **Workspace-Aufbau:** Eingaben → Modell und Identität → Steuerbedingungen → Generierung → optionale Nachbearbeitung → Ausgabe; gruppiert und benannt; keine ungenutzten Nodes; gepinnte Versionen; Vorabprüfung auf fehlende Nodes/inkompatible Adapter; Zwischenprodukte an Stufengrenzen; Fehler mit betroffener Stufe. „In ComfyUI öffnen“ lädt exakt die Version, Änderungen werden Entwurfsversion.
-- **Workflowverwaltung** zeigt getrennt: Dateien vorhanden · Laden bestanden · Rendern bestanden · Qualität freigegeben · Nutzung freigegeben.
-
-## 8. Charakteridentität
-
-- **Profil (versioniert):** Name, ID, Version; Charakterreferenzen (Gesicht/Halb-/Ganzkörper); Adapter mit Modellfamilie und Version; geprüfte Referenz-/Adaptereinstellungen; **getrennter, zurückgehaltener Prüfsatz** und feste Testszenen; Bewertung (Gesichtswert, Sichtprüfung, Schwächen). Auftragsmaster (freigegebenes Ausgangsbild einer Bearbeitung/eines Videos) ist davon getrennt. Neue Version erst nach Freigabe aktiv.
-- **Charakterfotos:** Startbereich 25–40 Bilder (keine Qualitätsgarantie), ≥ 1024 px; Gesicht aus mehreren Winkeln, Halb- und Ganzkörper inkl. Körperreferenzen, mehrere Lichtstimmungen und Outfits. Beschriftung passend zur jeweiligen Trainingsmethode. Trainings- und Prüfbilder bleiben getrennt.
-- **Prüfung:** Gesicht (YuNet → AuraFace + SFace → Ähnlichkeit zum Schwerpunkt freigegebener Gesichter; Schwelle aus Betreiber-Bewertungen; „nicht zuverlässig prüfbar“ bei verdeckten/kleinen Gesichtern); Körper und Gesamtwirkung getrennt (Betreiber-Sichtprüfung); Video: Stichproben über alle Frames + zeitliche Prüfung + vollständige Sichtung vor Freigabe.
-- **Methoden:** Charakter-LoRA (mflux auf Krea 2 Raw; QLoRA mit 8-Bit-Basis als dokumentierte Trainingsausnahme, Generierung BF16), LoKr (experimentell), Referenz-Conditioning (Identity Edit v1.x, ReID, FLUX 3 Klein Multi-Referenz), Kombinationen, gezielte Nachbearbeitung. ai-toolkit als experimenteller Ausweich. Wan-Charakter-LoRA lokal versuchen, sonst entfällt sie. Jeder Adapter wird im tatsächlich genutzten Workflow nachgetestet.
-- **Modell und Identität werden gemeinsam gewählt** (P3): Eine Krea-LoRA passt nicht zu FLUX 3 Klein – verglichen werden Paare „Bildmodell + passende Identitätsmethode“.
-
-## 9. Content-Cloner: Instagram-Sammelkonto als Produktionseingang
-
-### 9.1 Bedienung und Konto
-
-- **Separates Sammelkonto** (Betreiberentscheidung): Gespeichert wird **im selben Konto**, das Darkfluenzer abgleicht – in der Instagram-Ansicht der Desktop-App oder am Handy (Kontowechsel in der Instagram-App). Nie das Produktionskonto der Influencerin. Das trennt Verbindungsprobleme vom Hauptkonto, macht den Zugriff aber weder offiziell noch garantiert zuverlässig.
-- Unter **ComfyUI → Vorlagen → Instagram** einmalig Sammlungen zuordnen, z. B. „DF – Inspiration“ (nur importieren/analysieren), „DF – Fotos produzieren“ (Fotoauftrag, Ablauf B), „DF – Videos produzieren“ (Videoauftrag, Ablauf D Bewegungsübertragung). Pro Sammlung: Charakter, übernommene Eigenschaften, Format/Produktionsprofil, Kandidatenzahl, „sofort produzieren“ oder „nur sammeln“. **Speichern in einer aktivierten Produktionssammlung ist der Produktionsbefehl.** Likes werden nicht ausgewertet.
-- **Account-Import:** ein fremdes öffentliches Profil als Vorlagensammlung übernehmen (spätere Ausbaustufe, gleicher Connector, gleiche Regeln).
-
-### 9.2 Zugriff und Sicherheit
-
-- Offizielle Instagram-/Meta-Schnittstellen bieten **keinen Zugriff auf eigene gespeicherte Sammlungen und keinen Webhook für Speichern**.
-- Zwei Zugriffswege werden im Machbarkeitsnachweis geprüft, der funktionierende wird Hauptweg: (a) **instagrapi** im Backend (`collections()`, `collection_medias_by_name()`, `collection_medias()`), (b) die **angemeldete Instagram-Ansicht der Desktop-App** (Speichern dort sofort erkannt; Sammlungsseiten auslesen). Browser- und instagrapi-Sitzung sind **nicht** automatisch dieselbe.
-- Beide Wege sind inoffiziell; Instagram-Nutzungsbedingungen untersagen automatisierten Zugriff; Prüfaufforderungen und Sperren sind möglich → zurückhaltende Abgleichintervalle, sichtbare Fehler, manueller Import bleibt gleichwertig.
-- **Zugangsdaten:** keine dauerhafte Speicherung im Frontend, nie in Logs oder Git; Geheimnisse im **macOS-Schlüsselbund** bzw. verschlüsselt mit dort hinterlegtem Schlüssel; Sitzungen widerrufbar; Bestätigungscodes nicht protokolliert.
-
-### 9.3 Abgleich und „höchstens ein Auftrag“
-
-- Hintergrundprozess im Backend mit konfigurierbarem Intervall + „Jetzt abgleichen“ + sofortige Erkennung beim Speichern in der Desktop-Ansicht. Kein Frontend-Polling.
-- Erstverbindung erfasst den Bestand; Altbestand wird nur bei ausdrücklich gewähltem Erstimport produziert.
-- **Pro Sammlungsaktion (Beitrag × Sammlung × Zeitpunkt der Aufnahme) entsteht höchstens ein Produktionsauftrag; Erkennung und Auftragserstellung werden in einer SQLite-Transaktion gespeichert** – ein Absturz dazwischen verliert keinen Auftrag und erzeugt keinen doppelten.
-- Regeln: derselbe Beitrag in zwei Produktionssammlungen → je Sammlung ein Auftrag; Entfernen und erneutes Speichern → neue Sammlungsaktion nur nach Bestätigung bzw. eingestellter Regel; bewusster Wiederholungsauftrag über „Erneut produzieren“ an der Vorlage.
-- Foto, Reel und Karussell vollständig; Neustart setzt am gespeicherten Stand fort ohne Vollimport; abgelaufene Sitzung → „Anmeldung erforderlich“; fehlgeschlagener Medienabruf sichtbar; Zugriffsbeschränkung → Pause und späterer zurückhaltender Versuch. Entfernen aus der Sammlung löscht keine Ergebnisse.
-
-### 9.4 Analyse der Vorlage
-
-| Analyse | Werkzeug (lokal) | Ergebnis |
+| Instanz | Zuständigkeit | Warteschlange |
 |---|---|---|
-| Szene, Kleidung, Licht, Bildaufbau | Qwen3-VL über ComfyUI `TextGenerate` | Beschreibung |
-| Körper-, Hand-, Gesichtspunkte | SDPose (Kern) | Posendaten (Steuerung bzw. Vergleich) |
-| Räumliche Anordnung | Depth Anything 3 / MoGe | Tiefenkarte |
-| Personen-/Objektbereiche | SAM 3.1 | Masken |
-| Video | Szenenschnitte, Ausschnittwahl, SDPose-Sequenz (Analyse/Vergleich), SAM-Videosegmentierung | Steuer- und Prüfdaten; Wan Animate 2 nutzt das Bewegungsvideo direkt |
+| **Medien-ComfyUI 1** | Foto, Video, Pose-/Tiefen-/Masken-Erzeugung (SDPose, Depth Anything 3, SAM 3.1), Inpainting, Charakterbindung, Motion Transfer, Upscaling, LoRA-Training-Workflows | bestehende persistente **Medien-FIFO** |
+| **KI-ComfyUI 2** | Dialog, Bildbeschreibung (Vision), Prompt-Erzeugung, KI-Qualitäts-/Identitätsprüfung, weitere grafisch editierbare KI-Workflows (z. B. TTS, sobald eine Sprachpipeline qualifiziert ist) | eigene **KI-Warteschlange** |
 
-Unsicherheiten werden gespeichert und markiert; Steuerdaten sind sichtbar und korrigierbar. Gesichtszüge der Vorlagenperson werden nie Teil des Charakterprofils. Jede Vorlage speichert Quelle, Importdatum, Originaldatei, Analyseversion und daraus entstandene Produktionen. **Recht:** Vorlagen fremder Konten dienen als Referenz für Pose, Komposition, Licht und Bewegung; keine 1:1-Kopien, kein Ersetzen realer Personen in fremden Videos; Rechteverantwortung beim Betreiber.
+**Gemeinsame Ressourcensteuerung im Backend (Zulassung):** Vor jedem Start einer Stufe prüft das Backend den gemessenen Speicherstand und die geladenen Modelle beider Instanzen; große Modelle beider Instanzen werden nicht gleichzeitig geladen, wenn die gemessene Summe die festgelegte Grenze überschreitet; die Instanz mit wartender Arbeit entlädt kontrolliert (`/free`) bzw. wartet. Grenzwerte entstehen aus realen Messungen (Speicherverlauf je Workflow), nicht aus Schätzungen. Chatgespräche dürfen durch Renderjobs nicht blockiert werden: kurze Dialogaufgaben haben Vorrang in der Zulassung; lange Renderstufen laufen nicht parallel zu großen KI-Modellen, wenn der Speicher nicht reicht. Swap-Ursachen werden gemessen, nicht behauptet.
 
-## 10. ComfyUI-Workspaces
+### 4.3 Auftragsmodell
 
-Ausgangsgraphen: **offizielle ComfyUI-Vorlagen** (lokal im Paket 0.1.133, öffentlich `github.com/Comfy-Org/workflow_templates/blob/main/templates/<Name>.json`); zusätzlich ausdrücklich gekennzeichnete **Community-Erweiterungen**. Übernahme über die Workflow-Übernahme (7), Präzision je Komponente (Regel 8).
+Ein **Auftrag** (manuell, Kloner-Befehl oder Kundenauftrag – derselbe Typ) besteht aus **Stufen** (z. B. Vorlage importieren → analysieren → Kandidaten erzeugen → Auswahl → Bearbeiten → Fertigstellen → Video → Freigabe → Zustellung), jede mit dauerhaftem Zustand in SQLite, Instanz, Workflow-Version, `prompt_id`, Ein-/Ausgabe-Artefakten. Wartende Betreiberentscheidungen blockieren keine anderen Aufträge. Wiederholungen gezielt, mit Obergrenze. **Wiederanlauf:** vor erneutem Start einer Stufe Abgleich mit ComfyUI (Queue + Verlauf zur `prompt_id`); fertige Ausgaben werden übernommen, nicht doppelt erzeugt.
 
-| Workspace | Offizielle Vorlage(n) | Community-Ergänzung | Ergänzung Darkfluenzer |
+## 5. Frontend-Aktualisierung und Vertrag (verbindlich aus FRONT V1 übernommen, inkl. DF-PUSH-PROTOBUF-E2E)
+
+- **Push statt Polling:** ein zentraler binärer Protobuf-WebSocket `/ws/v1/stream` mit `Hello/Welcome` (Major + Schema-Fingerabdruck), **STATE** (vollständige kleine Projektion, Ordnung `(generation, seq)`, Snapshot beim Abonnieren, „veraltet“ bei Verbindungsverlust) und **EVENT** (dauerhaftes SQLite-Journal, Cursor = `events.id`, Catch-up ≤ `catchup_limit`, `CatchupComplete(gap)`, Deduplizierung `cursor ≤ lastCursor`, Journal-Ersatz-Erkennung). Heartbeat, Reconnect mit Backoff, einmaliges Neuladen bei Schemakonflikt, danach BLOCKIERT.
+- **Kein periodisches Browser-Polling, keine zusätzlichen Aktualisierungskanäle pro Komponente.** Große Historien und Listen: Protobuf-Seiten per HTTP **nur bei Aufruf** (Muster `media-page`); bei `gap` lädt die betroffene Ansicht ihre Seiten neu. Detailabfragen sind **versionsgebunden**: Abfrage-Identität `connection_id + epoch + domain_version + Scope (Kunde/Kanal/Auftrag) + Filter + Seite`; abgefragt nur beim ersten synchronisierten Anzeigen, bei geänderter relevanter Version, Scope-/Filter-/Seitenwechsel, manuellem Aktualisieren oder nach Reconnect – je genau einmal; gleichzeitige gleiche Anfragen zusammengefasst, veraltete Antworten verworfen, bisherige Daten bis dahin als veraltet markiert.
+- **Domain-Versionen:** je unabhängigem Owner (Kunden/Identitäten/Konversationen/Nachrichten, KI-/Persona-Einstellungen, Aufträge/Zahlungen/Freigaben, ComfyUI 1/2, Workflows, Jobs, Training, Medien/Provenienz) eine fachliche Revision, **nach** dem SQLite-Commit erhöht, plus **Backend-Epoche**; jede STATE-Projektion trägt Version und Frische/Quelle; unveränderte Projektionen werden nicht erneut gepusht.
+- **Belastung:** STATE je Client begrenzt mit Latest-wins-Zusammenfassung; EVENTs werden nie still verworfen – bei Überlauf Trennung mit markierter Lücke, danach Catch-up bzw. gezielte Neusynchronisierung der betroffenen Domain (heute `_Client.queue` unbeschränkt → P1).
+- **Befehle:** `POST /api/v1/command` (Protobuf, `request_id`, Sitzungs-Cookie + CSRF, Same-Origin). `ACCEPTED` bestätigt nur die Annahme; das Ergebnis ist eine **persistierte, typisierte Receipt** (`COMPLETED`/`REJECTED`/`FAILED`/`UNKNOWN`, bei Bedarf `CANCELLED`; gebunden an `request_id`, Entität und Revision) plus passende STATE/EVENT-Projektion – React zeigt erst den belegten Zustand. Mutierende Befehle tragen die erwartete Domain-/Entitäts-Revision (**CAS**); gleiche `request_id` mit gleichem Inhalt → höchstens ein Render-/Versand-/Zahlungseffekt, mit anderem Inhalt → abgewiesen; bei Transport-`UNKNOWN` kein blinder Neuversuch. Idempotenz ab P1 **persistent** in SQLite.
+- **E2E im selben Paket:** jede neue oder geänderte bedienbare Funktion liefert Python-Owner/SQLite, Protobuf-Schema/Codegen, Push bzw. versionsgebundene Abfrage, den passenden React-Reiter, Befehl mit Receipt und reale Mac-Tests zusammen; geprüft werden die betroffenen Punkte der FRONT-Prüfmatrix DF-PUSH D (1–11). Fehlt eine Stufe → OFFEN/PARTIAL, nie PASS.
+- **Medien** nie im WebSocket, nur über geschützte Medien-Endpunkte (nur indizierte Dateien, Sitzung).
+- **Plattformen ⇄ Kanal-Adapter im Backend**, **ComfyUI ⇄ Backend**; React kennt beide nicht.
+
+**Bestand:** STATE 1 `COMFY_STATUS`, 2 `JOBS_ACTIVE`, 3 `COMFY_WORKFLOWS`; EVENT 20 `JOB_COMPLETED`, 21 `MEDIA_ADDED`, 22 `MEDIA_REMOVED`; Befehle 10–20; SQLite-Schema 3.
+
+**Reservierte neue Verträge** (Nummern verbindlich reserviert; Felder werden in der Phase festgelegt, nur additiv):
+
+| Phase | STATE | EVENT | Befehle (oneof) | HTTP (Protobuf, bei Aufruf) |
+|---|---|---|---|---|
+| P1 | 4 `ORDERS_ACTIVE` (laufende Aufträge + Stufen, Warten auf Betreiber) | 23 `ORDER_UPDATED` (Stufenwechsel, Kandidaten, Fehler), 29 `COMMAND_RECEIPT` (terminale Receipts aller Befehle) | 21 `create_order`, 22 `select_candidate`, 23 `reuse_media` (Wiederholen/Variieren/Als Vorlage/Video erstellen/Weiterbearbeiten), 24 `retry_stage` | `GET /api/v1/provenance/{media_id}` → `MediaProvenance`; `GET /api/v1/order-page` |
+| P2 | 5 `CHARACTERS` (Profile, aktive Version, Training) | 24 `IDENTITY_RESULT` (Prüfwerte je Ausgabe) | 25 `character_update`, 26 `start_training`, 27 `approve_identity_version` | `GET /api/v1/character/{id}` (Referenzen, Prüfsatz) |
+| P5 | 6 `COMFY_INSTANCES` (Status je Instanz; Topic 1 bleibt bis zur Umstellung des Frontends), 7 `RESOURCES` (Speicher, geladene Modelle, Zulassung) | – | `comfy_start`/`comfy_stop` erhalten Feld `instance` | – |
+| P6 | – | 25 `REFERENCE_ADDED` (Vorlage importiert/analysiert) | 28 `clone_local` (Befehl, Vorlage, Freitext) | `GET /api/v1/reference-page`, `GET /api/v1/reference/{id}` (Analyse, Pose/Tiefe/Maske) |
+| P7 | 8 `CHANNELS` (Adapterzustand je Kanal, Token-Gültigkeit, Tunnel) | 26 `CUSTOMER_UPDATED`, 27 `CONVERSATION_EVENT` (Nachricht neu/geändert, Systemkarten) | 29 `mark_read` | `GET /api/v1/customer-page`, `GET /api/v1/conversation-page` |
+| P10 | 9 `INFLUENCERS` | 28 `DELIVERY_UPDATED` | 30 `send_reply`, 31 `ai_reply`, 32 `discard_draft`, 33 `set_dialog_mode`, 34 `approve_artifact`, 35 `influencer_update`, 36 `link_identity` | – |
+
+Nach Verbindungsverlust ersetzen STATE-Snapshots veraltete Werte; EVENT-Catch-up läuft ab eigenem Cursor; bei `gap` laden Kundenliste, Verlauf, Aufträge bzw. Galerie ihre erste Seite neu. Jede neue Funktion braucht vor Abnahme einen gezielten Reconnect-Test.
+
+## 6. Kanal-Adapter (eigene Implementierung; Muster aus Chatwoot übernommen)
+
+**Entscheidung (Betreiber, 15.11.2026):** Chatwoot entfällt. Instagram und Telegram werden **verbindlich** über eigene Adapter im bestehenden Python-Backend angebunden; weitere Kanäle (WhatsApp, Fanvue, TikTok, Shop) folgen später über dieselbe Schnittstelle. Grund: Darkfluenzer muss Persistenz, Deduplizierung, Reihenfolge, Postausgang, Kundenakte, Kloner-Weiche, KI, Aufträge und Cockpit ohnehin selbst bauen; Chatwoot hätte nur den Transport geliefert – mit zweitem Dienststapel (Ruby/Rails/Sidekiq/PostgreSQL+pgvector/Redis), zweiter Datenbank, Abgleich zwischen zwei Systemen, Telegram nur per Webhook, stillschweigend verworfenen Dateien > 20 MB, Account-Webhooks ohne Wiederholung und fehlendem Statusfeld. **Python statt Rust:** BACK §6B schließt ein Rust-Gateway aus; die Adapter sind ein-/ausgabegebunden und nutzen SQLite, Ereignisjournal, Protobuf-Push und Medienablage direkt. Quelle der Muster: Chatwoot Community v4.19.1 (`caab07a8…`) und Betreiber-ZIP (SHA-256 `0c21d6eb…`, nur Referenz, nicht versioniert).
+
+**Gemeinsame Adapter-Schnittstelle** (Modul `channels/`, ein Adapter je Plattform – zwei reale Adapter rechtfertigen sie): Eingang normalisieren (Plattform, Konto, Konversation/Chat, Absender-ID, Nachrichten-ID, Antwortbezug, Text, Anhänge mit Typ/Größe/Quelle, Zeit), **vor der Bestätigung atomar speichern** (Eingangsereignis + deduplizierte Nachricht + Aufgabe), Text und Medien senden mit dauerhaftem Postausgang (Status *sending* vor dem API-Aufruf; Zeitüberschreitung nach möglicher Annahme → *unbekannt*, kein blindes Wiederholen), Zustellstatus, Abgleich nach Ausfall, Gesundheitszustand und Token-Gültigkeit als STATE.
+
+| Funktion | Aus Chatwoot übernommen (Muster) | Darüber hinaus (nicht limitiert) | Phase |
 |---|---|---|---|
-| Foto erzeugen | `image_krea2_turbo_t2i`, `image_flux3_klein_t2i` | LUSTIFY v10 (explizit) | Identitäts- und Referenzanschluss |
-| Foto nach Vorlage | `image_flux3_klein_image_edit` (Multi-Referenz) | Krea-2-Depth-Control (facok + Depth-Modell), Pose-Adapter nur mit Nachweis | Steuerdaten aus `utility_sdpose_ood_image_to_pose`, `utility_depth_anything3_image_depth_estimation` |
-| Foto bearbeiten / Ausziehen | `utility_image_segment_sam3` | LUSTIFY v10 | Inpainting mit `SetLatentNoiseMask` → `ImageCompositeMasked`, Gesicht/Haare ausgespart, Pixelprüfung |
-| Foto fertigstellen | `utility_seedvr2_7b_int8_upscale_image` / `…3b…` (Kern) mit bestverfügbarer Präzision | — | A/B nativ (FLUX 3 Klein) gegen Upscaling |
-| Foto animieren | `video_ltx2_5_i2v`, `video_ltx2_5_flf2v`, `video_wan2_2_14B_i2v` | Wan 2.2 Remix / NSFW-LoRA | Startbild = freigegebenes Foto |
-| Bewegung übertragen | `video_wan_animate2` (Charakterbild + Bewegungsvideo, ohne Posen-Extraktion) | — | Vergleich: `video_wan_vace_14B_v2v` (Wan 2.1 VACE, Kontrollvideo), `video_wan2_2_14B_fun_control` (Posen-/Tiefenvideo) |
-| Video fertigstellen | `utility_seedvr2_3b_int8_upscale_video`, `utility_relayvsr_video_x2_upscale` (FP32-Decoder), `utility_video_frame_interpolation` (FILM) | — | A/B; Frame-Integrität |
+| **Telegram** | Medientypen photo/video/video_note/voice/audio/document/sticker/location/contact, Bearbeitungen, Antwortbezug `reply_to_message_id`, Datei per `getFile` | **Long-Polling (`getUpdates`)** – kein öffentlicher Zugang nötig; Update-Offset dauerhaft gespeichert (Wiederanlauf ohne Verlust); optional Webhook mit `secret_token`; optional **lokaler Bot-API-Server** (Download ohne Grenze, Upload bis 2000 MB) statt 20-MB-Grenze; Upload per Multipart ohne öffentliche URL | P7 |
+| **Instagram** (Instagram API mit Instagram-Login) | Webhook-Prüfung (Meta-Signatur, `hub.challenge`), Ereignisse message/read/postback, Anhangtypen image/video/audio/file/share/story_mention/ig_reel/reel/ig_post/ig_story, Echo-Erkennung (`is_echo`, Deduplizierung über `mid`), Antwortbezug, Story-Antworten, Antwortfenster 24 h (7 Tage mit Human-Agent-Tag) | Medien **sofort beim Eingang sichern** (ablaufende CDN-URLs); für `reel`/`ig_post` alle verfügbaren Felder auswerten und echte Abrufbarkeit testen; OAuth-Anmeldung mit Token-Erneuerung (Langzeit-Token, ca. 60 Tage) im Schlüsselbund; ausgehende Medien über kurzlebige signierte URLs (Meta holt die Datei ab) | P7/P9 |
+| Kunden/Identitäten | Kontakt je Kanal, Zusammenführung nur bestätigt | kanalunabhängige Kundenakte, `channel_identities`, Instagram→Telegram-Token-Verknüpfung mit Audit | P7/P10 |
+| Empfang/Versand | Nachrichten-/Sende-APIs, private Notizen nie senden | dauerhafter Eingang vor Bestätigung, Ordnung je Kunde, Postausgang mit Revisionsprüfung | P7/P10 |
+| Medien | Anhangtypen, Multipart-Versand | Herkunfts-/Typ-/Größenprüfung, Inhalts-Hash, Ablage in bestehender Medienablage; Versand nur hinter `approval.py` | P7/P10 |
+| Webhook/Authentifizierung | HMAC-Prüfung gegen unveränderte Request-Bytes, Zeitfenster | nur der Instagram-Webhook ist öffentlich; Telegram braucht keinen; Geheimnisse im macOS-Schlüsselbund | P7 |
+| Historie/Abgleich | seitenweises Nachladen | Telegram über gespeicherten Update-Offset; Instagram über Konversations-API beim Start und nach Lücken | P7 |
+| Zustellstatus | sent/delivered/read/failed | Telegram: gesendet/fehlgeschlagen; Instagram: gelesen über read-Ereignis; Status im Journal und als EVENT | P10 |
+| Übergabe an Menschen | Unterscheidung Bot/Mensch, Echo ohne Absender | Antworten direkt in der Instagram-/Telegram-App (Plattform-Echo) lösen Handoff aus; eigene Nachrichten über gespeicherte IDs erkannt | P10 |
+| Erweiterbarkeit | – | WhatsApp (Cloud API, Vorlagen, 24-h-Fenster), Fanvue, TikTok, Shop später als weitere Adapter derselben Schnittstelle | später |
 
-**Langvideo (vor P7 festzulegen und zu messen):** maximale Länge je Workspace, Ausschnittwahl, zeitliche Fenster und Übergänge (Animate-2-Vorlage verkettet Teilstücke), Bildrate, Audio (LTX liefert Ton, Wan nicht).
+**Öffentliche Erreichbarkeit:** nur für Instagram nötig (Webhook, OAuth-Rückruf, Abruf ausgehender Medien) – genau diese drei Pfade werden über den Tunnel erreichbar, mit eigener Prüfung (Meta-Signatur, OAuth-`state`, kurzlebige signierte Medien-Token); alles andere bleibt lokal hinter der bestehenden Host-/Origin-/Sitzungsprüfung.
 
-## 11. Vergleichsmethode
+**Bild- und Videoversand über die Kanäle** (Plattformgrenzen geprüft 15.11.2026: Telegram Bot API, Meta Instagram Messaging API):
 
-Gleiche Szenen und Vorgaben je Kandidat, mehrere Ergebnisse je Szene (mindestens 3 Seeds), getrennte Bewertung von **Identität** (Metrik + Sicht), **Referenztreue** (Pose/Komposition/Bewegung) und **Bildqualität** (Haut, Haare, Hände, Anatomie, Licht, zeitliche Konsistenz). Zahlen und Bewertung werden je Paket dokumentiert; mehr Auflösung oder Schritte gelten nur nach Nachweis als besser.
-
-## 12. Pakete und Reihenfolge
-
-Jedes Paket: echte Umsetzung, gezielte Tests, echter Lauf auf dem Mac, Commit und Push auf `main`. **Fertig ist ein Paket erst, wenn der Betreiber es vollständig aus Darkfluenzer bedienen kann, das echte Ergebnis dort sieht und es nach einem Neustart weiterhin korrekt seinem Charakter, seiner Vorlage und seinem Auftrag zugeordnet ist.** Vor jedem Paket mit Downloads: **Speicherbilanz** aus tatsächlichen Dateigrößen plus Download-Zwischenspeicher, Trainingsstände und Video-Zwischenprodukte (aktuell 256 GB frei, Reserve 30 GB).
-
-| # | Paket | Inhalt | Abnahme |
+| | Telegram (öffentliche Bot-API) | Telegram (lokaler Bot-API-Server) | Instagram |
 |---|---|---|---|
-| 1 | **P0 – Basis prüfen und reparieren** | Speicherverlauf messen; Entladen bei Engine-Wechsel (`comfy.free`, `pipeline.run_render`); MPS-Attention (#14837) an Torch 2.15/ComfyUI 0.45.3 mit Testfall untersuchen, Gegenmaßnahme nur nach Vergleich von Qualität, Speicher, Laufzeit; Remix-Workflow nach Autor-Vorlage (4+4, CFG 1, euler/simple, Shift 8, 81 Frames); Docker nur beenden, wenn keine benötigten Container laufen (derzeit keine) | erstes vollständiges Wan-Video (480p, 81 Frames) mit gemessener Dauer und Speicherverlauf |
-| 2 | **I0 – Instagram-Machbarkeit** | Minimale Desktop-Hülle mit Instagram-Ansicht; Sammelkonto anmelden (inkl. Bestätigung); Sammlung wählen; danach **am Handy einen neuen Beitrag speichern**; beim nächsten Abgleich erkennen; Foto, Reel, Karussell übernehmen; Neustart ohne Vollimport; keine Doppelübernahme; abgelaufene Sitzung und fehlgeschlagenen Abruf sichtbar – für Weg (a) und (b) | alle acht Punkte real bestanden; Hauptzugriffsweg festgelegt |
-| 3 | **P1 – Auftragsgrundlage und Workflow-Übernahme** | SQLite-Migration Auftrag/Stufe/Produktionsprofil/Vorlage; Parameterbeschreibung; Backend-Validierung; Workspace-Versionen; FIFO ausführbarer Stufen mit Wiederanlauf-Abgleich; Protobuf; **Untergraphen-Übernahme** (Abgleich mit `graphToPrompt`) | jede ausgewählte Vorlage importierbar mit 0 Abweichungen; Auftrag übersteht Neustart; manipulierter Befehl abgewiesen |
-| 4 | **P2 – Fotoarbeitsplatz** | Drei-Spalten-Bereich, Warteschlangenleiste, Ablauf A; Krea 2 und FLUX 3 Klein in bestverfügbarer Präzision; manuelle Modellquelle für LUSTIFY v10 | Formular → drei Kandidaten → Auswahl → Dateien |
-| 5 | **P3 – Charakterprofil und gemeinsamer Modell-/Identitätsvergleich** | Referenzen, Datensatzprüfung, Prüfsatz, Identitätsmetrik, Training, Paare „Bildmodell + Identitätsmethode“ (normal und explizit: Krea 2/LUSTIFY v10 + LoRA/Referenz vs. FLUX 3 Klein + Multi-Referenz vs. Alternativen); nativ 4K vs. Upscaling | Produktionsmodell(e) und Identitätsprofil gemeinsam freigegeben, Rollen im Manifest besetzt |
-| 6 | **P4 – Foto nach Vorlage** | Vorlagenbibliothek (manueller Import), Analyse (9.4), sichtbare Steuerdaten, Referenzübertragung, Vergleich | Vorlage → drei Kandidaten mit eigener Identität und übernommenen Eigenschaften |
-| 7 | **P5 – Foto bearbeiten und fertigstellen** | Ablauf C inkl. Ausziehen; Fotoausgabe 4K | Pixelprüfung im Bearbeitungsschritt; 4K-Datei mit korrekten Abmessungen |
-| 8 | **D1 – Desktop-App vollständig** | Electron-App ersetzt Swift-Starter (Start, Health, Stopp eigener Prozesse, Idempotenz), Cockpit + isolierte Instagram-Ansicht, Schlüsselbund | S1-Abnahme mit neuer App wiederholt; Instagram-Ansicht dauerhaft angemeldet |
-| 9 | **I1 – Instagram-Fotoautomatik** | Connector, Sammlungszuordnung, Abgleich, atomare Auftragserstellung, Regeln 9.3, Status/Fehler | Foto am Handy gespeichert → Vorlage → genau ein Fotoauftrag → wartet auf Auswahl → nach Neustart kein Duplikat |
-| 10 | **P0a – macOS 26** | Betreiber aktualisiert vor den Videovergleichen (Sicherung, keine Jobs, DarkBot vorher sichern) | ComfyUI, Referenzrender, Desktop-App, Tests bestanden; LTX Desktop lokal lauffähig |
-| 11 | **P6 – Video aus Foto** | Ablauf D freie Animation: LTX 2.5 (Dev vs. Distilled in ComfyUI; LTX Desktop als Vergleich) vs. Wan 2.2 (Remix vs. FP16 + NSFW-LoRA); Langvideo-Regeln; 4K + Interpolation | vollständiger lokaler Videolauf mit Vorschau, Prüfung, Speicherung |
-| 12 | **P7 – Bewegungsübertragung** | Wan Animate 2 vs. VACE v2v vs. Fun Control; Ausschnitt, Szenenschnitt, Teilstücke | nachweisbar bessere Referenztreue als freie Animation |
-| 13 | **I2 – Instagram-Videoautomatik und Account-Import** | Reels aus Produktionssammlung → Bewegungsübertragung; öffentliches Profil als Vorlagensammlung | Reel am Handy gespeichert → genau ein Videoauftrag; Profilimport ohne Duplikate |
-| 14 | **P8 – Gesamtabnahme** | mehrere Aufträge, Neustart, Abbruch, Fehler, Wiederholung, Versionswechsel | alle Fälle real geprüft |
+| Foto senden | `sendPhoto` ≤ 10 MB, Breite + Höhe ≤ 10 000, Seitenverhältnis ≤ 20 (Telegram komprimiert Fotos neu – Ausmaß im P7-Test messen); verlustfrei als Dokument ≤ 50 MB | als Dokument ≤ 2000 MB | PNG/JPEG ≤ 8 MB, Abruf durch Meta über kurzlebige signierte URL (Tunnel) |
+| Video senden | `sendVideo`/Dokument ≤ 50 MB | ≤ 2000 MB | MP4/MOV/WEBM u. a. ≤ 25 MB |
+| Mehrere Medien | Album 2–10 Elemente (`sendMediaGroup`) | gleich | bis 10 Bilder je Nachricht |
+| Empfangen | `getFile` ≤ 20 MB | ohne Grenze | CDN-URL, sofort sichern |
 
-**Offener Rest aus dem vorherigen Auftrag (nicht Teil von P0):** Testergebnis von Job 22 (Verfeinerung von 0024) nach Betreiber-OK löschen.
+**Zustellkopie:** Passt das freigegebene Original (z. B. 4K-PNG, 4K-Video) nicht in die Grenze des Zielkanals, erzeugt das Backend eine **Zustellkopie** (JPEG-Qualitätsstufe bzw. H.264/HEVC-Bitrate, bei Bedarf geringere Auflösung) als abgeleitetes Artefakt mit eigenem SHA-256 und Herkunft (Original-ID, Kanal, Parameter). Der Betreiber sieht die Zustellkopie vor dem Versand; das Original bleibt unverändert in Dateien. Telegram kann das Original verlustfrei als Dokument senden. **Wer was senden darf:** Kundenmedien nur hinter `approval.py` (verifizierte Zahlung + Freigabe, Auftragsverlauf F7.4); das Antwortfeld sendet nur Text (FRONT F7.3) – kein freier Medienversand aus dem Eingabefeld; Kloner-Ergebnisse gehen nicht an den Absender zurück, sie erscheinen in Nachrichten (Default-Verlauf) und Dateien (FRONT F7.4).
 
-## 13. Präzisierungen
+**Plattformvoraussetzungen (unabhängig von der Technik):** professionelles Instagram-Konto der Influencerin, Meta-App mit Instagram-Login und Nachrichtenberechtigung, Telegram-Bot (BotFather-Token). **Instagram-Zugriffsstufe:** Mit Standard Access nur Konten mit Rolle in der Meta-App (z. B. Tester) – reicht für die Kloner-Absender (P9); Nachrichten mit fremden Kunden erst nach Meta-App-Prüfung (Advanced Access, P10).
 
-| Vereinfachte Aussage | Planungsgrundlage |
+## 7. FRONT-V1-Abgleich (Status je Bereich, Zielphase)
+
+| Bereich (FRONT V1) | Status | Phase |
+|---|---|---|
+| F0–F2 Architektur, vier Reiter, Graphite, ein Stylesheet, Realtime-Vertrag | IMPLEMENTIERT | – |
+| Übersicht: ComfyUI-Zustand | IMPLEMENTIERT | – |
+| Übersicht: drei Karten *Kundenakten*, *GPU-Warteschlange*, *Freigaben ausstehend* + *Aktuelle Kunden* (F7.1) | TEILWEISE / NUR SPEZIFIZIERT | P1 (Warteschlange), P7 (Kundenakten), P10 (Freigaben) |
+| F7 Klickreferenz und Screenshots 14.11. als Gestaltungs-/Bedienquelle | REFERENZ (kein Code) | je Reiter in der Phase der Funktion |
+| ComfyUI-Layout F7.5 (links nur Workflows, rechts Steuerung, erweiterte Einstellungen zu, Trainingsdatenordner, Warteschlange + Instanzen rechts) | TEILWEISE (Formular, Queue, Workflow-Verwaltung vorhanden) | P0 (Trainingsdatenordner), P1/P2 |
+| DF-PUSH Domain-Versionen, versionsgebundene Queries, Receipts, CAS, begrenzte Queue | FEHLT | P1 Grundlage, danach je Phase im selben Paket |
+| F3/F3a ComfyUI-Bedienung | IMPLEMENTIERT | bleibt; Erweiterung P1/P2 |
+| F3b Dateien | IMPLEMENTIERT | Weiterverarbeiten + Detailansicht (F7.6), Provenienz: P1 |
+| F3c LoRA-Kette (Datensatz, Training, LoraLoader, Maske, Wan aus Dateien, Video) | TEILWEISE | P0 |
+| KI-ComfyUI-2-Unterregister, Instanz-Status, Ressourcen | NUR SPEZIFIZIERT / FEHLT | P5 |
+| F4 drei Spalten, Kundenliste, Register, Unterregister Gesamt/IG/TG/WA, Farben, Gesamt nur lesbar | NUR SPEZIFIZIERT | P7 (Lesen), P10 (Antworten) |
+| F4 kanalgebundene Antworten, KI antworten, Entwürfe, Übergabe | NUR SPEZIFIZIERT | P10 |
+| F4 Ereigniskarten, Auftragsverlauf (8 Schritte), Zahlungen, Freigabe, Zustellung | TEILWEISE (nur Backend-Tabellen/Gates) | P10 |
+| F4 mehrere Influencerinnen, KI-Einstellungen | NUR SPEZIFIZIERT | P10 (Profil-Grundlage P2) |
+| Interner Kontakt **Default** mit Operator-Feldern (F7.2/F7.4) | NUR SPEZIFIZIERT | P7 (Anlage, Absender-IDs), P8/P9 (Befehle) |
+| F4 Status Kanal-Adapter/Plattformen/LLM, `VERBINDUNG ERNEUERN` | NUR SPEZIFIZIERT | P7 |
+| Verbindungszustände DETACHED/UNAVAILABLE | TEILWEISE | P7 |
+| Release-Einheit, altes Release startbar | NUR SPEZIFIZIERT | P11 |
+
+## 8. Content-Cloner über Nachrichten
+
+**Eingang:** Freigegebene Betreiber-Absenderidentitäten (je Plattform die **Absender-ID**, nicht der Anzeigename; z. B. zweiter Instagram-Account, privater Telegram-Account) senden an die Kanäle der Influencerin ein Bild/Video bzw. teilen einen Beitrag/Reel mit einem Kurzbefehl. **Die Weiche liegt vor jeder Kunden- und KI-Verarbeitung:** Nachrichten freigegebener Absender mit gültigem Befehl werden interne Produktionsaufträge; sie legen keine Kundenakte an, gehen nicht in den LLM-Kontext und lösen keine Auto-Antwort aus. Alle anderen Nachrichten bleiben normaler Kundenverkehr.
+
+**Freigabe über den internen Kontakt Default** (FRONT F7.2/F7.4): einmalig angelegt, kein Kunde (keine Zahlungspflicht, zählt nicht als Kundenakte). Rechte Spalte nur Operator-Felder: Instagram-Absender-ID, Telegram-Absender-ID, Interne Befehle verarbeiten (Ein/Aus), Influencerin, Medien-KI/Workflow, Freigabemodus, Automatische Produktionsaufträge (Ein/Aus), Einstellungen übernehmen. Die Absender-ID wird nach Ersteinrichtung über die unveränderliche Plattform-ID geprüft. *Interne Befehle verarbeiten = Aus*: Nachrichten des Absenders werden nur angezeigt; *Automatische Produktionsaufträge = Aus*: der erkannte Auftrag wartet auf Betreiberstart. Die fünf Befehle werden aus den Nachrichten erkannt, nicht als Schaltflächen angeboten.
+
+| Befehl | Funktion |
 |---|---|
-| Gesicht bleibt immer identisch | Identitätsbindung plus Prüfung; Abweichungen werden zurückgewiesen |
-| Gesichtsmetrik prüft den ganzen Charakter | Gesicht, Körper und Gesamtwirkung getrennt bewerten |
-| Stichproben jedes achten Frames reichen | Stichproben + zeitliche Prüfung + vollständige Sichtung vor Freigabe |
-| Außerhalb der Maske bleibt alles gleich | gilt und wird geprüft im Bearbeitungsschritt |
-| Swap muss null sein | Speicherverlauf und Stabilität messen |
-| Ein Modell pro Auftrag | eine Engine pro Stufe, kontrolliertes Entladen dazwischen |
-| Alles auf BF16/FP16 | Präzision je Komponente, FP32 wo erforderlich |
-| Startflag behebt MPS-Korruption | nicht belegt; Testfall und Vergleich entscheiden |
-| Vorlage vorhanden = einsatzbereit | erst nach Übernahme, Modellen und echtem Lauf |
-| Mehr Auflösung/Schritte = besser | nur durch Vergleich belegt |
-| Training immer BF16 | mflux-Training dokumentiert mit 8-Bit-Basis; Generierung BF16 |
+| `clone` | Referenz möglichst originalgetreu mit der eigenen Influencerin nachstellen; bei Video Bewegung und Kameraführung übernehmen |
+| `pose` | Körperhaltung/Position bzw. Bewegungsablauf übernehmen; Kleidung, Hintergrund, Stil frei |
+| `style` | Licht, Farben, Bildsprache, Kameracharakter übernehmen; Pose und Szene neu |
+| `remix` | mehrere kreative fotorealistische Varianten mit der Influencerin |
+| `animate` | zugesandtes Foto der Influencerin als Video animieren, optional mit Bewegungsanweisung |
+
+Freitext nach dem Befehl (`clone gleicher Strand, roter Bikini, 9:16`) interpretiert die KI-Instanz.
+
+**Zuordnung:** Befehl + Medium in einer Nachricht, Befehl als Antwort auf ein Medium (Antwortreferenz), geteilter Beitrag/Reel mit Befehl, Telegram-Foto/-Video mit Befehl. Bei uneindeutiger Zuordnung fragt Darkfluenzer gezielt nach, statt zu raten. **Deduplizierung:** je Plattform-Nachrichten-ID höchstens ein Auftrag (Erkennung und Auftragserstellung in einer SQLite-Transaktion); ein erneut zugestelltes Ereignis erzeugt nichts, eine bewusst neu gesendete Nachricht einen neuen Auftrag.
+
+**Medienimport je Kanal:** Telegram-Dateien über der öffentlichen Bot-API-Grenze (20 MB) → Hinweis an den Absender bzw. Abruf über den optionalen lokalen Bot-API-Server (bis 2000 MB). Instagram-Anhänge werden sofort gesichert (ablaufende CDN-URLs); liefert ein geteilter Beitrag/Reel keine abrufbare Datei, wird er als **nicht importierbar** gemeldet – nie ein erfolgreicher Import ohne Datei. Abrufbarkeit privater und fremder Beiträge wird real getestet.
+
+**Ablage:** Originaldatei, SHA-256, Plattform, Absender-ID, Nachrichten-ID, Ursprungsreferenz, Eingang, Medientyp, Abmessungen/FPS/Dauer, Analyseversion, Befehl – in der bestehenden SQLite und Medienablage (keine zweite Datenbank/Ablage).
+
+**Analyse:** Medien-ComfyUI erzeugt Pose-Keypoints (SDPose), Tiefe (Depth Anything 3/MoGe), Masken (SAM 3.1); KI-ComfyUI erzeugt Beschreibung, Prompt-Vorschlag (negativ nur bei unterstützenden Workflows), Kopf-/Blick-/Kamera-/Licht-/Kleidungs-/Umgebungsbeschreibung. Video zusätzlich Szenenschnitte, Bewegungsablauf, Kamerabewegung, Auflösung/FPS. Bild-zu-Prompt allein reicht nicht für präzise Pose; Pose-/Tiefen-/Referenzsteuerung wird eingesetzt. Wan Animate 2 nutzt das Bewegungsvideo direkt (ohne Posen-Extraktion). Keine eigene Motion-Transfer-Engine.
+
+**Generierung:** Verfahren A (referenzgesteuerte Neugenerierung) und B (kontrollierte Bearbeitung eines eigenen Masterbilds) werden verglichen; je Auftrag drei Kandidaten, Prüfung (Identität, Anatomie, Referenztreue, Fotorealismus), Betreiberauswahl, 4K-Fertigstellung, Dateien. In **Nachrichten** erscheinen interne Aufträge in der Mitte des Default-Verlaufs als `INTERNER AUFTRAG · <BEFEHL> · <KANAL>` mit Originalnachricht, Referenz, Befehl, Influencerin, Stufe, Ergebnisvorschau, Fehlern/Freigaben; Ergebnisse zusätzlich in Dateien; kein Rückversand an den Absender, kein zusätzlicher Beschreibungsblock rechts (F7.4).
+
+**Recht:** Vorlagen dienen als Referenz; keine 1:1-Kopien geschützter Fotos; Rechteverantwortung beim Betreiber; Regel 4 (Face-Swap) gilt.
+
+## 9. Produktionskette und Identität
+
+### 9.1 Kette
+
+Charakterfotos → Datensatz → Identitätsprofil → Masterbild (normal) → Varianten/Posen → Bearbeitung inkl. Ausziehen (maskiert) → Fertigstellung 4K → freigegebenes Foto → Video (freie Animation oder Bewegungsübertragung) → Video-Fertigstellung → Dateien → Freigabe.
+
+### 9.2 Identitätsprofil
+
+Versioniert: Referenzbilder (Gesicht/Halb-/Ganzkörper), Adapter (Modellfamilie, Version, Stärke), geprüfte Referenz-/Adaptereinstellungen, **getrennter Prüfsatz** und feste Testszenen, Bewertung. Charakterfotos: **mindestens 15 Bilder ≥ 768 px** (Code-Gate `DATASET_INCOMPLETE`), **empfohlen 25–40 ≥ 1024 px** mit mehreren Winkeln, Licht und Outfits inkl. Körperreferenzen; Beschriftung passend zur Trainingsmethode. Prüfung: Gesicht (YuNet → AuraFace + SFace, Schwelle aus Betreiber-Bewertungen, „nicht prüfbar“ bei verdeckten Gesichtern), Körper/Gesamtwirkung getrennt (Sichtprüfung), Video über Stichproben + zeitliche Prüfung + vollständige Sichtung vor Freigabe. Methoden: Charakter-LoRA, LoKr (experimentell), Referenz-Conditioning (Krea 2 Identity Edit v1.x, ReID, FLUX 3 Klein Multi-Referenz), Kombinationen. **Bildmodell und Identitätsmethode werden gemeinsam gewählt.**
+
+### 9.3 Modelle
+
+| Rolle | Vorhanden (weiterverwenden) | Kandidaten (A/B, schrittweise installiert) |
+|---|---|---|
+| Foto | LUSTIFY v2.0 SDXL (getestet) | Krea 2 Raw/Turbo BF16, LUSTIFY v10 Krea Raw/Turbo BF16, FLUX 3 Image Klein Base BF16 |
+| Video | Wan 2.2 I2V A14B FP16, Wan 2.2 Remix v3.0 (FP8, Lightning: 4+4 Schritte, CFG 1, euler/simple, Shift 8) | LTX 2.5 (Dev/Distilled BF16), Wan Animate 2 (Bewegungsübertragung), VACE/Fun Control (Vergleich) |
+| Analyse/Steuerung | – | SAM 3.1, SDPose, Depth Anything 3, Krea-2-Depth/Pose-Adapter (nur mit Nachweis) |
+| Fertigstellung | – | SeedVR2 3B/7B (ComfyUI-Kern), RelayVSR, FILM; native 4K (FLUX 3 Klein, LTX) im Vergleich |
+| Training | `training.py` (SDXL, diffusers) | ComfyUI-Trainingsworkflow (Medien-Instanz), mflux für Krea 2 |
+| Identitätsmetrik | – | AuraFace-v1 (`glintr100.onnx`), OpenCV SFace/YuNet |
+
+**Nicht eingeplant:** MiniMax H3/H3-Image, HunyuanVideo 1.5 (EU ausgeschlossen), FLUX.2 Dev (nicht kommerziell), NVIDIA Cosmos 3; am 15.11.2026 entfernt: Qwen-Image 20B, Qwen-Image 2.1 (nicht kommerziell), RealCore Illustrious. Kandidaten lädt der Betreiber nach §14.1; erst danach Manifest-Eintrag mit SHA-256 und `models verify`. **LTX Desktop** lokal erst ab macOS 26; der ComfyUI-Pfad wird separat getestet.
+
+### 9.4 Workflows
+
+Offizielle ComfyUI-Vorlagen (Paket `comfyui_workflow_templates_json` 0.1.133) und gekennzeichnete Community-Erweiterungen werden über die **Workflow-Übernahme** eingebunden: Untergraphen aufgelöst, Primitive-Nodes und umgangene/stumme Nodes korrekt behandelt, dynamische Eingänge/Schalter/Schleifen abgebildet, Abgleich gegen `graphToPrompt` des echten Frontends mit 0 Abweichungen; UI-Graph, API-Graph und Parameterbindungen derselben Version; jede Workflow-Version mit unveränderlichem Graph-Snapshot. Das Manifest erhält je Workflow `instance` (media/ai), Typ und vollständige Parameterbeschreibung (Typ, Standard, Grenzen, Schritt, Auswahl, Abhängigkeiten, Graph-Eingang, Grund/Experte); das Backend validiert erneut. Die bestehende Workflow-Verwaltung (aktivieren, exakt öffnen, bearbeiten, übernehmen, löschen) bleibt. Die Workflowverwaltung zeigt getrennt: Dateien vorhanden · Laden · Rendern · Qualität · Nutzung freigegeben.
+
+### 9.5 Reproduzierbarkeit und Dateien-Aktionen
+
+Je Bild/Video dauerhaft gespeichert (soweit verwendet): positiver/negativer Prompt, KI-Ausgangsprompt und Betreiberänderungen, Seed, Sampler, Scheduler, Schritte, CFG, Denoise, Abmessungen, Modellname/-version/SHA-256, VAE und Encoder, Workflow-Version mit Graph-Snapshot, Charakterprofil-Version, LoRA-/Adapter-Version und -Stärken, Referenzen mit Hash, Pose-/Tiefen-/Maskendaten, Zwischenprodukte und Bearbeitungsschritte, Upscaling, FPS/Frames/Bewegungsvorgaben, Nachrichtenkanal und Auftrag. Native Auflösung und Hochskalierung werden getrennt ausgewiesen. In **Dateien**: **Wiederholen · Variieren · Als Vorlage verwenden · Video erstellen · Weiterbearbeiten**; Originale und Historie bleiben, neue Ausgaben sind neue Versionen. Reproduzierbarkeit = vollständige Nachvollziehbarkeit und bestmögliche Wiederholbarkeit; bitgenaue Gleichheit über Software-/Hardwareversionen wird nicht vorausgesetzt.
+
+### 9.6 Bedienung im ComfyUI-Reiter (Layout FRONT F7.5)
+
+Die bestehende Direktbedienung bleibt (freier Prompt, Workflow-Wahl, Parameter, Bearbeiten, Video, Workflow-Verwaltung, Warteschlange). **Layout nach F7.5, keine zusätzlichen Arbeitsbereiche oder Schaltflächen:** links ausschließlich Workflows der Instanz (Fotos/Videos, später KI); Mitte Prompt-/Quellbild-/Masken-/Trainings-Arbeitsfläche und echte Ergebnisse; rechts Steuerung – Charakter, Workflow-Anzeige, erweiterte Einstellungen (initial geschlossen, nur tatsächlich exponierte Eingänge), Trainingsdatenordner, **Generieren**, darunter Warteschlange und Instanzen. Produktionsfunktionen sind Felder dieses Layouts: Mitte – Kandidatenvergleich (je Kandidat ein echtes Renderergebnis, synchroner Zoom), Masken-/Pose-/Tiefenvorschau, Video-Zeitleiste; rechts – Charakter mit Profilversion, Vorlage (Artefakt-ID aus Dateien „Als Vorlage“ oder Kloner-Eingang), Format, Ausgabegröße, Kandidatenzahl (Standard 3). Charakterpflege über Charakter + Trainingsdatenordner. Abläufe: Neues Foto, Foto nach Vorlage, Foto bearbeiten (inkl. Ausziehen), Video (freie Animation oder Bewegungsübertragung). An der kreativen Stufe wählt immer der Betreiber.
+
+## 10. Geklärte Punkte
+
+1. **HTTPS/Erreichbarkeit:** **Telegram läuft über Long-Polling ohne öffentliche Adresse.** Nur Instagram braucht eine öffentliche HTTPS-Adresse (Webhook, OAuth-Rückruf, Abruf ausgehender Medien). Umsetzung in P7: kostenloser Tunnel mit **fester** Adresse ohne eigene Domain – bevorzugt **Tailscale Funnel** (`*.ts.net`, Pfad-Weiterleitung; laut Quellen Beta), Alternative **ngrok** mit kostenloser fester Domain; Cloudflare Quick Tunnels (wechselnde Adresse) ungeeignet. Öffentlich werden nur die drei Instagram-Pfade mit eigener Prüfung; alles andere bleibt lokal. Die Wahl zwischen Funnel und ngrok fällt im P7-Test.
+2. **Nachrichten-Cockpit:** F4 ist bis auf Store-Tabellen und Gates **nur spezifiziert**; P7–P10 bauen es vollständig (Adapter, Migration, Cockpit). Der Telegram-Eingang (P8) setzt P7 voraus.
+3. **Telegram-Medien:** Öffentliche Bot-API: Download max. 20 MB (`getFile`), Upload 50 MB. Mit eigenem Adapter ist ein **lokaler Telegram-Bot-API-Server** (offizieller Quellcode, braucht kostenlose `api_id`/`api_hash`) ohne Patch möglich: Download ohne Grenze, Upload bis 2000 MB – Entscheidung im P8-Test; bis dahin Hinweis an den Absender bei zu großen Dateien und direkter Import als Alternative.
+4. **Workflow-Import:** Untergraphen-, Primitive- und Bypass-/Mute-Unterstützung in `comfy.ui_to_api` (P1) mit Abgleich gegen `graphToPrompt` für jede verwendete Vorlage.
+5. **Face-Swap:** Regel 4.
+6. **Zwei ComfyUI-Instanzen:** §4.2; Umsetzung P5.
+7. **Übernahme aus V0.1:** §11.
+
+## 11. Übergangsmatrix V0.1 → V0.2
+
+| V0.1-Inhalt | Einordnung | Begründung |
+|---|---|---|
+| Ziel, Qualitätsregeln, Identitätsbindung, ehrliche Erwartung | BLEIBT | unverändert gültig |
+| Regel „eine gemeinsame GPU-Warteschlange“ | GEÄNDERT | zwei Instanzen, zwei Queues, gemeinsame Zulassung (§4.2) |
+| Präzision je Komponente, Lizenzregeln | BLEIBT | Regeln 6/7 |
+| Desktop-App (Electron) mit Instagram-Ansicht, Ersatz des Swift-Starters | GESTRICHEN | Betreiberentscheidung; Swift-Starter und Browser-Cockpit bleiben |
+| Separates Instagram-Sammelkonto, Sammlungs-Abgleich, instagrapi, Crawler, Account-Import | GESTRICHEN | ersetzt durch Kloner über Nachrichten (§8); nur offizielle Plattform-APIs über eigene Adapter |
+| Sammlung als Produktionsbefehl, „höchstens ein Auftrag je Sammlungsaktion“ | ERSETZT | fünf Kurzbefehle; höchstens ein Auftrag je Plattform-Nachrichten-ID |
+| Zugangsdaten im macOS-Schlüsselbund | BLEIBT | für Telegram-Bot-Token, Instagram-OAuth-Token, Meta-App-Secret |
+| Vorlagen-Analyse (VLM, SDPose, Tiefe, SAM) | GEÄNDERT | VLM in KI-ComfyUI, Pose/Tiefe/Maske in Medien-ComfyUI |
+| Bedienkonzept drei Spalten, Abläufe A–D, Betreiber wählt aus | GEÄNDERT | Layout nach FRONT F7.5 (links nur Workflows, rechts Steuerung); keine eigenen Schaltflächen „Charakter verwalten“/„Vorlagen“; Abläufe A–D und Betreiberauswahl bleiben (§9.6) |
+| Vergleichsaktionen, Dateien-Metadaten | GEÄNDERT | erweitert um §9.5 |
+| Auftrag mit Stufen, Wiederanlauf, `/free`, Parameterbeschreibung, Workflow-Übernahme, Workflowverwaltung | BLEIBT | §4.3, §9.4 |
+| Identitätsprofil, Prüfung, Methoden, gemeinsame Modell-/Identitätswahl | BLEIBT | §9.2; Mindestumfang 15 Bilder ergänzt |
+| Modellkandidaten, nicht eingeplante Modelle | BLEIBT | §9.3; P0 nur mit vorhandenen Modellen |
+| Workspaces, Langvideo, Vergleichsmethode | BLEIBT | §9.4, P4 |
+| Pakete I0 (Instagram-Machbarkeit), D1, I1, I2 | ERSETZT / GESTRICHEN | ersetzt durch P7–P9; D1 gestrichen |
+| Chatwoot als Kanalinfrastruktur (BACK/FRONT, Betreiber-ZIP) | ERSETZT | eigene Python-Adapter für Instagram und Telegram, Chatwoot nur Musterquelle (§6) |
+| Paket P0a macOS 26 | BLEIBT | als P3, vor den Videovergleichen |
+
+## 12. Phasen (verbindliche Reihenfolge)
+
+Jede Phase: echte Umsetzung, gezielte Tests (Normalfall, wesentlicher Fehlerfall, Neustart/Reconnect, ein echter Integrationsnachweis), echter Lauf auf dem Mac, Commit und Push auf `main`. **Fertig erst, wenn der Betreiber es aus Darkfluenzer bedienen kann, das echte Ergebnis dort sieht und es nach Neustart korrekt zugeordnet ist.** Jede Phase mit neuen oder geänderten bedienbaren Funktionen liefert den DF-PUSH-Hin- und Rückweg im selben Paket und weist die betroffenen Punkte der FRONT-Prüfmatrix DF-PUSH D auf dem Mac nach (§5). Vor Downloads: Speicherbilanz (Dateigrößen + Zwischenspeicher + Training + Video-Zwischenprodukte; 322 GiB frei nach der Bereinigung am 15.11.2026, Reserve 30 GB).
+
+**Teil A – Produktionskette (Vorrang)**
+
+**P0 – Kernkette mit vorhandenen Modellen** (= BACK §0 CHAIN-00…06) · Status: OFFEN
+- Ziel: Charakterfotos → versionierte SDXL-Charakter-LoRA → LUSTIFY-Graph mit LoraLoader → ≥ 3 Posen/Perspektiven (A/B mit/ohne LoRA) → Maskenbearbeitung + Verfeinerung → finales Standbild in Dateien → genau dieses Bild als Wan-2.2-FP16-Startbild → echtes Video in Dateien, mit Eltern-/Kind-Verknüpfung im Job-Journal.
+- Vorhanden: `training.scan/build_dataset`, `train_sdxl_lora`, Inpaint mit Pixelprüfung, „Aus Dateien“, Wan-Workflow, FIFO, Galerie.
+- Fehlt: LoRA-Registry (SHA, Basis + SHA, Datensatz, Trigger, Stärke, Status) im Manifest; LoraLoader-Workflow-Version; Trainingsweg (ComfyUI-Trainingsworkflow in der Medien-Instanz zuerst testen, sonst vorhandener diffusers-Trainer als dokumentierte Ausnahme); `jobs.parent_id`/Version; Entladen bei Engine-Wechsel (`comfy.free`, `pipeline.run_render`); Speicherverlauf messen; MPS-Attention (#14837) mit Testfall untersuchen; Remix-Workflow auf Autor-Vorlage korrigieren (Vergleich erst P4).
+- Module/Verträge: `training.py`, `models.py` (Manifest), `pipeline.py`, `comfy.py`, `store.py` (Migration 4: `jobs.parent_id`, `workflow_version`), Workflows; keine neuen Protobuf-Topics (bestehende Befehle/Galerie); Training und LoRA-Wahl über die bestehenden Render-/Workflow-Befehle und die Job-Projektion, Trainingsdatenordner rechts (F7.5); terminale Receipts folgen in P1.
+- Abhängigkeit: **Charakterfotos des Betreibers** in `local/character/photos/`.
+- Abnahme: vollständige Kette real; jede Datei mit Hash und Eltern-Artefakt; Video abspielbar; Speicherverlauf dokumentiert.
+
+**P1 – Produktionsgrundlage** · Status: OFFEN
+- Ziel: Auftrag mit Stufen (§4.3), Workflow-Übernahme (§9.4), Reproduzierbarkeit und Dateien-Aktionen (§9.5), Wiederanlauf-Abgleich, persistente Befehls-Idempotenz, Übersicht „offene Betreiberhandlungen/aktueller Job“.
+- Vorhanden: FIFO, `jobs`, `media`, Galerie, `comfy.provenance`, `api_to_ui`/`ui_to_api`.
+- Fehlt: Migration (Aufträge, Stufen, Produktionsprofile, Workflow-Versionen mit Graph-Snapshot, Provenienz, Idempotenz, Receipts, Domain-Versionen + Epoche); `ui_to_api` mit Untergraphen; Protobuf STATE 4, EVENT 23 + 29, Befehle 21–24, CAS, versionsgebundene Provenienz-/Auftragsseiten; begrenzte STATE-Queue + EVENT-Lücke/Neusynchronisierung in `stream.py`; Dateien: Weiterverarbeiten + Detailansicht (F7.6); ComfyUI-Layout F7.5; Übersicht-Karte GPU-Warteschlange.
+- Abhängigkeit: P0. Abnahme: jede gewählte Vorlage mit 0 Abweichungen importiert; Auftrag übersteht Neustart ohne Doppelrender; Wiederholen erzeugt neue Version mit identischen Einstellungen; manipulierter Befehl abgewiesen; DF-PUSH D 1–7, 9, 11 (u. a. Doppelklick → ein Effekt, `UNKNOWN` ohne blinden Neuversuch, langsamer Client, Reconnect).
+
+**P2 – Identität und Bildqualität** · Status: OFFEN
+- Ziel: Identitätsprofil (§9.2) mit Metrik und Prüfsatz; gemeinsamer Modell-/Identitäts-A/B (vorhandene vs. Krea 2/LUSTIFY v10/FLUX 3 Klein); Produktionsbedienung im F7.5-Layout (§9.6); Bearbeiten/Ausziehen (SAM 3.1 + Inpaint + Composite); Foto-Fertigstellung 4K (nativ vs. SeedVR2/RelayVSR).
+- Fehlt: Charakterverwaltung (Backend + UI), Metrikmodul, mflux-/Trainingspfad für Krea 2, Modelle (schrittweise, nach Speicherbilanz), STATE 5, EVENT 24, Befehle 25–27, Charakterseite.
+- Abhängigkeit: P1. Abnahme: Rollen `image_master`/`image_edit` mit dokumentierten Zahlen besetzt; Identitätsprofil-Version nach Freigabe aktiv; 0 Pixel außerhalb der Maske; 4K-Datei mit ausgewiesener nativer Auflösung.
+
+**P3 – macOS 26** · Status: OFFEN (Betreiber führt aus)
+- Vorher Sicherung, keine laufenden Jobs, DarkBot sichern; danach ComfyUI, Referenzrender, Cockpit und Tests erneut bestanden; LTX Desktop lokal geprüft. Vor den Videovergleichen.
+
+**P4 – Video** · Status: OFFEN
+- Ziel: freie Animation (Wan FP16 vs. Remix vs. LTX 2.5 Dev/Distilled in ComfyUI; LTX Desktop als Vergleich), Bewegungsübertragung (Wan Animate 2 vs. VACE vs. Fun Control), Langvideo-Regeln (Länge, Fenster, Übergänge, FPS, Ton), Video-Fertigstellung 4K + Interpolation, Identität über Frames.
+- Abhängigkeit: P2, P3. Abnahme: Rolle `video_i2v` und Bewegungsübertragung mit Zahlen besetzt; Video in Dateien mit vollständiger Provenienz.
+
+**Teil B – KI-Instanz und lokaler Kloner**
+
+**P5 – KI-ComfyUI 2 und Ressourcensteuerung** · Status: OFFEN
+- Ziel: zweite Instanz (`local/comfyui_ai`, :8189, eigene Verzeichnisse, Zustand/Lock/Log je Instanz), Runtime/Starter/`down` für beide, Manifest-`instance`, KI-Warteschlange, Zulassung (§4.2), Vision-/Prompt-Workflows, Cockpit-Unterregister KI.
+- Fehlt: `config.py` (benannte Instanzen), `runtime.py` (Instanz-Parameter), `server.py` (zwei Clients/Worker), STATE 6/7, Feld `instance`.
+- Abhängigkeit: P1. Abnahme: beide Instanzen starten/stoppen unabhängig; gleichzeitige Last nach Zulassungsregel ohne Absturz; getrennte Queue-/Health-Zustände (DF-PUSH D 10); Messwerte dokumentiert.
+
+**P6 – Lokaler Referenz-Kloner** · Status: OFFEN
+- Ziel: `clone`, `pose`, `style`, `remix`, `animate` mit lokal importierter Vorlage (Upload/Dateien) → Analyse → Charakterbindung → drei Kandidaten → Dateien; unabhängig von Kanälen nachgewiesen.
+- Fehlt: Vorlagenablage und Analyse-Workflows, Befehlsinterpretation (KI-Instanz), EVENT 25, Befehl 28, Vorlagenseiten, UI „Vorlagen“.
+- Abhängigkeit: P2, P4 (animate/Video), P5. Abnahme: jeder Befehl einzeln real geprüft.
+
+**Teil C – Kanäle und Kundenbetrieb (F4)**
+
+**P7 – Kanal-Basis** · Status: OFFEN
+- Ziel: Adapter-Schnittstelle und **Telegram-Adapter** (Long-Polling, Offset, Medien, Senden, Antwortbezug) sowie **Instagram-Adapter** (OAuth mit Token-Erneuerung, Webhook mit Signaturprüfung, Medien sofort sichern, Senden inkl. signierter Medien-URLs, Echo-Erkennung); Tunnel nur für Instagram (§10.1); Migration: kanalunabhängige Kunden + `channel_identities`, `channel_conversations`, Nachrichtenreferenzen, Eingangs-/Ausgangsaufgaben (bestehende Kunden und Nummern bleiben); interner Kontakt Default mit Operator-Feldern (§8, F7.4); Übersicht-Karte Kundenakten; Nachrichten-Cockpit im Lesemodus (drei Spalten, Kundenliste, Register, Unterregister, Farben, Gesamt nur lesbar); Kanalstatus.
+- Wiederverwendet: Muster aus Chatwoot und der Betreiber-ZIP (Signaturprüfung, Normalisierung, Duplikat-/Echo-Erkennung), bestehende Host-/Origin-/Sitzungsprüfung, Ereignisjournal, Medienablage.
+- Verträge: STATE 8, EVENT 26/27, Befehl 29, Kunden-/Verlaufsseiten.
+- Abhängigkeit: P1 (Aufträge), Telegram-Bot-Token, Meta-App, Tunnel-Konto. Abnahme: echte Telegram- und Instagram-Nachricht erscheinen je genau einmal; doppelt zugestelltes Ereignis erzeugt nichts; Backend-Neustart verliert nichts (Telegram-Offset, Instagram-Abgleich); ungültige Signatur abgewiesen.
+
+**P8 – Telegram-Kloner-Eingang** · Status: OFFEN
+- Ziel: freigegebener Telegram-Absender sendet Foto/Video mit Befehl → derselbe Produktionspfad wie P6; Kennzeichnung `INTERNER AUFTRAG` in Nachrichten; Datei > 20 MB → Hinweis. Abhängigkeit: P6, P7. Abnahme: Auftrag vom Smartphone bis Dateien; Duplikat-Ereignis ohne zweiten Auftrag.
+
+**P9 – Instagram-DM-Kloner-Eingang** · Status: OFFEN
+- Ziel: direkt gesendete Bilder/Videos, geteilte Beiträge/Reels real prüfen; abrufbare Medien sofort sichern und wie P8 verarbeiten; nicht abrufbare als „nicht importierbar“. Voraussetzung: professionelles Instagram-Konto der Influencerin, Meta-App mit Instagram-Login und Nachrichtenberechtigung; Absender-Accounts mit App-Rolle (Standard Access genügt, §6). Abhängigkeit: P7, P8.
+
+**P10 – Kundenbetrieb F4 vollständig** · Status: OFFEN
+- Ziel: kanalgebundene Antworten (Befehl mit Kunde + Kanalidentität + Plattform-Konversations-ID + Revision; `channel=all` abgewiesen), KI antworten/Entwürfe/Modi/Übergabe-Erkennung, Influencerinnen (Profil, LLM, Bild-/Video-Workflow, Identitätsprofil, Freigabemodus), Kundengedächtnis, Instagram→Telegram-Token-Verknüpfung, Medienaufträge mit 8-Schritt-Verlauf, Zahlungen (nur verifizierter Provider), Admin-Freigabe (Zweit-KI erst nach eigener Abnahme), Zustellung über die Adapter nur hinter `approval.py` mit Zustellkopie je Kanalgrenze (§6), Zustellstatus, Ereigniskarten; Übersicht-Karte Freigaben ausstehend; Instagram Advanced Access (Meta-App-Prüfung) für fremde Kunden.
+- Verträge: STATE 9, EVENT 28, Befehle 30–36. Abhängigkeit: P5, P7. Abnahme: FRONT-F4-Abnahmefälle (drei Kunden, Kanaltreue, Gesamt nur lesbar, Entwurf/Kanalwechsel, Dubletten, Neustart, KI aus, Übergabe, zwei Influencerinnen, zwei Aufträge, Zahlung/Freigabe/Zustellung genau einmal; Foto und Video je Kanal innerhalb der Grenze zugestellt, Zustellkopie mit eigenem SHA-256; DF-PUSH D 6–8).
+
+**P12 – Weitere Kanäle (später)** · Status: OFFEN
+- WhatsApp (Cloud API), danach Fanvue/TikTok/Shop jeweils als weiterer Adapter derselben Schnittstelle, nur mit freigegebener offizieller API; je Kanal ein realer End-to-End-Test.
+
+**P11 – Gesamtabnahme** · Status: OFFEN
+- Alle fünf Kurzbefehle über alle verfügbaren Eingänge, Neustart/Wiederaufnahme, Fehler, keine Doppelaufträge, keine Charakterverwechslung, vollständige Metadaten, freie Prompt-Generierung und Workflow-Verwaltung weiter funktionsfähig, Dateien dauerhaft, Kundendaten unbeschädigt, Release-Einheit/Rückfall.
+
+## 13. Widerspruchsauflösung gegenüber BACK V1.10/1.11 und FRONT V1.7/1.8
+
+| Thema | Bisher | Gilt jetzt (V0) |
+|---|---|---|
+| Autorität | BACK „einziger normativer Masterplan“; FRONT nennt nur BACK | V0 verbindlich (§0) |
+| Modelle für den ersten Kettennachweis | BACK §0: keine weiteren Modelle | gilt für **P0**; danach A/B mit Kandidaten (P2/P4) |
+| Master-Rolle FLUX 3 Klein, FLUX.2 Dev als Benchmark (BACK) | fest | Kandidaten im A/B; FLUX.2 Dev nicht eingeplant |
+| Erster Videopfad | BACK: Wan FP16 zuerst; V0.1: Remix-Rezept | P0 Wan FP16; Remix-Korrektur in P0, Vergleich P4 |
+| Trainingsort | BACK: in ComfyUI 1; V0.1: mflux | P0: ComfyUI-Trainingsworkflow zuerst, diffusers als Ausweich; Krea 2: mflux (P2) |
+| Datensatz | BACK ≥ 15/768 px; V0.1 25–40/1024 px | Minimum 15/768 (Gate), empfohlen 25–40/1024 |
+| GPU-Warteschlange | FRONT/V0.1: genau eine; BACK: zwei Queues | zwei Queues + gemeinsame Zulassung (§4.2) |
+| Engine je Auftrag (BACK) | eine Engine pro Auftrag | eine Engine je **Stufe**, Entladen dazwischen |
+| Desktop-Hülle | V0.1: Electron | gestrichen; Browser-Cockpit + Swift-Starter |
+| Instagram-Zugriff | V0.1: instagrapi/Sammlungen | nur offizielle Instagram-API über eigenen Adapter (§6, §8) |
+| Instagram als Kanal (FRONT F6) | später | eigener Adapter in P7/P9 |
+| Kanalinfrastruktur (BACK §4/§4B, FRONT F4, ZIP) | Chatwoot nativ | eigene Python-Adapter; Chatwoot-Dienste, -Gates und -Parameter gestrichen; WhatsApp später (P12) |
+| Erstkontakt = Kundenakte (FRONT F4) | jede Nachricht | Kloner-Weiche vor Kunden-/KI-Verarbeitung (§8) |
+| TTS in der KI-Instanz | fester Bestandteil | weiterer KI-Workflow, sobald qualifiziert |
+| Reproduzierbarkeit (BACK) | Seeds, Modell-Hash, Workflow-Revision | vollständige Liste §9.5 |
+| Face-Swap | nicht geregelt | Regel 4 |
+| FRONT „keine Löschfunktion“, „drei Routen“, „Als Nächstes F4“ | veraltet | Löschen implementiert; vier Reiter; Reihenfolge §12 |
+| Produktionsarbeitsbereich (V0.2-Entwurf) vs. F7.5 | eigene drei Spalten + Schaltflächen | F7.5-Layout; Produktionsfunktionen als Felder darin (§9.6) |
+| Kandidaten vs. F7.5 „keine fiktiven Kandidatenflächen“ | drei Kandidaten | je Kandidat ein echtes Renderergebnis, keine Platzhalter |
+| Chatwoot im DF-PUSH-Vertrag und in F7 (BACK 1.11, FRONT 1.8) | Chatwoot-Adapter/-Conversation | eigene Kanal-Adapter, Plattform-Konversation (BACK 1.12, FRONT 1.9) |
+| Medienversand und Kloner-Rückversand | ungeregelt | Eingabefeld nur Text; Kundenmedien nur nach Zahlung + Freigabe, als Zustellkopie bei Kanalgrenze; Kloner-Ergebnisse nur in Nachrichten (Default) und Dateien (§6, §8) |
+| Modellbestand | „nicht pauschal löschen“ | Betreiberauftrag 15.11.2026: RealCore, Qwen-Image 20B/2.1, FLUX.2 Dev entfernt (§9.3) |
+
+## 14. Voraussetzungen durch den Betreiber
+
+- Charakterfotos in `local/character/photos/` (P0).
+- Modelle nach §14.1 selbst laden (ab P2; **P0 braucht keine neuen Modelle**); danach trägt das Backend sie mit SHA-256 ins Manifest ein und prüft sie (`models verify`).
+- macOS-26-Update (P3).
+- Kostenloses Tunnel-Konto (Tailscale oder ngrok) – nur für Instagram (P7).
+- Telegram-Bot (BotFather-Token); professionelles Instagram-Konto der Influencerin mit Meta-App (P7–P10); freigegebene Absender-Accounts. WhatsApp Business erst für P12.
+
+### 14.1 Downloadliste (Links geprüft 15.11.2026; Ablage unter `local/models/`)
+
+| Phase | Modell | Datei / Link | Größe | Ablage |
+|---|---|---|---|---|
+| P2 | Krea 2 Raw BF16 | [krea2_raw_bf16](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_raw_bf16.safetensors) | 26,3 GB | `diffusion_models/krea2/` |
+| P2 | Krea 2 Turbo BF16 | [krea2_turbo_bf16](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_bf16.safetensors) | 26,3 GB | `diffusion_models/krea2/` |
+| P2 | Krea-2-Textencoder Qwen3-VL-4B BF16 | [qwen3vl_4b_bf16](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_bf16.safetensors) | 8,9 GB | `text_encoders/krea2/` (anderer SHA-256 als die gleichnamige FLUX-3-Datei) |
+| P2 | LUSTIFY v10 Krea Raw BF16 (Civitai, Anmeldung) | [fileId 3015315](https://civitai.com/api/download/models/3112728?fileId=3015315) | 25,7 GB | `diffusion_models/lustify/` |
+| P2 | LUSTIFY v10 Krea Turbo BF16 (Civitai, Anmeldung) | [fileId 3015314](https://civitai.com/api/download/models/3112728?fileId=3015314) | 25,7 GB | `diffusion_models/lustify/` |
+| P2 | FLUX 3 Image Klein Base BF16 (Lizenz auf HF annehmen) | [flux3-image-klein-base-bf16](https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/diffusion_models/flux3-image-klein-base-bf16.safetensors) | 11,1 GB | `diffusion_models/flux3/` |
+| P2 | FLUX-3-Textencoder Qwen3-VL-4B BF16 | [qwen3vl_4b_bf16](https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/text_encoders/qwen3vl_4b_bf16.safetensors) | 8,9 GB | `text_encoders/qwen3vl/` |
+| P2 | SAM 3.1 | [sam3.1_multiplex_fp16](https://huggingface.co/Comfy-Org/sam3.1/resolve/main/checkpoints/sam3.1_multiplex_fp16.safetensors) | 1,8 GB | `checkpoints/sam3/` |
+| P2 | SeedVR2 7B FP16 | [seedvr2_7b_fp16](https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/diffusion_models/seedvr2_7b_fp16.safetensors) | 16,5 GB | `diffusion_models/seedvr2/` |
+| P2 | SeedVR2 3B FP16 | [seedvr2_3b_fp16](https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/diffusion_models/seedvr2_3b_fp16.safetensors) | 6,8 GB | `diffusion_models/seedvr2/` |
+| P2 | SeedVR2-VAE | [seedvr2_ema_vae_fp16](https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/vae/seedvr2_ema_vae_fp16.safetensors) | 0,5 GB | `vae/seedvr2/` |
+| P2 | AuraFace-v1 | [glintr100.onnx](https://huggingface.co/fal/AuraFace-v1/resolve/main/glintr100.onnx) | 0,26 GB | `face/auraface/` |
+| P2 | YuNet / SFace (OpenCV) | [YuNet](https://huggingface.co/opencv/face_detection_yunet/resolve/main/face_detection_yunet_2023mar.onnx), [SFace](https://huggingface.co/opencv/face_recognition_sface/resolve/main/face_recognition_sface_2021dec.onnx) | < 0,1 GB | `face/opencv/` |
+| P6 | SDPose + Personendetektor | [sdpose_wholebody_fp16](https://huggingface.co/Comfy-Org/SDPose/resolve/main/checkpoints/sdpose_wholebody_fp16.safetensors), [rt_detr_v4-x-hgnet_fp32](https://huggingface.co/Comfy-Org/SDPose/resolve/main/diffusion_models/rt_detr_v4-x-hgnet_fp32.safetensors) | 2,2 GB | `checkpoints/sdpose/`, `diffusion_models/sdpose/` |
+| P6 | Depth Anything 3 Mono Large | [depth_anything_3_mono_large](https://huggingface.co/Comfy-Org/Depth-Anything-3/resolve/main/geometry_estimation/depth_anything_3_mono_large.safetensors) | 1,3 GB | `geometry_estimation/depth_anything3/` (Ordnerzuordnung in ComfyUI wird ergänzt) |
+| P4 | Wan Animate 2 BF16 + CLIP Vision + VAE + LoRA der Vorlage | [wan_animate_2_bf16](https://huggingface.co/Comfy-Org/Wan-Animate-2/resolve/main/diffusion_models/wan_animate_2_bf16.safetensors), [clip_vision_h](https://huggingface.co/Comfy-Org/Wan-Animate-2/resolve/main/clip_vision/clip_vision_h.safetensors), [Wan2_1_VAE_bf16](https://huggingface.co/Comfy-Org/Wan-Animate-2/resolve/main/vae/Wan2_1_VAE_bf16.safetensors), [lightx2v rank64](https://huggingface.co/Comfy-Org/Wan-Animate-2/resolve/main/loras/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors) | 35,0 GB | `diffusion_models/wan22/`, `clip_vision/wan/`, `vae/wan/`, `loras/wan/` (umt5 vorhanden, gleicher SHA-256) |
+| später | Cydonia 24B (P5), LTX 2.5 (P4, Manifest), FILM, FLUX-3-Prompt-Upsampler (optional) | [Cydonia Q8_0](https://huggingface.co/TheDrummer/Cydonia-24B-v4.1-GGUF/resolve/main/Cydonia-24B-v4j-Q8_0.gguf), [LTX-2.5](https://huggingface.co/Lightricks/LTX-2.5), [film_net_fp16](https://huggingface.co/Comfy-Org/Frame-Interpolation/resolve/main/frame_interpolation/film_net_fp16.safetensors), [Upsampler bf16](https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/text_encoders/qwen3.5_9b_flux3_prompt_upsampler_bf16.safetensors) | 25 / 71 / 0,07 / 18,8 GB | erst bei Bedarf |
