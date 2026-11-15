@@ -1,11 +1,73 @@
 # DARKFLUENZER — PHASENPLAN FRONT V1
 
-**Version:** 1.7 · **Stand:** 15.11.2026  
+**Version:** 1.8 · **Stand:** 15.11.2026  
 **Zuständigkeit:** ausschließlich React-Frontend, Bedienbarkeit und typisierter Frontend-/Backend-Vertrag  
 **Backend-Gegenstück:** [PHASENPLAN_BACK_V1.md](PHASENPLAN_BACK_V1.md)  
 **Status:** F1–F3b am Mac abgenommen (PASS); F4 Nachrichten fachlich spezifiziert, Implementierung/Abnahme OFFEN; F5–F6 OFFEN.
 
 > **Dieter Rams / Braun: Weniger, aber besser.** Zeige ausschließlich funktionierende oder klar als nicht angebunden gekennzeichnete Fähigkeiten. Eine Aktion hat genau einen verständlichen Zweck; jeder angezeigte Zustand stammt aus echten Backend-Daten. Keine funktionslosen Platzhalter, künstlichen KPIs, parallelen Dashboards oder dekorativen Module.
+
+## VORRANGBESCHLUSS — DF-PUSH-PROTOBUF-E2E-2026-11-15
+
+**Betreiberentscheidung (15.11.2026; sofort gültig):** Für **jeden** vorhandenen und zukünftigen Darkfluenzer-Reiter und jedes tatsächlich bedienbare GUI-Feld ist das aus DarkBot/BSC und Project_0 übernommene Prinzip **Push + vollständig typisiertes Protobuf + echter Command-Rückweg + E2E-Abnahme im selben Fachpaket** verbindlich. Diese Präzisierung ersetzt widersprechende spätere-Frontend-, periodische fachliche Abfrage- und rein dekorative UI-Pläne. **Kein Rust-Port und kein zusätzlicher Gateway:** In Darkfluenzer ist `backend/src/darkfluenzer/server.py` + `stream.py` der vorhandene **Python-Gateway/Owner**; SQLite (`store.py`) ist die fachliche Persistenz, `pipeline.py` koordiniert ComfyUI 1/2 und Chatwoot bleibt ein isolierter Backend-Kanaladapter. Die bestehenden vier GUI-Reiter und die freigegebene [interaktive Gestaltung](design/Darkfluenzer_Cockpit_Interaktiv.html) (F7) bleiben unangetastet.
+
+### A. Ein vollständiger fachlicher Hinweg — sofort, nicht in einer späteren Phase
+
+```text
+Echter Owner (Python/SQLite/ComfyUI-Adapter/Chatwoot-Bridge)
+  → persistierte Änderung + autoritative Python-Fachprojektion/-Version
+  → generierte Protobuf-Typen darkfluenzer.v1
+  → bestehender Python-Hub (STATE/EVENT)
+  → EIN same-origin Protobuf-WebSocket /ws/v1/stream
+  → frontend/src/core/realtime.ts + state.ts
+  → passender React-Reiter / sichtbarer aktueller Zustand
+```
+
+- **Kein GUI-Backend-Polling**: keine wiederkehrenden `fetch`-/GET-/POST-Zyklen für fachlichen Zustand, keine `setInterval`-/`setTimeout`-getriebene Dashboard-Abfrage, kein zweiter WebSocket je Reiter, kein JSON als fachliches GUI-Transportformat. **Erlaubt** sind Heartbeat/Liveness, Reconnect-Backoff, einmaliges Session-/Bootstrap-Handling, benutzerausgelöste Aktionen, echte einmalige Detailabfragen und technisch nötiges *backendinternes* Adapter-/Provider-Health-Monitoring (kein Browser-Datenpoll-Fallback).
+- **STATE**: pro Topic vollständige *kleine* Momentaufnahme, aktueller `(generation,seq)`-Stand, Herkunft/Frische/Verfügbarkeit, Latest-wins/Coalescing bei Belastung; keine unbegrenzte Snapshot-Queue. Browser verwirft veraltete Generationen/Sequenzen und zeigt bei Disconnect/Detach **STALE/UNAVAILABLE** statt fälschlichem „LIVE“. `stream.py` hat bislang eine unbeschränkte Client-Queue: vor generellem Produktions-PASS Backpressure, bounded State-Koalescing, Event-Lücken und langsame Clients ausdrücklich qualifizieren.
+- **EVENT**: nur nach dauerhaftem SQLite-Commit mit monotonem Journal-Cursor; `CatchupComplete`, Reconnect-/Restart-Replay, Deduplikation und markierte Lücken. Bei unbekannter Journal-Epoche/Retention/Gap gezielte **Neusynchronisierung** statt stiller fehlender Nachrichten/Aufträge. Nicht alle F4-Ereignisse als implementiert ausgeben: aktueller Stand sind `job.completed`, `media.added`, `media.removed`; zusätzliche Topics additiv einführen.
+- **Transport**: `protocol/schemas/darkfluenzer/v1/*.proto`, Python `*_pb2.py`, TypeScript ausschließlich generierte `frontend/src/core/generated/`, kompatible Feldnummern/reserved, geprüfte `schema_id` + reale Topic-Typbindung. Bilder/Videos als geschützte bestehende Medien-Endpunkte, niemals binäre Großdateien in STATE/EVENT. ComfyUI-/Chatwoot-JSON bleibt **ausschließlich serverintern**, niemals zwischen React und Python.
+
+### B. BSC-Owner-Versionen auf Darkfluenzer übertragen — gezielte Daten statt Dauerabfragen
+
+**Autorisierte Domain-Versionen je unabhängigem Eigentümer** in Python/SQLite, mit **Backend-Runtime-Epoche** für Reconnect/Neustart. Änderungen werden *nach dem fachlichen Commit* atomar versioniert und als kleines typisiertes STATE-Projektionsfeld gepusht; niemals eine BSC-Version oder ein Trading-Modul importieren. Domains und zugeordnete React-Ansichten:
+
+| Fachdomain / versionierter Owner | Reiter / Beispiele für gezielte Protobuf-Detailabfrage |
+|---|---|
+| `customers`, `identities`, `conversations`, `messages` | Nachrichten: Kundenliste/Ungelesen, aktuelle Kundenakte, bestätigte Kanäle, chronologische Seiten pro Kunde/Kanal; Default-Konto getrennt von zahlenden Kunden |
+| `llm_settings`, `persona`, `orders`, `payments`, `approvals` | Nachrichten rechts: echte KI-Schalter, Modell/Charakter, Gesprächskontext, Kundenauftrag, **belegte** Zahlung, Freigabe/Versand |
+| `comfy_health`, `workflows`, `jobs`, `training` | ComfyUI: Instanzstatus 8188/8189, Workflows/Parameter, eigenständige Queues, Render-/Trainingsfortschritt; Übersicht: aktueller Job |
+| `media`, `provenance` | Dateien: `media-page`, Filter/Seite, Medienentfernung, vollständige Provenienz; Übersicht: tatsächlich offene Freigaben |
+
+**Abfragevertrag** (BSC-V8-Muster `useOwnerVersion` / `useBscQuery` funktional, **nicht** per Kopplung/Import): `connection_id + owner_epoch + domain_version + query_kind + customer_id/channel_id/order_id + filter + page/cursor`. Erst nach `Welcome` und synchronisiertem Zustand initial abfragen; erneut **nur** bei relevanter Versionsänderung, echtem Ansicht-/Scope-/Filter-/Seitenwechsel, manuellem Refresh oder einmaliger synchronisierter Wiederverbindung. Identische gleichzeitige Anforderungen zusammenfassen; **keine** Abfrage bei fachlich unverändertem Stand; veraltete Antworten (alte Version/Seite/Filter/Kunde/Connection) nicht übernehmen, niemals Kundendaten zwischen Registerkarten vermischen. Für denselben Scope zuletzt gültige Daten während der neuen Abfrage sichtbar, aber als **veraltet** markiert halten. Keine endlosen Retry-Loops oder Poll-Ersatz. Bestehendes `GET /api/v1/media-page` (application/x-protobuf) bleibt als **on-demand**-Vorbild; zusätzliche Query-Protobuf-Typen/Endpunkte nur bei echtem Fachbedarf und **in demselben Python-Backend**. Fachereignisse `media.added`/`media.removed` dürfen Galerie gezielt updaten, ohne den gesamten Index erneut zu laden.
+
+### C. Jeder bedienbare Schalter / Knopf: vollständiger Protobuf-Rückweg
+
+```text
+React-Bedienelement + eindeutige fachliche IDs/Version
+  → frontend/src/core/commands.ts / POST /api/v1/command
+  → typisierter CommandRequest(request_id, erwartete Revision, konkrete Aktion)
+  → Python-Owner: Session/CSRF, Absender/Kunden-/Kanal-/Rollenprüfung,
+     Validierung + Idempotenz + Versions-/CAS-Prüfung
+  → persistierte Command-Receipt (angenommen/abgelehnt,
+     abgeschlossen/fehlgeschlagen/unklar, konkrete Ursache/Resultat)
+  → entsprechender STATE/EVENT-Protobuf-Push
+  → React zeigt erst den BELEGTEN neuen Zustand
+```
+
+**Gilt ohne Ausnahme** für ComfyUI Start/Stop, Workflow Aktivieren/Öffnen/Übernehmen/Anlegen/Löschen, Rendern/Abbrechen/Pause, Training/Charakterfreigabe, Datei-Löschen/Weiterverarbeiten, Default-Absender/Modelle/KI-Schalter, kanalgebundene Antworten, Aufträge, Angebote, Zahlungsverifikationen/Freigaben/Versand — *soweit die Funktion implementiert und tatsächlich bedienbar ist*. Keine dekorativen Switches, kein optimistisches „erfolgreich“ bei bloßem `ACCEPTED`, kein dupliziertes Senden nach Doppelklick/Restart. Für Downloads, Datei-/Medien-GETs und reine Navigation sind keine mutierenden Commands nötig. Bestehende `commands.proto`-Requests bleiben erhalten und werden **additiv** um erforderliche Protobuf-Receipt-/CAS-/Command-Varianten erweitert; eine UI-Aktion sendet nie über eine frei zusammengebaute JSON-API direkt an ComfyUI oder Chatwoot. **Befehls-Lebenszyklus**: `ACCEPTED` bestätigt nur Annahme; terminaler Erfolg/Fehlschlag/UNKNOWN benötigt persistente Receipt und dazu passende echte Backend-Projektion. Bestehende `CommandResponse`-Antwort nicht rückwirkend als terminales Receipt umdeuten.
+
+### D. End-to-End-Definition im SELBEN Implementierungspaket
+
+**Nicht auf eine Frontend-Phase verschieben.** Jedes neue/angepasste Feld wird sofort als vollständiger Python→Protobuf→Hub→WS→Store→React-Hinweg umgesetzt; bei Bedienung zusätzlich React→Command→Python→Receipt→Push. Fachpaket erst PASS, wenn der tatsächliche Browser die echte Änderung ohne Refresh sieht und der Rückweg einschließlich Fehlerfall stimmt. F1–F3b-Einzelnachweise bleiben historisch PASS; **dieser neue Gesamtvertrag gilt für neue/angepasste Funktionen und zu prüfende vorhandene Pfade**, nicht als fiktive rückwirkende E2E-Abnahme.
+
+**Verbindliche native M4/macOS-Prüfmatrix je betroffener Domain:** (1) echter SQLite-Commit → Version ändert sich → genau passender STATE/EVENT-Push → Anzeige im richtigen Reiter **ohne Poll**; (2) keine Änderung → **null** neue fachliche Queries; (3) Versionswechsel → genau **eine** deduplizierte Detailquery pro Scope; (4) Kunde/Kanal/Seite/Filter wechseln, alte Antwort verwerfen; (5) Reconnect, Backend-Neustart, ComfyUI-Detach, Journal-Gap → konsistente Snapshots und Catch-up/STALE; (6) doppelte Command-ID/Doppelklick → höchstens eine fachliche Ausführung; (7) `ACCEPTED`/REJECTED/FAILED/UNKNOWN → echte Receipt und Folgezustand, kein Schein-PASS; (8) F4-Sendebefehl strikt kanalkontextgebunden, Gesamt nicht sendbar; (9) Galerie-Neuanlage/-Löschung in zwei Fenstern pushen, Pagination nur bei Bedarf; (10) ComfyUI 1/2 getrennte Queue-/Health-Zustände und vorhandene tatsächliche Media-/Training-IDs; (11) Protobuf-Codegen/Schema-Fingerprint/Topic-Bindung, Python-Gates, React-Tests, Browser-Playwright und echte Mac-E2E-Prüfung mit protokolliertem Test-Git-SHA.
+
+**Abnahmebeleg**: konkrete Python-/Proto-/React-Dateien, Topic/Domain/Command, Testkommandos/Resultate und finaler Commit-SHA. Bei fehlender Implementierung **OFFEN/PARTIAL**, niemals PASS. Vorhandene periodische fachliche Browseraufrufe nur im betroffenen Pfad entfernen; funktionierende F1–F3b-Funktionen, Demo-HTML (F7), `local/` und Modelldateien nicht umbauen/löschen.
+
+**Nachweisquelle und Übertragungsgrenze:** DarkBot `project_0/docs/PHASENPLAN.md` → `P0-PUSH-PROTOBUF-E2E-2026-11-15` (Commit `45831436`), BSC `frontend/src/features/bsc/pages/{useOwnerVersion,useBscQuery}.ts`; Darkfluenzer-Ist `backend/src/darkfluenzer/{stream,server,store,pipeline}.py`, `frontend/src/core/{realtime,state,commands}.ts`, `protocol/schemas/darkfluenzer/v1/{stream,commands,media}.proto`. **Technikprinzip übernehmen, keine Rust-/Trading-/DarkBot-Laufzeitabhängigkeit erzeugen.**
+
+---
 
 ## F0 — Architekturentscheidung und Projektunabhängigkeit
 
