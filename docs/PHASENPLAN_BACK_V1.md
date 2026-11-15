@@ -287,7 +287,7 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
 |---|---|---|
 | \`NATIVE-01\` | S1-Erweiterung / S6 | Auf echtem Mac alle neuen Prozesse nativ ARM64, Host-Fingerprint mit DarkBot-Evidence abgeglichen, kein Rosetta/Container/VM; **historischen S1-PASS nicht überschreiben** |
 | \`NATIVE-02\` | S4 / S6 | \`launchd\`-Start-/Stop-/Neustart, kein Fremdprozess beendet, keine Doppelinstanz, kein verlorener/beim Recovery doppelt ausgeführter Auftrag, eigenständiger ComfyUI-1-/2-Ausfall |
-| \`NATIVE-03\` | S4 | Kanal-Adapter im Python-Backend: Telegram (Long-Polling) und Instagram (Webhook über Tunnel) empfangen und beantworten echte Nachrichten; Neustart ohne Verlust oder Doppelversand (→ V0 C2; Chatwoot entfällt) |
+| \`NATIVE-03\` | S4 | Kanal-Adapter im Python-Backend: Telegram (Claras Nutzerkonto über TDLib, → V0 §6.1/C2d) und Instagram (Webhook über Tunnel) empfangen und beantworten echte Nachrichten; Neustart ohne Verlust oder Doppelversand (→ V0 C2; Chatwoot entfällt) |
 | \`M4-CPU-01\` | S6 | Realer Hostreport (ARM64/Rosetta/VM, P/E, Cache, aktiver CPU-Stand, Thermal, Low Power) und QoS-Set/Readback/Refusal nur bei eigenem dauerhaftem Thread |
 | \`M4-CPU-02\` | S4 / S6 | Adapter- und Python-Queue-Parameter anhand Messung unter ComfyUI-Last gewählt; p50/p95/p99, CPU, RSS/Swap, Queuezeiten und Fehlerraten vor/nach Maßnahme dokumentiert |
 | \`M4-CPU-03\` | S6 | Gleichzeitiger echter Medienrender + mindestens zwei KI-Chat-Aufträge + Kanal-Zustellung; keine gemeinsame Queue-Sperre und keine verlorene/duplizierte Nachricht; Render-/Antwortlatenzen gemessen |
