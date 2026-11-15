@@ -322,3 +322,31 @@ def test_job_ends_its_command_and_only_unsubmitted_jobs_are_requeued(tmp_path):
     with pytest.raises(sqlite3.IntegrityError):
         store.db.execute("UPDATE commands SET status = 'completed' WHERE request_id = ?", (rid,))
     store.close()
+
+
+def test_comfy_output_of_a_running_job_is_indexed_with_the_job(cfg):
+    """Frühe Ausgabe eines laufenden Jobs (z. B. die Maske) erscheint nicht vorab ohne Auftrag:
+    nach dem Abschluss gewinnt die Job-Ausgabe mit Auftragsbezug."""
+    from PIL import Image
+
+    from darkfluenzer import pipeline
+    from darkfluenzer.store import sha256_file
+
+    s = Store(cfg.local)
+    try:
+        job = s.create_job(None, "e", "wf", "p", {}, [])
+        s.set_job_status(job, "running")
+        early = cfg.comfyui.path / "output" / "darkfluenzer" / "mask_00001_.png"
+        early.parent.mkdir(parents=True)
+        Image.new("L", (4, 4), 255).save(early)
+        assert pipeline.media_candidates(cfg, s, set(), settle_s=0) == []
+
+        copy = cfg.local / "evaluation" / "wf" / "wf_x_01.png"
+        copy.parent.mkdir(parents=True)
+        copy.write_bytes(early.read_bytes())
+        out = {"path": "evaluation/wf/wf_x_01.png", "sha256": sha256_file(copy), "node": "19"}
+        s.set_job_status(job, "done", outputs=[out])
+        found = pipeline.media_candidates(cfg, s, set(), settle_s=0)
+        assert [(rel, job_id) for _, rel, _, _, job_id in found] == [(out["path"], job)]
+    finally:
+        s.close()

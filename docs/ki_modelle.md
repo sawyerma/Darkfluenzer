@@ -45,7 +45,7 @@ Größen laut Hugging Face / Civitai (15.11.2026). In den Spalten stehen die Pr�
 | FLUX-3-Textencoder Qwen3-VL-4B | ★ BF16 8,88 · INT8 4,86 | wie oben | `text_encoders/qwen3vl/` | B2 |
 | FLUX-3-Prompt-Upsampler Qwen3.5-9B (optional) | ★ BF16 18,82 · INT8 9,75 · W4A8 6,72 | wie oben | `text_encoders/qwen3vl/` | B2 |
 | FLUX-2-VAE (für FLUX 3) | ★ FP32 0,34 | vorhanden (`vae/flux2/`) | – | B2 |
-| **SAM 3.1** (Masken) | ★ FP16 1,75 (einzige Stufe) | [Comfy-Org/sam3.1](https://huggingface.co/Comfy-Org/sam3.1/tree/main/checkpoints) | `checkpoints/sam3/` | B2 |
+| **SAM 3.1** (Masken) | ★ FP16 1,75 (einzige Stufe) | vorhanden, SHA-256 geprüft, im Workflow `lustify_sam31_edit` ([Comfy-Org/sam3.1](https://huggingface.co/Comfy-Org/sam3.1/tree/main/checkpoints)) | `checkpoints/sam3/` | B2 |
 | **SeedVR2 3B** (Upscaler, schnell) | ★ FP16 6,78 · FP8 3,39 · INT8 3,46 · MXFP8 3,56 · NVFP4 2,00 | [Comfy-Org/SeedVR2](https://huggingface.co/Comfy-Org/SeedVR2/tree/main/diffusion_models) | `diffusion_models/seedvr2/` | B2 |
 | **SeedVR2 7B** (Upscaler, Qualität) | ★ FP16 16,48 · FP8 8,24 · INT8 8,33 · MXFP8 8,58 · NVFP4 4,76 | wie oben | `diffusion_models/seedvr2/` | B2 |
 | SeedVR2 7B Sharp (schärfer) | ★ FP16 16,48 · FP8 8,24 · INT8 8,33 · MXFP8 8,58 · NVFP4 4,76 | wie oben | `diffusion_models/seedvr2/` | B2 |

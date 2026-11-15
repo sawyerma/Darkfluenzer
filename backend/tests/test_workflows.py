@@ -118,6 +118,18 @@ def test_registered_ui_exports_match_api_structure():
         assert len(ui["links"]) == api_links
 
 
+def test_unique_outputs_tags_every_save_node_only():
+    graph = {
+        "1": {"class_type": "SaveImage", "inputs": {"images": ["2", 0], "filename_prefix": "d/a"}},
+        "2": {"class_type": "MaskToImage", "inputs": {"mask": ["3", 0]}},
+        "3": {"class_type": "SaveVideo", "inputs": {"filename_prefix": "d/v", "video": ["2", 0]}},
+    }
+    tagged = comfy.unique_outputs(graph, "job7")
+    assert tagged["1"]["inputs"]["filename_prefix"] == "d/a_job7"
+    assert tagged["3"]["inputs"]["filename_prefix"] == "d/v_job7"
+    assert tagged["2"] == graph["2"] and graph["1"]["inputs"]["filename_prefix"] == "d/a"
+
+
 def _png(path: Path, array: np.ndarray) -> Path:
     Image.fromarray(array).save(path)
     return path

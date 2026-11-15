@@ -298,6 +298,19 @@ def apply_params(graph: dict, wf: Workflow, values: dict) -> dict:
     return out
 
 
+def unique_outputs(graph: dict, tag: str) -> dict:
+    """Hängt ``tag`` an jedes ``filename_prefix`` (SaveImage, SaveVideo …): Speicher-Nodes laufen
+    je Auftrag neu und schreiben eigene Dateien. Ohne das meldet ComfyUI für unveränderte
+    Teilgraphen die Datei eines früheren Laufs aus seinem Cache – die evtl. schon gelöscht ist;
+    Modelle und Zwischenergebnisse bleiben weiter im Cache."""
+    out = copy.deepcopy(graph)
+    for node in out.values():
+        prefix = node.get("inputs", {}).get("filename_prefix")
+        if isinstance(prefix, str):
+            node["inputs"]["filename_prefix"] = f"{prefix}_{tag}"
+    return out
+
+
 def _git_revision(root: Path, rel: str) -> str:
     try:
         rev = subprocess.run(
@@ -361,7 +374,8 @@ def run_workflow(
     wf = man.workflows[workflow_key]
     if wf.status == "GESPERRT":
         raise ComfyError(f"Workflow '{workflow_key}' ist gesperrt.")
-    graph = apply_params(load_graph(man, wf), wf, values)
+    tag = f"job{job_id}" if job_id is not None else stem.rsplit("_", 1)[-1]
+    graph = unique_outputs(apply_params(load_graph(man, wf), wf, values), tag)
     inst = instance_of(cfg, man, wf)
     runtime.start(cfg, inst.name)  # einzige Startlogik; idempotent
     client = ComfyClient(inst.url, client_id=client_id)

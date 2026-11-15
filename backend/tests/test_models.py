@@ -154,7 +154,8 @@ def test_workflow_must_only_load_engine_files(tmp_path):
 def test_select_orders_smallest_remaining_engine_first(tmp_path):
     man = models.load_manifest(REPO_ROOT)
     keys = models.select(man, wave=1, base=tmp_path)
-    assert keys == ["lustify_v20", *man.engines["flux3_klein_base"].files]
+    # LUSTIFY (6,9 GB), dann LUSTIFY + SAM 3.1 (nur SAM fehlt noch), zuletzt FLUX 3 Klein
+    assert keys == ["lustify_v20", "sam31_multiplex_fp16", *man.engines["flux3_klein_base"].files]
     assert len(keys) == len(set(keys))
     with pytest.raises(models.ModelError):
         models.select(man, engines=["gibt_es_nicht"])
@@ -192,3 +193,21 @@ def test_download_refuses_without_disk_reserve(tmp_path):
     man = models.load_manifest(root)
     with pytest.raises(models.ModelError, match="Zu wenig Speicher"):
         models.download(man, models.models_dir(root), ["f1"])
+
+
+def test_mask_output_must_be_a_save_node_of_the_graph(tmp_path):
+    """Die im Graphen erzeugte Maske (Pixelprüfung) muss ein SaveImage-Ausgang sein."""
+    graph = {
+        **GRAPH,
+        "3": {"class_type": "LoadImage", "inputs": {"image": "x.png"}},
+        "4": {"class_type": "SaveImage", "inputs": {"images": ["3", 0], "filename_prefix": "m"}},
+    }
+    image = '[workflows.e1_t2i.params]\nimage = { node = "3", input = "image", type = "str" }\n'
+    root = _mini(tmp_path)
+    _with_workflow(root, graph, 'mask_output = "4"\n' + image)
+    assert models.load_manifest(root).workflows["e1_t2i"].mask_output == "4"
+
+    root2 = _mini(tmp_path / "b")
+    _with_workflow(root2, graph, 'mask_output = "2"\n' + image)
+    with pytest.raises(models.ManifestError, match="kein SaveImage"):
+        models.load_manifest(root2)

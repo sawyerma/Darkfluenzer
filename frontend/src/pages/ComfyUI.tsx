@@ -80,6 +80,7 @@ function readyUrl(s: ComfyStatus | undefined, live: boolean): string {
 
 /** Ein Befehl mit sichtbarem Ergebnis: läuft, Ablehnungsgrund oder Fehler. */
 function paramLabel(p: WorkflowParam, kind: string): string {
+  if (p.label) return p.label; // Feldname aus der Registry
   if (p.name === "prompt") return kind === "video" ? "Szene und Bewegung" : "Motiv, Komposition, Perspektive, Licht";
   if (p.name === "image") return kind === "video" ? "Startbild" : "Quellbild";
   return LABEL[p.name] ?? p.name;
@@ -219,7 +220,9 @@ const FIRST_PARAMS = ["prompt", "negative_prompt"];
 const FILE_PARAMS = new Set(["image", "mask"]);
 
 /** Parameter eines Auftrags zum Nachsehen; Eingabedateien mit ihrem Namen. */
-function JobParams({ params }: { params: Record<string, string> }) {
+function JobParams({ workflow, params }: { workflow: string; params: Record<string, string> }) {
+  const declared = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows.find((w) => w.key === workflow)?.params;
+  const label = (n: string) => declared?.find((p) => p.name === n)?.label || (n === "prompt" ? "Prompt" : n === "image" ? "Bild" : (LABEL[n] ?? n));
   const names = [
     ...FIRST_PARAMS.filter((n) => n in params),
     ...Object.keys(params)
@@ -230,7 +233,7 @@ function JobParams({ params }: { params: Record<string, string> }) {
     <dl className="g-params">
       {names.map((n) => (
         <div key={n}>
-          <dt>{n === "prompt" ? "Prompt" : n === "image" ? "Bild" : (LABEL[n] ?? n)}</dt>
+          <dt>{label(n)}</dt>
           <dd>{FILE_PARAMS.has(n) ? params[n]!.split("/").pop() : params[n]}</dd>
         </div>
       ))}
@@ -294,7 +297,7 @@ function Queue({ instance, onLoad, canLoad }: { instance: string; onLoad: LoadDr
               ) : null}
               {isOpen ? (
                 <div className="g-details">
-                  <JobParams params={job.params} />
+                  <JobParams workflow={job.workflow} params={job.params} />
                   <div className="g-actions">
                     <button
                       type="button"
@@ -334,8 +337,6 @@ const RESULT_BADGE: Record<JobResult, [string, Tone]> = {
   [JobResult.CANCELLED]: ["ABGEBROCHEN", "neutral"],
 };
 const VIDEO = /\.(mp4|webm|mov)$/i;
-// Mitte: Motiv/Prompt, Negativ-Prompt und Eingabebilder; alle übrigen Eingänge rechts (F7.5)
-const MAIN_PARAMS = new Set(["prompt", "negative_prompt"]);
 const RECENT_RESULTS = 4;
 
 /** Ergebnis (Mitte): laufender Auftrag und die letzten echten Ausgaben dieses Workflows. */
@@ -381,16 +382,22 @@ function WorkflowResults({
         <div className="g-results">
           {recent.map(({ cursor, committedMs, value: job }) => {
             const [label, tone] = RESULT_BADGE[job.result];
-            const out = job.outputs.find((o) => !gone.has(o.path));
+            const outs = job.outputs.filter((o) => !gone.has(o.path));
             const isOpen = open === cursor;
             return (
               <div className="g-tile" key={String(cursor)}>
-                {out && VIDEO.test(out.path) ? (
-                  <video src={mediaUrl(out.path)} controls muted preload="metadata" />
-                ) : out && IMAGE.test(out.path) ? (
-                  <a href={mediaUrl(out.path)} target="_blank" rel="noreferrer">
-                    <img src={mediaUrl(out.path)} alt={`Auftrag ${job.jobId}`} loading="lazy" />
-                  </a>
+                {outs.length > 0 ? (
+                  <div className="g-tile-outputs">
+                    {outs.map((out) =>
+                      VIDEO.test(out.path) ? (
+                        <video key={out.path} src={mediaUrl(out.path)} controls muted preload="metadata" />
+                      ) : IMAGE.test(out.path) ? (
+                        <a key={out.path} href={mediaUrl(out.path)} target="_blank" rel="noreferrer">
+                          <img src={mediaUrl(out.path)} alt={`Auftrag ${job.jobId}`} loading="lazy" />
+                        </a>
+                      ) : null,
+                    )}
+                  </div>
                 ) : null}
                 <button
                   type="button"
@@ -407,7 +414,7 @@ function WorkflowResults({
                 {job.result === JobResult.FAILED && job.error ? <p className="g-note g-error">{job.error}</p> : null}
                 {isOpen ? (
                   <div className="g-details">
-                    <JobParams params={job.params} />
+                    <JobParams workflow={job.workflow} params={job.params} />
                     {canLoad(job.workflow) ? (
                       <div className="g-actions">
                         <button type="button" className="g-button" onClick={() => onLoad(job.workflow, job.params)}>
@@ -467,7 +474,8 @@ function Workbench({
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const [checked, setChecked] = useState(false);
   const [expert, setExpert] = useState(false); // erweiterte Einstellungen: anfangs geschlossen
-  const inMain = (p: WorkflowParam) => p.upload || MAIN_PARAMS.has(p.name);
+  // Mitte: Grundeinstellungen (Texte, Eingabebilder); rechts die Experten-Eingänge (F7.5, V0 §7)
+  const inMain = (p: WorkflowParam) => !p.expert;
   const errors = Object.fromEntries(
     wf.params.map((p) => [p.name, validate(p, raw[p.name] ?? "", Boolean(files[p.name] || picked[p.name]))]),
   );
@@ -601,7 +609,7 @@ function Workbench({
             Aus einem Auftrag geladen{wf.params.some((p) => p.upload) ? " – Bilddateien neu wählen." : "."}
           </p>
         ) : null}
-        <div className="g-form">{[...wf.params.filter((p) => MAIN_PARAMS.has(p.name)), ...wf.params.filter((p) => p.upload)].map(field)}</div>
+        <div className="g-form">{[...wf.params.filter((p) => inMain(p) && !p.upload), ...wf.params.filter((p) => p.upload)].map(field)}</div>
         <WorkflowResults wf={wf} running={running} waiting={waiting} onLoad={onLoad} canLoad={canLoad} />
       </div>
 

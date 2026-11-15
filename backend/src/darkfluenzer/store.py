@@ -664,6 +664,12 @@ class Store:
     def running_job_ids(self) -> list[int]:
         return [r[0] for r in self.db.execute("SELECT id FROM jobs WHERE status = 'running'")]
 
+    def running_since(self) -> float | None:
+        """Startzeit (Unix-Sekunden) des ältesten laufenden Jobs; None, wenn keiner läuft."""
+        row = self.db.execute("SELECT min(updated_at) FROM jobs WHERE status = 'running'")
+        since = row.fetchone()[0]
+        return datetime.fromisoformat(since).timestamp() if since else None
+
     def queued_jobs(self) -> list[tuple[int, str]]:
         """Angelegte, noch nicht gestartete Jobs in Eingangsreihenfolge (FIFO): (ID, Workflow)."""
         rows = self.db.execute("SELECT id, workflow FROM jobs WHERE status = 'queued' ORDER BY id")

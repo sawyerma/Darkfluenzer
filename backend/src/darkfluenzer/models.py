@@ -89,6 +89,12 @@ class Param:
     choices: tuple[str, ...] = ()
     multiple_of: int | None = None
     upload: bool = False  # Datei wird vor dem Lauf zu ComfyUI hochgeladen
+    label: str = ""  # Feldname im Cockpit (leer: Standardbezeichnung des Parameternamens)
+    expert: bool | None = None  # None: Zahlen sind Experte, Texte und Dateien Grundeinstellung
+
+    @property
+    def is_expert(self) -> bool:
+        return self.expert if self.expert is not None else self.type != "str" and not self.upload
 
     def coerce(self, name: str, value: object) -> object:
         typ = PARAM_TYPES[self.type]
@@ -122,6 +128,9 @@ class Workflow:
     # Betreiberentscheidung; ersetzt keine Modell-, Lizenz- oder Test-Gates.
     enabled: bool
     params: dict[str, Param]
+    # SaveImage-Node, der die im Graphen erzeugte Maske speichert (leer: keine). Alle übrigen
+    # Ausgaben müssen außerhalb dieser Maske dem Quellbild ``image`` gleichen (Pixelprüfung).
+    mask_output: str = ""
 
 
 @dataclass(frozen=True)
@@ -256,7 +265,10 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             status=_str(t, "status", w),
             enabled=enabled,
             params=params,
+            mask_output=str(t.get("mask_output", "")),
         )
+        if wf.mask_output and "image" not in params:
+            raise ManifestError(f"Manifest: {w}.mask_output braucht den Parameter 'image'.")
         if wf.engine not in engines:
             raise ManifestError(f"Manifest: {w}.engine '{wf.engine}' unbekannt.")
         if wf.status not in GATE_VALUES:
@@ -290,6 +302,8 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
         for name, p in wf.params.items()
         if p.input not in (graph.get(p.node) or {}).get("inputs", {})
     ]
+    if wf.mask_output and (graph.get(wf.mask_output) or {}).get("class_type") != "SaveImage":
+        problems.append(f"mask_output -> {wf.mask_output} ist kein SaveImage-Node im API-Graph.")
     for node_id, node in graph.items():
         for value in node.get("inputs", {}).values():
             is_model = isinstance(value, str) and value.endswith((".safetensors", ".gguf"))

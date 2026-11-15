@@ -427,6 +427,8 @@ class Cockpit:
                     upload=p.upload,
                     multiple_of=p.multiple_of or 0,
                     choices=list(p.choices),
+                    label=p.label,
+                    expert=p.is_expert,
                 )
                 if p.min is not None:
                     param.min = p.min

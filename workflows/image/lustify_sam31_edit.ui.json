@@ -1,0 +1,1132 @@
+{
+ "id": "4d97784c-c2b0-563a-9440-edca2eccfb9e",
+ "revision": 0,
+ "last_node_id": 19,
+ "last_link_id": 29,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "LoadImage",
+   "pos": [
+    40,
+    40
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      3,
+      7,
+      14,
+      24
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "source.png"
+   ],
+   "title": "Eingabe · Quellbild"
+  },
+  {
+   "id": 2,
+   "type": "CheckpointLoaderSimple",
+   "pos": [
+    40,
+    218
+   ],
+   "size": [
+    360,
+    142
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      2,
+      6
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      1,
+      5
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CheckpointLoaderSimple"
+   },
+   "widgets_values": [
+    "sam3/sam3.1_multiplex_fp16.safetensors"
+   ],
+   "title": "Maske · SAM 3.1 (FP16)"
+  },
+  {
+   "id": 3,
+   "type": "CLIPTextEncode",
+   "pos": [
+    460,
+    40
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 1
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      4
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "dress"
+   ],
+   "title": "Maske · Bereich (Text)"
+  },
+  {
+   "id": 4,
+   "type": "SAM3_Detect",
+   "pos": [
+    880,
+    40
+   ],
+   "size": [
+    360,
+    310
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 2
+    },
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 3
+    },
+    {
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "link": 4
+    },
+    {
+     "name": "bboxes",
+     "type": "BOUNDING_BOX",
+     "link": null
+    },
+    {
+     "name": "positive_coords",
+     "type": "STRING",
+     "link": null
+    },
+    {
+     "name": "negative_coords",
+     "type": "STRING",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "masks",
+     "type": "MASK",
+     "links": [
+      9
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "bboxes",
+     "type": "BOUNDING_BOX",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SAM3_Detect"
+   },
+   "widgets_values": [
+    0.5,
+    2,
+    false
+   ],
+   "title": "Maske · Bereich finden"
+  },
+  {
+   "id": 5,
+   "type": "CLIPTextEncode",
+   "pos": [
+    460,
+    218
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 5
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "face, hair"
+   ],
+   "title": "Maske · Aussparen (Text)"
+  },
+  {
+   "id": 6,
+   "type": "SAM3_Detect",
+   "pos": [
+    880,
+    410
+   ],
+   "size": [
+    360,
+    310
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 6
+    },
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 7
+    },
+    {
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "link": 8
+    },
+    {
+     "name": "bboxes",
+     "type": "BOUNDING_BOX",
+     "link": null
+    },
+    {
+     "name": "positive_coords",
+     "type": "STRING",
+     "link": null
+    },
+    {
+     "name": "negative_coords",
+     "type": "STRING",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "masks",
+     "type": "MASK",
+     "links": [
+      11
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "bboxes",
+     "type": "BOUNDING_BOX",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SAM3_Detect"
+   },
+   "widgets_values": [
+    0.5,
+    2,
+    false
+   ],
+   "title": "Maske · Aussparung finden"
+  },
+  {
+   "id": 7,
+   "type": "GrowMask",
+   "pos": [
+    1300,
+    40
+   ],
+   "size": [
+    360,
+    142
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 9
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [
+      10
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "GrowMask"
+   },
+   "widgets_values": [
+    12,
+    true
+   ],
+   "title": "Maske · Rand erweitern"
+  },
+  {
+   "id": 8,
+   "type": "MaskComposite",
+   "pos": [
+    1720,
+    40
+   ],
+   "size": [
+    360,
+    190
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "destination",
+     "type": "MASK",
+     "link": 10
+    },
+    {
+     "name": "source",
+     "type": "MASK",
+     "link": 11
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [
+      17,
+      26,
+      28
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MaskComposite"
+   },
+   "widgets_values": [
+    0,
+    0,
+    "subtract"
+   ],
+   "title": "Maske · Aussparung abziehen"
+  },
+  {
+   "id": 9,
+   "type": "CheckpointLoaderSimple",
+   "pos": [
+    40,
+    420
+   ],
+   "size": [
+    360,
+    142
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      18
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      12,
+      13
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      15,
+      23
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CheckpointLoaderSimple"
+   },
+   "widgets_values": [
+    "sdxl/lustifySDXLNSFWSFW_v20.safetensors"
+   ],
+   "title": "Modell · LUSTIFY! v2.0 (SDXL)"
+  },
+  {
+   "id": 10,
+   "type": "CLIPTextEncode",
+   "pos": [
+    460,
+    396
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 12
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      19
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "photorealistic, faithful original identity, lighting and perspective, realistic skin and fabric texture, seamless"
+   ],
+   "title": "Generierung · Änderung"
+  },
+  {
+   "id": 11,
+   "type": "CLIPTextEncode",
+   "pos": [
+    460,
+    574
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 13
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      20
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "blurry, extra fingers, incorrect anatomy, plastic skin, color mismatch, seams, artifacts"
+   ],
+   "title": "Generierung · Negativ"
+  },
+  {
+   "id": 12,
+   "type": "VAEEncode",
+   "pos": [
+    460,
+    752
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "pixels",
+     "type": "IMAGE",
+     "link": 14
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 15
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      16
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEEncode"
+   },
+   "widgets_values": [],
+   "title": "Generierung · Kodieren"
+  },
+  {
+   "id": 13,
+   "type": "SetLatentNoiseMask",
+   "pos": [
+    2140,
+    40
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 12,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 16
+    },
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 17
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      21
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SetLatentNoiseMask"
+   },
+   "widgets_values": [],
+   "title": "Generierung · nur in der Maske"
+  },
+  {
+   "id": 14,
+   "type": "KSampler",
+   "pos": [
+    2560,
+    40
+   ],
+   "size": [
+    360,
+    334
+   ],
+   "flags": {},
+   "order": 14,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 18
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 19
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 20
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 21
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      22
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    32525,
+    "fixed",
+    32,
+    5.5,
+    "dpmpp_2m",
+    "karras",
+    0.9
+   ],
+   "title": "Generierung · Sampler"
+  },
+  {
+   "id": 15,
+   "type": "VAEDecode",
+   "pos": [
+    2980,
+    40
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 16,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 22
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 23
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      25
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": [],
+   "title": "Generierung · Dekodieren"
+  },
+  {
+   "id": 16,
+   "type": "ImageCompositeMasked",
+   "pos": [
+    3400,
+    40
+   ],
+   "size": [
+    360,
+    214
+   ],
+   "flags": {},
+   "order": 17,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "destination",
+     "type": "IMAGE",
+     "link": 24
+    },
+    {
+     "name": "source",
+     "type": "IMAGE",
+     "link": 25
+    },
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 26
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      27
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImageCompositeMasked"
+   },
+   "widgets_values": [
+    0,
+    0,
+    false
+   ],
+   "title": "Ausgabe · nur Maske übernehmen"
+  },
+  {
+   "id": 17,
+   "type": "SaveImage",
+   "pos": [
+    3820,
+    40
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 18,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 27
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "darkfluenzer/lustify_sam31_edit"
+   ],
+   "title": "Ausgabe · Ergebnis"
+  },
+  {
+   "id": 18,
+   "type": "MaskToImage",
+   "pos": [
+    2140,
+    218
+   ],
+   "size": [
+    360,
+    94
+   ],
+   "flags": {},
+   "order": 13,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 28
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      29
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MaskToImage"
+   },
+   "widgets_values": [],
+   "title": "Ausgabe · Maske als Bild"
+  },
+  {
+   "id": 19,
+   "type": "SaveImage",
+   "pos": [
+    2560,
+    434
+   ],
+   "size": [
+    360,
+    118
+   ],
+   "flags": {},
+   "order": 15,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 29
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "darkfluenzer/lustify_sam31_edit_mask"
+   ],
+   "title": "Ausgabe · Maske"
+  }
+ ],
+ "links": [
+  [
+   1,
+   2,
+   1,
+   3,
+   0,
+   "CLIP"
+  ],
+  [
+   2,
+   2,
+   0,
+   4,
+   0,
+   "MODEL"
+  ],
+  [
+   3,
+   1,
+   0,
+   4,
+   1,
+   "IMAGE"
+  ],
+  [
+   4,
+   3,
+   0,
+   4,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   5,
+   2,
+   1,
+   5,
+   0,
+   "CLIP"
+  ],
+  [
+   6,
+   2,
+   0,
+   6,
+   0,
+   "MODEL"
+  ],
+  [
+   7,
+   1,
+   0,
+   6,
+   1,
+   "IMAGE"
+  ],
+  [
+   8,
+   5,
+   0,
+   6,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   9,
+   4,
+   0,
+   7,
+   0,
+   "MASK"
+  ],
+  [
+   10,
+   7,
+   0,
+   8,
+   0,
+   "MASK"
+  ],
+  [
+   11,
+   6,
+   0,
+   8,
+   1,
+   "MASK"
+  ],
+  [
+   12,
+   9,
+   1,
+   10,
+   0,
+   "CLIP"
+  ],
+  [
+   13,
+   9,
+   1,
+   11,
+   0,
+   "CLIP"
+  ],
+  [
+   14,
+   1,
+   0,
+   12,
+   0,
+   "IMAGE"
+  ],
+  [
+   15,
+   9,
+   2,
+   12,
+   1,
+   "VAE"
+  ],
+  [
+   16,
+   12,
+   0,
+   13,
+   0,
+   "LATENT"
+  ],
+  [
+   17,
+   8,
+   0,
+   13,
+   1,
+   "MASK"
+  ],
+  [
+   18,
+   9,
+   0,
+   14,
+   0,
+   "MODEL"
+  ],
+  [
+   19,
+   10,
+   0,
+   14,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   20,
+   11,
+   0,
+   14,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   21,
+   13,
+   0,
+   14,
+   3,
+   "LATENT"
+  ],
+  [
+   22,
+   14,
+   0,
+   15,
+   0,
+   "LATENT"
+  ],
+  [
+   23,
+   9,
+   2,
+   15,
+   1,
+   "VAE"
+  ],
+  [
+   24,
+   1,
+   0,
+   16,
+   0,
+   "IMAGE"
+  ],
+  [
+   25,
+   15,
+   0,
+   16,
+   1,
+   "IMAGE"
+  ],
+  [
+   26,
+   8,
+   0,
+   16,
+   2,
+   "MASK"
+  ],
+  [
+   27,
+   16,
+   0,
+   17,
+   0,
+   "IMAGE"
+  ],
+  [
+   28,
+   8,
+   0,
+   18,
+   0,
+   "MASK"
+  ],
+  [
+   29,
+   18,
+   0,
+   19,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {
+  "ds": {
+   "scale": 0.75,
+   "offset": [
+    0,
+    0
+   ]
+  }
+ },
+ "version": 0.4
+}

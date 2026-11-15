@@ -105,6 +105,10 @@ message WorkflowParam {
     int64 integer = 10;
     double number = 11;
   }
+  // Feldname im Cockpit (leer: Standardbezeichnung des Parameternamens)
+  string label = 12;
+  // in „Erweiterte Workflow-Einstellungen“ (sonst Grundeinstellung in der Mitte)
+  bool expert = 13;
 }
 
 // Registrierter Workflow (workflows/manifest.toml) und Bereitschaft seiner Modelldateien.

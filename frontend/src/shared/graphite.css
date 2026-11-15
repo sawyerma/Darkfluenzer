@@ -259,7 +259,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-form input[type="file"] { padding: var(--g-gap-xs); }
 .g-form :focus-visible { outline: 2px solid var(--g-focus); outline-offset: 1px; }
 .g-form .g-actions small { color: var(--g-muted); font-size: var(--g-fs-small); }
-.g-error { color: var(--g-bad-text); font-size: var(--g-fs-small); }
+.g-error { color: var(--g-bad-text); font-size: var(--g-fs-small); overflow-wrap: anywhere; }
 .g-file { display: flex; align-items: center; gap: var(--g-gap-sm); }
 .g-file input { flex: 1; }
 .g-picked { display: flex; align-items: center; gap: var(--g-gap-sm); color: var(--g-muted); font-size: var(--g-fs-small); overflow-wrap: anywhere; }
@@ -288,6 +288,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 }
 .g-toolbar .g-subtabs { margin: 0; border-bottom: 0; }
 .g-tile { position: relative; }
+.g-tile-outputs { display: grid; gap: var(--g-gap-xs); grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
 .g-tile-open {
   display: flex; flex-direction: column; gap: var(--g-gap-sm); width: 100%; padding: 0; border: 0;
   background: none; color: var(--g-text); font: inherit; text-align: left; cursor: pointer;

@@ -299,14 +299,23 @@ def _render(
             unload_first=unload_first,
         )
     checks: dict = {}
-    if {"image", "mask"} <= set(uploads):
+    masked: tuple[Path, int, list] | None = None  # (Maske, Randerweiterung, geprüfte Ausgaben)
+    if wf.mask_output and "image" in uploads:
+        mask_out = next((o for o in result.outputs if o.node == wf.mask_output), None)
+        if mask_out is None:
+            raise PipelineError(f"Ausgabe-Maske (Node {wf.mask_output}) fehlt – verworfen.")
+        masked = (mask_out.path, 0, [o for o in result.outputs if o is not mask_out])
+    elif {"image", "mask"} <= set(uploads):
         graph = comfy.load_graph(man, wf)
         grow_param = wf.params.get("mask_grow")
         grow = values.get(
             "mask_grow", graph[grow_param.node]["inputs"][grow_param.input] if grow_param else 0
         )
-        for out in result.outputs:
-            diff = unmasked_difference(uploads["image"], out.path, uploads["mask"], int(grow))
+        masked = (uploads["mask"], int(grow), result.outputs)
+    if masked:
+        mask, grow, edited = masked
+        for out in edited:
+            diff = unmasked_difference(uploads["image"], out.path, mask, grow)
             checks[out.path.name] = {"unmasked_changed_pixels": diff}
             if diff:
                 raise PipelineError(
@@ -386,11 +395,16 @@ def media_candidates(cfg: Config, store: Store, seen: set[str], settle_s: float)
                 continue
             seen.add(rel)
             offer(0, path, rel, out["sha256"], row["job_id"])
+    # Seit dem Start eines laufenden Jobs in ComfyUI entstandene Dateien gehören wahrscheinlich ihm
+    # (frühe Zwischenausgaben wie eine Maske): erst nach seinem Abschluss aufnehmen, damit die
+    # Job-Ausgabe mit Auftragsbezug Vorrang hat.
+    busy = store.running_since()
     for prio, path, rel in _gallery_files(cfg):
         if rel in seen:
             continue
-        if path.stat().st_mtime > cutoff:
-            continue  # wird noch geschrieben: beim nächsten Durchlauf
+        mtime = path.stat().st_mtime
+        if mtime > cutoff or (prio == 2 and busy is not None and mtime >= busy):
+            continue  # wird noch geschrieben bzw. gehört zu einem laufenden Job: später
         seen.add(rel)
         offer(prio, path, rel, sha256_file(path), None)
     return sorted((m, rel, sha, size, job) for sha, (_, m, rel, size, job) in found.items())
