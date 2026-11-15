@@ -111,18 +111,22 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 /** Detailansicht (F7.6): Herkunft aus dem Job-Journal und Graph-Snapshot, Weiterverarbeiten. */
 function MediaDetail({
   item,
+  choose,
   known,
   onOpen,
   onClose,
 }: {
   item: MediaItem;
+  /** Workflow-Auswahl „Weiterverarbeiten“ gleich geöffnet (Kachel-Schaltfläche, F7.6) */
+  choose: boolean;
   known: (id: bigint) => MediaItem | undefined;
   onOpen: (item: MediaItem) => void;
   onClose: () => void;
 }) {
   const [prov, setProv] = useState<MediaProvenance | null>(null);
   const [error, setError] = useState("");
-  const [choosing, setChoosing] = useState(false);
+  const [choosing, setChoosing] = useState(choose);
+  useEffect(() => setChoosing(choose), [item.mediaId, choose]);
   const registry = useStateTopic(Topic.COMFY_WORKFLOWS)?.value;
   const workflows = registry?.workflows ?? [];
   const cmd = useCommand();
@@ -130,7 +134,6 @@ function MediaDetail({
     let alive = true;
     setProv(null);
     setError("");
-    setChoosing(false);
     fetchProvenance(item.mediaId)
       .then((p) => alive && setProv(p))
       .catch((e: unknown) => alive && setError(e instanceof Error ? e.message : String(e)));
@@ -216,6 +219,20 @@ function MediaDetail({
               ) : null}
             </>
           ) : null}
+          {prov && prov.childMediaIds.length > 0 ? (
+            <Row label="Abgeleitete Versionen">
+              {prov.childMediaIds.map((id) => {
+                const child = known(id);
+                return child ? (
+                  <button key={String(id)} type="button" className="g-row" onClick={() => onOpen(child)}>
+                    {child.caption}
+                  </button>
+                ) : (
+                  <span key={String(id)}>{String(id)} (nicht geladen)</span>
+                );
+              })}
+            </Row>
+          ) : null}
         </dl>
         {prov && prov.graph.length > 0 ? (
           <details className="g-expert">
@@ -297,6 +314,9 @@ export function Files() {
   const cmd = useCommand();
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<MediaItem | null>(null);
+  const [choose, setChoose] = useState(false);
+  const workflows = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
+  const processable = workflows.some((w) => w.enabled && w.params.some((p) => p.upload && p.name === "image"));
   const [marked, setMarked] = useState<ReadonlySet<bigint>>(new Set());
   const dialog = useRef<HTMLDialogElement>(null);
   const confirm = useRef<HTMLDialogElement>(null);
@@ -309,8 +329,9 @@ export function Files() {
     if (open && !items.some((m) => m.mediaId === open.mediaId)) dialog.current?.close();
   }, [items, open]);
 
-  function show(item: MediaItem) {
+  function show(item: MediaItem, next = false) {
     setOpen(item);
+    setChoose(next);
     dialog.current?.showModal();
   }
 
@@ -332,6 +353,7 @@ export function Files() {
   return (
     <section className="g-panel">
       <h1>Dateien</h1>
+      <p className="g-lead">Mediengalerie</p>
       <div className="g-toolbar">
         <div className="g-subtabs" role="tablist" aria-label="Medienart">
           {FILTERS.map(([f, label]) => (
@@ -384,6 +406,11 @@ export function Files() {
                   <Medium item={m} />
                   <span>{m.caption}</span>
                 </button>
+                {processable && m.kind === MediaKind.IMAGE ? (
+                  <button type="button" className="g-button g-tile-next" onClick={() => show(m, true)}>
+                    Weiterverarbeiten
+                  </button>
+                ) : null}
                 {m.orderNo ? null : (
                   <>
                     <input
@@ -449,8 +476,9 @@ export function Files() {
         {open ? (
           <MediaDetail
             item={open}
+            choose={choose}
             known={(id) => items.find((x) => x.mediaId === id)}
-            onOpen={setOpen}
+            onOpen={(m) => show(m)}
             onClose={() => dialog.current?.close()}
           />
         ) : null}

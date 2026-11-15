@@ -119,5 +119,8 @@ message MediaProvenance {
   // Exakt eingereichter API-Graph (fehlt bei Aufträgen vor dem Graph-Snapshot)
   repeated GraphNode graph = 13;
   MemoryTrace memory = 14;
+  // Abgeleitete Versionen: Medien aus Aufträgen mit diesem Medium als Ausgang (Weiterverarbeiten,
+  // Verfeinern, Hochskalieren, Export; F7.6), aufsteigend
+  repeated uint64 child_media_ids = 15;
 }
 

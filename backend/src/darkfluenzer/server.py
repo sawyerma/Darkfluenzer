@@ -1397,7 +1397,9 @@ def _provenance(cockpit: Cockpit, media_id: int) -> media_pb2.MediaProvenance | 
     row = store.media_by_id(media_id)
     if row is None:
         return None
-    msg = media_pb2.MediaProvenance(media_id=media_id)
+    msg = media_pb2.MediaProvenance(
+        media_id=media_id, child_media_ids=store.media_children(media_id)
+    )
     if not row["job_id"]:
         return msg
     job = store.job(row["job_id"])

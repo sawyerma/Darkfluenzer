@@ -1544,6 +1544,7 @@ class Store:
             " JOIN jobs j ON j.id = e.entity_id WHERE e.entity = 'job' AND e.event = 'status'"
             " AND json_extract(e.data, '$.status') = 'done' AND j.engine = ?"
             " AND json_extract(e.data, '$.memory.ram_free_min_gb') IS NOT NULL"
+            " AND json_extract(e.data, '$.memory.ram_free_start_gb') IS NOT NULL"
             " ORDER BY e.id DESC LIMIT 1",
             (engine,),
         ).fetchone()
@@ -1821,6 +1822,15 @@ class Store:
     def media_by_path(self, rel: str) -> dict | None:
         row = self.db.execute("SELECT * FROM media WHERE path = ?", (rel,)).fetchone()
         return dict(row) if row else None
+
+    def media_children(self, media_id: int) -> list[int]:
+        """Medien aus Aufträgen, deren Ausgangsmedium ``media_id`` ist (abgeleitete Versionen)."""
+        rows = self.db.execute(
+            "SELECT m.id FROM media m JOIN jobs j ON j.id = m.job_id"
+            " WHERE j.parent_media_id = ? ORDER BY m.id",
+            (media_id,),
+        )
+        return [r[0] for r in rows]
 
     def media_by_id(self, media_id: int) -> dict | None:
         row = self.db.execute("SELECT * FROM media WHERE id = ?", (media_id,)).fetchone()

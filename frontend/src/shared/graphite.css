@@ -229,6 +229,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-subtabs button[aria-selected="true"] { color: var(--g-text-strong); border-bottom-color: var(--g-brand); }
 .g-subtabs small { color: var(--g-muted); font-weight: normal; }
 
+/* Untertitel bzw. Einleitung unter dem Seitentitel (F7) */
+.g-lead { margin: var(--g-gap-xs) 0 0; color: var(--g-muted); font-size: var(--g-fs-body); }
+
 /* ComfyUI (F7.5): Workflows | Arbeitsfläche + Ergebnis | Steuerung, Warteschlange, Instanzen */
 .g-studio, .g-inbox {
   display: grid; gap: var(--g-gap-lg); padding-top: var(--g-gap-lg);
@@ -363,6 +366,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-tile-open:hover img, .g-tile-open:hover video { border-color: var(--g-brand); }
 .g-tile[data-marked] img, .g-tile[data-marked] video { outline: 2px solid var(--g-brand); outline-offset: -2px; }
 .g-tile-open span { font-size: var(--g-fs-body); }
+.g-tile-next { margin-top: var(--g-gap-sm); }
 .g-tile-open small { color: var(--g-muted); font-size: var(--g-fs-tiny); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .g-tile-x, .g-tile-mark { position: absolute; top: var(--g-gap-sm); margin: 0; opacity: 0; cursor: pointer; }
 .g-tile-x {

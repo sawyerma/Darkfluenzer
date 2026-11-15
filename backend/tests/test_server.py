@@ -418,6 +418,13 @@ def test_provenance_of_a_rendered_medium(cfg):
     memory = {"ram_total_gb": 128.0, "ram_free_min_gb": 50.0, "swap_max_mb": 10.0}
     store.set_job_status(job, "done", duration_s=2.5, outputs=[], memory=memory)
     media_id = store.add_media(rel, hashlib.sha256(b"png").hexdigest(), 3, job_id=job)
+    # abgeleitete Version: Verfeinern mit diesem Medium als Ausgang (F7.6)
+    child_job = store.create_job(
+        None, "lustify_sdxl", "lustify_sdxl_refine", "", {}, [], parent_media_id=media_id
+    )
+    child = store.add_media(
+        rel.replace("_01", "_02"), hashlib.sha256(b"png2").hexdigest(), 4, job_id=child_job
+    )
     store.close()
 
     async def scenario(client, app, origin):
@@ -434,6 +441,9 @@ def test_provenance_of_a_rendered_medium(cfg):
             ("5", "KSampler", [("seed", "7")])  # Verbindungen ausgelassen
         ]
         assert prov.memory.ram_free_min_gb == 50.0
+        assert list(prov.child_media_ids) == [child]
+        resp = await client.get(f"/api/v1/provenance/{child}")
+        assert media_pb2.MediaProvenance.FromString(await resp.read()).parent_media_id == media_id
         assert (await client.get("/api/v1/provenance/999999")).status == 404
 
     _run(cfg, scenario)
