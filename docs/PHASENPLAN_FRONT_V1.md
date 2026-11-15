@@ -273,3 +273,100 @@ Beim Umbau vom bisherigen Swift-ComfyUI-Starter:
 5. Erst anschließend weitere Funktionen einschalten, immer mit echter Backend-Aktion und Status.
 
 **Kein PASS durch die bloße Existenz dieser Spezifikation.**
+
+
+---
+
+## F7 — Abgenommene klickbare Cockpit-Referenz (Betreiberfreigabe 15.11.2026)
+
+**Verbindliche Datei:** [Darkfluenzer_Cockpit_Interaktiv.html](design/Darkfluenzer_Cockpit_Interaktiv.html) — eigenständige HTML/CSS/JavaScript-Datei; im Browser öffnen, ohne Build, Backend oder Netzwerkzugriff. **Diese F7-Vereinbarung ist die Designreferenz für die nächste GUI-Anpassung; die noch nicht implementierten Funktionen bleiben fachlich F4/F3c/F5.** Designgetreue Umsetzung bedeutet insbesondere: keine neuen Menüs, künstlichen Status-Kacheln, Formularvorschauen oder Werbetexte. Screenshots der vom Betreiber freigegebenen Astra-Ansichten vom 14.11.2026 sind die visuelle Vergleichsgrundlage. Der HTML-Prototyp enthält bewusst nur stilisierte Bild-/Video-Platzhalter, niemals vorgetäuschte ComfyUI-Ergebnisse.
+
+**Abgrenzung:** Die HTML-Datei demonstriert Navigation, Auswahl, Formulare, Kanalansichten, aufklappbare Detailbereiche, Markieren/Löschen und Dialoge nur im Browser-Speicher. Sie ist kein React-Code, kein produktiver Nachrichtendienst, keine Modell-/Trainingsausführung und kein Nachweis fertiger F4-Implementierung. Im Produktivsystem dürfen die beschrifteten Beispieldaten und "DEMO · OFFLINE" nicht als tatsächliche Statusdaten übernommen werden. Die bestehende React-/Protobuf-/Backend-Architektur bleibt die einzige Laufzeit.
+
+### F7.1 Verbindliche Position und Gestaltung
+
+- **App-Kopfzeile:** Pinkes C links, Hauptnavigation **Übersicht · Nachrichten · ComfyUI · Dateien** in derselben Zeile; rechts nur tatsächlich vom Backend bestätigter Status. Keine neuen Hauptreiter.
+- **Übersicht:** Titel, knappe Unterzeile, die drei im freigegebenen Screenshot sichtbaren Informationskarten *Kundenakten*, *GPU-Warteschlange*, *Freigaben ausstehend*; darunter *Aktuelle Kunden · anklicken zum Öffnen*. Werte ausschließlich aus echtem Backendzustand. Klick auf einen Kunden öffnet seine vorhandene Kundenakte im Reiter Nachrichten und nicht eine zweite Kundenansicht.
+- **Nachrichten — drei feste Desktop-Spalten:** **Links** Kundenliste mit Suchfeld, Einträgen und Kanalkennzeichen; **Mitte** offene Kundenregisterkarten, Kontakttitel/-ID, Unterregister *Gesamter Verlauf / Instagram / Telegram / WhatsApp*, Chronologie und kanalgebundenes Antwortfeld; **rechts am äußersten Rand** die vollständige und scrollbare **Kundensteuerung**. Kein Verschieben der Steuerung in die Mitte. Stil: Graphite-Dunkelgrau, dezente Trennlinien und pinke Marke/Auswahl. Screenshot-Abmessungen als proportionale Leitlinie; responsives Verhalten darf Elemente umordnen, die fachliche Zuweisung jedoch nicht.
+- **ComfyUI — drei feste Desktop-Spalten:** **Links ausschließlich Workflows** der jeweiligen Instanz/Registry (keine "Aufträge & Workflows"); **Mitte** Prompt-/Quellbild-/Masken-/Trainings-Arbeitsfläche und echte Ergebnisse; **rechts äußerster Rand** **Steuerung**, erweiterte Workflow-Einstellungen (**initial geschlossen**), **Generieren**, darunter persistente **Warteschlange und Instanzstatus**.
+- **Dateien:** Bewährten Bestand \`frontend/src/pages/Files.tsx\` weiterverwenden; **Einzelauswahl, Mehrfachmarkierung, Alle markieren, Markierung aufheben, Einzel-X, Löschen (n) inklusive Bestätigungsdialog, Filter Alle/Fotos/Videos, Öffnen, Download** bleiben unverändert funktionsfähig. Ergänzung ausschließlich über jedes einzelne Medium bzw. dessen Detailansicht: **Weiterverarbeiten** einschließlich Wiederholen/Variieren/Als Vorlage verwenden/Video daraus erzeugen. Keine zweite Galerie, keine neue Kartenästhetik.
+
+### F7.2 Linke Nachrichtenspalte — Bedeutung jedes Elements
+
+| Element | Funktion / Backend-Vertrag |
+|---|---|
+| **Kunden** + Anzahl | Zahl der kanonischen Kundenakten; interne Default-Identität gesondert markieren, nicht als zahlenden Kunden zählen. |
+| **Kunde suchen** | Vorhandene Kundenakte per Name, stabiler Kundennummer oder Plattformidentität finden; nur gefilterte Liste ändern, nicht Kunden löschen. |
+| **Kundenzeile** mit Avatar, Name, Untertitel, IG/TG/WA | Zur Akte wechseln, bestehende Registerkarte aktivieren oder neu öffnen; letzten Zustand/Ungelesen aus gespeicherten Backend-Events. Nicht allein aufgrund identischen Namens Kanäle zusammenführen. |
+| **Default** | Bei der Ersteinrichtung einmalig angelegter **interner Kontakt** für den freigegebenen zweiten Instagram-Account und/oder Telegram-Absender; besondere Steuerung rechts statt Verkaufsakte. Kein regulärer Kunde, keine Zahlungspflicht für eigene interne Produktionsaufträge. |
+| **+ Instagram-Kontakt** | Nur durch tatsächlich unterstützte Kanal-/Kontaktfunktion einen Kontakt anlegen/verknüpfen, niemals mit simuliertem Eingang. Erstkontakt darf den Fokus einer bestehenden Karte nicht stehlen. |
+
+### F7.3 Mittlere Nachrichtenspalte — Bedeutung jedes Elements
+
+| Element | Funktion / Backend-Vertrag |
+|---|---|
+| **Geöffnete Kundenregisterkarten**, z. B. Leon 1041, Erik 1042 | Mehrere Kunden gleichzeitig offen halten; Aktivieren wechselt die Mitte und die rechte Steuerung atomar. **×** schließt ausschließlich die Registerkarte, nicht Kundenhistorie, KI, Queue oder Chatwoot-Conversation. |
+| **Kontaktkopf**, Kundenname, Kundennummer, Handle | Zeigt kanonische Identität und zugeordnete aktuelle Akte; kein beliebiger Anzeigename als Identitätsschlüssel. |
+| **Kanalwechsel** | Im Design sichtbare Aktion; technische Übergabe Instagram→Telegram gemäß F4 (Token/Bestätigung); keine stille Kanalidentitäts-Zuordnung und kein blindes Senden. |
+| **Gesamter Verlauf** | Zusammengeführter, chronologischer Verlauf aller bestätigten Kanäle einschließlich Ereignissen; **ausschließlich lesen, ohne Composer oder Antwortaktionen**. |
+| **Instagram / Telegram / WhatsApp** | Filtert Verlauf und ist bei aktivem, verifiziertem Kanal die **einzige** Wahl des Antwortziels; inaktive Kanäle sind nicht sendbar. |
+| **Nachrichtenblasen** | Eingehend links, ausgehend rechts; kanaltypische Farben IG pink, TG blau, WA grün, plus Text-Kanalnamen, Uhrzeit, Anhänge, Zustellstatus. |
+| **System-/Fachereignis** | In chronologischer Reihenfolge zwischen Nachrichten: Erstkontakt, Dialogschwelle, Medienwunsch, Anfrage, Angebot, verifizierte Zahlung, Prompt, Render, Kandidaten, Freigabe, Versand, Fehler. Nur echte verifizierte Events; keine Demo-Zahlungen. |
+| **Eingabefeld** | Text an **genau die geöffnete, geprüfte** Chatwoot-Conversation des ausgewählten Kanalregisters; Entwürfe kanal-/revisionsgebunden. |
+| **KI antworten** | Startet genau eine KI-Antwort oder einen bearbeitbaren KI-Entwurf im aktiven Kanal; nicht in Gesamt; keine LLM-Autorität über Zahlungs-/Freigabestatus. |
+| **Antwort senden** | Versendet ausschließlich den aktuellen manuellen Text in den aktiven Kanal; Backend prüft Kunden-/Kanal-/Conversation-/Revisions-IDs und Idempotenz. |
+
+### F7.4 Rechte Nachrichtenspalte — **Steuerung**, nicht Erklärungstexte
+
+Der äußerste rechte Rand enthält **reale Bedienelemente und reale Akteninformationen**, keine Architekturprosa. Bei Wahl eines normalen Kunden zeigt die Spalte folgende Gruppen in dieser Reihenfolge:
+
+| Gruppe / Feld | Exakte Wirkung |
+|---|---|
+| **Kundenakte · Nummer** | Anzeige der aktiven kanonischen Kundenakte; Wechsel der offenen Registerkarte wechselt vollständig deren rechte Steuerung. |
+| **IDENTITÄT & DIALOG** – Kunde, aktive Kanäle, Instagram-Dialogzüge | Verifizierte Identitäten, Dialogzähler aus echten Nachrichten/Projektion; Kundengedächtnis und Gesprächszusammenfassung aus SQLite. |
+| **Charakter-LLM** | Zuordnung der aktiven Influencerin und ihres qualifizierten LLM-Workflows. Cydonia 24B nur als Kandidat, nicht als laufendes Modell ausgeben. |
+| **Telegram-Übergang** – Schwelle, Fortschritt, Einladung | Konfigurierbare Dialogschwelle (F4: 10–30), echte Fortschrittsanzeige; **Telegram anbieten** erzeugt zulässigen Einmal-Token und sendet nur nach bestätigtem Kanal. Keine reine kosmetische Aktion. |
+| **KI-Steuerung – Influencerin** | Explizite, versionierte Figur-Zuordnung; keine stillen Wechsel oder fremden Kundengedächtnisse. |
+| **Antwortmodus** | Automatisch / Entwürfe prüfen / Manuell; pro Kundengespräch, mit Handoff/Revision gegen alte Botantworten. |
+| **Text-KI** | Schaltet nur erlaubte KI-Textverarbeitung, nicht manuelles Senden. |
+| **Automatische Textantworten** | Unaufgeforderte LLM-Antworten aktiv/inaktiv, unabhängig von manuellem **KI antworten**. |
+| **Modelle und Fähigkeiten** (standardmäßig geschlossen) | Text-LLM, Antwortlänge, Stimm-/TTS-Modell, Sprachversand, Bildautomatik, Foto-/Videomodell, Workflow, Charakter-/LoRA-Zuordnung, Zweit-KI-Prüfung und Freigabemodus; nur tatsächlich qualifizierte Optionen aktiv. |
+| **MEDIENWUNSCH** | Konkreter Kundenwunsch mit Quellen, Text-/Bild-/Videoart und offener Rückfrage. |
+| **Prompt & Produktion** | Pro Auftrag tatsächlicher Prompt/Negativ-Prompt falls unterstützt, gewählte Figur, Workflowversion, Rendermedien, Status und Kandidaten. Ein Artefakt hat dieselbe ID unter Dateien. |
+| **AUFTRAG & FREIGABE** | Pro Bestellung eigenständiger chronologischer Verlauf: Anfrage → Angebot → tatsächlich bestätigte Zahlung → Generierung → Auswahl/Prüfung → Freigabe → Zustellung. Ohne verifizierte Zahlung/Freigabe kein Kundenversand. |
+
+**Default-Spezialfall:** Der Kontakt **Default** nutzt dieselbe Nachrichten-Layoutstruktur; nur die rechte Akte wechselt zu echten Operator-Feldern: **Instagram-Absender-ID**, **Telegram-Absender-ID**, **Interne Befehle verarbeiten (Ein/Aus)**, **Influencerin**, **Medien-KI/Workflow**, **Freigabemodus**, **Automatische Produktionsaufträge (Ein/Aus)** und **Einstellungen übernehmen**. Der festgelegte Absender wird nach Ersteinrichtung über unveränderliche Plattform-ID geprüft. Die fünf Klartextkommandos **clone · pose · style · remix · animate** werden aus Nachrichten erkannt und **nicht** als separate Schaltflächen angezeigt. **Kein zusätzliches Kapitel „Produktionsakte“ oder Beschreibungsblock im rechten Default-Bereich.** Für verarbeitete Medien erscheinen echte Auftrags-/Render-/Ergebnisereignisse ausschließlich in der bestehenden Mitte und bei Dateien.
+
+### F7.5 ComfyUI — jedes Feld und die beiden Instanzen
+
+| Element | Exakte Funktion / Einschränkung |
+|---|---|
+| **Fotos / Videos** | Unterregister der Medieninstanz, Liste ausschließlich nach \`kind\` der registrierten Workflows. **KI** als ergänzender Zugang zu ComfyUI 2 erst bei implementierter KI-Instanz; keine Behauptung, diese sei bereits online. |
+| **Linke Workflowliste** | Sämtliche registrierten Workflows der passenden Kategorie samt Name, PASS/OFFEN, aktiviert/bereit nach echter Registry. Auswahl bestimmt Mittelpunkt und gesamte rechte Parametersteuerung. Ein fehlendes/ungeprüftes Modell darf keinen Render starten. |
+| **Motiv/Prompt** | In das konkrete Graph-Feld \`prompt\`; für Video bezeichnet es Szene/Bewegung. |
+| **Negativ-Prompt** | **Nur** wenn \`negative_prompt\` in der ausgewählten Workflow-Registry vorhanden ist. |
+| **Ausgangsbild / Aus Dateien** | Bild-/Dateiauswahl für workflowgebundenes \`image\`, sowohl lokal als auch mit exakter Artefakt-ID aus der vorhandenen Galerie. |
+| **Maske** | Nur bei maskenfähigem Workflow; weiße Fläche editieren, schwarze schützen; Auftrag hält SHA/Herkunft von Bild und Maske. |
+| **Ergebnis** | Nach abgeschlossener echter Ausführung die resultierende Bild-/Videodatei und zugeordnete Job-ID, nicht drei permanente fiktive Kandidatenflächen. |
+| **Rechte Steuerung – Charakter** | Auswahl der vorhandenen, versionierten synthetischen Influencerin; nachgewiesene Modell-/Identitätsbindung Voraussetzung für produktive Charakterläufe. |
+| **Rechte Steuerung – Workflow** | Nur Anzeige des links ausgewählten konkreten Graphen/Version; keine zweite, widersprüchliche Auswahl. |
+| **Erweiterte Workflow-Einstellungen** | **Initial zugeklappt**. Dynamisch **alle tatsächlich exponierten Eingänge** des gewählten Workflows anzeigen und serverseitig prüfen: seed, steps, cfg, width, height, denoise, mask_grow sowie künftig checkpoint, sampler, scheduler, guidance, batch, LoRA/Adapter, Frames/FPS/Dauer, Kamera-/Bewegungssteuerung, Refinement/Output, soweit die Nodes sie tatsächlich unterstützen. Keine Attrappen und keine erfundenen „Qualität“-Slider. |
+| **Trainingsdatenordner** | Für registrierten Trainingsworkflow Standard \`local/character/photos/\`. Sämtliche geeigneten Bilddateien im Verzeichnis werden gescannt, dedupliziert, zu einem versionierten Datensatz zusammengefasst und nach Bestätigung trainiert. Originale nicht löschen. Zunächst \`CHAIN-00/01\` OFFEN; kein Trainer-PASS ohne echten ComfyUI-1-/MPS-Trainingsnachweis. |
+| **Generieren / Training starten** | Typisierter Protobuf-Befehl an genau den ausgewählten geprüften Workflow, persistenter Auftrag mit FIFO-/Status-/Artefaktbezug. Bei gesperrten/fehlenden Modellen deaktiviert. |
+| **Warteschlange (rechts unter Steuerung)** | Persistente globale Medien-GPU-FIFO, echte Position/Status/Progress nur mit Backendquelle; ComfyUI 2 hat separate KI-Queue. Wartende Betreiberentscheidungen blockieren keinen anderen ausführbaren Medienjob. |
+| **Instanzen** | Medien-ComfyUI 1 Default \`127.0.0.1:8188\`, KI-ComfyUI 2 \`127.0.0.1:8189\`; eigenständige Prozesse/Queue, gemeinsamer GPU-Speicher. Keine fiktiven Health-Zustände. |
+| **Workflow öffnen / bearbeiten / übernehmen / löschen** | Bestehender F3a-Vertrag bleibt uneingeschränkt: exakten UI-/API-Graphen bearbeiten, validieren, versionieren; beim Löschen nur betroffenen Workflow entfernen, niemals Modell oder historische Artefakte. |
+
+### F7.6 Dateien — Ergänzung, keine Neugestaltung
+
+Bestehende React-Bedienung und Sicherheitsbedingungen bleiben: In \`Files.tsx\` sind **Alle markieren**, Markierung aufheben, Einzel-X und Mehrfachlöschung samt Bestätigung bereits vorhanden. Kundenzugeordnete Medien dürfen durch die Betreiber-Galerie nicht per Einzel- oder Stapel-X gelöscht werden (bestehendes \`orderNo\`-Gate); dieser Schutz bleibt bestehen.
+
+**Neu pro tatsächlicher Mediendatei:** **Weiterverarbeiten** führt in die passende Workflow-Auswahl und übernimmt den exakten aktuellen Artefakt- und SHA-Verweis, niemals bloß einen Bildnamen. In der Datei-Detailansicht **Wiederholen · Variieren · Als Vorlage · Video erstellen**. Zusätzlich vollständige lesbare Produktionsparameter und alle Versionen aus dem tatsächlichen Job/Graph-Snapshot, ohne leere oder erfundene Werte. Filter Alle/Fotos/Videos und chronologische Nummerierung unverändert.
+
+### F7.7 Bild-/Designreferenz, Integration und Abnahme
+
+Die freigegebene **Übersicht** und **Nachrichtenansicht** sind im Betreiber-Chat durch zwei Original-Screenshots vom **14.11.2026** dokumentiert: dunkelgrauer Graphite-Hintergrund, pinkes C, kompakte Registerleiste, drei KPI-Karten bei Übersicht; bei Nachrichten **Kunden links, mittig Kundenregisterkarten und kanalgefilterte Zeitleiste, am rechten äußersten Rand die detaillierte Kundensteuerung**. Diese Screenshots sind die verbindliche visuelle Prüfreferenz; der HTML-Prototyp stellt die Layoutstrukturen und die Bedienwege zusätzlich interaktiv bereit. Originalbilder sind weder automatisch Git-Assets noch ComfyUI-Ausgaben und dürfen nicht als solche ausgegeben werden.
+
+**Testfälle:** Hauptnavigation (vier Reiter), Kundenliste/Öffnen/Schließen, Kanalfilter und Gesamt-Leseschutz, wechselnde rechte Steuerung, Default-Kontakt nur als interne Identität, einklappbare KI-Felder, ComfyUI-Workflowtypen und zielgenaue Parameter, initial geschlossenes Expertenmenü, Trainingsordner, rechts Warteschlange, Dateien-Markierung und Löschbestätigung, Weiterverarbeiten. Ein eigenständiger HTML-Klicktest belegt nur UI-Verhalten. F3/F4/CHAIN-00–06 benötigen jeweils echte Backend-/Mac-/Plattform-Abnahme.
+
+**Umsetzungsauftrag an Claude:** Die HTML-Referenz und **diesen** Abschnitt F7 als genaue visuelle/bedienlogische Abnahmequelle lesen, mit dem bestehenden React-Code abgleichen und nur die tatsächlich fehlenden Funktionen ändern. Kein Repo-Rewrite, keine neue UI-Bibliothek, keine neue Persistenz- oder Render-Engine. Vor jedem Layout-Umbau Ausgangsscreenshot und vorhandene Komponenten vergleichen. Vor Implementierung technische Abweichungen zur Registry bzw. zum Graph ausdrücklich benennen. Nach Anpassung echte Mac-Screenshots gegen die Betreiber-Screenshots und HTML-Referenz prüfen.
