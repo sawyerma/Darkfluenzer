@@ -1,7 +1,12 @@
 # Darkfluenzer
 
-Lokaler, freigabegesteuerter KI-Medien-Dienst auf Apple Silicon. Verbindliche Spezifikation und
-Status: [`docs/PHASENPLAN_BACK_V1.md`](docs/PHASENPLAN_BACK_V1.md) (Backend) und [`docs/PHASENPLAN_FRONT_V1.md`](docs/PHASENPLAN_FRONT_V1.md) (Frontend).
+Lokaler, freigabegesteuerter KI-Medien-Dienst auf Apple Silicon.
+
+**Verbindliche Dokumente:** [`docs/PHASENPLAN_V0.md`](docs/PHASENPLAN_V0.md) (Gesamtplan, Reihenfolge, Status),
+[`docs/PHASENPLAN_FRONT_V1.md`](docs/PHASENPLAN_FRONT_V1.md) (UI/UX, Push, Protobuf) und die Gestaltungsreferenz
+[`docs/design/Darkfluenzer_Cockpit_Interaktiv.html`](docs/design/Darkfluenzer_Cockpit_Interaktiv.html).
+[`docs/PHASENPLAN_BACK_V1.md`](docs/PHASENPLAN_BACK_V1.md) ist technische Backend-Referenz, soweit V0 nicht widerspricht.
+`docs/archiv/` ist nicht verbindlich.
 
 ## Was heute funktioniert (S1)
 
@@ -36,7 +41,7 @@ local/.venv/bin/python -m darkfluenzer comfy start|stop|status|health [--json]
 
 ## Cockpit (React, im Aufbau)
 
-Browser-Oberfläche mit den Bereichen Übersicht, Nachrichten, ComfyUI; ein einziges Stylesheet
+Browser-Oberfläche mit den Bereichen Übersicht, Nachrichten, ComfyUI, Dateien; ein einziges Stylesheet
 `frontend/src/shared/graphite.css` (der Build bricht bei jeder weiteren CSS-Datei ab). Das Backend
 liefert Build und Protobuf-API auf einem Origin (`[server]` in `local/config.toml`, Standard
 `http://127.0.0.1:8190`); Echtzeit über einen binären WebSocket, Befehle als Protobuf-POST.

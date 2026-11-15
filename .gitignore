@@ -32,3 +32,6 @@ dist/
 node_modules/
 test-results/
 playwright-report/
+
+# Nicht verbindliches Altmaterial (Musterquellen, z. B. Chatwoot-ZIP) – nie versionieren
+/docs/archiv/*.zip

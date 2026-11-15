@@ -1,8 +1,8 @@
 # DARKFLUENZER — PHASENPLAN BACK V1
 
-**Version:** 1.13 — technische Backend-Referenz zum verbindlichen Gesamtplan [PHASENPLAN_V0.md](PHASENPLAN_V0.md); native M4-Architektur; Kanäle über eigene Python-Adapter (Chatwoot entfällt, V0 §6)
+**Version:** 1.14 — technische Backend-Referenz zum verbindlichen Gesamtplan [PHASENPLAN_V0.md](PHASENPLAN_V0.md); native M4-Architektur; Kanäle über eigene Python-Adapter (Chatwoot entfällt, V0 §6)
 **Stand:** 15.11.2026  
-**Status:** Zielarchitektur verabschiedet; Medien-ComfyUI 1 vorhanden; KI-ComfyUI 2 verbindlich beschlossen, Implementierung und Mac-Abnahme OFFEN (V0 P5). Gesamtstatus und Reihenfolge: PHASENPLAN_V0 §3/§12  
+**Status:** Zielarchitektur verabschiedet; Medien-ComfyUI 1 vorhanden; KI-ComfyUI 2 verbindlich beschlossen, Implementierung und Mac-Abnahme OFFEN (V0 A3). Gesamtstatus und Reihenfolge: PHASENPLAN_V0 §3/§12  
 **Repository:** `sawyerma/Darkfluenzer`, Branch `main`  
 **Lokal:** `/Users/sawyer_ma/Desktop/Firma/2_DarkMa/8_Darkfluenzer`  
 **System:** MacBook Pro Mac16,6, Apple M4 Max (12 Performance- + 4 Efficiency-CPU-Kerne, 128 GiB Unified Memory); ausschließlich natives macOS/ARM64, ohne Docker/Container/Linux-VM
@@ -36,7 +36,7 @@
 
 ## 0. SOFORTPRIORITÄT — vollständige LoRA-/Figur-/Bild-/Video-Kette VOR weiteren Produktphasen (15.11.2026)
 
-**Verbindliche Reihenfolge:** Vor der Fortsetzung von S4 Kanälen, weiteren KI-Komponenten und zusätzlichen Oberflächen **zuerst eine reale Ende-zu-Ende-Kette auf dem M4 Max abnehmen**: Trainingsfotos einer synthetischen erwachsenen Figur → versionierte identitätsgebundene SDXL-LoRA → dieselbe Figur in verschiedenen Perspektiven/Posen → gezielte Maskenbearbeitung und Verfeinerung → unveränderliches finales Standbild aus Dateien → genau dieses Bild als Wan-I2V-Startbild → echtes Video. Der vorhandene LUSTIFY-Einzelrender-PASS und F1–F3b-PASS bleiben erhalten, **beweisen diese Kette aber noch nicht**. Keine Installation weiterer Modelle als Umweg, solange die vorhandene Kernkette nicht qualifiziert wurde (→ V0: gilt für Phase P0; danach gemeinsamer Modell-/Identitäts-A/B in P2/P4). **Kein Docker, keine VM und keine zusätzliche selbst entwickelte KI-Rechenengine**.
+**Verbindliche Reihenfolge:** Vor der Fortsetzung von S4 Kanälen, weiteren KI-Komponenten und zusätzlichen Oberflächen **zuerst eine reale Ende-zu-Ende-Kette auf dem M4 Max abnehmen**: Trainingsfotos einer synthetischen erwachsenen Figur → versionierte identitätsgebundene SDXL-LoRA → dieselbe Figur in verschiedenen Perspektiven/Posen → gezielte Maskenbearbeitung und Verfeinerung → unveränderliches finales Standbild aus Dateien → genau dieses Bild als Wan-I2V-Startbild → echtes Video. Der vorhandene LUSTIFY-Einzelrender-PASS und F1–F3b-PASS bleiben erhalten, **beweisen diese Kette aber noch nicht**. Keine Installation weiterer Modelle als Umweg, solange die vorhandene Kernkette nicht qualifiziert wurde (→ V0: gilt für Phase B1; danach gemeinsamer Modell-/Identitäts-A/B in B2/B4). **Kein Docker, keine VM und keine zusätzliche selbst entwickelte KI-Rechenengine**.
 
 ### 0.1 Was nach Quellprüfung wirklich vorhanden ist
 
@@ -57,7 +57,7 @@
 ### 0.2 Verbindlicher Daten- und Workflow-Verlauf
 
 1. **Trainingsdaten/Identität (Owner Darkfluenzer-Koordination):** Fotos **einer** synthetischen erwachsenen Figur nach local/character/photos; scan, SHA-Deduplizierung, Identitäts-/Qualitätssichtung, Originale unverändert und versionierter Datensatz. Der aktuelle Code verlangt mindestens **15 geeignete Bilder**. Kein Dummy-Datensatz und keine erfundenen Trainingsbilder als produktiver PASS.
-2. **Training (Rechnung ausschließlich ComfyUI 1/Modelle):** Als **ersten kompatiblen Modellpfad** LUSTIFY/SDXL mit **dessen konkretem Basischeckpoint** wählen. Vorhandenen Datensatz-/Hash-Code wiederverwenden. ComfyUI-tauglichen echten M4-/MPS-LoRA-Trainingsnode/-Graph qualifizieren und Training **dort** ausführen; bei fehlendem Node/MPS-Trainer klar TRAINER_UNAVAILABLE, niemals direkten Training-PyTorch-Aufruf im fachlichen Darkfluenzer-Prozess als ComfyUI-PASS ausgeben. Bereits vorhandene direkte Trainingsroutine nicht unkontrolliert löschen; erst nach nachgewiesenem Ersatz vom Standardaufruf ablösen. → V0 P0: Ist kein MPS-tauglicher ComfyUI-Trainingsweg verfügbar, ist der vorhandene diffusers-Trainer als ausdrücklich dokumentierte Ausnahme zulässig (kein ComfyUI-PASS); Krea-2-Training folgt in P2 über mflux.
+2. **Training (Rechnung ausschließlich ComfyUI 1/Modelle):** Als **ersten kompatiblen Modellpfad** LUSTIFY/SDXL mit **dessen konkretem Basischeckpoint** wählen. Vorhandenen Datensatz-/Hash-Code wiederverwenden. ComfyUI-tauglichen echten M4-/MPS-LoRA-Trainingsnode/-Graph qualifizieren und Training **dort** ausführen; bei fehlendem Node/MPS-Trainer klar TRAINER_UNAVAILABLE, niemals direkten Training-PyTorch-Aufruf im fachlichen Darkfluenzer-Prozess als ComfyUI-PASS ausgeben. Bereits vorhandene direkte Trainingsroutine nicht unkontrolliert löschen; erst nach nachgewiesenem Ersatz vom Standardaufruf ablösen. → V0 B1: Ist kein MPS-tauglicher ComfyUI-Trainingsweg verfügbar, ist der vorhandene diffusers-Trainer als ausdrücklich dokumentierte Ausnahme zulässig (kein ComfyUI-PASS); Krea-2-Training folgt in B2 über mflux.
 3. **Registrierung/LoRA-Load:** Erfolgreiche LoRA versioniert unter local/models/loras/sdxl_character ablegen. LoRA-SHA, Architektur, Basischeckpoint/SHA, Datensatz, Trigger, Stärke und Status trainiert/tested/operatorfreigegeben in der **einen** Registry abbilden. In einem **versionierten LUSTIFY-Graphen** ComfyUIs LoraLoader zwischen CheckpointLoaderSimple und KSampler/CLIPTextEncode verdrahten; bei **UNet-only-LoRA** CLIP-Stärke 0, Modell-Stärke konfigurierbar. Fehlt/falsche Architektur/nicht freigegeben → eindeutiges Gate, kein stilles Rendering ohne Identitäts-LoRA. Alte bereits PASS-Graphen weiterhin benutzbar halten.
 4. **Master/Figur/Pose:** Mit genau diesem Basis+LoRA-Paar mindestens drei unterschiedliche Perspektiven/Körperhaltungen derselben Figur erzeugen, Seeds/Inputs bewahren, LoRA an/aus bei gleichem Prompt/Seed vergleichen, Identität und Bildqualität tatsächlich prüfen. Eine LoRA ist **nicht** universell auf Qwen, FLUX, Illustrious oder Wan übertragbar; für andere Modellarchitekturen ist ein eigener nachgewiesener Training-/Loader-Pfad erforderlich. Pose-/Depth-Kontrollnodes nur bei echt installierter, für die Modellfamilie kompatibler ComfyUI-Version einführen. Ein Prompt allein beweist keine kontrollierte Pose.
 5. **Maskieren/Editieren/Composite:** Ausgangsbild als gespeicherte Datei, explizite Editiermaske und gewünschte Bildänderung über LUSTIFY Inpainting; **weiß = editieren, schwarz = schützen**. Der vorhandene ImageCompositeMasked erhält die nicht editierte Region; pipeline.unmasked_difference muss außerhalb der zulässigen Maske 0 geänderte Pixel ergeben. Eine neue Kopfposition oder vollständige Körperhaltung darf **nicht** durch pixelgleiches Aufkleben eines falsch positionierten alten Gesichts vorgetäuscht werden: neu generieren, Identität mit LoRA/Referenz bewahren und Detailregionen passend bearbeiten. Ergebnis durch Refinement und Identitätskontrolle, vollständige Bild-/Masken-/LoRA-Herkunft sichern.
@@ -189,7 +189,7 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
 | Rolle | Auswahl | Verbindlicher Stand |
 |---|---|---|
 | Medienlaufzeit | **ComfyUI-Instanz 1**: bestehende v0.45.3, konfigurierbarer Loopback-Port, bisher `127.0.0.1:8188`; Fotos/Video/Inpainting | S1/F3a PASS, unverändert erhalten |
-| Master-Fotografie | Kandidaten **Krea 2 / LUSTIFY v10** und **FLUX 3 Image Klein**; P0 mit vorhandenem LUSTIFY v2.0 SDXL (→ V0 §9.3) | gemeinsamer Modell-/Identitäts-A/B mit Charakterbildern (V0 P2); kein M4-/Qualitäts-/Lizenz-PASS |
+| Master-Fotografie | Kandidaten **Krea 2 / LUSTIFY v10** und **FLUX 3 Image Klein**; B1 mit vorhandenem LUSTIFY v2.0 SDXL (→ V0 §9.3) | gemeinsamer Modell-/Identitäts-A/B mit Charakterbildern (V0 B2); kein M4-/Qualitäts-/Lizenz-PASS |
 | Master-Benchmarks | Qwen-Image 20B/2.1 und FLUX.2 Dev am 15.11.2026 entfernt; Kandidaten Krea 2, LUSTIFY v10, FLUX 3 Klein (→ V0 §9.3) | Nur A/B-Vergleich; kein paralleler Dauerbetrieb |
 | Gezielte Spezialbearbeitung | **LUSTIFY! v2.0** (SDXL), maskiertes Inpainting (RealCore Illustrious am 15.11.2026 entfernt) | Testkandidaten, nicht garantiert beste Editoren |
 | Bild-Nachbearbeitung | Regionale Detailer, Tiled Refine/Upscale | Optional innerhalb eines Refinement-Workflows |
@@ -197,7 +197,7 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
 | Video Referenz | **Wan 2.2 I2V 14B offiziell** (FP16) | Vergleichsbasis für Remix |
 | Video Ersatzpfad | **LTX 2.5 Fast** (22B distilliert, BF16) über ComfyUI | Repo gated; getrennte Abnahme |
 | Text-/Sprach-KI | **ComfyUI-Instanz 2**: LLM, Dialog-, Prompt-, Prüf- und TTS-Workflows; Cydonia 24B v4.1 GGUF als erster Kandidat; llama.cpp/MLX ggf. als interne Modell-Laufzeit innerhalb von ComfyUI-Nodes, **kein konkurrierender eigenständiger Dialogpfad** | Verbindliche Architektur; Modell-/Node-/Apple-MPS-Test OFFEN |
-| Kundendialog | Eigene Kanal-Adapter im Python-Backend: **Instagram und Telegram verbindlich**, WhatsApp später (→ V0 §6; Chatwoot entfällt) → KI-ComfyUI 2 | noch nicht implementiert (V0 P7–P10) |
+| Kundendialog | Eigene Kanal-Adapter im Python-Backend: **Instagram und Telegram verbindlich**, WhatsApp später (→ V0 §6; Chatwoot entfällt) → KI-ComfyUI 2 | noch nicht implementiert (V0 C2–C5) |
 | Zahlungsprüfung | Provider-Adapter | Anbieter/Lizenz/Plattform-Freigabe vor LIVE offen |
 
 **Modellregeln (verbindlich):**
@@ -287,7 +287,7 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
 |---|---|---|
 | \`NATIVE-01\` | S1-Erweiterung / S6 | Auf echtem Mac alle neuen Prozesse nativ ARM64, Host-Fingerprint mit DarkBot-Evidence abgeglichen, kein Rosetta/Container/VM; **historischen S1-PASS nicht überschreiben** |
 | \`NATIVE-02\` | S4 / S6 | \`launchd\`-Start-/Stop-/Neustart, kein Fremdprozess beendet, keine Doppelinstanz, kein verlorener/beim Recovery doppelt ausgeführter Auftrag, eigenständiger ComfyUI-1-/2-Ausfall |
-| \`NATIVE-03\` | S4 | Kanal-Adapter im Python-Backend: Telegram (Long-Polling) und Instagram (Webhook über Tunnel) empfangen und beantworten echte Nachrichten; Neustart ohne Verlust oder Doppelversand (→ V0 P7; Chatwoot entfällt) |
+| \`NATIVE-03\` | S4 | Kanal-Adapter im Python-Backend: Telegram (Long-Polling) und Instagram (Webhook über Tunnel) empfangen und beantworten echte Nachrichten; Neustart ohne Verlust oder Doppelversand (→ V0 C2; Chatwoot entfällt) |
 | \`M4-CPU-01\` | S6 | Realer Hostreport (ARM64/Rosetta/VM, P/E, Cache, aktiver CPU-Stand, Thermal, Low Power) und QoS-Set/Readback/Refusal nur bei eigenem dauerhaftem Thread |
 | \`M4-CPU-02\` | S4 / S6 | Adapter- und Python-Queue-Parameter anhand Messung unter ComfyUI-Last gewählt; p50/p95/p99, CPU, RSS/Swap, Queuezeiten und Fehlerraten vor/nach Maßnahme dokumentiert |
 | \`M4-CPU-03\` | S6 | Gleichzeitiger echter Medienrender + mindestens zwei KI-Chat-Aufträge + Kanal-Zustellung; keine gemeinsame Queue-Sperre und keine verlorene/duplizierte Nachricht; Render-/Antwortlatenzen gemessen |
@@ -296,7 +296,7 @@ Chat, Auftrag, Geld, Medien, Freigabe und Zustellung protokollieren
 
 ## 5. Eine Datenbank, minimale Tabellen, vollständiger Nachweis
 
-> → V0 P7: `customers`/`messages` sind heute an Telegram gebunden (`telegram_user_id NOT NULL`, `chat_id`); Migration zu kanalunabhängigen Kunden mit `channel_identities`, `channel_conversations`, Nachrichtenreferenzen und Eingangs-/Ausgangsaufgaben. Bestehende Kunden und Nummern bleiben. Aufträge mit Stufen, Workflow-Versionen und Provenienz: V0 P1.
+> → V0 C2: `customers`/`messages` sind heute an Telegram gebunden (`telegram_user_id NOT NULL`, `chat_id`); Migration zu kanalunabhängigen Kunden mit `channel_identities`, `channel_conversations`, Nachrichtenreferenzen und Eingangs-/Ausgangsaufgaben. Bestehende Kunden und Nummern bleiben. Aufträge mit Stufen, Workflow-Versionen und Provenienz: V0 A1.
 
 **SQLite** ist zentrale Autorität. Die Tabellen werden nur so weit getrennt wie nötig:
 
@@ -380,14 +380,14 @@ Die bisherigen neun Phasen `P00–P08` werden **inhaltlich vollständig** in `S1
 
 ### Fortschritt
 
-**Zuordnung zu PHASENPLAN_V0 (verbindliche Reihenfolge dort §12):** S1 → PASS · S2 → P0–P2 · S3 → P3/P4 · S4 → P5, P7–P10 · S5 → P10 · S6 → P11.
+**Zuordnung zu PHASENPLAN_V0 (verbindliche Reihenfolge dort §12):** S1 → PASS · S2 → B1–B2 · S3 → B3/B4 · S4 → A3, C2–C5 · S5 → C5 · S6 → C6.
 
 | Phase | Status | Nachweis |
 |---|---|---|
 | S1 | PASS | Mac-Abnahme 14.11.2026, siehe „S1-Nachweis“ |
 | S2 | IN_ARBEIT | Erste reale Renders (LUSTIFY): Text-zu-Bild + maskiertes Editing PASS, siehe „S2-Nachweis“; FLUX 3 gated, übrige Modelle laden |
 | S3 | OFFEN | Wan-FP8/MPS nicht abgenommen |
-| S4 | TEILWEISE (→ V0 P5, P7–P10) | SQLite-Kundenakte + stabile, lückenlose Kundennummern getestet (inkl. 12 parallele Erstnachrichten); Kunden noch Telegram-gebunden (Migration V0 P7); Kanal-Adapter/LLM/KI-Instanz offen |
+| S4 | TEILWEISE (→ V0 A3, C2–C5) | SQLite-Kundenakte + stabile, lückenlose Kundennummern getestet (inkl. 12 parallele Erstnachrichten); Kunden noch Telegram-gebunden (Migration V0 C2); Kanal-Adapter/LLM/KI-Instanz offen |
 | S5 | IN_ARBEIT | Liefer-Gate in `approval.py` + SQLite-Triggern isoliert getestet; keine echte Zahlung/Zustellung aktiv |
 | S6 | OFFEN | Keine vollständige E2E-Abnahme |
 
@@ -471,9 +471,11 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 
 ## 9. Änderungsprotokoll
 
+**V1.14 — REIHENFOLGE (15.11.2026):** Verweise auf die neuen V0-Phasen (A1–A4, B1–B5, C1–C7) umgestellt; Block A (ComfyUI + Dateien) vor Block B (Kernkette B1) vor Block C.
+
 **V1.13 — DEFAULT-RÜCKVERSAND UND AUFLÖSUNG (15.11.2026):** Rückversand an den Default-Absender über den Postausgang ohne Zahlungs-Gate (→ V0 §8.1); Original mindestens 1K, 2K/4K nur per Upscaler (→ V0 §9.7).
 
-**V1.12 — V0-ABGLEICH (15.11.2026):** PHASENPLAN_V0 ist verbindlicher Gesamtplan, dieses Dokument technische Backend-Referenz. Mit „→ V0“ gekennzeichnet: Autorität, Produktziel (Content-Cloner über Nachrichten), Master-/Benchmark-Rollen (Kandidaten im A/B, FLUX.2 Dev nicht eingeplant), „eine Engine pro Auftrag“ (→ je Stufe), gemeinsame Ressourcensteuerung beider Instanzen, Trainingsausnahme, Reproduzierbarkeit, Face-Swap-Regel, Telegram-gebundene Tabellen (Migration P7), Status S4 und Phasen-Zuordnung. **Chatwoot entfällt** (Betreiberentscheidung): Instagram und Telegram über eigene Python-Adapter, WhatsApp später; Chatwoot-Installation, -Gates und -Parameter gestrichen; im Systemvertrag DF-PUSH Chatwoot durch die eigenen Adapter ersetzt. Modellbestand 15.11. bereinigt (Qwen-Image 20B/2.1, RealCore, FLUX.2 Dev).
+**V1.12 — V0-ABGLEICH (15.11.2026):** PHASENPLAN_V0 ist verbindlicher Gesamtplan, dieses Dokument technische Backend-Referenz. Mit „→ V0“ gekennzeichnet: Autorität, Produktziel (Content-Cloner über Nachrichten), Master-/Benchmark-Rollen (Kandidaten im A/B, FLUX.2 Dev nicht eingeplant), „eine Engine pro Auftrag“ (→ je Stufe), gemeinsame Ressourcensteuerung beider Instanzen, Trainingsausnahme, Reproduzierbarkeit, Face-Swap-Regel, Telegram-gebundene Tabellen (Migration C2), Status S4 und Phasen-Zuordnung. **Chatwoot entfällt** (Betreiberentscheidung): Instagram und Telegram über eigene Python-Adapter, WhatsApp später; Chatwoot-Installation, -Gates und -Parameter gestrichen; im Systemvertrag DF-PUSH Chatwoot durch die eigenen Adapter ersetzt. Modellbestand 15.11. bereinigt (Qwen-Image 20B/2.1, RealCore, FLUX.2 Dev).
 
 **V1.11 — DF-PUSH-PROTOBUF-E2E (15.11.2026):** Verbindlicher Systemvertrag (Abschnitt oben): Domain-Versionen + Epoche, versionsgebundene Detailqueries, persistierte Receipts, CAS, begrenzte STATE-Queue, E2E im selben Paket.
 
@@ -509,4 +511,4 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 
 **V1.6.2 — Betreiberpaket (14.11.2026):** Workflows aus `ComfyUI_Cinematic_Studio_M4` als Grundlage übernommen (A01, A03, A04, B01, B02; A02 vorbereitet), technisch notwendige Korrekturen dokumentiert; LUSTIFY-Workflows mit den Paketwerten erneut real abgenommen; Workspaces direkt in der ComfyUI-Seitenleiste.
 
-**Nächste Umsetzung:** nach PHASENPLAN_V0 §12 – zuerst P0 (Kernkette mit vorhandenen Modellen: Charakter-LoRA aus `local/character/photos/` → LUSTIFY mit LoraLoader → Posen → Maske → Standbild → Wan FP16 → Video).
+**Nächste Umsetzung:** nach PHASENPLAN_V0 §12 – zuerst Block A (ComfyUI + Dateien vollständig, A1–A4), dann Block B mit B1 (Kernkette mit vorhandenen Modellen: Charakter-LoRA aus `local/character/photos/` → LUSTIFY mit LoraLoader → Posen → Maske → Standbild → Wan FP16 → Video).
