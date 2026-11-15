@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -486,6 +486,10 @@ CREATE INDEX channel_messages_order ON channel_messages(order_id) WHERE order_id
     8: """
 -- Karte eines wartenden Kloner-Auftrags verweist auf die auslösende Nachricht (Start im Cockpit)
 ALTER TABLE channel_messages ADD COLUMN origin_message_id INTEGER REFERENCES channel_messages(id);
+""",
+    9: """
+-- Default-Kontakt: eigener Video-Workflow für den Befehl animate (Foto -> Video)
+ALTER TABLE default_contact ADD COLUMN video_workflow TEXT NOT NULL DEFAULT '';
 """,
 }
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
@@ -1126,6 +1130,7 @@ class Store:
             "approval_mode",
             "influencer",
             "media_workflow",
+            "video_workflow",
         }
         unknown = set(fields) - allowed
         if unknown:

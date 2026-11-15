@@ -153,6 +153,8 @@ message DefaultContactUpdate {
   string approval_mode = 6;
   string influencer = 7;
   string media_workflow = 8;
+  // Video-Workflow für `animate` (Foto -> Video, V0 §8); leer: animate nicht möglich
+  string video_workflow = 9;
 }
 
 message CommandRequest {

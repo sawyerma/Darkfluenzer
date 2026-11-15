@@ -278,3 +278,51 @@ def test_cloner_waits_for_operator_start(cloner_cfg):
         assert row["order_id"] and "DF-O-000001" in row["text"]
 
     _run(cfg, scenario)
+
+
+def test_animate_uses_the_video_workflow(cloner_cfg):
+    """`animate` braucht den Video-Workflow des Default-Kontakts; das Backend nimmt nur passende
+    Workflow-Arten an (Medien = Bild, animate = Video)."""
+    cfg = cloner_cfg
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+        send, photo = _cloner_setup(cfg, store, auto=True)
+        first = send("1", "animate langsam zur Kamera drehen", "1", [photo])
+        await cockpit._on_inbound(first)
+        items, _ = store.conversation_items(first.customer.id, 0, 20)
+        assert "Kein Video-Workflow (animate)" in items[-1]["text"]
+        assert store.db.execute("SELECT count(*) FROM orders").fetchone()[0] == 0
+        csrf = await _csrf(client)
+
+        async def update(**kw):
+            d = store.default_contact()
+            base = {
+                "revision": d["revision"],
+                "telegram_sender_id": "99",
+                "approval_mode": "direct",
+                "process_commands": True,
+                "auto_orders": True,
+                "media_workflow": "lustify_sdxl_refine",
+            }
+            req = commands_pb2.CommandRequest(
+                request_id=str(uuid.uuid4()),
+                default_contact_update=commands_pb2.DefaultContactUpdate(**(base | kw)),
+            )
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body).detail
+
+        assert "kein Medien-Workflow" in await update(media_workflow="wan22_remix_v30_i2v")
+        assert "kein Video-Workflow" in await update(video_workflow="lustify_sdxl_refine")
+        assert await update(video_workflow="wan22_remix_v30_i2v") == ""
+        assert store.default_contact()["video_workflow"] == "wan22_remix_v30_i2v"
+        page = channel_pb2.ConversationPage.FromString(
+            await (
+                await client.get(f"/api/v1/conversation-page?customer={first.customer.id}")
+            ).read()
+        )
+        assert page.default_contact.video_workflow == "wan22_remix_v30_i2v"
+
+    _run(cfg, scenario)

@@ -125,6 +125,8 @@ message DefaultContact {
   string influencer = 7;
   string media_workflow = 8;
   uint64 revision = 9;
+  // Video-Workflow für `animate` (Foto -> Video); die übrigen Befehle nutzen media_workflow
+  string video_workflow = 10;
 }
 
 // HTTP GET /api/v1/conversation-page?customer=ID[&before=ITEM]: Verlauf (neueste zuerst

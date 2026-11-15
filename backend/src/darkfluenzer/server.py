@@ -883,7 +883,7 @@ class Cockpit:
                 self._reply_internal(inbound.conversation_id, cloner.ASK_COMMAND)
             return
         command, wish = parsed
-        plan = self._cloner_plan(msg, default)
+        plan = self._cloner_plan(msg, default, command)
         if isinstance(plan, str):
             if plan == cloner.ASK_REFERENCE:
                 self._reply_internal(inbound.conversation_id, plan)
@@ -909,17 +909,34 @@ class Cockpit:
         )
         self._message_changed(0)
 
-    def _cloner_plan(self, msg: dict, default: dict) -> tuple[str, list[dict]] | str:
-        """Medien-Workflow des Default-Kontakts und Referenzen (angehängt oder beantwortete
-        Nachricht); bei fehlenden Voraussetzungen der Grund."""
+    def _cloner_workflow_reason(self, key: str, kind: str) -> str:
+        """Leer, wenn ``key`` leer ist oder ein registrierter Workflow der Art ``kind`` ist, der
+        keine Trainingsaufgabe ist (Default-Kontakt: Medien- bzw. Video-Workflow)."""
+        if not key:
+            return ""
+        wf = self.manifest.workflows.get(key)
+        if wf is None:
+            return f"Workflow '{key}' ist nicht registriert."
+        if wf.training or self.manifest.engines[wf.engine].kind != kind:
+            label = "Video-Workflow" if kind == "video" else "Medien-Workflow"
+            return f"{wf.title} ist kein {label} für den Kloner."
+        return ""
+
+    def _cloner_plan(self, msg: dict, default: dict, command: str) -> tuple[str, list[dict]] | str:
+        """Workflow des Default-Kontakts für den Befehl (``animate``: Video-Workflow, sonst
+        Medien-Workflow) und Referenzen (angehängt oder beantwortete Nachricht); bei fehlenden
+        Voraussetzungen der Grund."""
         refs = [a for a in msg["attachments"] if a.get("status") == "saved"]
         if not refs and msg["reply_to_platform_id"]:
             replied = self.store.message_by_platform_id(
                 msg["conversation_id"], msg["reply_to_platform_id"]
             )
             refs = [a for a in (replied or {}).get("attachments", []) if a.get("status") == "saved"]
-        key = default["media_workflow"]
+        video = command == "animate"
+        key = default["video_workflow" if video else "media_workflow"]
         if not key or key not in self.manifest.workflows:
+            if video:
+                return "Kein Video-Workflow (animate) im Default-Kontakt gewählt."
             return "Kein Medien-Workflow im Default-Kontakt gewählt."
         wf = self.manifest.workflows[key]
         if "image" in wf.params and wf.params["image"].upload and not refs:
@@ -973,7 +990,7 @@ class Cockpit:
         if parsed is None:
             return "Ursprungsnachricht enthält keinen Befehl."
         command, wish = parsed
-        plan = self._cloner_plan(origin, self.store.default_contact())
+        plan = self._cloner_plan(origin, self.store.default_contact(), command)
         if isinstance(plan, str):
             return plan
         order_no = await self._cloner_order(origin, command, wish, *plan)
@@ -1068,8 +1085,9 @@ class Cockpit:
         call.entity = f"customer:{current['customer_id']}"
         if msg.approval_mode not in ("direct", "cockpit", "cockpit_only"):
             return "Freigabemodus unbekannt."
-        if msg.media_workflow and msg.media_workflow not in self.manifest.workflows:
-            return f"Workflow '{msg.media_workflow}' ist nicht registriert."
+        for key, kind in ((msg.media_workflow, "image"), (msg.video_workflow, "video")):
+            if reason := self._cloner_workflow_reason(key, kind):
+                return reason
         senders = {}
         if msg.telegram_sender_id.strip() != current["sender_ids"].get("telegram", ""):
             senders[("telegram", self._default_identity_account("telegram"))] = (
@@ -1087,6 +1105,7 @@ class Cockpit:
                 "approval_mode": msg.approval_mode,
                 "influencer": msg.influencer.strip(),
                 "media_workflow": msg.media_workflow,
+                "video_workflow": msg.video_workflow,
             },
             senders,
         )
@@ -1766,6 +1785,7 @@ async def _conversation_page(request: web.Request) -> web.Response:
                 influencer=d["influencer"],
                 media_workflow=d["media_workflow"],
                 revision=d["revision"],
+                video_workflow=d["video_workflow"],
             )
         )
     return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
