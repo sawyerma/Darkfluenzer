@@ -27,9 +27,11 @@ export type ConnectionStatus = "CONNECTING" | "OPEN" | "STALE" | "BLOCKED";
 export interface ConnectionInfo {
   status: ConnectionStatus;
   reason: string;
+  // Zahl der angenommenen Verbindungen (Welcome); ändert sich mit jedem Reconnect.
+  opened: number;
 }
 
-let info: ConnectionInfo = { status: "CONNECTING", reason: "" };
+let info: ConnectionInfo = { status: "CONNECTING", reason: "", opened: 0 };
 let csrf = "";
 let ws: WebSocket | null = null;
 let running = false; // Verbindungsversuch läuft oder Socket ist offen
@@ -43,7 +45,7 @@ let liveness: ReturnType<typeof setInterval> | undefined;
 const listeners = new Set<() => void>();
 
 function setStatus(status: ConnectionStatus, reason = ""): void {
-  info = { status, reason };
+  info = { status, reason, opened: info.opened + (status === "OPEN" ? 1 : 0) };
   for (const fn of listeners) fn();
 }
 

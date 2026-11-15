@@ -7,6 +7,7 @@ import {
   ResourcesSchema,
   WorkflowsSchema,
 } from "./generated/darkfluenzer/v1/comfy_pb";
+import { ChannelsSchema, ConversationEventSchema, CustomerUpdatedSchema } from "./generated/darkfluenzer/v1/channel_pb";
 import { CharactersSchema } from "./generated/darkfluenzer/v1/character_pb";
 import { OrdersActiveSchema, OrderUpdatedSchema } from "./generated/darkfluenzer/v1/order_pb";
 import { CommandReceiptSchema, type CommandReceipt } from "./generated/darkfluenzer/v1/commands_pb";
@@ -28,6 +29,9 @@ const TOPICS = {
   [Topic.COMFY_WORKFLOWS]: { cls: TopicClass.STATE, schema: WorkflowsSchema },
   [Topic.CHARACTERS]: { cls: TopicClass.STATE, schema: CharactersSchema },
   [Topic.ORDERS_ACTIVE]: { cls: TopicClass.STATE, schema: OrdersActiveSchema },
+  [Topic.CHANNELS]: { cls: TopicClass.STATE, schema: ChannelsSchema },
+  [Topic.CUSTOMER_UPDATED]: { cls: TopicClass.EVENT, schema: CustomerUpdatedSchema },
+  [Topic.CONVERSATION_EVENT]: { cls: TopicClass.EVENT, schema: ConversationEventSchema },
   [Topic.ORDER_UPDATED]: { cls: TopicClass.EVENT, schema: OrderUpdatedSchema },
   [Topic.JOB_COMPLETED]: { cls: TopicClass.EVENT, schema: JobCompletedSchema },
   [Topic.MEDIA_ADDED]: { cls: TopicClass.EVENT, schema: MediaItemSchema },
@@ -64,6 +68,7 @@ const states = new Map<Topic, StateValue<unknown>>();
 const events = new Map<Topic, EventLog<unknown>>();
 const listeners = new Set<() => void>();
 const receiptListeners = new Set<(r: CommandReceipt) => void>();
+let offeredTopics: ReadonlySet<Topic> = new Set();
 
 /** Persistierte Befehls-Receipts (EVENT command.receipt) beobachten; liefert die Abmeldung. */
 export function onReceipt(fn: (r: CommandReceipt) => void): () => void {
@@ -93,7 +98,13 @@ export function acceptTopics(
     }
     subscribe.push({ topic: d.topic, afterCursor: events.get(d.topic)?.lastCursor ?? 0n });
   }
+  offeredTopics = new Set(subscribe.map((s) => s.topic));
   return { subscribe };
+}
+
+/** Bietet das verbundene Backend dieses Topic an (letztes Welcome)? */
+export function topicOffered(topic: Topic): boolean {
+  return offeredTopics.has(topic);
 }
 
 /** STATE: ältere (generation, seq) verwerfen. Gleicher Stand (Snapshot nach Reconnect)

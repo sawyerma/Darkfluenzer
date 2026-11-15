@@ -21,7 +21,8 @@ export function mediaUrl(path: string): string {
   return `/api/v1/media/${encodeURI(path)}`;
 }
 
-async function get(url: string): Promise<Response> {
+/** GET eines sitzungsgeschützten Protobuf-Endpunkts; bei abgelaufener Sitzung einmal erneuert. */
+export async function protectedGet(url: string): Promise<Response> {
   let resp = await fetch(url, { credentials: "same-origin", cache: "no-store" });
   if (resp.status === 401) {
     await refreshSession();
@@ -33,7 +34,7 @@ async function get(url: string): Promise<Response> {
 
 /** Galerie-Seite, neueste zuerst; ``before`` = 0 beginnt bei der neuesten Datei. */
 async function fetchMediaPage(before: bigint, limit: number): Promise<MediaPage> {
-  const resp = await get(`/api/v1/media-page?before=${before}&limit=${limit}`);
+  const resp = await protectedGet(`/api/v1/media-page?before=${before}&limit=${limit}`);
   return fromBinary(MediaPageSchema, new Uint8Array(await resp.arrayBuffer()));
 }
 
@@ -44,7 +45,7 @@ const provenances = new Map<bigint, Promise<MediaProvenance>>();
 export function fetchProvenance(mediaId: bigint): Promise<MediaProvenance> {
   let pending = provenances.get(mediaId);
   if (!pending) {
-    pending = get(`/api/v1/provenance/${mediaId}`)
+    pending = protectedGet(`/api/v1/provenance/${mediaId}`)
       .then(async (resp) => fromBinary(MediaProvenanceSchema, new Uint8Array(await resp.arrayBuffer())))
       .catch((e: unknown) => {
         provenances.delete(mediaId);
