@@ -183,9 +183,14 @@ function CustomerList({
   live: boolean;
 }) {
   const [query, setQuery] = useState("");
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const channels = useStateTopic(Topic.CHANNELS);
   const q = query.trim().toLowerCase();
-  const shown = q ? list.filter((c) => [c.displayName, c.customerNo].some((v) => v.toLowerCase().includes(q))) : list;
+  const shown = list.filter(
+    (c) =>
+      (!unreadOnly || c.unread > 0) &&
+      (!q || [c.displayName, c.customerNo, ...c.handles].some((v) => v.toLowerCase().includes(q))),
+  );
   const count = list.filter((c) => c.kind === "customer").length;
   return (
     <div className="g-clist">
@@ -197,11 +202,24 @@ function CustomerList({
       <input
         className="g-input"
         type="search"
-        placeholder="Kunde suchen …"
+        placeholder="Name, Nummer oder Plattform-ID …"
         aria-label="Kunde suchen"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
+      <div className="g-subtabs" role="tablist" aria-label="Filter">
+        {([false, true] as const).map((only) => (
+          <button
+            key={String(only)}
+            type="button"
+            role="tab"
+            aria-selected={unreadOnly === only}
+            onClick={() => setUnreadOnly(only)}
+          >
+            {only ? "Ungelesen" : "Alle"}
+          </button>
+        ))}
+      </div>
       <div role="list" aria-label="Kundenakten">
         {shown.map((c) => (
           <CustomerRow key={String(c.customerId)} c={c} active={c.customerId === activeId} />
@@ -209,8 +227,8 @@ function CustomerList({
       </div>
       {note ? (
         <p className="g-note">{note}</p>
-      ) : q && shown.length === 0 ? (
-        <p className="g-note">Keine Treffer.</p>
+      ) : (q || unreadOnly) && shown.length === 0 ? (
+        <p className="g-note">{q ? "Keine Treffer." : "Keine ungelesenen Nachrichten."}</p>
       ) : count === 0 ? (
         <p className="g-note">Noch keine Kunden.</p>
       ) : null}

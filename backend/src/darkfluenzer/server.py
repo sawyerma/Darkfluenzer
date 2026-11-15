@@ -1626,6 +1626,9 @@ def _customer_summary(row: dict) -> channel_pb2.CustomerSummary:
         last_platform=row["last_platform"] or "",
         last_ms=_unix_ms(row["last_at"]) if row["last_at"] else 0,
         unread=row["unread"] or 0,
+        handles=sorted(
+            {v for pair in (row["handles"] or "").split("\x1e") for v in pair.split("\x1f") if v}
+        ),
     )
 
 

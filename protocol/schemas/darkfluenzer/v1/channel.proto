@@ -38,6 +38,8 @@ message CustomerSummary {
   string last_platform = 7;
   int64 last_ms = 8;
   uint32 unread = 9;
+  // Plattformkennungen der verknüpften Konten (Handle und Nutzer-ID) für die Suche (F7.2)
+  repeated string handles = 10;
 }
 
 // EVENT customers.updated: geänderte Kundenakte (neu, gelesen, umbenannt …)

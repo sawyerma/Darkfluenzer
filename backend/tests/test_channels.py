@@ -110,6 +110,8 @@ def test_pages_reply_guard_and_mark_read(cfg):
         )
         assert [c.kind for c in page.customers][0] == "internal"  # Default zuerst
         assert {c.unread for c in page.customers if c.kind == "customer"} == {1}
+        mine = next(c for c in page.customers if c.customer_id == a.customer.id)
+        assert list(mine.handles) == ["42", "user42"]  # Suche nach Plattformkennung (F7.2)
         conv = channel_pb2.ConversationPage.FromString(
             await (await client.get(f"/api/v1/conversation-page?customer={a.customer.id}")).read()
         )

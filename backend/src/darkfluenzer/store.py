@@ -955,6 +955,8 @@ class Store:
         rows = self.db.execute(
             "SELECT c.*, (SELECT group_concat(DISTINCT platform) FROM channel_identities"
             " WHERE customer_id = c.id) AS platforms,"
+            " (SELECT group_concat(coalesce(handle, '') || char(31) || platform_user_id, char(30))"
+            "  FROM channel_identities WHERE customer_id = c.id) AS handles,"
             " (SELECT count(*) FROM channel_messages WHERE customer_id = c.id"
             "  AND direction = 'in' AND read_at IS NULL) AS unread,"
             " lm.text AS last_text, lm.sent_at AS last_at, li.platform AS last_platform"
