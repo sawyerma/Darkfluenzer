@@ -14,6 +14,7 @@ import { mediaUrl } from "../core/media";
 import { useConnection } from "../core/realtime";
 import { type MediaItem } from "../core/generated/darkfluenzer/v1/media_pb";
 import { type Character } from "../core/generated/darkfluenzer/v1/character_pb";
+import { type ActiveOrder } from "../core/generated/darkfluenzer/v1/order_pb";
 import { useEventTopic, useStateTopic } from "../core/state";
 import { MediaPicker } from "./Files";
 
@@ -491,9 +492,126 @@ function TrainingFolder({ character }: { character: Character | undefined }) {
   );
 }
 
+const STAGE_LABEL: Record<string, [string, Tone]> = {
+  running: ["LÄUFT", "ok"],
+  waiting: ["AUSWAHL", "warn"],
+  done: ["FERTIG", "ok"],
+  failed: ["FEHLER", "bad"],
+  cancelled: ["ABGEBROCHEN", "neutral"],
+};
+
+/** Kandidatenvergleich (Mitte, V0 §9.6): je Kandidat ein echtes Ergebnis, synchroner Zoom,
+ * Auswahl durch den Betreiber; danach Fertigstellen. */
+function Candidates({ orders, titles }: { orders: ActiveOrder[]; titles: Record<string, string> }) {
+  const cmd = useCommand();
+  const jobs = useStateTopic(Topic.JOBS_ACTIVE)?.value.jobs ?? [];
+  const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
+  if (orders.length === 0) return null;
+  return (
+    <div className="g-result">
+      <h2>Kandidaten</h2>
+      {orders.map((order) => (
+        <div key={order.orderNo} className="g-order">
+          {order.stages.map((stage) => {
+            const [label, tone] = STAGE_LABEL[stage.status] ?? [stage.status, "neutral"];
+            const failed = stage.jobs.some((j) => j.status === "failed");
+            return (
+              <div key={stage.seq} className="g-stage">
+                <div className="g-line">
+                  <span className="g-ellipsis">
+                    {order.orderNo} · {stage.kind === "finish" ? `Fertigstellen · ${titles[stage.workflow] ?? stage.workflow}` : "Kandidaten"}
+                  </span>
+                  <span className="g-value">
+                    {stage.attempts > 1 ? <small>Versuch {stage.attempts}</small> : null}
+                    <span className="g-badge" data-tone={tone}>
+                      {label}
+                    </span>
+                  </span>
+                </div>
+                {stage.error && stage.status === "failed" ? <p className="g-note g-error">{stage.error}</p> : null}
+                <div
+                  className="g-candidates"
+                  data-zoom={zoom ? "" : undefined}
+                  data-zx={zoom ? zoom.x : undefined}
+                  data-zy={zoom ? zoom.y : undefined}
+                >
+                  {stage.jobs.map((j) => {
+                    const active = jobs.find((a) => a.jobId === j.jobId);
+                    const chosen = stage.selectedMediaId !== 0n && stage.selectedMediaId === j.mediaId;
+                    return (
+                      <div key={String(j.jobId)} className="g-candidate" data-chosen={chosen ? "" : undefined}>
+                        {j.mediaId && IMAGE.test(j.path) ? (
+                          <div
+                            className="g-zoom"
+                            onMouseMove={(e) => {
+                              const r = e.currentTarget.getBoundingClientRect();
+                              // Zoompunkt in Zehnerschritten (Stufen im Stylesheet)
+                              const step = (v: number) => Math.min(10, Math.max(0, Math.round(v * 10)));
+                              setZoom({ x: step((e.clientX - r.left) / r.width), y: step((e.clientY - r.top) / r.height) });
+                            }}
+                            onMouseLeave={() => setZoom(null)}
+                          >
+                            <img src={mediaUrl(j.path)} alt={`Kandidat Seed ${j.seed}`} />
+                          </div>
+                        ) : j.mediaId && VIDEO.test(j.path) ? (
+                          <video src={mediaUrl(j.path)} controls muted preload="metadata" />
+                        ) : (
+                          <div className="g-placeholder">
+                            {j.status === "failed" ? "Fehler" : active?.running ? <Progress job={active} /> : "wartet"}
+                          </div>
+                        )}
+                        <div className="g-line">
+                          <small>Seed {String(j.seed)}</small>
+                          {stage.status === "waiting" && j.mediaId ? (
+                            <button
+                              type="button"
+                              className="g-button g-primary"
+                              disabled={cmd.pending}
+                              onClick={() => cmd.run({ case: "selectCandidate", value: { orderNo: order.orderNo, mediaId: j.mediaId } })}
+                            >
+                              Auswählen
+                            </button>
+                          ) : chosen ? (
+                            <span className="g-badge" data-tone="ok">
+                              AUSGEWÄHLT
+                            </span>
+                          ) : null}
+                        </div>
+                        {j.status === "failed" && j.error ? <small className="g-error">{j.error}</small> : null}
+                      </div>
+                    );
+                  })}
+                </div>
+                {failed && (stage.status === "failed" || stage.status === "waiting") ? (
+                  <div className="g-actions">
+                    <button
+                      type="button"
+                      className="g-button"
+                      disabled={cmd.pending}
+                      onClick={() => cmd.run({ case: "retryStage", value: { orderNo: order.orderNo, seq: stage.seq } })}
+                    >
+                      Fehlgeschlagene wiederholen
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+      {cmd.notice ? (
+        <p className="g-note" role="alert">
+          {cmd.notice}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /** Arbeitsfläche (Mitte) und Steuerung (rechts) des gewählten Workflows (F7.5). */
 function Workbench({
   wf,
+  workflows,
   version,
   live,
   comfyUrl,
@@ -503,6 +621,7 @@ function Workbench({
   canLoad,
 }: {
   wf: WorkflowInfo;
+  workflows: WorkflowInfo[]; // Registry (Fertigstellen-Auswahl)
   version: bigint; // Registry-Version (CAS) der angezeigten Workflow-Liste
   live: boolean;
   comfyUrl: string;
@@ -513,6 +632,24 @@ function Workbench({
 }) {
   const cmd = useCommand();
   const character = useStateTopic(Topic.CHARACTERS)?.value.characters[0];
+  const ordersState = useStateTopic(Topic.ORDERS_ACTIVE)?.value;
+  const myOrders = (ordersState?.orders ?? []).filter((o) => o.stages[0]?.workflow === wf.key);
+  // Kandidaten nur mit Seed (Varianten) und nicht beim Training; Fertigstellen: Bild-Workflows,
+  // die außer dem Bild nichts verlangen, auf derselben Instanz
+  const canCandidates = !wf.training && wf.params.some((p) => p.name === "seed");
+  const finishers = workflows.filter(
+    (w) =>
+      w.key !== wf.key &&
+      w.kind === "image" &&
+      w.instance === wf.instance &&
+      !w.training &&
+      w.params.some((p) => p.name === "image" && p.upload) &&
+      w.params.every((p) => !p.required || p.name === "image"),
+  );
+  const [count, setCount] = useState("");
+  const [finish, setFinish] = useState("");
+  const candidates = count === "" ? (ordersState?.candidatesDefault ?? 1) : Number(count);
+  const titles = Object.fromEntries(workflows.map((w) => [w.key, w.title]));
   const mine = (useStateTopic(Topic.JOBS_ACTIVE)?.value.jobs ?? []).filter((j) => j.workflow === wf.key);
   const running = mine.find((j) => j.running);
   const waiting = mine.filter((j) => !j.running).length;
@@ -575,10 +712,19 @@ function Workbench({
         }),
     );
     const parentMediaId = picked.image?.mediaId ?? 0n;
-    const done = await cmd.run(
-      { case: "render", value: { workflow: wf.key, values, files: inputs, parentMediaId } },
-      { version, acceptedOnly: true, done: "Eingereiht." },
-    );
+    const asOrder = canCandidates && (candidates > 1 || finish !== "");
+    const done = asOrder
+      ? await cmd.run(
+          {
+            case: "createOrder",
+            value: { workflow: wf.key, values, files: inputs, parentMediaId, candidates, finishWorkflow: finish },
+          },
+          { version, done: `${candidates} Kandidaten eingereiht.` },
+        )
+      : await cmd.run(
+          { case: "render", value: { workflow: wf.key, values, files: inputs, parentMediaId } },
+          { version, acceptedOnly: true, done: "Eingereiht." },
+        );
     if (done) setChecked(false);
   }
 
@@ -670,6 +816,7 @@ function Workbench({
         ) : null}
         {wf.training ? <TrainingFolder character={character} /> : null}
         <div className="g-form">{[...wf.params.filter((p) => inMain(p) && !p.upload), ...wf.params.filter((p) => p.upload)].map(field)}</div>
+        <Candidates orders={myOrders} titles={titles} />
         <WorkflowResults wf={wf} running={running} waiting={waiting} onLoad={onLoad} canLoad={canLoad} />
       </div>
 
@@ -731,6 +878,34 @@ function Workbench({
             </button>
           </div>
         </div>
+        {canCandidates ? (
+          <div className="g-form">
+            <div className="g-field">
+              <label htmlFor={`${wf.key}-candidates`}>Kandidaten</label>
+              <input
+                id={`${wf.key}-candidates`}
+                type="number"
+                min={1}
+                max={ordersState?.candidatesMax ?? 1}
+                value={count === "" ? String(candidates) : count}
+                onChange={(e) => setCount(e.target.value)}
+              />
+            </div>
+            {finishers.length > 0 ? (
+              <div className="g-field">
+                <label htmlFor={`${wf.key}-finish`}>Fertigstellen mit</label>
+                <select id={`${wf.key}-finish`} value={finish} onChange={(e) => setFinish(e.target.value)}>
+                  <option value="">–</option>
+                  {finishers.map((w) => (
+                    <option key={w.key} value={w.key}>
+                      {w.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {expertParams.length > 0 ? (
           <details className="g-expert" open={expert} onToggle={(e) => setExpert(e.currentTarget.open)}>
             <summary>Erweiterte Workflow-Einstellungen</summary>
@@ -880,6 +1055,7 @@ export function ComfyUI() {
           <Workbench
             key={`${current.key}-${draft?.key === current.key ? draft.n : 0}-${intent?.workflow === current.key ? String(intent.media.mediaId) : ""}`}
             wf={current}
+            workflows={workflows}
             version={version}
             live={live}
             comfyUrl={comfyUrl}

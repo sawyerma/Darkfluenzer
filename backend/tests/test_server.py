@@ -16,7 +16,7 @@ from darkfluenzer import comfy, models, runtime, server
 from darkfluenzer.config import project_root
 from darkfluenzer.store import Store
 from darkfluenzer.stream import PROTOCOL_MAJOR
-from darkfluenzer.v1 import character_pb2, comfy_pb2, commands_pb2, media_pb2
+from darkfluenzer.v1 import character_pb2, comfy_pb2, commands_pb2, media_pb2, order_pb2
 from darkfluenzer.v1 import stream_pb2 as pb
 
 
@@ -233,7 +233,9 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
             (pb.TOPIC_JOBS_ACTIVE, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_COMFY_WORKFLOWS, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_CHARACTERS, pb.TOPIC_CLASS_STATE),
+            (pb.TOPIC_ORDERS_ACTIVE, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_JOB_COMPLETED, pb.TOPIC_CLASS_EVENT),
+            (pb.TOPIC_ORDER_UPDATED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_MEDIA_ADDED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_MEDIA_REMOVED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_COMMAND_RECEIPT, pb.TOPIC_CLASS_EVENT),
@@ -465,6 +467,72 @@ def test_characters_state_pushes_training_folder_changes(cfg):
             ("klein.png", "too_small"),
         }
         assert char.usable == 1 and later.version > first.version
+        await ws.close()
+
+    _run(cfg, scenario)
+
+
+def test_order_commands_push_stages_and_retry(cfg):
+    """Auftrag per Befehl: Receipt, STATE 4 per Push, fehlgeschlagene Stufe, Wiederholen."""
+    cfg = dataclasses.replace(cfg, server=dataclasses.replace(cfg.server, observe_s=0.1))
+    shutil.copytree(project_root() / "workflows", cfg.root / "workflows")
+    man = models.load_manifest(cfg.root)
+    for mf in man.engine_files("lustify_sdxl"):  # Modell "vorhanden" (sparse)
+        target = models.models_dir(cfg.root) / mf.target
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with open(target, "wb") as fh:
+            fh.truncate(mf.size)
+
+    async def scenario(client, app, origin):
+        csrf = await _csrf(client)
+        cockpit = app[server.COCKPIT_KEY]
+
+        async def answer(**kw):
+            req = commands_pb2.CommandRequest(
+                request_id=str(uuid.uuid4()), expected_version=cockpit._registry_version, **kw
+            )
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body)
+
+        ws = await client.ws_connect("/ws/v1/stream", headers={"Origin": origin})
+        hello = pb.Hello(protocol_major=PROTOCOL_MAJOR, schema_id=app[server.HUB_KEY].schema)
+        await ws.send_bytes(pb.ClientMessage(hello=hello).SerializeToString())
+        assert (await _frame(ws)).welcome.status == pb.WELCOME_STATUS_ACCEPTED
+        sub = pb.Subscribe(topic=pb.TOPIC_ORDERS_ACTIVE)
+        await ws.send_bytes(pb.ClientMessage(subscribe=sub).SerializeToString())
+        first = order_pb2.OrdersActive.FromString((await _frame(ws)).state_full.payload)
+        assert not first.orders and first.candidates_default == 3 and first.candidates_max == 6
+
+        async def stage_until(status: str, attempts: int) -> order_pb2.OrderStage:
+            while True:
+                state = order_pb2.OrdersActive.FromString((await _frame(ws)).state_full.payload)
+                stages = [s for o in state.orders for s in o.stages]
+                if stages and stages[0].status == status and stages[0].attempts == attempts:
+                    return stages[0]
+
+        prompt = commands_pb2.ParamValue(name="prompt", text="studio portrait")
+        create = commands_pb2.CreateOrder(workflow="lustify_sdxl_t2i", values=[prompt])
+        too_many = commands_pb2.CreateOrder(
+            workflow="lustify_sdxl_t2i", values=[prompt], candidates=7
+        )
+        assert "Höchstens 6" in (await answer(create_order=too_many)).detail
+        done = await answer(create_order=create)
+        assert done.status == commands_pb2.COMMAND_STATUS_ACCEPTED and done.entity.startswith(
+            "order:"
+        )
+        order_no = done.entity.removeprefix("order:")
+        assert Store(cfg.local).command(done.request_id)["status"] == "completed"
+        # Test-ComfyUI kennt kein /prompt: alle drei Kandidaten scheitern -> Stufe fehlgeschlagen
+        failed = await stage_until("failed", 1)
+        assert failed.kind == "candidates" and len(failed.jobs) == 3 and failed.error
+
+        pick = commands_pb2.SelectCandidate(order_no=order_no, media_id=1)
+        assert "wartet nicht" in (await answer(select_candidate=pick)).detail
+        retry = commands_pb2.RetryStage(order_no=order_no, seq=1)
+        assert (await answer(retry_stage=retry)).detail == ""
+        again = await stage_until("failed", 2)
+        assert len(again.jobs) == 6
         await ws.close()
 
     _run(cfg, scenario)

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -36,6 +36,18 @@ TRANSITIONS: dict[str, set[str]] = {
     "cancelled": set(),
     "refunded": set(),
 }
+
+# Aufträge ohne Kunden (Betreiber, Kloner): Produktion -> Prüfung -> Freigabe, ohne Angebot/Zahlung
+OPERATOR_TRANSITIONS: dict[str, set[str]] = {
+    "producing": {"review", "cancelled"},
+    "review": {"producing", "approved", "cancelled"},
+    "approved": {"producing"},
+    "cancelled": set(),
+}
+ORDER_SOURCES = ("operator", "cloner", "customer")
+# Stufen eines Auftrags (V0 §4.3); weitere Arten kommen additiv (Bearbeiten, Video, Freigabe …)
+STAGE_KINDS = ("candidates", "finish")
+STAGE_ACTIVE = ("running", "waiting")
 
 _IMMUTABLE = ("artifacts", "approvals", "events")
 
@@ -272,7 +284,60 @@ ALTER TABLE jobs ADD COLUMN graph TEXT;
 ALTER TABLE jobs ADD COLUMN prompt_id TEXT;
 CREATE UNIQUE INDEX jobs_request ON jobs(request_id) WHERE request_id IS NOT NULL;
 """,
+    5: """
+-- Auftrag mit Stufen (V0 §4.3): ein Auftragstyp für Betreiber, Kloner und Kunden; nur
+-- Kundenaufträge haben einen Kunden. Neubau der Tabelle (SQLite kann NOT NULL nicht ändern),
+-- alle Zeilen bleiben mit ihrer ID erhalten.
+CREATE TABLE orders_v5 (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_no     TEXT GENERATED ALWAYS AS ('DF-O-' || printf('%06d', id)) STORED,
+    source       TEXT    NOT NULL DEFAULT 'customer'
+                 CHECK (source IN ('operator', 'cloner', 'customer')),
+    customer_id  INTEGER REFERENCES customers(id),
+    kind         TEXT    NOT NULL CHECK (kind IN ('image', 'video')),
+    request      TEXT    NOT NULL,
+    offer        TEXT,
+    price_amount INTEGER CHECK (price_amount IS NULL OR price_amount > 0),
+    currency     TEXT,
+    status       TEXT    NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'offered', 'accepted',
+                 'paid', 'producing', 'review', 'approved', 'delivered', 'cancelled', 'refunded')),
+    created_at   TEXT    NOT NULL,
+    updated_at   TEXT    NOT NULL,
+    CHECK ((source = 'customer') = (customer_id IS NOT NULL))
+);
+INSERT INTO orders_v5 (id, source, customer_id, kind, request, offer, price_amount, currency,
+                       status, created_at, updated_at)
+SELECT id, 'customer', customer_id, kind, request, offer, price_amount, currency, status,
+       created_at, updated_at FROM orders;
+DROP TABLE orders;
+ALTER TABLE orders_v5 RENAME TO orders;
+CREATE UNIQUE INDEX orders_no ON orders(order_no);
+CREATE INDEX orders_customer ON orders(customer_id);
+
+-- Stufen: Kandidaten (n Jobs, dann Auswahl durch den Betreiber), Fertigstellen …
+CREATE TABLE order_stages (
+    id                INTEGER PRIMARY KEY,
+    order_id          INTEGER NOT NULL REFERENCES orders(id),
+    seq               INTEGER NOT NULL CHECK (seq > 0),
+    kind              TEXT    NOT NULL,
+    status            TEXT    NOT NULL
+                      CHECK (status IN ('running', 'waiting', 'done', 'failed', 'cancelled')),
+    workflow          TEXT    NOT NULL,
+    params            TEXT    NOT NULL DEFAULT '{}',
+    count             INTEGER NOT NULL DEFAULT 1 CHECK (count > 0),
+    selected_media_id INTEGER,
+    attempts          INTEGER NOT NULL DEFAULT 1,
+    error             TEXT,
+    created_at        TEXT    NOT NULL,
+    updated_at        TEXT    NOT NULL,
+    UNIQUE (order_id, seq)
+);
+ALTER TABLE jobs ADD COLUMN stage_id INTEGER REFERENCES order_stages(id);
+CREATE INDEX jobs_stage ON jobs(stage_id) WHERE stage_id IS NOT NULL;
+""",
 }
+# Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
+REBUILDS = {5}
 # Artefaktrollen, die in die Galerie gehören (Eingaben, Masken, Vorschauen nicht)
 GALLERY_ROLES = {"master", "candidate", "edit", "refined", "sent"}
 MEDIA_KINDS = {
@@ -303,14 +368,30 @@ class Customer:
 class Order:
     id: int
     order_no: str
-    customer_id: int
-    customer_no: str
+    customer_id: int | None  # nur Kundenaufträge
+    customer_no: str | None
     kind: str
     request: str
     offer: str | None
     price_amount: int | None
     currency: str | None
     status: str
+    source: str = "customer"
+
+
+@dataclass(frozen=True)
+class Stage:
+    id: int
+    order_id: int
+    seq: int
+    kind: str
+    status: str
+    workflow: str
+    params: dict
+    count: int
+    selected_media_id: int | None
+    attempts: int
+    error: str | None
 
 
 @dataclass(frozen=True)
@@ -355,18 +436,32 @@ class Store:
     def _migrate(self) -> None:
         # Einzelne Statements statt executescript(): executescript würde die laufende
         # Transaktion implizit committen; so bleibt die Migration atomar und parallel sicher.
-        with self.tx():
-            version = self.db.execute("PRAGMA user_version").fetchone()[0]
-            if version > SCHEMA_VERSION:
-                raise StoreError(f"Unbekannte Datenbankversion {version} in {self.path}")
-            if version == 0:
-                for statement in _statements(SCHEMA):
-                    self.db.execute(statement)
-                version = 1
-            for step in range(version + 1, SCHEMA_VERSION + 1):
-                for statement in _statements(MIGRATIONS[step]):
-                    self.db.execute(statement)
-            self.db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        pending = self.db.execute("PRAGMA user_version").fetchone()[0]
+        rebuild = any(step in REBUILDS for step in range(max(pending, 1) + 1, SCHEMA_VERSION + 1))
+        if rebuild:  # nur außerhalb einer Transaktion umschaltbar
+            self.db.execute("PRAGMA foreign_keys = OFF")
+            self.db.execute("PRAGMA legacy_alter_table = ON")  # Trigger-Verweise unverändert
+        try:
+            with self.tx():
+                version = self.db.execute("PRAGMA user_version").fetchone()[0]
+                if version > SCHEMA_VERSION:
+                    raise StoreError(f"Unbekannte Datenbankversion {version} in {self.path}")
+                if version == 0:
+                    for statement in _statements(SCHEMA):
+                        self.db.execute(statement)
+                    version = 1
+                for step in range(version + 1, SCHEMA_VERSION + 1):
+                    for statement in _statements(MIGRATIONS[step]):
+                        self.db.execute(statement)
+                if rebuild and (bad := self.db.execute("PRAGMA foreign_key_check").fetchall()):
+                    raise StoreError(
+                        f"Migration verletzt Fremdschlüssel: {[tuple(r) for r in bad]}"
+                    )
+                self.db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        finally:
+            if rebuild:
+                self.db.execute("PRAGMA legacy_alter_table = OFF")
+                self.db.execute("PRAGMA foreign_keys = ON")
 
     @contextlib.contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
@@ -454,7 +549,7 @@ class Store:
 
     def order(self, order_no: str) -> Order:
         row = self.db.execute(
-            "SELECT o.*, c.customer_no FROM orders o JOIN customers c ON c.id = o.customer_id "
+            "SELECT o.*, c.customer_no FROM orders o LEFT JOIN customers c ON c.id = o.customer_id "
             "WHERE o.order_no = ?",
             (order_no,),
         ).fetchone()
@@ -482,10 +577,135 @@ class Store:
             (self.order_dir(order) / sub).mkdir(parents=True, exist_ok=True)
         return order
 
+    # ------------------------------------------------------------------ Aufträge mit Stufen
+
+    def create_production_order(self, source: str, kind: str, request: str) -> Order:
+        """Auftrag ohne Kunden (Betreiber, Kloner) direkt in Produktion (V0 §4.3)."""
+        if source not in ORDER_SOURCES or source == "customer":
+            raise StoreError(f"Auftragsquelle {source!r}: hier nur Betreiber oder Kloner.")
+        if kind not in ORDER_KINDS:
+            raise StoreError(f"Auftragstyp {kind!r} unbekannt (erlaubt: {ORDER_KINDS}).")
+        with self.tx() as db:
+            ts = now()
+            cur = db.execute(
+                "INSERT INTO orders (source, kind, request, status, created_at, updated_at)"
+                " VALUES (?,?,?,'producing',?,?)",
+                (source, kind, request, ts, ts),
+            )
+            no = db.execute("SELECT order_no FROM orders WHERE id = ?", (cur.lastrowid,))
+            order = self.order(no.fetchone()[0])
+            self._event(
+                "order", order.id, "created", order_no=order.order_no, kind=kind, source=source
+            )
+            self.bump("orders")
+            return order
+
+    def order_by_id(self, order_id: int) -> Order:
+        row = self.db.execute("SELECT order_no FROM orders WHERE id = ?", (order_id,)).fetchone()
+        if row is None:
+            raise StoreError(f"Auftrag {order_id} unbekannt.")
+        return self.order(row[0])
+
+    def add_stage(self, order_id: int, kind: str, workflow: str, params: dict, count: int) -> Stage:
+        """Nächste Stufe eines Auftrags (läuft sofort)."""
+        if kind not in STAGE_KINDS:
+            raise StoreError(f"Stufenart {kind!r} unbekannt (erlaubt: {STAGE_KINDS}).")
+        with self.tx() as db:
+            seq = db.execute(
+                "SELECT coalesce(max(seq), 0) + 1 FROM order_stages WHERE order_id = ?", (order_id,)
+            ).fetchone()[0]
+            ts = now()
+            cur = db.execute(
+                "INSERT INTO order_stages (order_id, seq, kind, status, workflow, params, count,"
+                " created_at, updated_at) VALUES (?,?,?,'running',?,?,?,?,?)",
+                (
+                    order_id,
+                    seq,
+                    kind,
+                    workflow,
+                    json.dumps(params, ensure_ascii=False),
+                    count,
+                    ts,
+                    ts,
+                ),
+            )
+            self._event("order", order_id, "stage", seq=seq, kind=kind, status="running")
+            self.bump("orders")
+            return self.stage(cur.lastrowid)
+
+    def stage(self, stage_id: int) -> Stage:
+        row = self.db.execute("SELECT * FROM order_stages WHERE id = ?", (stage_id,)).fetchone()
+        if row is None:
+            raise StoreError(f"Stufe {stage_id} unbekannt.")
+        return _stage(row)
+
+    def stages(self, order_id: int) -> list[Stage]:
+        rows = self.db.execute(
+            "SELECT * FROM order_stages WHERE order_id = ? ORDER BY seq", (order_id,)
+        )
+        return [_stage(r) for r in rows]
+
+    def set_stage(
+        self,
+        stage_id: int,
+        status: str,
+        *,
+        selected_media_id: int | None = None,
+        error: str | None = None,
+        retry: bool = False,
+    ) -> Stage:
+        """Statuswechsel einer Stufe mit Journal-Ereignis (``retry``: weiterer Versuch)."""
+        with self.tx() as db:
+            stage = self.stage(stage_id)
+            db.execute(
+                "UPDATE order_stages SET status = ?, selected_media_id = coalesce(?,"
+                " selected_media_id), error = ?, attempts = attempts + ?, updated_at = ?"
+                " WHERE id = ?",
+                (status, selected_media_id, error, int(retry), now(), stage_id),
+            )
+            self._event(
+                "order",
+                stage.order_id,
+                "stage",
+                seq=stage.seq,
+                kind=stage.kind,
+                status=status,
+                detail=error or (f"Medium {selected_media_id}" if selected_media_id else ""),
+            )
+            self.bump("orders")
+            return self.stage(stage_id)
+
+    def stage_jobs(self, stage_id: int) -> list[dict]:
+        """Jobs einer Stufe mit ihrem ersten Galerie-Medium (Kandidat)."""
+        rows = self.db.execute(
+            "SELECT j.id, j.status, j.error, j.seeds, m.id AS media_id, m.path FROM jobs j"
+            " LEFT JOIN media m ON m.id = (SELECT min(id) FROM media WHERE job_id = j.id)"
+            " WHERE j.stage_id = ? ORDER BY j.id",
+            (stage_id,),
+        )
+        return [dict(r) | {"seeds": json.loads(r["seeds"])} for r in rows]
+
+    def active_orders(self) -> list[Order]:
+        """Aufträge in Produktion (Stufen laufen oder warten auf den Betreiber)."""
+        rows = self.db.execute("SELECT order_no FROM orders WHERE status = 'producing' ORDER BY id")
+        return [self.order(r[0]) for r in rows]
+
+    def order_events(self, after: int, limit: int) -> tuple[list[dict], bool]:
+        """Auftragsereignisse aus dem Journal mit Cursor > ``after`` (neueste ``limit``)."""
+        rows = self.db.execute(
+            "SELECT e.id AS cursor, e.created_at AS committed_at, e.event, e.data, o.order_no,"
+            " o.status FROM events e JOIN orders o ON o.id = e.entity_id"
+            " WHERE e.entity = 'order' AND e.id > ? ORDER BY e.id DESC LIMIT ?",
+            (after, limit + 1),
+        ).fetchall()
+        recent = [dict(r) | {"data": json.loads(r["data"])} for r in rows[:limit]]
+        return recent[::-1], len(rows) > limit
+
     def transition(self, order_no: str, new_status: str, **data: object) -> Order:
         with self.tx() as db:
             order = self.order(order_no)
-            if new_status not in TRANSITIONS.get(order.status, set()):
+            allowed = TRANSITIONS if order.source == "customer" else OPERATOR_TRANSITIONS
+            if new_status not in allowed.get(order.status, set()):
                 raise StoreError(
                     f"{order_no}: Übergang {order.status} -> {new_status} nicht erlaubt."
                 )
@@ -494,6 +714,7 @@ class Store:
                 (new_status, now(), order.id),
             )
             self._event("order", order.id, "status", old=order.status, new=new_status, **data)
+            self.bump("orders")
             return self.order(order_no)
 
     def set_offer(self, order_no: str, offer: str, price_amount: int, currency: str) -> Order:
@@ -572,6 +793,7 @@ class Store:
         *,
         parent_media_id: int | None = None,
         command: dict | None = None,
+        stage_id: int | None = None,
     ) -> int:
         """Job anlegen; ``order_no=None`` für Renderungen ohne Kundenbezug (Evaluation).
         ``command``: auslösender Befehl (``record_command``-Argumente) – Job und Befehlsjournal
@@ -581,7 +803,8 @@ class Store:
             ts = now()
             cur = db.execute(
                 "INSERT INTO jobs (order_id, engine, workflow, prompt, params, seeds, created_at,"
-                " updated_at, parent_media_id, request_id) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                " updated_at, parent_media_id, request_id, stage_id)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     order_id,
                     engine,
@@ -593,6 +816,7 @@ class Store:
                     ts,
                     parent_media_id,
                     command["request_id"] if command else None,
+                    stage_id,
                 ),
             )
             job_id = cur.lastrowid
@@ -1109,4 +1333,21 @@ def _order(row: sqlite3.Row) -> Order:
         price_amount=row["price_amount"],
         currency=row["currency"],
         status=row["status"],
+        source=row["source"],
+    )
+
+
+def _stage(row: sqlite3.Row) -> Stage:
+    return Stage(
+        id=row["id"],
+        order_id=row["order_id"],
+        seq=row["seq"],
+        kind=row["kind"],
+        status=row["status"],
+        workflow=row["workflow"],
+        params=json.loads(row["params"]),
+        count=row["count"],
+        selected_media_id=row["selected_media_id"],
+        attempts=row["attempts"],
+        error=row["error"],
     )

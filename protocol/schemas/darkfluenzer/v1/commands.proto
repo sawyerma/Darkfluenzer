@@ -94,6 +94,31 @@ message DeleteMedia {
   repeated uint64 media_ids = 1;
 }
 
+// Auftrag des Betreibers mit Stufen (V0 §4.3): Stufe 1 rendert `candidates` Kandidaten des
+// Workflows mit fortlaufenden Seeds; danach wählt der Betreiber (SelectCandidate). Mit
+// `finish_workflow` wird der ausgewählte Kandidat anschließend dadurch fertiggestellt (dessen
+// Eingang `image`). Trägt die Registry-Version (CAS) wie Render.
+message CreateOrder {
+  string workflow = 1;
+  repeated ParamValue values = 2;
+  repeated InputFile files = 3;
+  uint32 candidates = 4;
+  string finish_workflow = 5;
+  uint64 parent_media_id = 6;
+}
+
+// Auswahl an der kreativen Stufe; geprüft wird im Backend: Stufe wartet, Medium stammt aus ihr.
+message SelectCandidate {
+  string order_no = 1;
+  uint64 media_id = 2;
+}
+
+// Fehlgeschlagene Jobs einer Stufe erneut ausführen (Obergrenze laut Konfiguration).
+message RetryStage {
+  string order_no = 1;
+  uint32 seq = 2;
+}
+
 message CommandRequest {
   // UUID je Benutzeraktion. Dieselbe ID mit demselben Befehl liefert dieselbe Antwort
   // ohne zweite Ausführung; dieselbe ID mit anderem Befehl wird abgelehnt.
@@ -115,6 +140,9 @@ message CommandRequest {
     CancelJob cancel_job = 18;
     PauseQueue pause_queue = 19;
     DeleteMedia delete_media = 20;
+    CreateOrder create_order = 21;
+    SelectCandidate select_candidate = 22;
+    RetryStage retry_stage = 24;
   }
 }
 

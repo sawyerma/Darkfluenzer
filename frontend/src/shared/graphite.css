@@ -294,6 +294,27 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-toolbar .g-subtabs { margin: 0; border-bottom: 0; }
 .g-tile { position: relative; }
 .g-tile-outputs { display: grid; gap: var(--g-gap-xs); grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+.g-order + .g-order { margin-top: var(--g-gap-lg); }
+.g-stage { margin-bottom: var(--g-gap-md); }
+.g-candidates { display: grid; gap: var(--g-gap-md); grid-template-columns: repeat(auto-fill, minmax(var(--g-tile-min), 1fr)); margin-top: var(--g-gap-sm); }
+.g-candidate { display: flex; flex-direction: column; gap: var(--g-gap-xs); }
+.g-candidate[data-chosen] .g-zoom { outline: 2px solid var(--g-brand); outline-offset: -2px; }
+.g-zoom { overflow: hidden; aspect-ratio: 3 / 4; border: 1px solid var(--g-line); border-radius: var(--g-r-row); background: var(--g-well); cursor: zoom-in; }
+.g-zoom img { width: 100%; height: 100%; object-fit: cover; display: block; transform-origin: var(--zx, 50%) var(--zy, 50%); }
+/* synchroner Zoom: alle Kandidaten zeigen dieselbe Stelle (Zoompunkt in Zehnerschritten) */
+.g-candidates[data-zoom] .g-zoom img { transform: scale(2.5); }
+.g-candidates[data-zx="0"] { --zx: 0%; } .g-candidates[data-zy="0"] { --zy: 0%; }
+.g-candidates[data-zx="1"] { --zx: 10%; } .g-candidates[data-zy="1"] { --zy: 10%; }
+.g-candidates[data-zx="2"] { --zx: 20%; } .g-candidates[data-zy="2"] { --zy: 20%; }
+.g-candidates[data-zx="3"] { --zx: 30%; } .g-candidates[data-zy="3"] { --zy: 30%; }
+.g-candidates[data-zx="4"] { --zx: 40%; } .g-candidates[data-zy="4"] { --zy: 40%; }
+.g-candidates[data-zx="5"] { --zx: 50%; } .g-candidates[data-zy="5"] { --zy: 50%; }
+.g-candidates[data-zx="6"] { --zx: 60%; } .g-candidates[data-zy="6"] { --zy: 60%; }
+.g-candidates[data-zx="7"] { --zx: 70%; } .g-candidates[data-zy="7"] { --zy: 70%; }
+.g-candidates[data-zx="8"] { --zx: 80%; } .g-candidates[data-zy="8"] { --zy: 80%; }
+.g-candidates[data-zx="9"] { --zx: 90%; } .g-candidates[data-zy="9"] { --zy: 90%; }
+.g-candidates[data-zx="10"] { --zx: 100%; } .g-candidates[data-zy="10"] { --zy: 100%; }
+.g-placeholder { display: grid; place-items: center; aspect-ratio: 3 / 4; border: 1px dashed var(--g-line); border-radius: var(--g-r-row); color: var(--g-muted); font-size: var(--g-fs-small); }
 .g-tile-open {
   display: flex; flex-direction: column; gap: var(--g-gap-sm); width: 100%; padding: 0; border: 0;
   background: none; color: var(--g-text); font: inherit; text-align: left; cursor: pointer;

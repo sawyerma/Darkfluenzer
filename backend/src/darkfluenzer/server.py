@@ -27,7 +27,7 @@ from . import comfy, models, pipeline, runtime, training
 from .config import ComfyConfig, Config
 from .store import Store, StoreError
 from .stream import Hub, schema_id
-from .v1 import character_pb2, comfy_pb2, commands_pb2, media_pb2
+from .v1 import character_pb2, comfy_pb2, commands_pb2, media_pb2, order_pb2
 from .v1 import stream_pb2 as spb
 
 log = logging.getLogger("darkfluenzer.server")
@@ -40,6 +40,7 @@ MAX_SESSIONS = 32
 _REGISTRY_COMMANDS = frozenset(
     {
         "render",
+        "create_order",
         "set_workflow_enabled",
         "open_workflow",
         "adopt_workflow",
@@ -48,7 +49,7 @@ _REGISTRY_COMMANDS = frozenset(
     }
 )
 # Ändern die Registry (neue Registry-Version nach dem Effekt)
-_REGISTRY_EDITS = _REGISTRY_COMMANDS - {"render", "open_workflow"}
+_REGISTRY_EDITS = _REGISTRY_COMMANDS - {"render", "create_order", "open_workflow"}
 # Enden asynchron mit eigener Receipt: Render mit dem Job, ComfyUI mit Start/Stopp
 _ASYNC_COMMANDS = frozenset({"render", "comfy_start", "comfy_stop"})
 UNKNOWN_AFTER_RESTART = "Backend wurde während der Ausführung beendet – Ergebnis unbekannt."
@@ -231,6 +232,8 @@ class Cockpit:
             except Exception as exc:  # im Journal als fehlgeschlagen festgehalten
                 log.error("Renderjob %s fehlgeschlagen: %s", job_id, exc)
             lane.engine, lane.running_job = engine, 0
+            pipeline.advance_order(self.store, job_id)  # Stufe vollständig? (SQLite im Loop)
+            self._orders_changed()
             self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
             self.hub.push_events(spb.TOPIC_MEDIA_ADDED)
             self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
@@ -314,6 +317,7 @@ class Cockpit:
                     workflows = await asyncio.to_thread(self._workflows)
                 self.hub.set_state(spb.TOPIC_COMFY_WORKFLOWS, workflows)
                 await self.refresh_characters()
+                self.hub.set_state(spb.TOPIC_ORDERS_ACTIVE, self._orders_active())
                 self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
                 self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
                 await asyncio.to_thread(
@@ -574,6 +578,9 @@ class Cockpit:
         call = _Call(req.request_id, payload_sha, which)
         handlers = {
             "render": self._render,
+            "create_order": self._create_order,
+            "select_candidate": self._select_candidate,
+            "retry_stage": self._retry_stage,
             "set_workflow_enabled": self._set_enabled,
             "open_workflow": self._open,
             "adopt_workflow": self._adopt,
@@ -657,17 +664,7 @@ class Cockpit:
                     inputs[name] = value
                 elif name in wf.params:
                     values.setdefault(name, value)
-        for f in msg.files:
-            if f.param not in wf.params or not wf.params[f.param].upload:
-                return f"{f.param}: kein Upload-Parameter von {wf.key}."
-            if f.media_id:  # exakte Galerie-Datei über ihre unveränderliche ID
-                inputs[f.param] = await asyncio.to_thread(
-                    pipeline.input_from_media, self.cfg, f.media_id
-                )
-            else:
-                inputs[f.param] = await asyncio.to_thread(
-                    pipeline.store_input, self.cfg, f.data, f.filename
-                )
+        inputs.update(await self._inputs(wf, msg.files))
         dataset = None
         if wf.training:  # Datensatzversion der aktuell geeigneten Bilder (mindestens MIN_IMAGES)
             dataset = (await asyncio.to_thread(training.build_dataset, self.cfg.local)).name
@@ -690,6 +687,164 @@ class Cockpit:
         log.info("Renderjob %s (%s, %s) eingereiht", job_id, wf.key, lane.inst.name)
         lane.renders.put_nowait(job_id)
         return ""
+
+    async def _inputs(self, wf: models.Workflow, files) -> dict[str, str]:
+        """Eingabedateien eines Befehls: Galerie-Medium per ID (SHA-256 geprüft) oder Upload."""
+        inputs: dict[str, str] = {}
+        for f in files:
+            if f.param not in wf.params or not wf.params[f.param].upload:
+                raise pipeline.PipelineError(f"{f.param}: kein Upload-Parameter von {wf.key}.")
+            if f.media_id:  # exakte Galerie-Datei über ihre unveränderliche ID
+                inputs[f.param] = await asyncio.to_thread(
+                    pipeline.input_from_media, self.cfg, f.media_id
+                )
+            else:
+                inputs[f.param] = await asyncio.to_thread(
+                    pipeline.store_input, self.cfg, f.data, f.filename
+                )
+        return inputs
+
+    def _journal_entry(self, call: _Call) -> dict:
+        return {
+            "request_id": call.request_id,
+            "payload_sha": call.payload_sha,
+            "command": call.name,
+            "status": "accepted",
+        }
+
+    def _enqueue(self, jobs: list[int]) -> None:
+        for job_id in jobs:
+            lane = self._lane_of_job(job_id)
+            lane.renders.put_nowait(job_id)
+
+    def _orders_changed(self) -> None:
+        self.hub.set_state(spb.TOPIC_ORDERS_ACTIVE, self._orders_active())
+        self.hub.push_events(spb.TOPIC_ORDER_UPDATED)
+        self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
+
+    async def _create_order(self, msg: commands_pb2.CreateOrder, call: _Call) -> str:
+        """Auftrag mit Kandidaten (V0 §4.3); Auftrag, Stufe, Jobs und Befehl in einem Commit."""
+        wf = self._workflow(msg.workflow)
+        call.entity = f"workflow:{wf.key}"
+        prod = self.cfg.production
+        count = msg.candidates or prod.candidates_default
+        if count > prod.candidates_max:
+            return f"Höchstens {prod.candidates_max} Kandidaten je Auftrag."
+        for key in filter(None, (wf.key, msg.finish_workflow)):
+            target = self._workflow(key)
+            if self._lane_of(target) is None:
+                return "Die ausführende ComfyUI-Instanz ist nicht eingerichtet."
+            if reason := await asyncio.to_thread(self._not_startable, target):
+                return f"{target.title}: {reason}"
+        values = {
+            v.name: getattr(v, v.WhichOneof("value")) for v in msg.values if v.WhichOneof("value")
+        }
+        inputs = await self._inputs(wf, msg.files)
+        order_no, jobs = pipeline.create_order(
+            self.store,
+            self.manifest,
+            wf.key,
+            values,
+            inputs,
+            count=count,
+            finish_workflow=msg.finish_workflow,
+            parent_media_id=msg.parent_media_id or None,
+            command=self._journal_entry(call),
+        )
+        call.entity, call.recorded = f"order:{order_no}", True
+        log.info("Auftrag %s: %d Kandidaten von %s eingereiht", order_no, len(jobs), wf.key)
+        self._enqueue(jobs)
+        self._orders_changed()
+        return ""
+
+    async def _select_candidate(self, msg: commands_pb2.SelectCandidate, call: _Call) -> str:
+        call.entity = f"order:{msg.order_no}"
+        jobs = pipeline.select_candidate(
+            self.cfg,
+            self.store,
+            self.manifest,
+            msg.order_no,
+            msg.media_id,
+            self._journal_entry(call),
+        )
+        call.recorded = True
+        log.info("Auftrag %s: Medium %s ausgewählt", msg.order_no, msg.media_id)
+        self._enqueue(jobs)
+        self._orders_changed()
+        return ""
+
+    async def _retry_stage(self, msg: commands_pb2.RetryStage, call: _Call) -> str:
+        call.entity = f"order:{msg.order_no}"
+        jobs = pipeline.retry_stage(
+            self.store,
+            self.manifest,
+            msg.order_no,
+            msg.seq,
+            self.cfg.production.stage_attempts_max,
+            self._journal_entry(call),
+        )
+        call.recorded = True
+        log.info("Auftrag %s: Stufe %s wiederholt (%d Jobs)", msg.order_no, msg.seq, len(jobs))
+        self._enqueue(jobs)
+        self._orders_changed()
+        return ""
+
+    def _orders_active(self) -> bytes:
+        """STATE orders.active: Aufträge in Produktion mit Stufen und deren Jobs/Kandidaten."""
+        prod = self.cfg.production
+        msg = order_pb2.OrdersActive(
+            version=self.store.domain_version("orders"),
+            candidates_default=prod.candidates_default,
+            candidates_max=prod.candidates_max,
+        )
+        for order in self.store.active_orders():
+            item = msg.orders.add(
+                order_no=order.order_no,
+                source=order.source,
+                kind=order.kind,
+                request=order.request,
+                status=order.status,
+            )
+            for st in self.store.stages(order.id):
+                stage = item.stages.add(
+                    seq=st.seq,
+                    kind=st.kind,
+                    status=st.status,
+                    workflow=st.workflow,
+                    count=st.count,
+                    selected_media_id=st.selected_media_id or 0,
+                    error=st.error or "",
+                    finish_workflow=str(st.params.get("finish") or ""),
+                    attempts=st.attempts,
+                )
+                for j in self.store.stage_jobs(st.id):
+                    stage.jobs.add(
+                        job_id=j["id"],
+                        seed=int(j["seeds"][0]) if j["seeds"] else 0,
+                        status=j["status"],
+                        media_id=j["media_id"] or 0,
+                        path=j["path"] or "",
+                        error=j["error"] or "",
+                    )
+        return msg.SerializeToString()
+
+    def read_orders(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
+        rows, gap = self.store.order_events(after, limit)
+        return [
+            (
+                r["cursor"],
+                _unix_ms(r["committed_at"]),
+                order_pb2.OrderUpdated(
+                    order_no=r["order_no"],
+                    event=r["event"],
+                    status=str(r["data"].get("status") or r["data"].get("new") or r["status"]),
+                    seq=int(r["data"].get("seq") or 0),
+                    kind=str(r["data"].get("kind") or ""),
+                    detail=str(r["data"].get("detail") or ""),
+                ).SerializeToString(),
+            )
+            for r in rows
+        ], gap
 
     async def _set_enabled(self, msg: commands_pb2.SetWorkflowEnabled, call: _Call) -> str:
         call.entity = f"workflow:{msg.workflow}"
@@ -753,6 +908,8 @@ class Cockpit:
                 msg.job_id, "failed", error="Aus der Warteschlange entfernt.", cancelled=True
             )
             log.info("Job %s aus der Warteschlange entfernt", msg.job_id)
+            pipeline.advance_order(self.store, msg.job_id)
+            self._orders_changed()
             return ""
         if job["status"] != "running":
             return "Auftrag ist bereits abgeschlossen."
@@ -1193,6 +1350,7 @@ def create_app(cfg: Config) -> web.Application:
     hub.offer_state(spb.TOPIC_JOBS_ACTIVE, comfy_pb2.JobsActive.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_COMFY_WORKFLOWS, comfy_pb2.Workflows.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_CHARACTERS, character_pb2.Characters.DESCRIPTOR.full_name)
+    hub.offer_state(spb.TOPIC_ORDERS_ACTIVE, order_pb2.OrdersActive.DESCRIPTOR.full_name)
     hub.offer_events(
         spb.TOPIC_JOB_COMPLETED, comfy_pb2.JobCompleted.DESCRIPTOR.full_name, cockpit.read_jobs
     )
@@ -1201,6 +1359,9 @@ def create_app(cfg: Config) -> web.Application:
     )
     hub.offer_events(
         spb.TOPIC_MEDIA_REMOVED, media_pb2.MediaRemoved.DESCRIPTOR.full_name, cockpit.read_removed
+    )
+    hub.offer_events(
+        spb.TOPIC_ORDER_UPDATED, order_pb2.OrderUpdated.DESCRIPTOR.full_name, cockpit.read_orders
     )
     hub.offer_events(
         spb.TOPIC_COMMAND_RECEIPT,

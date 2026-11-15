@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/commands.proto.
  */
 export const file_darkfluenzer_v1_commands: GenFile = /*@__PURE__*/
-  fileDesc("Ch5kYXJrZmx1ZW56ZXIvdjEvY29tbWFuZHMucHJvdG8SD2RhcmtmbHVlbnplci52MSIeCgpDb21meVN0YXJ0EhAKCGluc3RhbmNlGAEgASgJIh0KCUNvbWZ5U3RvcBIQCghpbnN0YW5jZRgBIAEoCSJYCgpQYXJhbVZhbHVlEgwKBG5hbWUYASABKAkSDgoEdGV4dBgCIAEoCUgAEhEKB2ludGVnZXIYAyABKANIABIQCgZudW1iZXIYBCABKAFIAEIHCgV2YWx1ZSJMCglJbnB1dEZpbGUSDQoFcGFyYW0YASABKAkSEAoIZmlsZW5hbWUYAiABKAkSDAoEZGF0YRgDIAEoDBIQCghtZWRpYV9pZBgEIAEoBCKiAQoGUmVuZGVyEhAKCHdvcmtmbG93GAEgASgJEisKBnZhbHVlcxgCIAMoCzIbLmRhcmtmbHVlbnplci52MS5QYXJhbVZhbHVlEikKBWZpbGVzGAMgAygLMhouZGFya2ZsdWVuemVyLnYxLklucHV0RmlsZRIXCg9wYXJlbnRfbWVkaWFfaWQYBCABKAQSFQoNcmVwZWF0X2pvYl9pZBgFIAEoBCI3ChJTZXRXb3JrZmxvd0VuYWJsZWQSEAoId29ya2Zsb3cYASABKAkSDwoHZW5hYmxlZBgCIAEoCCIgCgxPcGVuV29ya2Zsb3cSEAoId29ya2Zsb3cYASABKAkiIQoNQWRvcHRXb3JrZmxvdxIQCgh3b3JrZmxvdxgBIAEoCSIiCg5EZWxldGVXb3JrZmxvdxIQCgh3b3JrZmxvdxgBIAEoCSIvCg5DcmVhdGVXb3JrZmxvdxIOCgZzb3VyY2UYASABKAkSDQoFdGl0bGUYAiABKAkiGwoJQ2FuY2VsSm9iEg4KBmpvYl9pZBgBIAEoBCIuCgpQYXVzZVF1ZXVlEg4KBnBhdXNlZBgBIAEoCBIQCghpbnN0YW5jZRgCIAEoCSIgCgtEZWxldGVNZWRpYRIRCgltZWRpYV9pZHMYASADKAQipQUKDkNvbW1hbmRSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSGAoQZXhwZWN0ZWRfdmVyc2lvbhgCIAEoBBIyCgtjb21meV9zdGFydBgKIAEoCzIbLmRhcmtmbHVlbnplci52MS5Db21meVN0YXJ0SAASMAoKY29tZnlfc3RvcBgLIAEoCzIaLmRhcmtmbHVlbnplci52MS5Db21meVN0b3BIABIpCgZyZW5kZXIYDCABKAsyFy5kYXJrZmx1ZW56ZXIudjEuUmVuZGVySAASQwoUc2V0X3dvcmtmbG93X2VuYWJsZWQYDSABKAsyIy5kYXJrZmx1ZW56ZXIudjEuU2V0V29ya2Zsb3dFbmFibGVkSAASNgoNb3Blbl93b3JrZmxvdxgOIAEoCzIdLmRhcmtmbHVlbnplci52MS5PcGVuV29ya2Zsb3dIABI4Cg5hZG9wdF93b3JrZmxvdxgPIAEoCzIeLmRhcmtmbHVlbnplci52MS5BZG9wdFdvcmtmbG93SAASOgoPZGVsZXRlX3dvcmtmbG93GBAgASgLMh8uZGFya2ZsdWVuemVyLnYxLkRlbGV0ZVdvcmtmbG93SAASOgoPY3JlYXRlX3dvcmtmbG93GBEgASgLMh8uZGFya2ZsdWVuemVyLnYxLkNyZWF0ZVdvcmtmbG93SAASMAoKY2FuY2VsX2pvYhgSIAEoCzIaLmRhcmtmbHVlbnplci52MS5DYW5jZWxKb2JIABIyCgtwYXVzZV9xdWV1ZRgTIAEoCzIbLmRhcmtmbHVlbnplci52MS5QYXVzZVF1ZXVlSAASNAoMZGVsZXRlX21lZGlhGBQgASgLMhwuZGFya2ZsdWVuemVyLnYxLkRlbGV0ZU1lZGlhSABCCQoHY29tbWFuZCJ1Cg9Db21tYW5kUmVzcG9uc2USEgoKcmVxdWVzdF9pZBgBIAEoCRIuCgZzdGF0dXMYAiABKA4yHi5kYXJrZmx1ZW56ZXIudjEuQ29tbWFuZFN0YXR1cxIOCgZkZXRhaWwYAyABKAkSDgoGZW50aXR5GAQgASgJIpYBCg5Db21tYW5kUmVjZWlwdBISCgpyZXF1ZXN0X2lkGAEgASgJEi4KBnN0YXR1cxgCIAEoDjIeLmRhcmtmbHVlbnplci52MS5Db21tYW5kU3RhdHVzEg8KB2NvbW1hbmQYAyABKAkSDgoGZW50aXR5GAQgASgJEg4KBmRldGFpbBgFIAEoCRIPCgd2ZXJzaW9uGAYgASgEKtwBCg1Db21tYW5kU3RhdHVzEh4KGkNPTU1BTkRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGwoXQ09NTUFORF9TVEFUVVNfQUNDRVBURUQQARIbChdDT01NQU5EX1NUQVRVU19SRUpFQ1RFRBACEhwKGENPTU1BTkRfU1RBVFVTX0NPTVBMRVRFRBADEhkKFUNPTU1BTkRfU1RBVFVTX0ZBSUxFRBAEEhoKFkNPTU1BTkRfU1RBVFVTX1VOS05PV04QBRIcChhDT01NQU5EX1NUQVRVU19DQU5DRUxMRUQQBmIGcHJvdG8z");
+  fileDesc("Ch5kYXJrZmx1ZW56ZXIvdjEvY29tbWFuZHMucHJvdG8SD2RhcmtmbHVlbnplci52MSIeCgpDb21meVN0YXJ0EhAKCGluc3RhbmNlGAEgASgJIh0KCUNvbWZ5U3RvcBIQCghpbnN0YW5jZRgBIAEoCSJYCgpQYXJhbVZhbHVlEgwKBG5hbWUYASABKAkSDgoEdGV4dBgCIAEoCUgAEhEKB2ludGVnZXIYAyABKANIABIQCgZudW1iZXIYBCABKAFIAEIHCgV2YWx1ZSJMCglJbnB1dEZpbGUSDQoFcGFyYW0YASABKAkSEAoIZmlsZW5hbWUYAiABKAkSDAoEZGF0YRgDIAEoDBIQCghtZWRpYV9pZBgEIAEoBCKiAQoGUmVuZGVyEhAKCHdvcmtmbG93GAEgASgJEisKBnZhbHVlcxgCIAMoCzIbLmRhcmtmbHVlbnplci52MS5QYXJhbVZhbHVlEikKBWZpbGVzGAMgAygLMhouZGFya2ZsdWVuemVyLnYxLklucHV0RmlsZRIXCg9wYXJlbnRfbWVkaWFfaWQYBCABKAQSFQoNcmVwZWF0X2pvYl9pZBgFIAEoBCI3ChJTZXRXb3JrZmxvd0VuYWJsZWQSEAoId29ya2Zsb3cYASABKAkSDwoHZW5hYmxlZBgCIAEoCCIgCgxPcGVuV29ya2Zsb3cSEAoId29ya2Zsb3cYASABKAkiIQoNQWRvcHRXb3JrZmxvdxIQCgh3b3JrZmxvdxgBIAEoCSIiCg5EZWxldGVXb3JrZmxvdxIQCgh3b3JrZmxvdxgBIAEoCSIvCg5DcmVhdGVXb3JrZmxvdxIOCgZzb3VyY2UYASABKAkSDQoFdGl0bGUYAiABKAkiGwoJQ2FuY2VsSm9iEg4KBmpvYl9pZBgBIAEoBCIuCgpQYXVzZVF1ZXVlEg4KBnBhdXNlZBgBIAEoCBIQCghpbnN0YW5jZRgCIAEoCSIgCgtEZWxldGVNZWRpYRIRCgltZWRpYV9pZHMYASADKAQivQEKC0NyZWF0ZU9yZGVyEhAKCHdvcmtmbG93GAEgASgJEisKBnZhbHVlcxgCIAMoCzIbLmRhcmtmbHVlbnplci52MS5QYXJhbVZhbHVlEikKBWZpbGVzGAMgAygLMhouZGFya2ZsdWVuemVyLnYxLklucHV0RmlsZRISCgpjYW5kaWRhdGVzGAQgASgNEhcKD2ZpbmlzaF93b3JrZmxvdxgFIAEoCRIXCg9wYXJlbnRfbWVkaWFfaWQYBiABKAQiNQoPU2VsZWN0Q2FuZGlkYXRlEhAKCG9yZGVyX25vGAEgASgJEhAKCG1lZGlhX2lkGAIgASgEIisKClJldHJ5U3RhZ2USEAoIb3JkZXJfbm8YASABKAkSCwoDc2VxGAIgASgNIs0GCg5Db21tYW5kUmVxdWVzdBISCgpyZXF1ZXN0X2lkGAEgASgJEhgKEGV4cGVjdGVkX3ZlcnNpb24YAiABKAQSMgoLY29tZnlfc3RhcnQYCiABKAsyGy5kYXJrZmx1ZW56ZXIudjEuQ29tZnlTdGFydEgAEjAKCmNvbWZ5X3N0b3AYCyABKAsyGi5kYXJrZmx1ZW56ZXIudjEuQ29tZnlTdG9wSAASKQoGcmVuZGVyGAwgASgLMhcuZGFya2ZsdWVuemVyLnYxLlJlbmRlckgAEkMKFHNldF93b3JrZmxvd19lbmFibGVkGA0gASgLMiMuZGFya2ZsdWVuemVyLnYxLlNldFdvcmtmbG93RW5hYmxlZEgAEjYKDW9wZW5fd29ya2Zsb3cYDiABKAsyHS5kYXJrZmx1ZW56ZXIudjEuT3BlbldvcmtmbG93SAASOAoOYWRvcHRfd29ya2Zsb3cYDyABKAsyHi5kYXJrZmx1ZW56ZXIudjEuQWRvcHRXb3JrZmxvd0gAEjoKD2RlbGV0ZV93b3JrZmxvdxgQIAEoCzIfLmRhcmtmbHVlbnplci52MS5EZWxldGVXb3JrZmxvd0gAEjoKD2NyZWF0ZV93b3JrZmxvdxgRIAEoCzIfLmRhcmtmbHVlbnplci52MS5DcmVhdGVXb3JrZmxvd0gAEjAKCmNhbmNlbF9qb2IYEiABKAsyGi5kYXJrZmx1ZW56ZXIudjEuQ2FuY2VsSm9iSAASMgoLcGF1c2VfcXVldWUYEyABKAsyGy5kYXJrZmx1ZW56ZXIudjEuUGF1c2VRdWV1ZUgAEjQKDGRlbGV0ZV9tZWRpYRgUIAEoCzIcLmRhcmtmbHVlbnplci52MS5EZWxldGVNZWRpYUgAEjQKDGNyZWF0ZV9vcmRlchgVIAEoCzIcLmRhcmtmbHVlbnplci52MS5DcmVhdGVPcmRlckgAEjwKEHNlbGVjdF9jYW5kaWRhdGUYFiABKAsyIC5kYXJrZmx1ZW56ZXIudjEuU2VsZWN0Q2FuZGlkYXRlSAASMgoLcmV0cnlfc3RhZ2UYGCABKAsyGy5kYXJrZmx1ZW56ZXIudjEuUmV0cnlTdGFnZUgAQgkKB2NvbW1hbmQidQoPQ29tbWFuZFJlc3BvbnNlEhIKCnJlcXVlc3RfaWQYASABKAkSLgoGc3RhdHVzGAIgASgOMh4uZGFya2ZsdWVuemVyLnYxLkNvbW1hbmRTdGF0dXMSDgoGZGV0YWlsGAMgASgJEg4KBmVudGl0eRgEIAEoCSKWAQoOQ29tbWFuZFJlY2VpcHQSEgoKcmVxdWVzdF9pZBgBIAEoCRIuCgZzdGF0dXMYAiABKA4yHi5kYXJrZmx1ZW56ZXIudjEuQ29tbWFuZFN0YXR1cxIPCgdjb21tYW5kGAMgASgJEg4KBmVudGl0eRgEIAEoCRIOCgZkZXRhaWwYBSABKAkSDwoHdmVyc2lvbhgGIAEoBCrcAQoNQ29tbWFuZFN0YXR1cxIeChpDT01NQU5EX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF0NPTU1BTkRfU1RBVFVTX0FDQ0VQVEVEEAESGwoXQ09NTUFORF9TVEFUVVNfUkVKRUNURUQQAhIcChhDT01NQU5EX1NUQVRVU19DT01QTEVURUQQAxIZChVDT01NQU5EX1NUQVRVU19GQUlMRUQQBBIaChZDT01NQU5EX1NUQVRVU19VTktOT1dOEAUSHAoYQ09NTUFORF9TVEFUVVNfQ0FOQ0VMTEVEEAZiBnByb3RvMw");
 
 /**
  * Instanz: media | ai (leer = media)
@@ -338,6 +338,101 @@ export const DeleteMediaSchema: GenMessage<DeleteMedia> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_commands, 12);
 
 /**
+ * Auftrag des Betreibers mit Stufen (V0 §4.3): Stufe 1 rendert `candidates` Kandidaten des
+ * Workflows mit fortlaufenden Seeds; danach wählt der Betreiber (SelectCandidate). Mit
+ * `finish_workflow` wird der ausgewählte Kandidat anschließend dadurch fertiggestellt (dessen
+ * Eingang `image`). Trägt die Registry-Version (CAS) wie Render.
+ *
+ * @generated from message darkfluenzer.v1.CreateOrder
+ */
+export type CreateOrder = Message<"darkfluenzer.v1.CreateOrder"> & {
+  /**
+   * @generated from field: string workflow = 1;
+   */
+  workflow: string;
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.ParamValue values = 2;
+   */
+  values: ParamValue[];
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.InputFile files = 3;
+   */
+  files: InputFile[];
+
+  /**
+   * @generated from field: uint32 candidates = 4;
+   */
+  candidates: number;
+
+  /**
+   * @generated from field: string finish_workflow = 5;
+   */
+  finishWorkflow: string;
+
+  /**
+   * @generated from field: uint64 parent_media_id = 6;
+   */
+  parentMediaId: bigint;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.CreateOrder.
+ * Use `create(CreateOrderSchema)` to create a new message.
+ */
+export const CreateOrderSchema: GenMessage<CreateOrder> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 13);
+
+/**
+ * Auswahl an der kreativen Stufe; geprüft wird im Backend: Stufe wartet, Medium stammt aus ihr.
+ *
+ * @generated from message darkfluenzer.v1.SelectCandidate
+ */
+export type SelectCandidate = Message<"darkfluenzer.v1.SelectCandidate"> & {
+  /**
+   * @generated from field: string order_no = 1;
+   */
+  orderNo: string;
+
+  /**
+   * @generated from field: uint64 media_id = 2;
+   */
+  mediaId: bigint;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.SelectCandidate.
+ * Use `create(SelectCandidateSchema)` to create a new message.
+ */
+export const SelectCandidateSchema: GenMessage<SelectCandidate> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 14);
+
+/**
+ * Fehlgeschlagene Jobs einer Stufe erneut ausführen (Obergrenze laut Konfiguration).
+ *
+ * @generated from message darkfluenzer.v1.RetryStage
+ */
+export type RetryStage = Message<"darkfluenzer.v1.RetryStage"> & {
+  /**
+   * @generated from field: string order_no = 1;
+   */
+  orderNo: string;
+
+  /**
+   * @generated from field: uint32 seq = 2;
+   */
+  seq: number;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.RetryStage.
+ * Use `create(RetryStageSchema)` to create a new message.
+ */
+export const RetryStageSchema: GenMessage<RetryStage> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 15);
+
+/**
  * @generated from message darkfluenzer.v1.CommandRequest
  */
 export type CommandRequest = Message<"darkfluenzer.v1.CommandRequest"> & {
@@ -428,6 +523,24 @@ export type CommandRequest = Message<"darkfluenzer.v1.CommandRequest"> & {
      */
     value: DeleteMedia;
     case: "deleteMedia";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.CreateOrder create_order = 21;
+     */
+    value: CreateOrder;
+    case: "createOrder";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.SelectCandidate select_candidate = 22;
+     */
+    value: SelectCandidate;
+    case: "selectCandidate";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.RetryStage retry_stage = 24;
+     */
+    value: RetryStage;
+    case: "retryStage";
   } | { case: undefined; value?: undefined };
 };
 
@@ -436,7 +549,7 @@ export type CommandRequest = Message<"darkfluenzer.v1.CommandRequest"> & {
  * Use `create(CommandRequestSchema)` to create a new message.
  */
 export const CommandRequestSchema: GenMessage<CommandRequest> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 13);
+  messageDesc(file_darkfluenzer_v1_commands, 16);
 
 /**
  * Sofortige Antwort: ACCEPTED oder REJECTED, nie ein terminales Ergebnis.
@@ -474,7 +587,7 @@ export type CommandResponse = Message<"darkfluenzer.v1.CommandResponse"> & {
  * Use `create(CommandResponseSchema)` to create a new message.
  */
 export const CommandResponseSchema: GenMessage<CommandResponse> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 14);
+  messageDesc(file_darkfluenzer_v1_commands, 17);
 
 /**
  * EVENT command.receipt: persistierter Lebenszyklus eines Befehls (je Statuswechsel ein Eintrag).
@@ -522,7 +635,7 @@ export type CommandReceipt = Message<"darkfluenzer.v1.CommandReceipt"> & {
  * Use `create(CommandReceiptSchema)` to create a new message.
  */
 export const CommandReceiptSchema: GenMessage<CommandReceipt> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 15);
+  messageDesc(file_darkfluenzer_v1_commands, 18);
 
 /**
  * @generated from enum darkfluenzer.v1.CommandStatus

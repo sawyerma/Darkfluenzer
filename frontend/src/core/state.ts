@@ -8,6 +8,7 @@ import {
   WorkflowsSchema,
 } from "./generated/darkfluenzer/v1/comfy_pb";
 import { CharactersSchema } from "./generated/darkfluenzer/v1/character_pb";
+import { OrdersActiveSchema, OrderUpdatedSchema } from "./generated/darkfluenzer/v1/order_pb";
 import { CommandReceiptSchema, type CommandReceipt } from "./generated/darkfluenzer/v1/commands_pb";
 import { MediaItemSchema, MediaRemovedSchema } from "./generated/darkfluenzer/v1/media_pb";
 import {
@@ -26,6 +27,8 @@ const TOPICS = {
   [Topic.JOBS_ACTIVE]: { cls: TopicClass.STATE, schema: JobsActiveSchema },
   [Topic.COMFY_WORKFLOWS]: { cls: TopicClass.STATE, schema: WorkflowsSchema },
   [Topic.CHARACTERS]: { cls: TopicClass.STATE, schema: CharactersSchema },
+  [Topic.ORDERS_ACTIVE]: { cls: TopicClass.STATE, schema: OrdersActiveSchema },
+  [Topic.ORDER_UPDATED]: { cls: TopicClass.EVENT, schema: OrderUpdatedSchema },
   [Topic.JOB_COMPLETED]: { cls: TopicClass.EVENT, schema: JobCompletedSchema },
   [Topic.MEDIA_ADDED]: { cls: TopicClass.EVENT, schema: MediaItemSchema },
   [Topic.MEDIA_REMOVED]: { cls: TopicClass.EVENT, schema: MediaRemovedSchema },

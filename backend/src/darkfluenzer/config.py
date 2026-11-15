@@ -92,6 +92,15 @@ class ServerConfig:
 
 
 @dataclass(frozen=True)
+class ProductionConfig:
+    """Aufträge mit Stufen (V0 §4.3): Kandidatenzahl und Wiederholungen je Stufe."""
+
+    candidates_default: int
+    candidates_max: int
+    stage_attempts_max: int
+
+
+@dataclass(frozen=True)
 class IdentityConfig:
     """Gesichtsprüfung (identity.py): kleinere oder unsicherere Gesichter sind „nicht prüfbar“."""
 
@@ -106,6 +115,7 @@ class Config:
     comfyui_ai: ComfyConfig | None  # KI-Instanz, sobald [comfyui_ai] konfiguriert ist
     server: ServerConfig
     identity: IdentityConfig
+    production: ProductionConfig
 
     @property
     def instances(self) -> tuple[ComfyConfig, ...]:
@@ -285,6 +295,16 @@ def load(root: Path | None = None) -> Config:
     score = _positive(ident, "min_score", 0.8, "identity")
     if score > 1:
         raise ConfigError("Konfiguration: identity.min_score muss zwischen 0 und 1 liegen.")
+    prod = data.get("production", {})
+    if not isinstance(prod, dict):
+        raise ConfigError(f"Konfiguration {path}: [production] muss ein Abschnitt sein.")
+    production = ProductionConfig(
+        candidates_default=int(_positive(prod, "candidates_default", 3, "production")),
+        candidates_max=int(_positive(prod, "candidates_max", 6, "production")),
+        stage_attempts_max=int(_positive(prod, "stage_attempts_max", 3, "production")),
+    )
+    if production.candidates_default > production.candidates_max:
+        raise ConfigError("Konfiguration: production.candidates_default > candidates_max.")
     return Config(
         root=root,
         comfyui=media,
@@ -293,6 +313,7 @@ def load(root: Path | None = None) -> Config:
         identity=IdentityConfig(
             min_face_px=int(_positive(ident, "min_face_px", 64, "identity")), min_score=score
         ),
+        production=production,
     )
 
 

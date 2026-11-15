@@ -63,3 +63,14 @@ stop_timeout_s = 30
 [comfyui_ai.env]
 PYTORCH_ENABLE_MPS_FALLBACK = "1"
 
+# Gesichtsprüfung (darkfluenzer identity): kleinere oder unsicherere Gesichter gelten als
+# „nicht prüfbar“.
+[identity]
+min_face_px = 64
+min_score = 0.8
+
+# Aufträge mit Stufen (PHASENPLAN_V0 §4.3): Kandidaten je Auftrag und Versuche je Stufe.
+[production]
+candidates_default = 3
+candidates_max = 6
+stage_attempts_max = 3
