@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN BACK V1
 
-**Version:** 1.9 — BACKEND + PROTOBUF + zwei ComfyUI-Instanzen + verbindlicher nativer M4-Max-/Chatwoot-Betrieb (Host-Abnahme OFFEN)
+**Version:** 1.10 — verbindliche LoRA→Foto→Video-Produktionskette zuerst; native M4-/Chatwoot-Architektur unverändert
 **Stand:** 15.11.2026  
 **Status:** Zielarchitektur verabschiedet; Medien-ComfyUI 1 vorhanden; KI-ComfyUI 2 verbindlich beschlossen, Implementierung und Mac-Abnahme OFFEN  
 **Repository:** `sawyerma/Darkfluenzer`, Branch `main`  
@@ -9,6 +9,55 @@
 
 > **Ein verbindliches Dokument. Eine App. Eine lokale Datenbank. Ein Ordner pro Kunde. Wenige austauschbare Workflows.**  
 > Die technische Leistung, Modellqualität, vollständige Kundenhistorie, Zahlungsprüfung und manuelle Betreiberfreigabe bleiben erhalten. Komplexität wird nur dort entfernt, wo sie keinen technischen Nutzen hat.
+
+---
+
+## 0. SOFORTPRIORITÄT — vollständige LoRA-/Figur-/Bild-/Video-Kette VOR weiteren Produktphasen (15.11.2026)
+
+**Verbindliche Reihenfolge:** Vor der Fortsetzung von S4 Chatwoot/Kanälen, weiteren KI-Komponenten und zusätzlichen Oberflächen **zuerst eine reale Ende-zu-Ende-Kette auf dem M4 Max abnehmen**: Trainingsfotos einer synthetischen erwachsenen Figur → versionierte identitätsgebundene SDXL-LoRA → dieselbe Figur in verschiedenen Perspektiven/Posen → gezielte Maskenbearbeitung und Verfeinerung → unveränderliches finales Standbild aus Dateien → genau dieses Bild als Wan-I2V-Startbild → echtes Video. Der vorhandene LUSTIFY-Einzelrender-PASS und F1–F3b-PASS bleiben erhalten, **beweisen diese Kette aber noch nicht**. Keine Installation weiterer Modelle als Umweg, solange die vorhandene Kernkette nicht qualifiziert wurde. **Kein Docker, keine VM und keine zusätzliche selbst entwickelte KI-Rechenengine**.
+
+### 0.1 Was nach Quellprüfung wirklich vorhanden ist
+
+| Komponentenpfad | Bestehender Zustand | Fehlendes Kettenglied |
+|---|---|---|
+| workflows/manifest.toml | 9 Medien-Engines, 7 Foto- und 2 Video-Workflows; laut Terminal 15.11. sechs Engines vollständig nach Dateigröße | SHA-256, vollständige Lade-/Renderabnahme und Ketten-Abnahme fehlen |
+| workflows/image/lustify_sdxl_t2i.api.json | Text-zu-Bild einzeln PASS | Kein LoraLoader, keine Bindung an eine trainierte Identität |
+| workflows/image/lustify_sdxl_inpaint.api.json | LoadImage + LoadImageMask + GrowMask + SetLatentNoiseMask + ImageCompositeMasked, einzeln PASS | Kein LoraLoader; noch keine dokumentierte Identitäts-/Pose-Kette |
+| workflows/image/lustify_sdxl_refine.api.json | Bild-Refinement einzeln PASS | Kein LoraLoader, keine automatische Übergabe des Vorgängerbildes |
+| backend/src/darkfluenzer/training.py | Bild-Scan, Datensatz/Versionierung und SDXL-LoRA-Trainingsroutine vorhanden | **Kein echter Mac-Trainings-PASS**; Training erfolgt derzeit direkt mit diffusers/PyTorch MPS im Darkfluenzer-Prozess, nicht in ComfyUI — widerspricht der beschlossenen Koordinator-Rolle |
+| launcher/setup_comfyui.sh | extra_model_paths.yaml bindet local/models/loras in ComfyUI ein | LoRA muss dort versioniert registriert, geladen und im Render bewiesen werden |
+| workflows/video/wan22_i2v.api.json | LoadImage(Node 1) → WanImageToVideo.start_image(Node 8) → High-/Low-Noise → VAEDecode → CreateVideo/SaveVideo | Vollständige Mac-Videoausführung, korrekte Übergabe eines gewählten Galerie-Bildes und gespeicherter Clip OFFEN |
+| workflows/video/wan22_remix_v30_i2v.api.json | Analoges Image-to-Video-Graphgerüst | FP8-Modellformat auf vorhandenem Apple MPS nicht nativ unterstützt; kompatibler Ladepfad OFFEN |
+| frontend/src/pages/ComfyUI.tsx, server.py, pipeline.py, comfy.py | Dateiauswahl/Aus Dateien, Protobuf, store_input, upload_image und Parameterbindung für Video-Startbild sind implementiert | Der **echte** Pfad gewähltes Bild → tatsächlicher ComfyUI-LoadImage-Input → Videodatei ist noch nicht nachgewiesen; Fehlerort instrumentieren, nicht annehmen |
+
+**Downloadstand vom Betreiberterminal:** LUSTIFY, RealCore Illustrious, Qwen-Image 20B/2.1, Wan 2.2 FP16 und Wan Remix FP8: nach Größe vollständig. FLUX 3 Klein fehlen 19,95 GB, FLUX.2 Dev 100,03 GB, LTX 2.5 Fast 71,11 GB. Diese drei sind **keine Abhängigkeit** für den ersten LUSTIFY→Wan-FP16-Beweis. Alle anderen Bild- und Video-Modelle außer LUSTIFY sind weiterhin **OFFEN**, auch wenn im UI bereit steht. Cydonia gehört nicht zu diesem Medien-Nachweis.
+
+### 0.2 Verbindlicher Daten- und Workflow-Verlauf
+
+1. **Trainingsdaten/Identität (Owner Darkfluenzer-Koordination):** Fotos **einer** synthetischen erwachsenen Figur nach local/character/photos; scan, SHA-Deduplizierung, Identitäts-/Qualitätssichtung, Originale unverändert und versionierter Datensatz. Der aktuelle Code verlangt mindestens **15 geeignete Bilder**. Kein Dummy-Datensatz und keine erfundenen Trainingsbilder als produktiver PASS.
+2. **Training (Rechnung ausschließlich ComfyUI 1/Modelle):** Als **ersten kompatiblen Modellpfad** LUSTIFY/SDXL mit **dessen konkretem Basischeckpoint** wählen. Vorhandenen Datensatz-/Hash-Code wiederverwenden. ComfyUI-tauglichen echten M4-/MPS-LoRA-Trainingsnode/-Graph qualifizieren und Training **dort** ausführen; bei fehlendem Node/MPS-Trainer klar TRAINER_UNAVAILABLE, niemals direkten Training-PyTorch-Aufruf im fachlichen Darkfluenzer-Prozess als ComfyUI-PASS ausgeben. Bereits vorhandene direkte Trainingsroutine nicht unkontrolliert löschen; erst nach nachgewiesenem Ersatz vom Standardaufruf ablösen.
+3. **Registrierung/LoRA-Load:** Erfolgreiche LoRA versioniert unter local/models/loras/sdxl_character ablegen. LoRA-SHA, Architektur, Basischeckpoint/SHA, Datensatz, Trigger, Stärke und Status trainiert/tested/operatorfreigegeben in der **einen** Registry abbilden. In einem **versionierten LUSTIFY-Graphen** ComfyUIs LoraLoader zwischen CheckpointLoaderSimple und KSampler/CLIPTextEncode verdrahten; bei **UNet-only-LoRA** CLIP-Stärke 0, Modell-Stärke konfigurierbar. Fehlt/falsche Architektur/nicht freigegeben → eindeutiges Gate, kein stilles Rendering ohne Identitäts-LoRA. Alte bereits PASS-Graphen weiterhin benutzbar halten.
+4. **Master/Figur/Pose:** Mit genau diesem Basis+LoRA-Paar mindestens drei unterschiedliche Perspektiven/Körperhaltungen derselben Figur erzeugen, Seeds/Inputs bewahren, LoRA an/aus bei gleichem Prompt/Seed vergleichen, Identität und Bildqualität tatsächlich prüfen. Eine LoRA ist **nicht** universell auf Qwen, FLUX, Illustrious oder Wan übertragbar; für andere Modellarchitekturen ist ein eigener nachgewiesener Training-/Loader-Pfad erforderlich. Pose-/Depth-Kontrollnodes nur bei echt installierter, für die Modellfamilie kompatibler ComfyUI-Version einführen. Ein Prompt allein beweist keine kontrollierte Pose.
+5. **Maskieren/Editieren/Composite:** Ausgangsbild als gespeicherte Datei, explizite Editiermaske und gewünschte Bildänderung über LUSTIFY Inpainting; **weiß = editieren, schwarz = schützen**. Der vorhandene ImageCompositeMasked erhält die nicht editierte Region; pipeline.unmasked_difference muss außerhalb der zulässigen Maske 0 geänderte Pixel ergeben. Eine neue Kopfposition oder vollständige Körperhaltung darf **nicht** durch pixelgleiches Aufkleben eines falsch positionierten alten Gesichts vorgetäuscht werden: neu generieren, Identität mit LoRA/Referenz bewahren und Detailregionen passend bearbeiten. Ergebnis durch Refinement und Identitätskontrolle, vollständige Bild-/Masken-/LoRA-Herkunft sichern.
+6. **Standbildauswahl → Video:** Der Betreiber wählt ausdrücklich **das Ergebnisbild** aus Dateien (oder lädt dieselbe echte lokale Datei). Unveränderlichen Dateiverweis + SHA speichern; über vorhandenes Frontend/Protobuf → server.py:_render → pipeline.store_input/_render → comfy.ComfyClient.upload_image/apply_params → Wan-Graph Node 1 LoadImage → Node 8 WanImageToVideo.start_image. Per echtem Trace prüfen, dass **der ausgewählte Hash** verwendet und der Default start.png überschrieben wird. Der Wan-Graph **verwendet das fertige Bild als Identitätsreferenz**; er lädt **nicht** die SDXL-LoRA als Wan-LoRA.
+7. **Echtes Video/QC:** Wan 2.2 FP16 **zuerst** testen: vorhandener Graph 512×320, 49 Frames, 16 fps, High-/Low-Noise-Durchlauf → SaveVideo → tatsächlicher Clip unter Dateien. Mac-Ausführung, Speicher/Swap, Zeit, Frames, Qualität/Identitätskontinuität, Input- und Videohashes nachweisen. Bei MPS- oder Speicherfehler die echte Ursache melden. Wan-Remix-FP8 und LTX-2.5 **nicht** als funktionierenden Ersatz oder fertigen Videoworkflow behaupten; Remix nach eigenem kompatiblen MPS-Loader-Test, LTX erst bei vollständigen Dateien.
+8. **Eine koordinierte Kette, nicht sieben lose Buttons:** Ein bestehender Pipeline-Owner in backend/src/darkfluenzer/pipeline.py und Store/Job-Journal verbindet Eltern-/Kind-Schritte, Basis-/LoRA-/Workflowversionen, Seeds, Inputs, Masken, Ergebnisse und Status. Jeder Schritt darf gezielt erneut laufen, ohne Originale zu überschreiben, Trainingsjobs willkürlich neu zu starten oder einen anderen Kunden/Charakter zu vermischen. Keine neue Datenbank, kein zusätzlicher Gateway oder GPU-Trainer in Darkfluenzer. Bestehende ComfyUI-1-Medien-FIFO respektieren.
+
+### 0.3 HARTE Abnahmegates – Reihenfolge bindend
+
+| Gate | Echte PASS-Bedingung | Stand |
+|---|---|---|
+| CHAIN-00 Daten | ≥15 geeignete Originalbilder, gleicher Charakter, eigener Datensatz-Hash; keine erfundenen Testbilder | OFFEN |
+| CHAIN-01 LoRA trainiert | Echter ComfyUI-1-/MPS-Trainingslauf, Modell-/Datensatzbindung, SHA und erzeugte LoRA, im ComfyUI-Loader sichtbar, Betreiberfreigabe | OFFEN |
+| CHAIN-02 Master | LUSTIFY+LoRA tatsächlich im Node-Graph aktiv; ≥3 reale unterschiedliche Bilder derselben Identität; A/B mit/ohne LoRA | OFFEN |
+| CHAIN-03 Bearbeiten | Reales Bild → reale Maske → Inpainting/Composite → Refinement; geschützter Bereich pixelgleich, Identität geprüft | OFFEN (nur Einzelgraph PASS) |
+| CHAIN-04 Startbild | Konkretes Ergebnis aus Dateien wird per Protobuf hochgeladen; ComfyUI-LoadImage enthält **dieses** Bild/Hash und WanImageToVideo konsumiert es | OFFEN |
+| CHAIN-05 Video | Echter Wan-FP16-M4-Render liefert abspielbaren Clip mit korrekten Metadaten und Bildreferenz; Zeit/Memory und Frame-Qualität gemessen | OFFEN |
+| CHAIN-06 Gesamt | Ein reproduzierbarer vollständiger Bedienlauf mit LoRA → Foto → Edit/Refine → Video, persistenter Herkunft und Fehler-/Wiederanlaufbeweis | OFFEN |
+
+**Kein PASS** allein aufgrund von vorhandenem Modell, Größe, UI-Label bereit, Graph-JSON, simuliertem Ergebnis oder Unit-Test. Es gibt **noch keinen** reellen end-to-end-Beweis. Sind echte Trainingsbilder oder eine MPS-kompatible ComfyUI-Trainingsnode nicht verfügbar, genau diesen Gate-Blocker dokumentieren; nichts durch ungetestete Umwege ersetzen.
+
+**Claudes konkrete Änderungsorte:** workflows/manifest.toml und versionsgebundene workflows/image/*.api.json plus *.ui.json; anschließend backend/src/darkfluenzer/training.py, models.py, comfy.py, pipeline.py, store.py, server.py, protocol/schemas/darkfluenzer/v1/, frontend/src/pages/ComfyUI.tsx sowie gezielte backend/tests/test_training.py und test_workflows.py. **Zuerst Inventur/echter Mac-Kurztest**, danach in kleinen Paketen korrigieren, validieren, je Paket Commit und Push direkt auf main. local/, Models, Renders und DarkBot niemals löschen oder manipulieren. Ausführung native ARM64/M4/ComfyUI 1, ohne Docker. Das Frontend bindet den LoRA-/Kettenstatus im vorhandenen ComfyUI/Dateien-Reiter ein; kein neues Hauptmenü.
 
 ---
 
@@ -392,6 +441,8 @@ Nicht automatisiert geklickt: die Buttons im App-Fenster (keine Bedienungshilfen
 10. **Fiktive erwachsene Figur:** keine fremde Person imitieren; Transparenz über künstliche Identität, vereinbarte Inhalte und kommerzielle Rechte.
 
 ## 9. Änderungsprotokoll
+
+**V1.10 — KETTEN-ABNAHME ZUERST (15.11.2026):** §0 ergänzt den verbindlichen Real-Mac-Nachweis LoRA→identische Figur→Pose/Maskierung→Standbild→Wan-I2V→Video vor Chatwoot/anderen Features; direkte PyTorch-Trainingsroutine im fachlichen Backend als Architekturabweichung erkannt; CHAIN-00..06 OFFEN. Vorhandene Einzel-PASS-Werte unverändert.
 
 **V1.9 — NATIVES MACOS/M4-MAX-CPU-REUSE (15.11.2026):** DarkBot-Quellpfade samt belegten macOS-/CPU-/QoS-/launchd-Funktionen unter §4B aufgenommen; Shell-/Hostprinzipien selektiv lokal adaptieren, keine Rust-/Go-Trading-Engine übernehmen; Chatwoot v4.19.1 als unverändertes Ruby/Rails nativ mit Puma/Sidekiq/PostgreSQL/Redis statt Docker/Compose/VM, Python-Bridge; neuer Host-/Chatwoot-/Last-Nachweis OFFEN. Keine Änderung an S1-/F1–F3b-PASS.
 
