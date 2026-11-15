@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN V0 (verbindlicher Gesamt- und Implementierungsplan)
 
-**Version:** 0.4 · **Stand:** 15.11.2026 · **Repository:** `sawyerma/Darkfluenzer`, ausschließlich `main`
+**Version:** 0.4.1 · **Stand:** 15.11.2026 · **Repository:** `sawyerma/Darkfluenzer`, ausschließlich `main`
 **Status:** verbindlich. Bestandsaufnahme gegen Code (`main` 62c4bc9), Chatwoot-v4.19.1-Quellcode und die Betreiber-ZIP abgeschlossen; abgeglichen mit FRONT V1.10 (DF-PUSH A–D, F7-Cockpitreferenz) und BACK V1.13; V0.3: Auflösungsregel (Original ≥ 1K, darüber Upscaler, Instagram-Ausgabeprofile, §9.7) und Default-Nutzer als Produktionsassistent mit Rückversand per Telegram (§8.1). **V0.4: verbindliche Reihenfolge Block A (ComfyUI + Dateien) → Block B (KI-Modelle und Produktionsworkflows) → Block C (Telegram/Instagram, Kundenbetrieb), keine parallele Entwicklung (§12); verbindliche Dokumente (§0).** Umsetzung ab A1.
 
 ## 0. Dokumentenhierarchie
@@ -36,6 +36,23 @@ Darkfluenzer ist zugleich Kunden-Cockpit (F4): Kunden über **Instagram und Tele
 9. **Zwei ComfyUI-Instanzen** (§4.2) mit getrennten Warteschlangen und gemeinsamer Ressourcensteuerung; keine dritte KI-Engine.
 10. **Eigene Kanal-Adapter im Python-Backend** (Betreiberentscheidung 15.11.2026): Instagram und Telegram verbindlich, weitere Kanäle später über dieselbe Adapter-Schnittstelle. Chatwoot entfällt; seine bewährten Muster werden übernommen (§6). Kein zusätzlicher Kanaldienst, keine zweite Datenbank, kein Rust-Gateway.
 11. **Ehrliche Erwartung:** Einzelfotos in vielen Szenen praktisch nicht von echten Fotos unterscheidbar ist mit Kandidatenauswahl erreichbar; für jede Szene und für Video garantiert das 2026 kein lokales Modell.
+
+### 2.1 Verbindliche Entwicklungsregeln (Betreiberentscheidung 15.11.2026, gelten für jede Phase)
+
+- **NO HARDCODING:** keine fest codierten Modelle, Pfade, Ports, Parameter, Kunden, Workflows oder Grenzwerte – Konfiguration (`local/config.toml`) und Registry (`workflows/manifest.toml`) verwenden.
+- **NO LEGACY:** keine Altlasten, Kompatibilitätsschichten oder parallelen veralteten Implementierungen; Überholtes sauber ersetzen.
+- **NO MOCK:** keine simulierten Ergebnisse, Fake-Daten oder Scheinabnahmen; ausschließlich echte Funktionen und reale Tests – jede Abnahme läuft real auf dem M4 Max.
+- **NO DOCKER / NO VM:** native Ausführung auf macOS/Apple Silicon; keine Container, Linux-VMs oder zusätzlichen Virtualisierungsschichten (die vorgesehenen Python-venvs sind zulässig).
+- **FREE ONLY:** ausschließlich lokal betreibbare, frei verfügbare Komponenten; Lizenzbedingungen beachten.
+- **NO JSON als Konfiguration:** TOML und die bestehenden Protobuf-Verträge; JSON nur, wo externe APIs oder ComfyUI-Workflows es technisch erfordern.
+- **NO DUPLICATION:** vorhandene Funktionen wiederverwenden statt doppelte Architekturen aufzubauen.
+- **PHASENPLAN FIRST:** ausschließlich nach diesem Plan; FRONT und BACK als abgestimmte technische Spezifikationen.
+- **STRICT ORDER:** zuerst ComfyUI + Dateien (Block A), danach Modelle + Workflows (Block B), zuletzt Telegram + Instagram (Block C) – §12.
+- **MAIN ONLY:** keine Branches oder Worktrees; direkt auf `main`.
+- **MAX 2 AGENTS:** höchstens zwei parallele Agenten.
+- **QUALITY GATES:** jede Phase vollständig implementieren, real auf dem M4 Max testen und erst nach bestandener Abnahme abschließen.
+- **GIT:** Änderungen je abgeschlossenem Paket committen und auf `main` pushen.
+- Keine zusätzlichen Frameworks, Dienste oder Architekturen ohne nachgewiesene technische Notwendigkeit.
 
 ## 3. Ist-Stand (belegt, `main` 62c4bc9)
 
