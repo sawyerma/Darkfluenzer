@@ -1,38 +1,27 @@
-import { JobResult } from "../core/generated/darkfluenzer/v1/comfy_pb";
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
-import { useEventTopic, useStateTopic } from "../core/state";
-import { ComfyBadge, clock } from "./ComfyUI";
+import { useStateTopic } from "../core/state";
+import { clock } from "./ComfyUI";
 
+// Übersicht (F7.1): Informationskarten nur aus echtem Backendzustand. Kundenakten und Freigaben
+// folgen mit den Kanälen (PHASENPLAN_V0 C2/C5).
 export function Overview() {
-  const comfy = useStateTopic(Topic.COMFY_STATUS);
-  const running = useStateTopic(Topic.JOBS_ACTIVE)?.value.jobs.find((j) => j.running);
-  const last = useEventTopic(Topic.JOB_COMPLETED)?.items.at(-1);
-
+  const active = useStateTopic(Topic.JOBS_ACTIVE);
+  const jobs = active?.value.jobs ?? [];
+  const running = jobs.find((j) => j.running);
+  const stale = active?.staleSince ?? null;
   return (
     <section className="g-panel">
       <h1>Übersicht</h1>
-      <div className="g-section">
-        <div className="g-line">
-          <span>ComfyUI</span>
-          <span className="g-value">
-            <ComfyBadge comfy={comfy} />
-          </span>
+      <div className="g-cards">
+        <div className="g-card g-kpi" data-stale={stale !== null || undefined}>
+          <small>GPU-Warteschlange</small>
+          <strong>{active ? jobs.length : "–"}</strong>
+          <small>
+            {running ? `läuft: ${running.jobId ? running.workflow : "Auftrag aus der ComfyUI-Oberfläche"}` : jobs.length ? "wartet" : "leer"}
+            {active?.value.paused ? " · angehalten" : ""}
+            {stale !== null ? ` · veraltet seit ${clock(stale)}` : ""}
+          </small>
         </div>
-        {running ? (
-          <div className="g-line">
-            <span>Aktueller Job</span>
-            <span className="g-value">{running.jobId ? running.workflow : "Auftrag aus der ComfyUI-Oberfläche"}</span>
-          </div>
-        ) : null}
-        {last ? (
-          <div className="g-line">
-            <span>Letzte Renderung</span>
-            <span className="g-value">
-              {last.value.workflow} · {clock(last.committedMs)} ·{" "}
-              {last.value.result === JobResult.DONE ? "fertig" : "fehlgeschlagen"}
-            </span>
-          </div>
-        ) : null}
       </div>
     </section>
   );

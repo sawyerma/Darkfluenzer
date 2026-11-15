@@ -104,17 +104,21 @@ function Progress({ job }: { job: ActiveJob }) {
   );
 }
 
-function Instance({ comfy, live }: { comfy: StateValue<ComfyStatus> | undefined; live: boolean }) {
+/** Instanzen (F7.5, rechts unten): echter Zustand, Start/Stopp nur der eigenen Instanz. */
+function Instances({ comfy, live }: { comfy: StateValue<ComfyStatus> | undefined; live: boolean }) {
   const cmd = useCommand();
   const s = comfy?.value;
   const ready = live && (s?.state === ComfyState.READY || s?.state === ComfyState.BUSY);
   const showStart = s?.state === ComfyState.STOPPED || s?.state === ComfyState.FAILED;
   // Stoppen nur ohne laufenden Auftrag und nur die eigene Instanz
   const showStop = s?.managed === true && (s.state === ComfyState.READY || s.state === ComfyState.UNREACHABLE);
+  const port = s?.url ? new URL(s.url).port : "";
   return (
-    <div className="g-section">
+    <div className="g-control-part">
+      <h2>Instanzen</h2>
+      <div className="g-card">
       <div className="g-line">
-        <span>Instanz</span>
+        <strong>ComfyUI 1{port ? ` · ${port}` : ""}</strong>
         <span className="g-value">
           {s && s.queueRunning + s.queuePending > 0 ? (
             <small>
@@ -124,15 +128,10 @@ function Instance({ comfy, live }: { comfy: StateValue<ComfyStatus> | undefined;
           <ComfyBadge comfy={comfy} />
         </span>
       </div>
-      {s?.version ? (
-        <div className="g-line">
-          <span>Version</span>
-          <span className="g-value">
-            {s.version} · {s.device}
-            {s.managed ? "" : " · nicht von Darkfluenzer gestartet"}
-          </span>
-        </div>
-      ) : null}
+      <small>
+        Medien{s?.version ? ` · ${s.version} · ${s.device}` : ""}
+        {s && !s.managed && s.version ? " · nicht von Darkfluenzer gestartet" : ""}
+      </small>
       {s?.error ? (
         <p className="g-note" role="alert">
           {s.error}
@@ -160,259 +159,7 @@ function Instance({ comfy, live }: { comfy: StateValue<ComfyStatus> | undefined;
           {cmd.notice}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-function WorkflowDetail({
-  wf,
-  version,
-  live,
-  comfyUrl,
-  draft,
-}: {
-  wf: WorkflowInfo;
-  version: bigint; // Registry-Version (CAS) der angezeigten Workflow-Liste
-  live: boolean;
-  comfyUrl: string;
-  draft?: Record<string, string>;
-}) {
-  const cmd = useCommand();
-  const mine = (useStateTopic(Topic.JOBS_ACTIVE)?.value.jobs ?? []).filter((j) => j.workflow === wf.key);
-  const running = mine.find((j) => j.running);
-  const waiting = mine.filter((j) => !j.running).length;
-  const dialog = useRef<HTMLDialogElement>(null);
-  const [raw, setRaw] = useState<Record<string, string>>(() =>
-    Object.fromEntries(wf.params.filter((p) => !p.upload).map((p) => [p.name, draft?.[p.name] ?? defaultText(p)])),
-  );
-  const top = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (draft) top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [draft]);
-  const [files, setFiles] = useState<Record<string, File | undefined>>({});
-  // Eingabebild aus der Galerie: exakt dieses Medium über seine ID (Backend prüft den SHA-256)
-  const [picked, setPicked] = useState<Record<string, MediaItem | undefined>>({});
-  const [picking, setPicking] = useState<WorkflowParam | null>(null);
-  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
-  const [checked, setChecked] = useState(false);
-  const errors = Object.fromEntries(
-    wf.params.map((p) => [p.name, validate(p, raw[p.name] ?? "", Boolean(files[p.name] || picked[p.name]))]),
-  );
-  const blocked = !wf.enabled
-    ? "Deaktiviert"
-    : wf.status === "GESPERRT"
-      ? "Gesperrt"
-      : !wf.modelsReady
-        ? `Modelle fehlen (${wf.missingGb.toFixed(1)} GB)`
-        : "";
-
-  async function generate(e: FormEvent) {
-    e.preventDefault();
-    setChecked(true);
-    if (Object.values(errors).some(Boolean)) return;
-    const values = wf.params
-      .filter((p) => !p.upload)
-      .map((p) => {
-        const text = raw[p.name] ?? "";
-        const value =
-          p.type === "int"
-            ? { case: "integer" as const, value: BigInt(text) }
-            : p.type === "float"
-              ? { case: "number" as const, value: Number(text) }
-              : { case: "text" as const, value: text };
-        return { name: p.name, value };
-      });
-    const inputs = await Promise.all(
-      wf.params
-        .filter((p) => p.upload && (files[p.name] || picked[p.name]))
-        .map(async (p) => {
-          const item = picked[p.name];
-          if (item) return { param: p.name, filename: item.path.split("/").pop() ?? "", mediaId: item.mediaId };
-          const file = files[p.name]!;
-          return { param: p.name, filename: file.name, data: new Uint8Array(await file.arrayBuffer()) };
-        }),
-    );
-    const parentMediaId = picked.image?.mediaId ?? 0n;
-    const done = await cmd.run(
-      { case: "render", value: { workflow: wf.key, values, files: inputs, parentMediaId } },
-      { version, acceptedOnly: true, done: "Eingereiht." },
-    );
-    if (done) setChecked(false);
-  }
-
-  function pick(param: string, item: MediaItem) {
-    const input = fileInputs.current[param];
-    if (input) input.value = ""; // Galerie-Medium ersetzt eine lokal gewählte Datei
-    setFiles((f) => ({ ...f, [param]: undefined }));
-    setPicked((p) => ({ ...p, [param]: item }));
-  }
-
-  async function openInEditor() {
-    // Tab sofort im Klick öffnen (sonst blockiert der Browser), Ziel erst nach Freigabe setzen.
-    const tab = window.open("", "darkfluenzer-comfyui");
-    if (await cmd.run({ case: "openWorkflow", value: { workflow: wf.key } }, { version })) {
-      if (tab) tab.location.href = `${comfyUrl}/?workflows=${encodeURIComponent(wf.key)}`;
-    } else {
-      tab?.close();
-    }
-  }
-
-  return (
-    <div className="g-wfdetail" ref={top}>
-      <div className="g-line">
-        <div>
-          <h2>{wf.title}</h2>
-          <small>{wf.engineTitle}</small>
-        </div>
-        <label className="g-switch">
-          <input
-            type="checkbox"
-            role="switch"
-            checked={wf.enabled}
-            disabled={!live || cmd.pending}
-            onChange={(e) =>
-              cmd.run({ case: "setWorkflowEnabled", value: { workflow: wf.key, enabled: e.target.checked } }, { version })
-            }
-          />
-          Aktiviert
-        </label>
       </div>
-      <div className="g-line">
-        <span className="g-value">
-          {wf.modelsReady ? "Modelle bereit" : `fehlt ${wf.missingGb.toFixed(1)} GB`}
-          {wf.usage === "production" ? "" : " · nur Evaluation"}
-          {wf.editorChanged ? " · im Editor geändert" : ""}
-        </span>
-        <span className="g-badge" data-tone={WORKFLOW_TONE[wf.status] ?? "neutral"}>
-          {wf.status}
-        </span>
-      </div>
-      <div className="g-actions">
-        <button type="button" className="g-button" disabled={!live || !comfyUrl || cmd.pending} onClick={openInEditor}>
-          Öffnen
-        </button>
-        {wf.editorChanged ? (
-          <button
-            type="button"
-            className="g-button"
-            disabled={!live || !comfyUrl || cmd.pending}
-            onClick={() => cmd.run({ case: "adoptWorkflow", value: { workflow: wf.key } }, { version, done: "Übernommen." })}
-          >
-            Änderung übernehmen
-          </button>
-        ) : null}
-        <button type="button" className="g-button g-danger" disabled={!live || cmd.pending} onClick={() => dialog.current?.showModal()}>
-          Löschen
-        </button>
-      </div>
-
-      {draft ? (
-        <p className="g-note">
-          Aus einem Auftrag geladen{wf.params.some((p) => p.upload) ? " – Bilddateien neu wählen." : "."}
-        </p>
-      ) : null}
-      <form className="g-form" noValidate onSubmit={generate}>
-        {wf.params.map((p) => {
-          const id = `${wf.key}-${p.name}`;
-          const error = checked ? errors[p.name] : "";
-          const from = p.upload ? picked[p.name] : undefined;
-          return (
-            <div className={`g-field${p.type === "str" && !p.upload ? " g-wide" : ""}`} key={p.name}>
-              <label htmlFor={id}>
-                {paramLabel(p, wf.kind)}
-                {p.required ? " *" : ""}
-              </label>
-              {p.upload ? (
-                <div className="g-file">
-                  <input
-                    id={id}
-                    ref={(el) => {
-                      fileInputs.current[p.name] = el;
-                    }}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={(e) => {
-                      setFiles({ ...files, [p.name]: e.target.files?.[0] });
-                      setPicked({ ...picked, [p.name]: undefined });
-                    }}
-                  />
-                  <button type="button" className="g-button" onClick={() => setPicking(p)}>
-                    Aus Dateien
-                  </button>
-                </div>
-              ) : p.choices.length > 0 ? (
-                <select id={id} value={raw[p.name]} onChange={(e) => setRaw({ ...raw, [p.name]: e.target.value })}>
-                  {p.choices.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-              ) : p.type === "str" ? (
-                <textarea id={id} rows={p.name === "prompt" ? 4 : 2} value={raw[p.name]} onChange={(e) => setRaw({ ...raw, [p.name]: e.target.value })} />
-              ) : (
-                <input
-                  id={id}
-                  type="number"
-                  min={p.min}
-                  max={p.max}
-                  step={p.type === "int" ? p.multipleOf || 1 : "any"}
-                  value={raw[p.name]}
-                  onChange={(e) => setRaw({ ...raw, [p.name]: e.target.value })}
-                />
-              )}
-              {from ? (
-                <span className="g-picked">
-                  <img className="g-thumb" src={mediaUrl(from.path)} alt={from.caption} />
-                  {from.caption} · local/{from.path}
-                </span>
-              ) : null}
-              {error ? <small className="g-error">{error}</small> : null}
-            </div>
-          );
-        })}
-        <div className="g-actions g-wide">
-          <button type="submit" className="g-button g-primary" disabled={!live || Boolean(blocked) || cmd.pending}>
-            Generieren
-          </button>
-          {blocked ? <small>{blocked}</small> : null}
-          {running ? <Progress job={running} /> : null}
-          {waiting ? <small>{waiting} wartend</small> : null}
-        </div>
-      </form>
-      {cmd.notice ? (
-        <p className="g-note" role="alert">
-          {cmd.notice}
-        </p>
-      ) : null}
-
-      {picking ? (
-        <MediaPicker
-          title={`${paramLabel(picking, wf.kind)} aus Dateien`}
-          onPick={(item) => pick(picking.name, item)}
-          onClose={() => setPicking(null)}
-        />
-      ) : null}
-      <dialog ref={dialog} className="g-dialog" aria-labelledby={`${wf.key}-delete`}>
-        <h2 id={`${wf.key}-delete`}>Workflow löschen</h2>
-        <p>
-          „{wf.title}“ ({wf.key}) und seine Workflow-Dateien werden entfernt. Modelle, Ergebnisse und bisherige
-          Aufträge bleiben erhalten.
-        </p>
-        <div className="g-actions">
-          <button type="button" className="g-button" onClick={() => dialog.current?.close()}>
-            Abbrechen
-          </button>
-          <button
-            type="button"
-            className="g-button g-danger"
-            onClick={() => {
-              dialog.current?.close();
-              void cmd.run({ case: "deleteWorkflow", value: { workflow: wf.key } }, { version });
-            }}
-          >
-            Löschen
-          </button>
-        </div>
-      </dialog>
     </div>
   );
 }
@@ -447,7 +194,7 @@ function Queue({ onLoad, canLoad }: { onLoad: LoadDraft; canLoad: (key: string) 
   const cmd = useCommand();
   const [open, setOpen] = useState<bigint | null>(null);
   return (
-    <div className="g-section">
+    <div className="g-control-part">
       <div className="g-line g-head">
         <h2>Warteschlange</h2>
         <span className="g-value">
@@ -535,72 +282,375 @@ const RESULT_BADGE: Record<JobResult, [string, Tone]> = {
   [JobResult.FAILED]: ["FEHLER", "bad"],
   [JobResult.CANCELLED]: ["ABGEBROCHEN", "neutral"],
 };
+const VIDEO = /\.(mp4|webm|mov)$/i;
+// Mitte: Motiv/Prompt, Negativ-Prompt und Eingabebilder; alle übrigen Eingänge rechts (F7.5)
+const MAIN_PARAMS = new Set(["prompt", "negative_prompt"]);
+const RECENT_RESULTS = 4;
 
-function Results({ onLoad, canLoad }: { onLoad: LoadDraft; canLoad: (key: string) => boolean }) {
+/** Ergebnis (Mitte): laufender Auftrag und die letzten echten Ausgaben dieses Workflows. */
+function WorkflowResults({
+  wf,
+  running,
+  waiting,
+  onLoad,
+  canLoad,
+}: {
+  wf: WorkflowInfo;
+  running: ActiveJob | undefined;
+  waiting: number;
+  onLoad: LoadDraft;
+  canLoad: (key: string) => boolean;
+}) {
   const results = useEventTopic(Topic.JOB_COMPLETED);
   const removed = useEventTopic(Topic.MEDIA_REMOVED);
   const gone = useMemo(() => new Set(removed?.items.map((e) => e.value.path)), [removed]);
-  const connection = useConnection();
   const [open, setOpen] = useState<bigint | null>(null);
-  const recent = results ? [...results.items].reverse().slice(0, 8) : [];
+  // nur echte Ergebnisse: vorhandene Ausgabedatei oder ein Fehler mit Grund (gelöschte Dateien entfallen)
+  const recent = (results?.items ?? [])
+    .filter((e) => e.value.workflow === wf.key)
+    .filter((e) => e.value.result !== JobResult.DONE || e.value.outputs.some((o) => !gone.has(o.path)))
+    .slice(-RECENT_RESULTS)
+    .reverse();
   return (
-    <div className="g-section">
-      <h2>Ergebnisse</h2>
+    <div className="g-result">
+      <div className="g-line g-head">
+        <h2>Ergebnis</h2>
+        <span className="g-value">
+          {running ? (
+            <>
+              <small>Auftrag {String(running.jobId)}</small>
+              <Progress job={running} />
+            </>
+          ) : null}
+          {waiting ? <small>{waiting} wartend</small> : null}
+        </span>
+      </div>
       {results?.gap ? <p className="g-note">Ältere Ergebnisse nicht nachgeladen.</p> : null}
       {recent.length > 0 ? (
-        recent.map(({ cursor, committedMs, value: job }) => {
-          const isOpen = open === cursor;
-          const [label, tone] = RESULT_BADGE[job.result];
-          return (
-            <div className="g-qitem" key={String(cursor)}>
-              <div className="g-line">
-                <span className="g-value">
-                  {job.outputs
-                    .filter((o) => IMAGE.test(o.path) && !gone.has(o.path))
-                    .slice(0, 1)
-                    .map((o) => (
-                      <a key={o.path} href={mediaUrl(o.path)} target="_blank" rel="noreferrer">
-                        <img className="g-thumb" src={mediaUrl(o.path)} alt={job.workflow} loading="lazy" />
-                      </a>
-                    ))}
-                  <button
-                    type="button"
-                    className="g-row g-ellipsis"
-                    aria-expanded={isOpen}
-                    onClick={() => setOpen(isOpen ? null : cursor)}
-                  >
-                    {job.workflow}
-                  </button>
-                </span>
-                <span className="g-value g-nowrap">
-                  {clock(committedMs)}
+        <div className="g-results">
+          {recent.map(({ cursor, committedMs, value: job }) => {
+            const [label, tone] = RESULT_BADGE[job.result];
+            const out = job.outputs.find((o) => !gone.has(o.path));
+            const isOpen = open === cursor;
+            return (
+              <div className="g-tile" key={String(cursor)}>
+                {out && VIDEO.test(out.path) ? (
+                  <video src={mediaUrl(out.path)} controls muted preload="metadata" />
+                ) : out && IMAGE.test(out.path) ? (
+                  <a href={mediaUrl(out.path)} target="_blank" rel="noreferrer">
+                    <img src={mediaUrl(out.path)} alt={`Auftrag ${job.jobId}`} loading="lazy" />
+                  </a>
+                ) : null}
+                <button
+                  type="button"
+                  className="g-row g-line"
+                  aria-expanded={isOpen}
+                  title={clock(committedMs)}
+                  onClick={() => setOpen(isOpen ? null : cursor)}
+                >
+                  <span className="g-ellipsis">Auftrag {String(job.jobId)}</span>
                   <span className="g-badge" data-tone={tone}>
                     {label}
                   </span>
-                </span>
+                </button>
+                {job.result === JobResult.FAILED && job.error ? <p className="g-note g-error">{job.error}</p> : null}
+                {isOpen ? (
+                  <div className="g-details">
+                    <JobParams params={job.params} />
+                    {canLoad(job.workflow) ? (
+                      <div className="g-actions">
+                        <button type="button" className="g-button" onClick={() => onLoad(job.workflow, job.params)}>
+                          In Formular laden
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
-              {job.result === JobResult.FAILED && job.error ? <p className="g-note g-error">{job.error}</p> : null}
-              {isOpen ? (
-                <div className="g-details">
-                  <JobParams params={job.params} />
-                  {canLoad(job.workflow) ? (
-                    <div className="g-actions">
-                      <button type="button" className="g-button" onClick={() => onLoad(job.workflow, job.params)}>
-                        In Formular laden
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          );
-        })
+            );
+          })}
+        </div>
       ) : (
-        <p className="g-note">
-          {results?.live ? "Noch keine Renderung über Darkfluenzer." : connection.status === "OPEN" ? "Lädt …" : "Keine Verbindung"}
-        </p>
+        <p className="g-note">Ergebnisse erscheinen hier nach dem Rendern.</p>
       )}
     </div>
+  );
+}
+
+/** Arbeitsfläche (Mitte) und Steuerung (rechts) des gewählten Workflows (F7.5). */
+function Workbench({
+  wf,
+  version,
+  live,
+  comfyUrl,
+  draft,
+  comfy,
+  onLoad,
+  canLoad,
+}: {
+  wf: WorkflowInfo;
+  version: bigint; // Registry-Version (CAS) der angezeigten Workflow-Liste
+  live: boolean;
+  comfyUrl: string;
+  draft?: Record<string, string>;
+  comfy: StateValue<ComfyStatus> | undefined;
+  onLoad: LoadDraft;
+  canLoad: (key: string) => boolean;
+}) {
+  const cmd = useCommand();
+  const mine = (useStateTopic(Topic.JOBS_ACTIVE)?.value.jobs ?? []).filter((j) => j.workflow === wf.key);
+  const running = mine.find((j) => j.running);
+  const waiting = mine.filter((j) => !j.running).length;
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [raw, setRaw] = useState<Record<string, string>>(() =>
+    Object.fromEntries(wf.params.filter((p) => !p.upload).map((p) => [p.name, draft?.[p.name] ?? defaultText(p)])),
+  );
+  const top = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (draft) top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [draft]);
+  const [files, setFiles] = useState<Record<string, File | undefined>>({});
+  // Eingabebild aus der Galerie: exakt dieses Medium über seine ID (Backend prüft den SHA-256)
+  const [picked, setPicked] = useState<Record<string, MediaItem | undefined>>({});
+  const [picking, setPicking] = useState<WorkflowParam | null>(null);
+  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [checked, setChecked] = useState(false);
+  const [expert, setExpert] = useState(false); // erweiterte Einstellungen: anfangs geschlossen
+  const inMain = (p: WorkflowParam) => p.upload || MAIN_PARAMS.has(p.name);
+  const errors = Object.fromEntries(
+    wf.params.map((p) => [p.name, validate(p, raw[p.name] ?? "", Boolean(files[p.name] || picked[p.name]))]),
+  );
+  const blocked = !wf.enabled
+    ? "Deaktiviert"
+    : wf.status === "GESPERRT"
+      ? "Gesperrt"
+      : !wf.modelsReady
+        ? `Modelle fehlen (${wf.missingGb.toFixed(1)} GB)`
+        : "";
+
+  async function generate() {
+    setChecked(true);
+    if (Object.values(errors).some(Boolean)) {
+      if (wf.params.some((p) => !inMain(p) && errors[p.name])) setExpert(true); // Fehler sichtbar machen
+      return;
+    }
+    const values = wf.params
+      .filter((p) => !p.upload)
+      .map((p) => {
+        const text = raw[p.name] ?? "";
+        const value =
+          p.type === "int"
+            ? { case: "integer" as const, value: BigInt(text) }
+            : p.type === "float"
+              ? { case: "number" as const, value: Number(text) }
+              : { case: "text" as const, value: text };
+        return { name: p.name, value };
+      });
+    const inputs = await Promise.all(
+      wf.params
+        .filter((p) => p.upload && (files[p.name] || picked[p.name]))
+        .map(async (p) => {
+          const item = picked[p.name];
+          if (item) return { param: p.name, filename: item.path.split("/").pop() ?? "", mediaId: item.mediaId };
+          const file = files[p.name]!;
+          return { param: p.name, filename: file.name, data: new Uint8Array(await file.arrayBuffer()) };
+        }),
+    );
+    const parentMediaId = picked.image?.mediaId ?? 0n;
+    const done = await cmd.run(
+      { case: "render", value: { workflow: wf.key, values, files: inputs, parentMediaId } },
+      { version, acceptedOnly: true, done: "Eingereiht." },
+    );
+    if (done) setChecked(false);
+  }
+
+  function pick(param: string, item: MediaItem) {
+    const input = fileInputs.current[param];
+    if (input) input.value = ""; // Galerie-Medium ersetzt eine lokal gewählte Datei
+    setFiles((f) => ({ ...f, [param]: undefined }));
+    setPicked((p) => ({ ...p, [param]: item }));
+  }
+
+  async function openInEditor() {
+    // Tab sofort im Klick öffnen (sonst blockiert der Browser), Ziel erst nach Freigabe setzen.
+    const tab = window.open("", "darkfluenzer-comfyui");
+    if (await cmd.run({ case: "openWorkflow", value: { workflow: wf.key } }, { version })) {
+      if (tab) tab.location.href = `${comfyUrl}/?workflows=${encodeURIComponent(wf.key)}`;
+    } else {
+      tab?.close();
+    }
+  }
+
+  function field(p: WorkflowParam) {
+    const id = `${wf.key}-${p.name}`;
+    const error = checked ? errors[p.name] : "";
+    const from = p.upload ? picked[p.name] : undefined;
+    return (
+      <div className={`g-field${p.type === "str" && !p.upload ? " g-wide" : ""}`} key={p.name}>
+        <label htmlFor={id}>
+          {paramLabel(p, wf.kind)}
+          {p.required ? " *" : ""}
+        </label>
+        {p.upload ? (
+          <div className="g-file">
+            <input
+              id={id}
+              ref={(el) => {
+                fileInputs.current[p.name] = el;
+              }}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(e) => {
+                setFiles({ ...files, [p.name]: e.target.files?.[0] });
+                setPicked({ ...picked, [p.name]: undefined });
+              }}
+            />
+            <button type="button" className="g-button" onClick={() => setPicking(p)}>
+              Aus Dateien
+            </button>
+          </div>
+        ) : p.choices.length > 0 ? (
+          <select id={id} value={raw[p.name]} onChange={(e) => setRaw({ ...raw, [p.name]: e.target.value })}>
+            {p.choices.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        ) : p.type === "str" ? (
+          <textarea id={id} rows={p.name === "prompt" ? 4 : 2} value={raw[p.name]} onChange={(e) => setRaw({ ...raw, [p.name]: e.target.value })} />
+        ) : (
+          <input
+            id={id}
+            type="number"
+            min={p.min}
+            max={p.max}
+            step={p.type === "int" ? p.multipleOf || 1 : "any"}
+            value={raw[p.name]}
+            onChange={(e) => setRaw({ ...raw, [p.name]: e.target.value })}
+          />
+        )}
+        {from ? (
+          <span className="g-picked">
+            <img className="g-thumb" src={mediaUrl(from.path)} alt={from.caption} />
+            {from.caption} · local/{from.path}
+          </span>
+        ) : null}
+        {error ? <small className="g-error">{error}</small> : null}
+      </div>
+    );
+  }
+
+  const expertParams = wf.params.filter((p) => !inMain(p));
+  return (
+    <>
+      <div className="g-workmain" ref={top}>
+        <h2>{wf.title}</h2>
+        <small>{wf.engineTitle}</small>
+        {draft ? (
+          <p className="g-note">
+            Aus einem Auftrag geladen{wf.params.some((p) => p.upload) ? " – Bilddateien neu wählen." : "."}
+          </p>
+        ) : null}
+        <div className="g-form">{[...wf.params.filter((p) => MAIN_PARAMS.has(p.name)), ...wf.params.filter((p) => p.upload)].map(field)}</div>
+        <WorkflowResults wf={wf} running={running} waiting={waiting} onLoad={onLoad} canLoad={canLoad} />
+      </div>
+
+      <aside className="g-control" aria-label="Steuerung">
+        <h2>Steuerung</h2>
+        <div className="g-control-part">
+          <div className="g-line">
+            <span>Charakter</span>
+            <span className="g-value">kein Profil angelegt</span>
+          </div>
+          <div className="g-line">
+            <span>Workflow</span>
+            <span className="g-value">
+              <span className="g-ellipsis">{wf.title}</span>
+              <span className="g-badge" data-tone={WORKFLOW_TONE[wf.status] ?? "neutral"}>
+                {wf.status}
+              </span>
+            </span>
+          </div>
+          <small>
+            {wf.modelsReady ? "Modelle bereit" : `fehlt ${wf.missingGb.toFixed(1)} GB`}
+            {wf.usage === "production" ? "" : " · nur Evaluation"}
+            {wf.editorChanged ? " · im Editor geändert" : ""}
+          </small>
+          <label className="g-switch">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={wf.enabled}
+              disabled={!live || cmd.pending}
+              onChange={(e) =>
+                cmd.run({ case: "setWorkflowEnabled", value: { workflow: wf.key, enabled: e.target.checked } }, { version })
+              }
+            />
+            Aktiviert
+          </label>
+          <div className="g-actions">
+            <button type="button" className="g-button" disabled={!live || !comfyUrl || cmd.pending} onClick={openInEditor}>
+              Öffnen
+            </button>
+            {wf.editorChanged ? (
+              <button
+                type="button"
+                className="g-button"
+                disabled={!live || !comfyUrl || cmd.pending}
+                onClick={() => cmd.run({ case: "adoptWorkflow", value: { workflow: wf.key } }, { version, done: "Übernommen." })}
+              >
+                Änderung übernehmen
+              </button>
+            ) : null}
+            <button type="button" className="g-button g-danger" disabled={!live || cmd.pending} onClick={() => dialog.current?.showModal()}>
+              Löschen
+            </button>
+          </div>
+        </div>
+        {expertParams.length > 0 ? (
+          <details className="g-expert" open={expert} onToggle={(e) => setExpert(e.currentTarget.open)}>
+            <summary>Erweiterte Workflow-Einstellungen</summary>
+            <div className="g-form">{expertParams.map(field)}</div>
+          </details>
+        ) : null}
+        <button type="button" className="g-button g-primary g-block" disabled={!live || Boolean(blocked) || cmd.pending} onClick={() => void generate()}>
+          Generieren
+        </button>
+        {blocked ? <small>{blocked}</small> : null}
+        {cmd.notice ? (
+          <p className="g-note" role="alert">
+            {cmd.notice}
+          </p>
+        ) : null}
+        <Queue onLoad={onLoad} canLoad={canLoad} />
+        <Instances comfy={comfy} live={live} />
+      </aside>
+
+      {picking ? (
+        <MediaPicker title={`${paramLabel(picking, wf.kind)} aus Dateien`} onPick={(item) => pick(picking.name, item)} onClose={() => setPicking(null)} />
+      ) : null}
+      <dialog ref={dialog} className="g-dialog" aria-labelledby={`${wf.key}-delete`}>
+        <h2 id={`${wf.key}-delete`}>Workflow löschen</h2>
+        <p>
+          „{wf.title}“ ({wf.key}) und seine Workflow-Dateien werden entfernt. Modelle, Ergebnisse und bisherige Aufträge
+          bleiben erhalten.
+        </p>
+        <div className="g-actions">
+          <button type="button" className="g-button" onClick={() => dialog.current?.close()}>
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            className="g-button g-danger"
+            onClick={() => {
+              dialog.current?.close();
+              void cmd.run({ case: "deleteWorkflow", value: { workflow: wf.key } }, { version });
+            }}
+          >
+            Löschen
+          </button>
+        </div>
+      </dialog>
+    </>
   );
 }
 
@@ -661,8 +711,6 @@ export function ComfyUI() {
   return (
     <section className="g-panel">
       <h1>ComfyUI</h1>
-      <Instance comfy={comfy} live={live} />
-
       <div className="g-subtabs" role="tablist" aria-label="Workflow-Art">
         {KINDS.map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)}>
@@ -673,6 +721,7 @@ export function ComfyUI() {
 
       <div className="g-studio">
         <div className="g-wflist" role="list" aria-label={kind === "image" ? "Foto-Workflows" : "Video-Workflows"}>
+          <h2>Workflows</h2>
           <button type="button" className="g-button g-new" disabled={!live || list.length === 0} onClick={openCreate}>
             Neuer Workflow
           </button>
@@ -694,21 +743,29 @@ export function ComfyUI() {
           ))}
         </div>
         {current ? (
-          <WorkflowDetail
+          <Workbench
             key={`${current.key}-${draft?.key === current.key ? draft.n : 0}`}
             wf={current}
             version={version}
             live={live}
             comfyUrl={comfyUrl}
             draft={draft?.key === current.key ? draft.params : undefined}
+            comfy={comfy}
+            onLoad={loadDraft}
+            canLoad={canLoad}
           />
         ) : (
-          <p className="g-note">{connection.status === "OPEN" ? "Keine registrierten Workflows." : "Keine Verbindung"}</p>
+          <>
+            <div className="g-workmain">
+              <p className="g-note">{connection.status === "OPEN" ? "Keine registrierten Workflows." : "Keine Verbindung"}</p>
+            </div>
+            <aside className="g-control" aria-label="Steuerung">
+              <h2>Steuerung</h2>
+              <Queue onLoad={loadDraft} canLoad={canLoad} />
+              <Instances comfy={comfy} live={live} />
+            </aside>
+          </>
         )}
-        <div className="g-side">
-          <Queue onLoad={loadDraft} canLoad={canLoad} />
-          <Results onLoad={loadDraft} canLoad={canLoad} />
-        </div>
       </div>
 
       <dialog ref={dialog} className="g-dialog" aria-labelledby="wf-create">
