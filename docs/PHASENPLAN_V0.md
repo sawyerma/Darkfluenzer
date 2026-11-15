@@ -11,6 +11,7 @@
 | `PHASENPLAN_FRONT_V1.md` | **Verbindliche technische Frontend-Spezifikation:** UI/UX, Graphite-Gestaltung, Bedienlogik, Protobuf-Bindung und die Push-Aktualisierungsarchitektur ohne Frontend-Polling. V0 übernimmt diese Regeln vollständig (§5). |
 | `PHASENPLAN_BACK_V1.md` | **Technische Backend-Referenz:** gilt weiter, soweit sie V0 nicht widerspricht; überholte Festlegungen sind dort als „→ V0“ gekennzeichnet. |
 | `design/Darkfluenzer_Cockpit_Interaktiv.html` | **Verbindliche Gestaltungs- und Bedienreferenz** (FRONT F7, Betreiberfreigabe 15.11.2026); Klickprototyp, kein Produktivcode. |
+| `ki_modelle.md` | **Modellliste:** Bestand, laufende Downloads, Präzision/Quantisierung, Größe, Quelle mit Revision, vom Betreiber freizuschaltende Modelle (§14.1). |
 | `archiv/` | **Nicht verbindlich:** Musterquellen und Altmaterial (z. B. Chatwoot-ZIP, unversioniert). |
 
 **Verbindlich sind ausschließlich** V0 (Gesamtplan und Reihenfolge), FRONT V1 (UI/UX, Push, Protobuf) und die F7-Referenz; BACK V1 nur, soweit V0 nicht widerspricht; alles unter `docs/archiv/` ist nicht verbindlich. Jede noch nicht umgesetzte Anforderung aus FRONT/BACK ist einer V0-Phase (§12) zugeordnet. Kein PASS ohne echten Funktionstest auf dem Mac.
@@ -25,7 +26,7 @@ Darkfluenzer ist zugleich Kunden-Cockpit (F4): Kunden über **Instagram und Tele
 
 ## 2. Verbindliche Regeln
 
-1. **Qualität vor Geschwindigkeit;** Modell, Identitätsmethode und Auflösungsweg entscheiden reale A/B-Tests mit den Charakterbildern des Betreibers auf diesem Mac – Ranglisten und Herstellerangaben sind nur Kandidatenquellen.
+1. **Leichte Tendenz zu besserem Bild, aber in angemessener Zeit** (Betreiberentscheidung 15.11.2026): Modell, Identitätsmethode, Modellvariante (z. B. Turbo/Raw, 3B/7B) und Auflösungsweg entscheiden reale A/B-Tests mit den Charakterbildern des Betreibers auf diesem Mac. Unter den Varianten, die das je Ausgabeart gemessene und vom Betreiber bestätigte Zeitbudget einhalten (festgelegt in B2/B4), gewinnt die beste Bildqualität; ist eine Variante deutlich besser, aber langsamer, entscheidet der Betreiber. Ranglisten und Herstellerangaben sind nur Kandidatenquellen.
 2. **Identität hat Vorrang:** gleiches Gesicht, gleiche Figur/Anmutung über alle Stufen. LoRA ist Mittel, nicht Ziel; die messbar stabilste Methode oder Kombination gewinnt. „Identität gesperrt“ = Auftrag nutzt verbindlich dieses Profil; Abweichungen werden zurückgewiesen, keine Garantie.
 3. **Explizite Bearbeitung nur abgeleitet** (maskiert vom freigegebenen Bild; im Bearbeitungsschritt 0 Pixel außerhalb der Maske, automatisch geprüft). **Video nur vom freigegebenen Foto** bzw. bei Bewegungsübertragung mit dem freigegebenen Charakterbild als Identitätsreferenz.
 4. **Face-Swap ausschließlich auf eigenen, synthetisch erzeugten Bildern.** Nie auf fremden Referenzfotos/-videos; fremde Vorlagen liefern nur Pose, Komposition, Licht, Stil bzw. Bewegung. Gesichtszüge abgebildeter Personen werden nie Teil eines Charakterprofils; kein Ersetzen realer Personen in fremden Videos.
@@ -242,7 +243,7 @@ Versioniert: Referenzbilder (Gesicht/Halb-/Ganzkörper), Adapter (Modellfamilie,
 | Training | `training.py` (SDXL, diffusers) | ComfyUI-Trainingsworkflow (Medien-Instanz), mflux für Krea 2 |
 | Identitätsmetrik | – | AuraFace-v1 (`glintr100.onnx`), OpenCV SFace/YuNet |
 
-**Nicht eingeplant:** MiniMax H3/H3-Image, HunyuanVideo 1.5 (EU ausgeschlossen), FLUX.2 Dev (nicht kommerziell), NVIDIA Cosmos 3; am 15.11.2026 entfernt: Qwen-Image 20B, Qwen-Image 2.1 (nicht kommerziell), RealCore Illustrious. Kandidaten lädt Darkfluenzer selbst zu Beginn von Block B nach §14.1 (Manifest-Eintrag mit Revision + SHA-256, dann `models download` und `models verify`). **LTX Desktop** lokal erst ab macOS 26; der ComfyUI-Pfad wird separat getestet.
+**Nicht eingeplant:** MiniMax H3/H3-Image, HunyuanVideo 1.5 (EU ausgeschlossen), FLUX.2 Dev (nicht kommerziell), NVIDIA Cosmos 3; am 15.11.2026 entfernt: Qwen-Image 20B, Qwen-Image 2.1 (nicht kommerziell), RealCore Illustrious. Kandidaten lädt Darkfluenzer selbst nach §14.1 / `ki_modelle.md`; Manifest-Eintrag mit Revision + SHA-256 und `models verify` in Block B. **LTX Desktop** lokal erst ab macOS 26; der ComfyUI-Pfad wird separat getestet.
 
 ### 9.4 Workflows
 
@@ -436,29 +437,11 @@ Jede Phase: echte Umsetzung, gezielte Tests (Normalfall, wesentlicher Fehlerfall
 ## 14. Voraussetzungen durch den Betreiber
 
 - Charakterfotos in `local/character/photos/` (B1).
-- Modelle lädt Darkfluenzer selbst (Betreiberentscheidung 15.11.2026) zu Beginn von Block B nach §14.1; der Betreiber stellt nur die Zugänge bereit: Hugging-Face-Token mit angenommener FLUX-3-Lizenz, Civitai-API-Token (LUSTIFY v10). **Block A und B1 brauchen keine neuen Modelle.**
+- Modelle lädt Darkfluenzer selbst (Betreiberentscheidung 15.11.2026, Downloads laufen bereits); der Betreiber nimmt die FLUX-3-Lizenz auf Hugging Face an und lädt LUSTIFY v10 bei Civitai (§14.1, `ki_modelle.md`). **Block A und B1 brauchen keine neuen Modelle.**
 - macOS-26-Update (B3).
 - Kostenloses Tunnel-Konto (Tailscale oder ngrok) – nur für Instagram (C2).
 - Telegram-Bot (BotFather-Token); professionelles Instagram-Konto der Influencerin mit Meta-App (C2–C5); freigegebene Absender-Accounts. WhatsApp Business erst für C7.
 
-### 14.1 Downloadliste (Links geprüft 15.11.2026; Darkfluenzer lädt selbst, Block B; Ablage unter `local/models/`)
+### 14.1 Modelle und Downloads
 
-| Phase | Modell | Datei / Link | Größe | Ablage |
-|---|---|---|---|---|
-| B2 | Krea 2 Raw BF16 | [krea2_raw_bf16](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_raw_bf16.safetensors) | 26,3 GB | `diffusion_models/krea2/` |
-| B2 | Krea 2 Turbo BF16 | [krea2_turbo_bf16](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_bf16.safetensors) | 26,3 GB | `diffusion_models/krea2/` |
-| B2 | Krea-2-Textencoder Qwen3-VL-4B BF16 | [qwen3vl_4b_bf16](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_bf16.safetensors) | 8,9 GB | `text_encoders/krea2/` (anderer SHA-256 als die gleichnamige FLUX-3-Datei) |
-| B2 | LUSTIFY v10 Krea Raw BF16 (Civitai, Anmeldung) | [fileId 3015315](https://civitai.com/api/download/models/3112728?fileId=3015315) | 25,7 GB | `diffusion_models/lustify/` |
-| B2 | LUSTIFY v10 Krea Turbo BF16 (Civitai, Anmeldung) | [fileId 3015314](https://civitai.com/api/download/models/3112728?fileId=3015314) | 25,7 GB | `diffusion_models/lustify/` |
-| B2 | FLUX 3 Image Klein Base BF16 (Lizenz auf HF annehmen) | [flux3-image-klein-base-bf16](https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/diffusion_models/flux3-image-klein-base-bf16.safetensors) | 11,1 GB | `diffusion_models/flux3/` |
-| B2 | FLUX-3-Textencoder Qwen3-VL-4B BF16 | [qwen3vl_4b_bf16](https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/text_encoders/qwen3vl_4b_bf16.safetensors) | 8,9 GB | `text_encoders/qwen3vl/` |
-| B2 | SAM 3.1 | [sam3.1_multiplex_fp16](https://huggingface.co/Comfy-Org/sam3.1/resolve/main/checkpoints/sam3.1_multiplex_fp16.safetensors) | 1,8 GB | `checkpoints/sam3/` |
-| B2 | SeedVR2 7B FP16 | [seedvr2_7b_fp16](https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/diffusion_models/seedvr2_7b_fp16.safetensors) | 16,5 GB | `diffusion_models/seedvr2/` |
-| B2 | SeedVR2 3B FP16 | [seedvr2_3b_fp16](https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/diffusion_models/seedvr2_3b_fp16.safetensors) | 6,8 GB | `diffusion_models/seedvr2/` |
-| B2 | SeedVR2-VAE | [seedvr2_ema_vae_fp16](https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/vae/seedvr2_ema_vae_fp16.safetensors) | 0,5 GB | `vae/seedvr2/` |
-| B2 | AuraFace-v1 | [glintr100.onnx](https://huggingface.co/fal/AuraFace-v1/resolve/main/glintr100.onnx) | 0,26 GB | `face/auraface/` |
-| B2 | YuNet / SFace (OpenCV) | [YuNet](https://huggingface.co/opencv/face_detection_yunet/resolve/main/face_detection_yunet_2023mar.onnx), [SFace](https://huggingface.co/opencv/face_recognition_sface/resolve/main/face_recognition_sface_2021dec.onnx) | < 0,1 GB | `face/opencv/` |
-| B2 | SDPose + Personendetektor | [sdpose_wholebody_fp16](https://huggingface.co/Comfy-Org/SDPose/resolve/main/checkpoints/sdpose_wholebody_fp16.safetensors), [rt_detr_v4-x-hgnet_fp32](https://huggingface.co/Comfy-Org/SDPose/resolve/main/diffusion_models/rt_detr_v4-x-hgnet_fp32.safetensors) | 2,2 GB | `checkpoints/sdpose/`, `diffusion_models/sdpose/` |
-| B2 | Depth Anything 3 Mono Large | [depth_anything_3_mono_large](https://huggingface.co/Comfy-Org/Depth-Anything-3/resolve/main/geometry_estimation/depth_anything_3_mono_large.safetensors) | 1,3 GB | `geometry_estimation/depth_anything3/` (Ordnerzuordnung in ComfyUI wird ergänzt) |
-| B4 | Wan Animate 2 BF16 + CLIP Vision + VAE + LoRA der Vorlage | [wan_animate_2_bf16](https://huggingface.co/Comfy-Org/Wan-Animate-2/resolve/main/diffusion_models/wan_animate_2_bf16.safetensors), [clip_vision_h](https://huggingface.co/Comfy-Org/Wan-Animate-2/resolve/main/clip_vision/clip_vision_h.safetensors), [Wan2_1_VAE_bf16](https://huggingface.co/Comfy-Org/Wan-Animate-2/resolve/main/vae/Wan2_1_VAE_bf16.safetensors), [lightx2v rank64](https://huggingface.co/Comfy-Org/Wan-Animate-2/resolve/main/loras/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors) | 35,0 GB | `diffusion_models/wan22/`, `clip_vision/wan/`, `vae/wan/`, `loras/wan/` (umt5 vorhanden, gleicher SHA-256) |
-| später | Cydonia 24B (A3), LTX 2.5 (B4, Manifest), FILM, FLUX-3-Prompt-Upsampler (optional) | [Cydonia Q8_0](https://huggingface.co/TheDrummer/Cydonia-24B-v4.1-GGUF/resolve/main/Cydonia-24B-v4j-Q8_0.gguf), [LTX-2.5](https://huggingface.co/Lightricks/LTX-2.5), [film_net_fp16](https://huggingface.co/Comfy-Org/Frame-Interpolation/resolve/main/frame_interpolation/film_net_fp16.safetensors), [Upsampler bf16](https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/text_encoders/qwen3.5_9b_flux3_prompt_upsampler_bf16.safetensors) | 25 / 71 / 0,07 / 18,8 GB | erst bei Bedarf |
+Vollständige Liste mit Präzision, Größe, Quelle/Revision, Ablage und Status: **[ki_modelle.md](ki_modelle.md)**. Darkfluenzer lädt die frei zugänglichen Modelle selbst (laufend seit 15.11.2026, SHA-256 geprüft); die Registrierung im Manifest folgt in Block B. FLUX 3 Klein (Lizenzannahme auf Hugging Face) und LUSTIFY v10 (Civitai-Anmeldung) schaltet bzw. lädt der Betreiber.
