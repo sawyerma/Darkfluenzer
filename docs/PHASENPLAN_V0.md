@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN V0 (verbindlicher Gesamt- und Implementierungsplan)
 
-**Version:** 0.4.2 · **Stand:** 15.11.2026 · **Repository:** `sawyerma/Darkfluenzer`, ausschließlich `main`
+**Version:** 0.5 · **Stand:** 15.11.2026 · **Repository:** `sawyerma/Darkfluenzer`, ausschließlich `main`
 **Status:** verbindlich. Bestandsaufnahme gegen Code (`main` 62c4bc9), Chatwoot-v4.19.1-Quellcode und die Betreiber-ZIP abgeschlossen; abgeglichen mit FRONT V1.10 (DF-PUSH A–D, F7-Cockpitreferenz) und BACK V1.13; V0.3: Auflösungsregel (Original ≥ 1K, darüber Upscaler, Instagram-Ausgabeprofile, §9.7) und Default-Nutzer als Produktionsassistent mit Rückversand per Telegram (§8.1). **V0.4: verbindliche Reihenfolge Block A (ComfyUI + Dateien) → Block B (KI-Modelle und Produktionsworkflows) → Block C (Telegram/Instagram, Kundenbetrieb), keine parallele Entwicklung (§12); verbindliche Dokumente (§0).** Umsetzung ab A1.
 
 ## 0. Dokumentenhierarchie
@@ -302,7 +302,9 @@ Die bestehende Direktbedienung bleibt (freier Prompt, Workflow-Wahl, Parameter, 
 
 ## 12. Phasen (verbindliche Reihenfolge, Betreiberentscheidung 15.11.2026)
 
-**Drei Blöcke in fester Reihenfolge – keine parallele Entwicklung späterer Bereiche.** Ein Block ist erst abgeschlossen, wenn Frontend, Backend und die reale Abnahme auf dem Mac bestanden sind; erst dann beginnt der nächste. Bestehende Funktions-, Qualitäts- und Auflösungsanforderungen bleiben unverändert.
+> **Verbindliche Änderung der Arbeitsreihenfolge (Betreiberentscheidung 15.11.2026, abends):** Die Entwicklung wartet nicht auf Modelldownloads. **Block B** lädt im Hintergrund weiter; jeder Modelltest läuft, sobald seine Dateien da sind. **Block C und das gesamte Frontend** (alle Ansichten, Bedienelemente und Funktionen nach F7 und FRONT, ohne Platzhalter oder funktionslose Schaltflächen, Backend vollständig angebunden, Protobuf-Push) werden **jetzt** parallel umgesetzt; sobald das Frontend fertig und getestet ist, wird **sofort deployt**. Alles, was ohne fehlende Modelle oder externe Freigaben real testbar ist, wird sofort abgenommen; verbleibende Integrationstests folgen gezielt. Regeln §2.1 und alle Funktions-/Qualitätsanforderungen bleiben unverändert. **Paketfolge Block C:** C2a Datenmodell (kanalunabhängige Kunden, Identitäten, Konversationen, Ein-/Ausgang), Default-Kontakt, Nachrichten-Cockpit, Kanalstatus → C2b Telegram-Adapter (echte Tests mit Bot-Token) → C3 Default-Nutzer über Telegram (Befehle, freie Anweisungen, Auftrag, Rückversand) → C1 lokaler Kloner im Cockpit → C2c/C4 Instagram-Adapter (Meta-App, Tunnel) → C5 Kundenbetrieb (manuelle und KI-Antworten, Influencerinnen, Aufträge, Freigabe, Zustellung) → Deploy (Release-Einheit) → C6.
+
+**Drei Blöcke; Block C läuft seit dem 15.11.2026 abends parallel zu den Downloads von Block B (siehe Kasten).** Ein Block ist erst abgeschlossen, wenn Frontend, Backend und die reale Abnahme auf dem Mac bestanden sind; erst dann beginnt der nächste. Bestehende Funktions-, Qualitäts- und Auflösungsanforderungen bleiben unverändert.
 
 1. **Block A – ComfyUI und Dateien vollständig:** Frontend und Backend nach dem freigegebenen F7-Design mit allen Funktionen, Protobuf-Push, Warteschlangen, Speicherung und Wiederanlauf; beide Reiter vollständig bedienbar und getestet.
 2. **Block B – sämtliche KI-Modelle und Produktionsworkflows:** Charakter-LoRA, Bildgenerierung, Identität, Pose, Inpainting, Video, Upscaling und vollständige Workflow-Verkettung; alle ausgewählten Modelle und Workflows real auf dem Mac und aus dem Cockpit bedienbar.
