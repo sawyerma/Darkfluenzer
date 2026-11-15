@@ -12,6 +12,9 @@ heartbeat_s = 15
 observe_s = 2
 # Höchstzahl nachgeladener Ereignisse je Topic nach einem Reconnect.
 catchup_limit = 200
+# Höchstzahl ungesendeter Ereignis-Frames je Browser; darüber wird er getrennt und holt nach
+# (STATE wartet je Topic ohnehin nur mit dem neuesten Stand).
+client_queue_max = 2000
 # Wartezeit für Start (Health-Check) und Stopp des Cockpit-Servers durch den Launcher.
 timeout_s = 20
 # Höchstgröße eines Befehls mit Eingabebildern (Quellbild, Maske, Startbild) in MB.

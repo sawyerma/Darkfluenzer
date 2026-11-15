@@ -31,13 +31,6 @@ async function fetchMediaPage(before: bigint, limit: number): Promise<MediaPage>
   return fromBinary(MediaPageSchema, new Uint8Array(await resp.arrayBuffer()));
 }
 
-/** Indizierte Datei als File, z. B. als Startbild eines Renderjobs. */
-export async function fetchMediaFile(item: MediaItem): Promise<File> {
-  const resp = await get(mediaUrl(item.path));
-  const blob = await resp.blob();
-  return new File([blob], item.path.split("/").pop() ?? item.caption, { type: blob.type });
-}
-
 export type GalleryStatus = "ready" | "loading" | "offline";
 
 /** Alle Galerie-Einträge, je media_id genau einer, neueste zuerst. Erste Seite beim Aufruf,

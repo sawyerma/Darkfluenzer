@@ -51,6 +51,8 @@ message JobsActive {
   repeated ActiveJob jobs = 1;
   // Angehalten: der laufende Auftrag endet regulär, danach startet nichts bis zum Fortsetzen.
   bool paused = 2;
+  // Domain-Version der Jobs (steigt mit jedem angelegten Job und Statuswechsel).
+  uint64 version = 3;
 }
 
 // Parameter eines Workflows laut Registry; default ist der Wert im registrierten API-Graphen.
@@ -95,6 +97,8 @@ message WorkflowInfo {
 // STATE comfy.workflows
 message Workflows {
   repeated WorkflowInfo workflows = 1;
+  // Registry-Version (Manifest und Workflow-Graphen); CAS-Basis für Workflow-Befehle und Render.
+  uint64 version = 2;
 }
 
 message JobOutput {

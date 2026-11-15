@@ -17,7 +17,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -286,10 +286,13 @@ def run_workflow(
     timeout_s: float = 1800.0,
     job_id: int | None = None,
     client_id: str | None = None,
+    on_submit: Callable[[str, dict], None] | None = None,
 ) -> RenderResult:
     """Server sicherstellen, Workflow ausführen, alle Ausgabedateien unter ``dest`` sichern.
 
-    Ausgaben werden niemals überschrieben (vorhandene Zieldatei -> Fehler).
+    ``on_submit(prompt_id, graph)`` hält den exakt eingereichten Graphen fest, bevor gewartet wird
+    (Wiederanlauf nach einem Backend-Neustart: ``collect_workflow``). Ausgaben werden niemals
+    überschrieben (vorhandene Zieldatei -> Fehler).
     """
     if workflow_key not in man.workflows:
         raise ComfyError(f"Workflow '{workflow_key}' ist nicht registriert.")
@@ -302,6 +305,30 @@ def run_workflow(
     t0 = time.monotonic()
     prompt_id = client.submit(graph, job_id)
     log.info("Auftrag %s: Workflow %s übermittelt", prompt_id, workflow_key)
+    if on_submit is not None:
+        on_submit(prompt_id, graph)
+    return collect_workflow(
+        cfg, man, workflow_key, values, prompt_id, dest, stem=stem, timeout_s=timeout_s, t0=t0
+    )
+
+
+def collect_workflow(
+    cfg: Config,
+    man: Manifest,
+    workflow_key: str,
+    values: dict,
+    prompt_id: str,
+    dest: Path,
+    *,
+    stem: str,
+    timeout_s: float,
+    t0: float | None = None,
+) -> RenderResult:
+    """Auf einen eingereichten Auftrag warten und seine Ausgaben unter ``dest`` sichern – auch für
+    einen vor einem Backend-Neustart eingereichten (dann ist ``t0`` unbekannt)."""
+    wf = man.workflows[workflow_key]
+    client = ComfyClient(cfg.comfyui.url)
+    start = time.monotonic() if t0 is None else t0
     entry = client.wait(prompt_id, timeout_s)
     dest.mkdir(parents=True, exist_ok=True)
     result = RenderResult(
@@ -330,7 +357,7 @@ def run_workflow(
             )
     if not result.outputs:
         raise ComfyError(f"Auftrag {prompt_id} lieferte keine Ausgabedatei.", prompt_id=prompt_id)
-    result.duration_s = round(time.monotonic() - t0, 1)
+    result.duration_s = round(time.monotonic() - start, 1)
     log.info(
         "Auftrag %s fertig: %d Datei(en) in %.1f s",
         prompt_id,
@@ -338,6 +365,17 @@ def run_workflow(
         result.duration_s,
     )
     return result
+
+
+def prompt_state(cfg: Config, prompt_id: str) -> str:
+    """Wo steht ein eingereichter Auftrag? ``queued`` (wartet/läuft), ``finished`` (im Verlauf)
+    oder ``unknown`` (ComfyUI kennt ihn nicht mehr, z. B. nach eigenem Neustart)."""
+    client = ComfyClient(cfg.comfyui.url)
+    if client.history(prompt_id) is not None:
+        return "finished"
+    if any(p == prompt_id for _, _, p in client.queued_jobs()):
+        return "queued"
+    return "unknown"
 
 
 def _describe_error(resp: dict) -> str:

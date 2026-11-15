@@ -4,7 +4,9 @@ package darkfluenzer.v1;
 
 // Benutzeraktionen: POST /api/v1/command, Content-Type application/x-protobuf,
 // Body CommandRequest, Antwort CommandResponse. Header X-CSRF-Token aus GET /api/v1/session.
-// ACCEPTED heißt nur "angenommen"; Ausführung und Fehler kommen als STATE/EVENT.
+// ACCEPTED heißt nur "angenommen". Das Ergebnis ist eine persistierte CommandReceipt
+// (EVENT command.receipt: COMPLETED, FAILED, CANCELLED oder UNKNOWN) plus die passende
+// STATE/EVENT-Projektion; die Oberfläche zeigt erst den belegten Zustand.
 
 message ComfyStart {}
 
@@ -20,18 +22,24 @@ message ParamValue {
   }
 }
 
-// Eingabebild für einen Upload-Parameter (Quellbild, Maske, Startbild).
+// Eingabebild für einen Upload-Parameter (Quellbild, Maske, Startbild): entweder hochgeladene
+// Bytes oder ein vorhandenes Medium der Galerie über seine unveränderliche ID (exakte Datei,
+// SHA-256 vom Backend geprüft).
 message InputFile {
   string param = 1;
   string filename = 2;
   bytes data = 3;
+  uint64 media_id = 4;
 }
 
 // Renderauftrag ohne Kundenbezug über den registrierten API-Workflow; FIFO im Backend.
+// parent_media_id: Medium, aus dem dieser Auftrag hervorgeht (Weiterverarbeiten, Wiederholen,
+// Variieren); 0 = neuer Auftrag.
 message Render {
   string workflow = 1;
   repeated ParamValue values = 2;
   repeated InputFile files = 3;
+  uint64 parent_media_id = 4;
 }
 
 // Betreiberentscheidung je Workflow, gespeichert in workflows/manifest.toml.
@@ -82,6 +90,11 @@ message CommandRequest {
   // UUID je Benutzeraktion. Dieselbe ID mit demselben Befehl liefert dieselbe Antwort
   // ohne zweite Ausführung; dieselbe ID mit anderem Befehl wird abgelehnt.
   string request_id = 1;
+  // CAS: Domain-Version, auf der die Bedienung beruht. Workflow-Befehle und Render tragen die
+  // Registry-Version aus Workflows.version; weicht sie ab, wird der Befehl abgelehnt.
+  // 0 bei Befehlen ohne versionierte Domäne (ComfyUI starten/stoppen, Warteschlange, Auftrag
+  // abbrechen, Medien löschen – Medien-IDs sind unveränderlich und werden nie neu vergeben).
+  uint64 expected_version = 2;
   oneof command {
     ComfyStart comfy_start = 10;
     ComfyStop comfy_stop = 11;
@@ -101,11 +114,33 @@ enum CommandStatus {
   COMMAND_STATUS_UNSPECIFIED = 0;
   COMMAND_STATUS_ACCEPTED = 1;
   COMMAND_STATUS_REJECTED = 2;
+  // Nur in CommandReceipt: terminale Ergebnisse.
+  COMMAND_STATUS_COMPLETED = 3;
+  COMMAND_STATUS_FAILED = 4;
+  // Ergebnis nicht feststellbar (z. B. Backend während der Ausführung beendet); kein
+  // automatischer Neuversuch.
+  COMMAND_STATUS_UNKNOWN = 5;
+  COMMAND_STATUS_CANCELLED = 6;
 }
 
+// Sofortige Antwort: ACCEPTED oder REJECTED, nie ein terminales Ergebnis.
 message CommandResponse {
   string request_id = 1;
   CommandStatus status = 2;
   // Ablehnungsgrund für Menschen; leer bei ACCEPTED.
   string detail = 3;
+  // Betroffene oder angelegte Entität, z. B. "job:42" oder "workflow:lustify_sdxl_t2i".
+  string entity = 4;
+}
+
+// EVENT command.receipt: persistierter Lebenszyklus eines Befehls (je Statuswechsel ein Eintrag).
+message CommandReceipt {
+  string request_id = 1;
+  CommandStatus status = 2;
+  // Name des Befehls laut CommandRequest, z. B. "render".
+  string command = 3;
+  string entity = 4;
+  string detail = 5;
+  // Domain-Version nach dem Effekt (0 = keine versionierte Domäne).
+  uint64 version = 6;
 }

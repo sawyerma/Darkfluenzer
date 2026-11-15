@@ -92,12 +92,39 @@ def store_input(cfg: Config, data: bytes, filename: str) -> str:
     return target.relative_to(cfg.local).as_posix()
 
 
+def input_from_media(cfg: Config, media_id: int) -> str:
+    """Vorhandenes Galerie-Medium als Eingabebild: exakt diese Datei (SHA-256 gegen den Index
+    geprüft), inhaltsadressiert unter ``local/evaluation/inputs`` abgelegt wie ein Upload."""
+    store = Store(cfg.local)
+    try:
+        row = store.media_by_id(media_id)
+    finally:
+        store.close()
+    if row is None:
+        raise PipelineError(f"Medium {media_id} ist nicht (mehr) in der Galerie.")
+    if row["kind"] != "image":
+        raise PipelineError(f"Medium {media_id} ist kein Bild.")
+    path = cfg.local / row["path"]
+    data = path.read_bytes() if path.is_file() else b""
+    if hashlib.sha256(data).hexdigest() != row["sha256"]:
+        raise PipelineError(f"Medium {media_id}: Datei fehlt oder wurde verändert.")
+    return store_input(cfg, data, Path(row["path"]).name)
+
+
 def create_render(
-    store: Store, man: Manifest, workflow_key: str, values: dict, inputs: dict
+    store: Store,
+    man: Manifest,
+    workflow_key: str,
+    values: dict,
+    inputs: dict,
+    *,
+    parent_media_id: int | None = None,
+    command: dict | None = None,
 ) -> int:
     """Prüft einen Renderauftrag gegen die Registry und legt ihn als Job (Status queued) an.
 
     ``inputs``: Upload-Parameter -> abgelegte Eingabedatei relativ zu ``local/``.
+    ``command``: auslösender Befehl; Job und Befehlsjournal entstehen im selben Commit.
     """
     wf = man.workflows.get(workflow_key)
     if wf is None:
@@ -110,9 +137,20 @@ def create_render(
         raise PipelineError(f"{', '.join(as_text)}: Datei erwartet.")
     # Typen, Grenzen, Pflichtangaben und unbekannte Namen prüft die Registry-Bindung.
     comfy.apply_params(comfy.load_graph(man, wf), wf, {**values, **inputs})
+    if parent_media_id is not None and store.media_by_id(parent_media_id) is None:
+        raise PipelineError(f"Ausgangsmedium {parent_media_id} ist nicht in der Galerie.")
     seeds = [values["seed"]] if "seed" in values else []
     prompt = str(values.get("prompt", ""))
-    return store.create_job(None, wf.engine, workflow_key, prompt, {**values, **inputs}, seeds)
+    return store.create_job(
+        None,
+        wf.engine,
+        workflow_key,
+        prompt,
+        {**values, **inputs},
+        seeds,
+        parent_media_id=parent_media_id,
+        command=command,
+    )
 
 
 def run_render(
@@ -124,8 +162,10 @@ def run_render(
     is_cancelled: Callable[[], bool] = lambda: False,
 ) -> comfy.RenderResult:
     """Führt einen angelegten Job über den registrierten API-Workflow aus und hält das Ergebnis im
-    Journal fest (``job.completed``). Für maskierte Bearbeitungen wird geprüft, dass außerhalb der
-    Maske kein Pixel vom Master abweicht – sonst Fehler statt stiller Akzeptanz."""
+    Journal fest (``job.completed``). Ein bereits bei ComfyUI eingereichter Job (prompt_id, z. B.
+    vor einem Backend-Neustart) wird nicht erneut eingereicht, sondern abgeholt. Für maskierte
+    Bearbeitungen wird geprüft, dass außerhalb der Maske kein Pixel vom Master abweicht – sonst
+    Fehler statt stiller Akzeptanz."""
     store = Store(cfg.local)
     try:
         job = store.job(job_id)
@@ -140,8 +180,27 @@ def run_render(
                 if n in wf.params and wf.params[n].upload
             }
             values = {n: v for n, v in params.items() if n not in uploads}
-            store.set_job_status(job_id, "running", pid=os.getpid())
-            result, outputs = _render(cfg, man, wf, job_id, values, uploads, timeout_s, client_id)
+            if job["status"] != "running":
+                store.set_job_status(job_id, "running", pid=os.getpid())
+
+            def submitted(prompt_id: str, graph: dict) -> None:
+                api = man.root / "workflows" / wf.api
+                store.set_job_submitted(
+                    job_id, prompt_id, graph, hashlib.sha256(api.read_bytes()).hexdigest()
+                )
+
+            result, outputs = _render(
+                cfg,
+                man,
+                wf,
+                job_id,
+                values,
+                uploads,
+                timeout_s,
+                client_id,
+                resume=job["prompt_id"],
+                on_submit=submitted,
+            )
         except BaseException as exc:
             if is_cancelled():
                 store.set_job_status(
@@ -192,27 +251,47 @@ def _render(
     uploads: dict[str, Path],
     timeout_s: float,
     client_id: str | None = None,
+    *,
+    resume: str | None = None,
+    on_submit: Callable[[str, dict], None] | None = None,
 ) -> tuple[comfy.RenderResult, list[dict]]:
     workflow_key = wf.key
     from . import runtime
 
     runtime.start(cfg)
-    client = comfy.ComfyClient(cfg.comfyui.url)
-    for name, path in uploads.items():
-        values[name] = client.upload_image(path)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     dest = evaluation_dir(cfg, wf.engine)
-    result = comfy.run_workflow(
-        cfg,
-        man,
-        workflow_key,
-        values,
-        dest,
-        stem=f"{workflow_key}_{stamp}",
-        timeout_s=timeout_s,
-        job_id=job_id,
-        client_id=client_id,
-    )
+    if resume:  # vor einem Neustart eingereicht: nur abholen, nie ein zweites Mal rendern
+        if comfy.prompt_state(cfg, resume) == "unknown":
+            raise PipelineError(
+                "Nach dem Neustart ist der Auftrag in ComfyUI nicht mehr vorhanden."
+            )
+        result = comfy.collect_workflow(
+            cfg,
+            man,
+            workflow_key,
+            values,
+            resume,
+            dest,
+            stem=f"{workflow_key}_{stamp}",
+            timeout_s=timeout_s,
+        )
+    else:
+        client = comfy.ComfyClient(cfg.comfyui.url)
+        for name, path in uploads.items():
+            values[name] = client.upload_image(path)
+        result = comfy.run_workflow(
+            cfg,
+            man,
+            workflow_key,
+            values,
+            dest,
+            stem=f"{workflow_key}_{stamp}",
+            timeout_s=timeout_s,
+            job_id=job_id,
+            client_id=client_id,
+            on_submit=on_submit,
+        )
     checks: dict = {}
     if {"image", "mask"} <= set(uploads):
         graph = comfy.load_graph(man, wf)

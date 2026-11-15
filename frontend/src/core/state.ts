@@ -6,6 +6,7 @@ import {
   JobsActiveSchema,
   WorkflowsSchema,
 } from "./generated/darkfluenzer/v1/comfy_pb";
+import { CommandReceiptSchema, type CommandReceipt } from "./generated/darkfluenzer/v1/commands_pb";
 import { MediaItemSchema, MediaRemovedSchema } from "./generated/darkfluenzer/v1/media_pb";
 import {
   Topic,
@@ -24,6 +25,7 @@ const TOPICS = {
   [Topic.JOB_COMPLETED]: { cls: TopicClass.EVENT, schema: JobCompletedSchema },
   [Topic.MEDIA_ADDED]: { cls: TopicClass.EVENT, schema: MediaItemSchema },
   [Topic.MEDIA_REMOVED]: { cls: TopicClass.EVENT, schema: MediaRemovedSchema },
+  [Topic.COMMAND_RECEIPT]: { cls: TopicClass.EVENT, schema: CommandReceiptSchema },
 } as const;
 
 type Topics = typeof TOPICS;
@@ -54,6 +56,13 @@ export interface EventLog<V> {
 const states = new Map<Topic, StateValue<unknown>>();
 const events = new Map<Topic, EventLog<unknown>>();
 const listeners = new Set<() => void>();
+const receiptListeners = new Set<(r: CommandReceipt) => void>();
+
+/** Persistierte Befehls-Receipts (EVENT command.receipt) beobachten; liefert die Abmeldung. */
+export function onReceipt(fn: (r: CommandReceipt) => void): () => void {
+  receiptListeners.add(fn);
+  return () => receiptListeners.delete(fn);
+}
 
 function emit(): void {
   for (const fn of listeners) fn();
@@ -108,6 +117,7 @@ export function applyEvent(e: Event): boolean {
   const item = { cursor: e.cursor, committedMs: Number(e.committedUnixMs), value: decode(local.schema, e.payload) };
   events.set(e.topic, { ...log, items: [...log.items, item], lastCursor: e.cursor });
   emit();
+  if (e.topic === Topic.COMMAND_RECEIPT) for (const fn of receiptListeners) fn(item.value as CommandReceipt);
   return true;
 }
 

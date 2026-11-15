@@ -3,6 +3,10 @@
 STATE: vollständige kleine Projektion je Topic, Ordnung (generation, seq), Push nur bei Änderung.
 EVENT: Ereignisse aus dem SQLite-Journal (Cursor = events.id); Catch-up nach Reconnect, dann live.
 Der Hub kennt keine Fachlogik: Projektionen liefern Payload-Bytes, Journale liefern Zeilen.
+
+Belastung (DF-PUSH): je Client wartet je STATE-Topic höchstens der neueste Frame (Latest-wins);
+EVENT-Frames werden nie verworfen – übersteigt ihr Rückstand die Grenze, wird der Client mit 1013
+getrennt und holt nach dem Reconnect ab seinem Cursor nach (Lücke ehrlich gemeldet).
 """
 
 from __future__ import annotations
@@ -12,6 +16,7 @@ import contextlib
 import hashlib
 import logging
 import time
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -25,6 +30,7 @@ PROTOCOL_MAJOR = 1
 PROTOCOL_MINOR = 0
 HELLO_TIMEOUT_S = 5.0
 CLOSE_POLICY = 1008  # Protokollverletzung: der Client blockiert statt neu zu verbinden
+CLOSE_SLOW = 1013  # Rückstand zu groß: der Client verbindet neu und holt nach
 
 log = logging.getLogger("darkfluenzer.stream")
 
@@ -49,10 +55,26 @@ def schema_id(schemas: Path) -> str:
 @dataclass(eq=False)  # Identität als Schlüssel in der Client-Menge
 class _Client:
     ws: web.WebSocketResponse
-    queue: asyncio.Queue[bytes] = field(default_factory=asyncio.Queue)
+    limit: int
     states: set[int] = field(default_factory=set)
     # EVENT-Topic -> höchster Cursor, den dieser Client bereits hat (Grenze für Live-Push)
     events: dict[int, int] = field(default_factory=dict)
+    # Wartende Frames: je STATE-Topic nur der neueste, Ereignisse/Nachzug in Reihenfolge
+    pending_states: dict[int, bytes] = field(default_factory=dict)
+    frames: deque[bytes] = field(default_factory=deque)
+    wake: asyncio.Event = field(default_factory=asyncio.Event)
+    overflow: bool = False
+
+    def put_state(self, topic: int, data: bytes) -> None:
+        self.pending_states[topic] = data  # Latest-wins: ein älterer, ungesendeter Stand entfällt
+        self.wake.set()
+
+    def put_frame(self, data: bytes) -> None:
+        if len(self.frames) >= self.limit:
+            self.overflow = True  # Ereignisse nie stillschweigend verwerfen: trennen, nachholen
+        else:
+            self.frames.append(data)
+        self.wake.set()
 
 
 @dataclass
@@ -63,11 +85,17 @@ class _EventTopic:
 
 class Hub:
     def __init__(
-        self, schema: str, heartbeat_s: float, catchup_limit: int, head: Callable[[], int]
+        self,
+        schema: str,
+        heartbeat_s: float,
+        catchup_limit: int,
+        head: Callable[[], int],
+        client_queue_max: int,
     ) -> None:
         self.schema = schema
         self.heartbeat_s = heartbeat_s
         self.catchup_limit = catchup_limit
+        self.client_queue_max = client_queue_max
         self._head = head
         self.generation = time.time_ns() // 1_000_000
         self._descriptors: dict[int, pb.TopicDescriptor] = {}
@@ -103,7 +131,7 @@ class Hub:
         data = pb.ServerMessage(state_full=frame).SerializeToString()
         for client in self._clients:
             if topic in client.states:
-                client.queue.put_nowait(data)
+                client.put_state(topic, data)
 
     def push_events(self, topic: int) -> None:
         """Seit dem letzten Aufruf ins Journal geschriebene Ereignisse live verteilen."""
@@ -116,10 +144,10 @@ class Hub:
             if topic not in client.events:
                 continue
             if gap:  # mehr neue Ereignisse als das Limit: Lücke ehrlich melden
-                client.queue.put_nowait(self._catchup_complete(topic, gap=True))
+                client.put_frame(self._catchup_complete(topic, gap=True))
             for row in rows:
                 if row[0] > client.events[topic]:
-                    client.queue.put_nowait(self._event(topic, row))
+                    client.put_frame(self._event(topic, row))
             client.events[topic] = max(client.events[topic], rows[-1][0])
 
     # ------------------------------------------------------------------ Verbindung
@@ -143,7 +171,7 @@ class Hub:
             await ws.close()
             return ws
 
-        client = _Client(ws)
+        client = _Client(ws, limit=self.client_queue_max)
         self._clients.add(client)
         writer = asyncio.create_task(self._write(ws, client))
         try:
@@ -199,34 +227,48 @@ class Hub:
             client.states.add(sub.topic)
             frame = self._states.get(sub.topic)
             if frame is not None:
-                client.queue.put_nowait(pb.ServerMessage(state_full=frame).SerializeToString())
+                client.put_state(sub.topic, pb.ServerMessage(state_full=frame).SerializeToString())
             return True
         # EVENT: Nachzug und Registrierung ohne await dazwischen -> keine Lücke, kein Überholen
         rows, gap = self._events[sub.topic].read(sub.after_cursor, self.catchup_limit)
         for row in rows:
-            client.queue.put_nowait(self._event(sub.topic, row))
+            client.put_frame(self._event(sub.topic, row))
         through = max(self._head(), rows[-1][0] if rows else 0)
-        client.queue.put_nowait(
+        client.put_frame(
             self._catchup_complete(sub.topic, gap=gap and sub.after_cursor > 0, through=through)
         )
         client.events[sub.topic] = through
         return True
 
     async def _write(self, ws: web.WebSocketResponse, client: _Client) -> None:
-        """Einziger Sender je Client: Frames in Einreihungsreihenfolge, Heartbeat bei Ruhe."""
+        """Einziger Sender je Client: neueste STATE-Frames, Ereignisse in Reihenfolge, Heartbeat
+        bei Ruhe. Zu großer Ereignis-Rückstand -> Trennung mit 1013 (Nachholen nach Reconnect)."""
         beat = 0
         while not ws.closed:
+            if client.overflow:
+                log.warning("Client zu langsam (%d Frames offen) – getrennt", len(client.frames))
+                await ws.close(code=CLOSE_SLOW, message=b"Rueckstand zu gross")
+                return
+            batch = list(client.pending_states.values()) + list(client.frames)
+            client.pending_states.clear()
+            client.frames.clear()
+            client.wake.clear()
+            if not batch:
+                try:
+                    await asyncio.wait_for(client.wake.wait(), timeout=self.heartbeat_s)
+                    continue
+                except TimeoutError:
+                    beat += 1
+                    batch = [
+                        pb.ServerMessage(
+                            heartbeat=pb.Heartbeat(
+                                heartbeat_id=beat, server_unix_ms=time.time_ns() // 1_000_000
+                            )
+                        ).SerializeToString()
+                    ]
             try:
-                data = await asyncio.wait_for(client.queue.get(), timeout=self.heartbeat_s)
-            except TimeoutError:
-                beat += 1
-                data = pb.ServerMessage(
-                    heartbeat=pb.Heartbeat(
-                        heartbeat_id=beat, server_unix_ms=time.time_ns() // 1_000_000
-                    )
-                ).SerializeToString()
-            try:
-                await ws.send_bytes(data)
+                for data in batch:
+                    await ws.send_bytes(data)
             except ConnectionError:
                 return
 

@@ -49,6 +49,7 @@ class ServerConfig:
     timeout_s: float
     max_upload_mb: float
     media_settle_s: float
+    client_queue_max: int
 
     @property
     def url(self) -> str:
@@ -185,6 +186,7 @@ def _parse_server(t: dict) -> ServerConfig:
         timeout_s=_positive(t, "timeout_s", 20, w),
         max_upload_mb=_positive(t, "max_upload_mb", 50, w),
         media_settle_s=_positive(t, "media_settle_s", 10, w),
+        client_queue_max=int(_positive(t, "client_queue_max", 2000, w)),
     )
 
 

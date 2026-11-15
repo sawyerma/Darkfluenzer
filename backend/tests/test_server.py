@@ -124,24 +124,76 @@ def test_media_only_indexed_files_with_session_page_and_download(cfg):
     _run(cfg, scenario)
 
 
-def test_command_is_idempotent_per_request_id(cfg):
-    async def scenario(client, app, origin):
+async def _next_event(ws) -> pb.Event:
+    frame = await _frame(ws)
+    while frame.WhichOneof("msg") != "event":
+        frame = await _frame(ws)
+    return frame.event
+
+
+def test_command_journal_cas_receipts_and_restart(cfg):
+    """Befehlsjournal in SQLite: CAS gegen die Registry-Version, Receipts ACCEPTED -> COMPLETED
+    mit neuer Version, Idempotenz auch über einen Neustart (keine zweite Ausführung)."""
+    t2i = "lustify_sdxl_t2i"
+    rid = str(uuid.uuid4())
+    seen: dict = {}
+
+    async def first(client, app, origin):
         csrf = await _csrf(client)
-        rid = str(uuid.uuid4())
-        stop = commands_pb2.CommandRequest(request_id=rid, comfy_stop=commands_pb2.ComfyStop())
-        status, first = await _post(client, origin, csrf, stop)
-        assert status == 200
-        resp = commands_pb2.CommandResponse.FromString(first)
-        assert resp.status == commands_pb2.COMMAND_STATUS_ACCEPTED
-        assert (await _post(client, origin, csrf, stop))[1] == first  # keine zweite Ausführung
+        version = app[server.COCKPIT_KEY]._registry_version
+        off = commands_pb2.SetWorkflowEnabled(workflow=t2i, enabled=False)
+        stale = commands_pb2.CommandRequest(
+            request_id=str(uuid.uuid4()), expected_version=version + 1, set_workflow_enabled=off
+        )
+        refused = commands_pb2.CommandResponse.FromString(
+            (await _post(client, origin, csrf, stale))[1]
+        )
+        assert (
+            refused.status == commands_pb2.COMMAND_STATUS_REJECTED and "geändert" in refused.detail
+        )
+        assert models.load_manifest(cfg.root).workflows[t2i].enabled is True
+
+        ws = await _stream_after_catchup(client, app, origin, pb.TOPIC_COMMAND_RECEIPT)
+        req = commands_pb2.CommandRequest(
+            request_id=rid, expected_version=version, set_workflow_enabled=off
+        )
+        status, body = await _post(client, origin, csrf, req)
+        answer = commands_pb2.CommandResponse.FromString(body)
+        assert status == 200 and answer.status == commands_pb2.COMMAND_STATUS_ACCEPTED
+        assert answer.entity == f"workflow:{t2i}"
+        receipts = [
+            commands_pb2.CommandReceipt.FromString((await _next_event(ws)).payload)
+            for _ in range(2)
+        ]
+        assert [r.status for r in receipts] == [
+            commands_pb2.COMMAND_STATUS_ACCEPTED,
+            commands_pb2.COMMAND_STATUS_COMPLETED,
+        ]
+        assert receipts[1].request_id == rid and receipts[1].version == version + 1
+        assert models.load_manifest(cfg.root).workflows[t2i].enabled is False
+        await ws.close()
         start = commands_pb2.CommandRequest(request_id=rid, comfy_start=commands_pb2.ComfyStart())
         reused = commands_pb2.CommandResponse.FromString(
             (await _post(client, origin, csrf, start))[1]
         )
-        assert reused.status == commands_pb2.COMMAND_STATUS_REJECTED
-        assert "request_id" in reused.detail
+        assert (
+            reused.status == commands_pb2.COMMAND_STATUS_REJECTED and "request_id" in reused.detail
+        )
+        seen.update(req=req, body=body)
 
-    _run(cfg, scenario)
+    _run(cfg, first)  # danach setzt _run die Registry zurück (Workflow wieder aktiviert)
+    store = Store(cfg.local)  # ein beim Beenden offener ComfyUI-Start: Ergebnis unbekannt
+    interrupted = str(uuid.uuid4())
+    store.record_command(interrupted, "0" * 64, "comfy_start", "accepted")
+    store.close()
+
+    async def again(client, app, origin):  # neuer Server, dieselbe Datenbank
+        csrf = await _csrf(client)
+        assert (await _post(client, origin, csrf, seen["req"]))[1] == seen["body"]
+        assert models.load_manifest(cfg.root).workflows[t2i].enabled is True  # nicht erneut
+        assert app[server.COCKPIT_KEY].store.command(interrupted)["status"] == "unknown"
+
+    _run(cfg, again)
 
 
 def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
@@ -181,6 +233,7 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
             (pb.TOPIC_JOB_COMPLETED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_MEDIA_ADDED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_MEDIA_REMOVED, pb.TOPIC_CLASS_EVENT),
+            (pb.TOPIC_COMMAND_RECEIPT, pb.TOPIC_CLASS_EVENT),
         }
 
         sub = pb.Subscribe(topic=pb.TOPIC_COMFY_STATUS)
@@ -235,15 +288,18 @@ def test_workflow_commands_enable_render_fifo_and_delete(cfg):
             fh.truncate(mf.size)
     t2i = "lustify_sdxl_t2i"
 
-    def cmd(**kw):
-        return commands_pb2.CommandRequest(request_id=str(uuid.uuid4()), **kw)
-
-    def render():
-        prompt = commands_pb2.ParamValue(name="prompt", text="studio portrait, adult woman")
-        return cmd(render=commands_pb2.Render(workflow=t2i, values=[prompt]))
-
     async def scenario(client, app, origin):
         csrf = await _csrf(client)
+        cockpit = app[server.COCKPIT_KEY]
+
+        def cmd(**kw):  # Registry-Befehle tragen die gesehene Registry-Version (CAS)
+            return commands_pb2.CommandRequest(
+                request_id=str(uuid.uuid4()), expected_version=cockpit._registry_version, **kw
+            )
+
+        def render():
+            prompt = commands_pb2.ParamValue(name="prompt", text="studio portrait, adult woman")
+            return cmd(render=commands_pb2.Render(workflow=t2i, values=[prompt]))
 
         async def answer(req):
             status, body = await _post(client, origin, csrf, req)
@@ -320,3 +376,17 @@ def test_workflow_commands_enable_render_fifo_and_delete(cfg):
         _run(cfg, scenario)
     finally:
         runtime.stop(cfg)
+
+
+def test_client_queue_keeps_latest_state_and_never_drops_events():
+    from darkfluenzer.stream import _Client
+
+    client = _Client(ws=None, limit=2)
+    client.put_state(1, b"alt")
+    client.put_state(1, b"neu")
+    assert client.pending_states == {1: b"neu"}  # Latest-wins je STATE-Topic
+    client.put_frame(b"e1")
+    client.put_frame(b"e2")
+    assert not client.overflow
+    client.put_frame(b"e3")  # über der Grenze: nicht verwerfen, sondern trennen und nachholen
+    assert client.overflow and list(client.frames) == [b"e1", b"e2"]

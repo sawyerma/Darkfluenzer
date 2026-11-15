@@ -9,7 +9,7 @@ import {
   type WorkflowParam,
 } from "../core/generated/darkfluenzer/v1/comfy_pb";
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
-import { fetchMediaFile, mediaUrl } from "../core/media";
+import { mediaUrl } from "../core/media";
 import { useConnection } from "../core/realtime";
 import { type MediaItem } from "../core/generated/darkfluenzer/v1/media_pb";
 import { useEventTopic, useStateTopic, type StateValue } from "../core/state";
@@ -77,8 +77,8 @@ function defaultText(p: WorkflowParam): string {
   return p.default.case === undefined ? "" : String(p.default.value);
 }
 
-function validate(p: WorkflowParam, raw: string, file: File | undefined): string {
-  if (p.upload) return p.required && !file ? "Datei wählen" : "";
+function validate(p: WorkflowParam, raw: string, chosen: boolean): string {
+  if (p.upload) return p.required && !chosen ? "Datei wählen" : "";
   if (raw.trim() === "") return "Darf nicht leer sein";
   if (p.choices.length > 0) return p.choices.includes(raw) ? "" : "Ungültige Auswahl";
   if (p.type === "str") return "";
@@ -166,11 +166,13 @@ function Instance({ comfy, live }: { comfy: StateValue<ComfyStatus> | undefined;
 
 function WorkflowDetail({
   wf,
+  version,
   live,
   comfyUrl,
   draft,
 }: {
   wf: WorkflowInfo;
+  version: bigint; // Registry-Version (CAS) der angezeigten Workflow-Liste
   live: boolean;
   comfyUrl: string;
   draft?: Record<string, string>;
@@ -188,13 +190,14 @@ function WorkflowDetail({
     if (draft) top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [draft]);
   const [files, setFiles] = useState<Record<string, File | undefined>>({});
-  // Eingabebild aus der Galerie: dieselbe Datei wie beim Hochladen, Herkunft sichtbar
+  // Eingabebild aus der Galerie: exakt dieses Medium über seine ID (Backend prüft den SHA-256)
   const [picked, setPicked] = useState<Record<string, MediaItem | undefined>>({});
   const [picking, setPicking] = useState<WorkflowParam | null>(null);
-  const [pickError, setPickError] = useState("");
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const [checked, setChecked] = useState(false);
-  const errors = Object.fromEntries(wf.params.map((p) => [p.name, validate(p, raw[p.name] ?? "", files[p.name])]));
+  const errors = Object.fromEntries(
+    wf.params.map((p) => [p.name, validate(p, raw[p.name] ?? "", Boolean(files[p.name] || picked[p.name]))]),
+  );
   const blocked = !wf.enabled
     ? "Deaktiviert"
     : wf.status === "GESPERRT"
@@ -221,39 +224,33 @@ function WorkflowDetail({
       });
     const inputs = await Promise.all(
       wf.params
-        .filter((p) => p.upload && files[p.name])
+        .filter((p) => p.upload && (files[p.name] || picked[p.name]))
         .map(async (p) => {
+          const item = picked[p.name];
+          if (item) return { param: p.name, filename: item.path.split("/").pop() ?? "", mediaId: item.mediaId };
           const file = files[p.name]!;
           return { param: p.name, filename: file.name, data: new Uint8Array(await file.arrayBuffer()) };
         }),
     );
-    if (await cmd.run({ case: "render", value: { workflow: wf.key, values, files: inputs } }, "Eingereiht.")) {
-      setChecked(false);
-    }
+    const parentMediaId = picked.image?.mediaId ?? 0n;
+    const done = await cmd.run(
+      { case: "render", value: { workflow: wf.key, values, files: inputs, parentMediaId } },
+      { version, acceptedOnly: true, done: "Eingereiht." },
+    );
+    if (done) setChecked(false);
   }
 
-  async function pick(param: string, item: MediaItem) {
-    setPickError("");
-    try {
-      const file = await fetchMediaFile(item);
-      const input = fileInputs.current[param];
-      if (input) {
-        // Dateifeld zeigt die gewählte Datei wie nach eigener Auswahl
-        const transfer = new DataTransfer();
-        transfer.items.add(file);
-        input.files = transfer.files;
-      }
-      setFiles((f) => ({ ...f, [param]: file }));
-      setPicked((p) => ({ ...p, [param]: item }));
-    } catch (e) {
-      setPickError(e instanceof Error ? e.message : String(e));
-    }
+  function pick(param: string, item: MediaItem) {
+    const input = fileInputs.current[param];
+    if (input) input.value = ""; // Galerie-Medium ersetzt eine lokal gewählte Datei
+    setFiles((f) => ({ ...f, [param]: undefined }));
+    setPicked((p) => ({ ...p, [param]: item }));
   }
 
   async function openInEditor() {
     // Tab sofort im Klick öffnen (sonst blockiert der Browser), Ziel erst nach Freigabe setzen.
     const tab = window.open("", "darkfluenzer-comfyui");
-    if (await cmd.run({ case: "openWorkflow", value: { workflow: wf.key } })) {
+    if (await cmd.run({ case: "openWorkflow", value: { workflow: wf.key } }, { version })) {
       if (tab) tab.location.href = `${comfyUrl}/?workflows=${encodeURIComponent(wf.key)}`;
     } else {
       tab?.close();
@@ -273,7 +270,9 @@ function WorkflowDetail({
             role="switch"
             checked={wf.enabled}
             disabled={!live || cmd.pending}
-            onChange={(e) => cmd.run({ case: "setWorkflowEnabled", value: { workflow: wf.key, enabled: e.target.checked } })}
+            onChange={(e) =>
+              cmd.run({ case: "setWorkflowEnabled", value: { workflow: wf.key, enabled: e.target.checked } }, { version })
+            }
           />
           Aktiviert
         </label>
@@ -297,7 +296,7 @@ function WorkflowDetail({
             type="button"
             className="g-button"
             disabled={!live || !comfyUrl || cmd.pending}
-            onClick={() => cmd.run({ case: "adoptWorkflow", value: { workflow: wf.key } }, "Übernommen.")}
+            onClick={() => cmd.run({ case: "adoptWorkflow", value: { workflow: wf.key } }, { version, done: "Übernommen." })}
           >
             Änderung übernehmen
           </button>
@@ -370,11 +369,6 @@ function WorkflowDetail({
             </div>
           );
         })}
-        {pickError ? (
-          <p className="g-note g-wide" role="alert">
-            {pickError}
-          </p>
-        ) : null}
         <div className="g-actions g-wide">
           <button type="submit" className="g-button g-primary" disabled={!live || Boolean(blocked) || cmd.pending}>
             Generieren
@@ -393,7 +387,7 @@ function WorkflowDetail({
       {picking ? (
         <MediaPicker
           title={`${paramLabel(picking, wf.kind)} aus Dateien`}
-          onPick={(item) => void pick(picking.name, item)}
+          onPick={(item) => pick(picking.name, item)}
           onClose={() => setPicking(null)}
         />
       ) : null}
@@ -412,7 +406,7 @@ function WorkflowDetail({
             className="g-button g-danger"
             onClick={() => {
               dialog.current?.close();
-              void cmd.run({ case: "deleteWorkflow", value: { workflow: wf.key } });
+              void cmd.run({ case: "deleteWorkflow", value: { workflow: wf.key } }, { version });
             }}
           >
             Löschen
@@ -612,7 +606,9 @@ function Results({ onLoad, canLoad }: { onLoad: LoadDraft; canLoad: (key: string
 
 export function ComfyUI() {
   const comfy = useStateTopic(Topic.COMFY_STATUS);
-  const workflows = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
+  const registry = useStateTopic(Topic.COMFY_WORKFLOWS)?.value;
+  const workflows = registry?.workflows ?? [];
+  const version = registry?.version ?? 0n;
   const connection = useConnection();
   const [kind, setKind] = useState<Kind>("image");
   const [selected, setSelected] = useState<Record<Kind, string>>({ image: "", video: "" });
@@ -656,7 +652,7 @@ export function ComfyUI() {
 
   async function submitCreate(e: FormEvent) {
     e.preventDefault();
-    if (await create.run({ case: "createWorkflow", value: { source, title: title.trim() } })) {
+    if (await create.run({ case: "createWorkflow", value: { source, title: title.trim() } }, { version })) {
       setCreated(title.trim());
       dialog.current?.close();
     }
@@ -701,6 +697,7 @@ export function ComfyUI() {
           <WorkflowDetail
             key={`${current.key}-${draft?.key === current.key ? draft.n : 0}`}
             wf={current}
+            version={version}
             live={live}
             comfyUrl={comfyUrl}
             draft={draft?.key === current.key ? draft.params : undefined}

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -236,6 +236,41 @@ BEGIN SELECT RAISE(ABORT, 'media: unveränderlich'); END;
 DROP TRIGGER media_no_delete;
 CREATE TRIGGER media_order_no_delete BEFORE DELETE ON media WHEN OLD.order_id IS NOT NULL
 BEGIN SELECT RAISE(ABORT, 'media: Kundenmedien unveränderlich'); END;
+""",
+    4: """
+-- Befehlsjournal (DF-PUSH): Idempotenz je request_id über Neustarts, Lebenszyklus als Receipt
+CREATE TABLE commands (
+    request_id  TEXT    PRIMARY KEY,
+    payload_sha TEXT    NOT NULL CHECK (length(payload_sha) = 64),
+    command     TEXT    NOT NULL,
+    entity      TEXT    NOT NULL DEFAULT '',
+    status      TEXT    NOT NULL CHECK (status IN
+                ('accepted', 'rejected', 'completed', 'failed', 'unknown', 'cancelled')),
+    detail      TEXT    NOT NULL DEFAULT '',
+    version     INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT    NOT NULL,
+    updated_at  TEXT    NOT NULL
+);
+-- Terminale Ergebnisse sind endgültig
+CREATE TRIGGER commands_final BEFORE UPDATE OF status ON commands
+WHEN OLD.status != 'accepted'
+BEGIN SELECT RAISE(ABORT, 'command: Ergebnis bereits endgültig'); END;
+
+-- Fachliche Domain-Versionen; steigen nach jedem Commit der Domäne (fingerprint: Registry-Hash)
+CREATE TABLE domain_versions (
+    domain      TEXT    PRIMARY KEY,
+    version     INTEGER NOT NULL,
+    fingerprint TEXT    NOT NULL DEFAULT ''
+);
+
+-- Herkunft je Job: auslösender Befehl, Eltern-Medium (IDs werden nie neu vergeben, daher ohne
+-- Fremdschlüssel), Workflow-Datei-Hash, exakt eingereichter API-Graph und ComfyUI-prompt_id
+ALTER TABLE jobs ADD COLUMN request_id TEXT;
+ALTER TABLE jobs ADD COLUMN parent_media_id INTEGER;
+ALTER TABLE jobs ADD COLUMN workflow_sha256 TEXT;
+ALTER TABLE jobs ADD COLUMN graph TEXT;
+ALTER TABLE jobs ADD COLUMN prompt_id TEXT;
+CREATE UNIQUE INDEX jobs_request ON jobs(request_id) WHERE request_id IS NOT NULL;
 """,
 }
 # Artefaktrollen, die in die Galerie gehören (Eingaben, Masken, Vorschauen nicht)
@@ -534,35 +569,100 @@ class Store:
         prompt: str,
         params: dict,
         seeds: list,
+        *,
+        parent_media_id: int | None = None,
+        command: dict | None = None,
     ) -> int:
-        """Job anlegen; ``order_no=None`` für Renderungen ohne Kundenbezug (Evaluation)."""
+        """Job anlegen; ``order_no=None`` für Renderungen ohne Kundenbezug (Evaluation).
+        ``command``: auslösender Befehl (``record_command``-Argumente) – Job und Befehlsjournal
+        entstehen in EINEM Commit, damit eine Wiederholung nie einen zweiten Job erzeugt."""
         with self.tx() as db:
             order_id = self.order(order_no).id if order_no else None
             ts = now()
             cur = db.execute(
                 "INSERT INTO jobs (order_id, engine, workflow, prompt, params, seeds, created_at,"
-                " updated_at) VALUES (?,?,?,?,?,?,?,?)",
-                (order_id, engine, workflow, prompt, json.dumps(params), json.dumps(seeds), ts, ts),
+                " updated_at, parent_media_id, request_id) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (
+                    order_id,
+                    engine,
+                    workflow,
+                    prompt,
+                    json.dumps(params),
+                    json.dumps(seeds),
+                    ts,
+                    ts,
+                    parent_media_id,
+                    command["request_id"] if command else None,
+                ),
             )
-            self._event("job", cur.lastrowid, "created", order_no=order_no, workflow=workflow)
-            return cur.lastrowid
+            job_id = cur.lastrowid
+            self._event("job", job_id, "created", order_no=order_no, workflow=workflow)
+            self.bump("jobs")
+            if command:
+                self.record_command(**command, entity=f"job:{job_id}")
+            return job_id
 
     def set_job_status(
         self, job_id: int, status: str, error: str | None = None, **result: object
     ) -> None:
-        """Statuswechsel mit Journal-Ereignis; der Abschluss (done/failed) trägt das Ergebnis."""
+        """Statuswechsel mit Journal-Ereignis; der Abschluss (done/failed) trägt das Ergebnis und
+        beendet im selben Commit den auslösenden Befehl (Receipt)."""
         with self.tx() as db:
             db.execute(
                 "UPDATE jobs SET status = ?, error = ?, updated_at = ? WHERE id = ?",
                 (status, error, now(), job_id),
             )
             self._event("job", job_id, "status", status=status, error=error, **result)
+            self.bump("jobs")
+            if status in ("done", "failed"):
+                rid = db.execute("SELECT request_id FROM jobs WHERE id = ?", (job_id,)).fetchone()
+                if rid and rid[0]:
+                    final = (
+                        "completed"
+                        if status == "done"
+                        else "cancelled"
+                        if result.get("cancelled")
+                        else "failed"
+                    )
+                    self.finish_command(rid[0], final, detail=error or "")
+
+    def set_job_submitted(
+        self, job_id: int, prompt_id: str, graph: dict, workflow_sha: str
+    ) -> None:
+        """Bei ComfyUI eingereicht: exakter API-Graph, Workflow-Hash und prompt_id (Wiederanlauf
+        und Reproduzierbarkeit)."""
+        with self.tx() as db:
+            db.execute(
+                "UPDATE jobs SET prompt_id = ?, graph = ?, workflow_sha256 = ?, updated_at = ?"
+                " WHERE id = ?",
+                (prompt_id, json.dumps(graph, ensure_ascii=False), workflow_sha, now(), job_id),
+            )
+            self._event("job", job_id, "submitted", prompt_id=prompt_id)
+
+    def requeue_job(self, job_id: int) -> None:
+        """Nie bei ComfyUI eingereichter, unterbrochener Job läuft nach dem Neustart erneut."""
+        with self.tx() as db:
+            cur = db.execute(
+                "UPDATE jobs SET status = 'queued', updated_at = ? WHERE id = ?"
+                " AND status = 'running' AND prompt_id IS NULL",
+                (now(), job_id),
+            )
+            if cur.rowcount:
+                self._event("job", job_id, "status", status="queued", error=None, requeued=True)
+                self.bump("jobs")
 
     def job(self, job_id: int) -> dict:
         row = self.db.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
         if row is None:
             raise StoreError(f"Job {job_id} ist unbekannt.")
-        return dict(row) | {"params": json.loads(row["params"]), "seeds": json.loads(row["seeds"])}
+        return dict(row) | {
+            "params": json.loads(row["params"]),
+            "seeds": json.loads(row["seeds"]),
+            "graph": json.loads(row["graph"]) if row["graph"] else None,
+        }
+
+    def running_job_ids(self) -> list[int]:
+        return [r[0] for r in self.db.execute("SELECT id FROM jobs WHERE status = 'running'")]
 
     def queued_jobs(self) -> list[tuple[int, str]]:
         """Angelegte, noch nicht gestartete Jobs in Eingangsreihenfolge (FIFO): (ID, Workflow)."""
@@ -604,6 +704,127 @@ class Store:
             for r in rows[:limit]
         ]
         return recent[::-1], len(rows) > limit
+
+    # ------------------------------------------------------------------ Befehle (DF-PUSH)
+
+    def command(self, request_id: str) -> dict | None:
+        row = self.db.execute("SELECT * FROM commands WHERE request_id = ?", (request_id,))
+        found = row.fetchone()
+        return dict(found) if found else None
+
+    def record_command(
+        self,
+        request_id: str,
+        payload_sha: str,
+        command: str,
+        status: str,
+        *,
+        entity: str = "",
+        detail: str = "",
+        version: int = 0,
+    ) -> None:
+        """Befehl genau einmal festhalten (PRIMARY KEY request_id) samt erster Receipt; die
+        Antwort auf eine Wiederholung derselben request_id ergibt sich aus diesem Eintrag."""
+        with self.tx() as db:
+            ts = now()
+            cur = db.execute(
+                "INSERT INTO commands (request_id, payload_sha, command, entity, status, detail,"
+                " version, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                (request_id, payload_sha, command, entity, status, detail, version, ts, ts),
+            )
+            self._receipt(cur.lastrowid, request_id, command, status, entity, detail, version)
+
+    def finish_command(
+        self, request_id: str, status: str, *, detail: str = "", version: int | None = None
+    ) -> bool:
+        """Terminales Ergebnis eines angenommenen Befehls; bereits beendete bleiben unverändert."""
+        with self.tx() as db:
+            row = db.execute(
+                "SELECT rowid, * FROM commands WHERE request_id = ?", (request_id,)
+            ).fetchone()
+            if row is None or row["status"] != "accepted":
+                return False
+            final_version = row["version"] if version is None else version
+            db.execute(
+                "UPDATE commands SET status = ?, detail = ?, version = ?, updated_at = ?"
+                " WHERE request_id = ?",
+                (status, detail, final_version, now(), request_id),
+            )
+            self._receipt(
+                row["rowid"],
+                request_id,
+                row["command"],
+                status,
+                row["entity"],
+                detail,
+                final_version,
+            )
+            return True
+
+    def _receipt(
+        self,
+        rowid: int,
+        request_id: str,
+        command: str,
+        status: str,
+        entity: str,
+        detail: str,
+        version: int,
+    ) -> None:
+        self._event(
+            "command",
+            rowid,
+            "receipt",
+            request_id=request_id,
+            command=command,
+            status=status,
+            target=entity,
+            detail=detail,
+            version=version,
+        )
+
+    def open_commands(self) -> list[dict]:
+        """Angenommene, noch nicht beendete Befehle (nach einem Neustart zu klären)."""
+        return [
+            dict(r) for r in self.db.execute("SELECT * FROM commands WHERE status = 'accepted'")
+        ]
+
+    def receipts(self, after: int, limit: int) -> tuple[list[dict], bool]:
+        """Receipts aus dem Journal mit Cursor > ``after`` (neueste ``limit``, aufsteigend)."""
+        rows = self.db.execute(
+            "SELECT id AS cursor, created_at AS committed_at, data FROM events"
+            " WHERE entity = 'command' AND event = 'receipt' AND id > ? ORDER BY id DESC LIMIT ?",
+            (after, limit + 1),
+        ).fetchall()
+        recent = []
+        for r in rows[:limit]:
+            data = json.loads(r["data"])
+            data["entity"] = data.pop("target")
+            recent.append({"cursor": r["cursor"], "committed_at": r["committed_at"]} | data)
+        return recent[::-1], len(rows) > limit
+
+    def domain_version(self, domain: str) -> int:
+        row = self.db.execute("SELECT version FROM domain_versions WHERE domain = ?", (domain,))
+        found = row.fetchone()
+        return found[0] if found else 0
+
+    def bump(self, domain: str, fingerprint: str | None = None) -> int:
+        """Domain-Version nach einer Änderung erhöhen (im Commit der Änderung). Mit
+        ``fingerprint`` nur, wenn er sich vom gespeicherten unterscheidet (z. B. Registry-Hash)."""
+        with self.tx() as db:
+            row = db.execute(
+                "SELECT version, fingerprint FROM domain_versions WHERE domain = ?", (domain,)
+            ).fetchone()
+            if row and fingerprint is not None and row["fingerprint"] == fingerprint:
+                return row["version"]
+            version = (row["version"] if row else 0) + 1
+            db.execute(
+                "INSERT INTO domain_versions (domain, version, fingerprint) VALUES (?,?,?)"
+                " ON CONFLICT(domain) DO UPDATE SET version = excluded.version,"
+                " fingerprint = coalesce(?, domain_versions.fingerprint)",
+                (domain, version, fingerprint or "", fingerprint),
+            )
+            return version
 
     # ------------------------------------------------------------------ Medienindex
 
@@ -664,6 +885,7 @@ class Store:
                 ),
             )
             self._event("media", media_id, "added", path=rel)
+            self.bump("media")
             return media_id
 
     def remove_media(self, ids: list[int]) -> list[dict]:
@@ -681,6 +903,8 @@ class Store:
             for r in rows:
                 db.execute("DELETE FROM media WHERE id = ?", (r["id"],))
                 self._event("media", r["id"], "removed", path=r["path"], number=r["number"])
+            if rows:
+                self.bump("media")
         return rows
 
     _MEDIA_SELECT = (
@@ -734,6 +958,10 @@ class Store:
 
     def media_by_path(self, rel: str) -> dict | None:
         row = self.db.execute("SELECT * FROM media WHERE path = ?", (rel,)).fetchone()
+        return dict(row) if row else None
+
+    def media_by_id(self, media_id: int) -> dict | None:
+        row = self.db.execute("SELECT * FROM media WHERE id = ?", (media_id,)).fetchone()
         return dict(row) if row else None
 
     def media_paths(self) -> set[str]:

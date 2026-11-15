@@ -16,6 +16,7 @@ enum Topic {
   TOPIC_JOB_COMPLETED = 20; // EVENT darkfluenzer.v1.JobCompleted
   TOPIC_MEDIA_ADDED = 21; // EVENT darkfluenzer.v1.MediaItem
   TOPIC_MEDIA_REMOVED = 22; // EVENT darkfluenzer.v1.MediaRemoved
+  TOPIC_COMMAND_RECEIPT = 29; // EVENT darkfluenzer.v1.CommandReceipt
 }
 
 enum TopicClass {

@@ -295,3 +295,30 @@ def test_media_index_migrates_v1_dedupes_numbers_and_customer_names(tmp_path):
         assert not gap and s.removed_media_paths() == {"evaluation/x/c.png"}
     finally:
         s.close()
+
+
+def test_job_ends_its_command_and_only_unsubmitted_jobs_are_requeued(tmp_path):
+    store = Store(tmp_path)
+    rid = "6f1c2c8e-0d1e-4f5a-9b7c-3a2d1e0f9a8b"
+    command = {
+        "request_id": rid,
+        "payload_sha": "0" * 64,
+        "command": "render",
+        "status": "accepted",
+    }
+    job = store.create_job(None, "eng", "wf", "p", {"seed": 1}, [1], command=command)
+    assert store.command(rid)["entity"] == f"job:{job}"
+    store.set_job_status(job, "running", pid=1)
+    store.requeue_job(job)  # nie eingereicht: läuft nach dem Neustart erneut
+    assert store.job(job)["status"] == "queued"
+    store.set_job_status(job, "running", pid=1)
+    store.set_job_submitted(job, "prompt-1", {"1": {"class_type": "X", "inputs": {}}}, "a" * 64)
+    store.requeue_job(job)  # eingereicht: wird abgeholt, nie zweimal gerendert
+    assert store.job(job)["status"] == "running" and store.job(job)["prompt_id"] == "prompt-1"
+    store.set_job_status(job, "failed", error="abgebrochen", cancelled=True)
+    assert store.command(rid)["status"] == "cancelled"
+    assert [r["status"] for r in store.receipts(0, 10)[0]] == ["accepted", "cancelled"]
+    assert store.finish_command(rid, "completed") is False  # terminal bleibt terminal
+    with pytest.raises(sqlite3.IntegrityError):
+        store.db.execute("UPDATE commands SET status = 'completed' WHERE request_id = ?", (rid,))
+    store.close()
