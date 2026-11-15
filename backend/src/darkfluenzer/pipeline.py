@@ -181,6 +181,8 @@ def create_order(
     finish_workflow: str = "",
     parent_media_id: int | None = None,
     command: dict | None = None,
+    source: str = "operator",
+    origin: int | None = None,
 ) -> tuple[str, list[int]]:
     """Auftrag des Betreibers: Stufe 1 rendert ``count`` Kandidaten mit fortlaufenden Seeds und
     wartet dann auf die Auswahl; optional wird der ausgewählte Kandidat mit ``finish_workflow``
@@ -203,10 +205,10 @@ def create_order(
     graph = comfy.load_graph(man, wf)
     base = int(values.get("seed", graph[seed.node]["inputs"][seed.input])) if seed else 0
     top = int(seed.max) if seed and seed.max is not None else 2**32 - 1
-    params = {"values": values, "inputs": inputs, "finish": finish_workflow}
+    params = {"values": values, "inputs": inputs, "finish": finish_workflow, "origin": origin}
     with store.tx():
         order = store.create_production_order(
-            "operator", man.engines[wf.engine].kind, str(values.get("prompt", "")) or wf.title
+            source, man.engines[wf.engine].kind, str(values.get("prompt", "")) or wf.title
         )
         stage = store.add_stage(order.id, "candidates", workflow_key, params, count)
         jobs = [

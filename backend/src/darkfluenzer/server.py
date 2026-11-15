@@ -23,7 +23,7 @@ from pathlib import Path
 from aiohttp import web
 from google.protobuf.message import DecodeError
 
-from . import comfy, models, pipeline, runtime, training
+from . import cloner, comfy, models, pipeline, runtime, training
 from .channels.telegram import TelegramAdapter
 from .config import ComfyConfig, Config
 from .store import Store, StoreError
@@ -245,6 +245,8 @@ class Cockpit:
                 log.error("Renderjob %s fehlgeschlagen: %s", job_id, exc)
             lane.engine, lane.running_job = lane.engine if modelfree else engine, 0
             pipeline.advance_order(self.store, job_id)  # Stufe vollständig? (SQLite im Loop)
+            if (stage_id := self.store.job(job_id).get("stage_id")) is not None:
+                self._cloner_delivery(self.store.stage(stage_id).order_id)
             self._orders_changed()
             self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
             self.hub.push_events(spb.TOPIC_MEDIA_ADDED)
@@ -800,6 +802,8 @@ class Cockpit:
         )
         call.recorded = True
         log.info("Auftrag %s: Medium %s ausgewählt", msg.order_no, msg.media_id)
+        if not jobs:  # ohne Fertigstellen: das Gewählte geht ggf. an den Default-Nutzer
+            self._cloner_delivery(self.store.order(msg.order_no).id, selected=msg.media_id)
         self._enqueue(jobs)
         self._orders_changed()
         return ""
@@ -841,8 +845,135 @@ class Cockpit:
         self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)
 
     async def _on_inbound(self, inbound) -> None:
-        """Neue Nachricht gespeichert: Cockpit per Push aktualisieren. (Kloner-Weiche C3.)"""
+        """Neue Nachricht gespeichert: Cockpit per Push aktualisieren; Nachrichten des Default-
+        Kontakts gehen vor jeder Kundenverarbeitung durch die Kloner-Weiche (V0 §8)."""
         self._message_changed(inbound.message_id or 0)
+        if inbound.customer.kind == "internal" and inbound.message_id:
+            try:
+                await self._cloner(inbound)
+            except (pipeline.PipelineError, comfy.ComfyError, StoreError) as exc:
+                self.store.add_system_card(inbound.conversation_id, f"Auftrag nicht möglich: {exc}")
+                self._message_changed(0)
+
+    def _reply_internal(self, conversation_id: int, text: str, files: list[str] = ()) -> None:
+        """Rückfrage bzw. Ergebnis an den Default-Nutzer in denselben Chat (Postausgang)."""
+        default = self.store.default_contact()
+        attachments = [{"kind": "document", "path": f, "status": "saved"} for f in files]
+        message_id = self.store.queue_outbound(
+            default["customer_id"],
+            conversation_id,
+            text,
+            revision=self.store.conversation_revision(conversation_id),
+            attachments=attachments,
+        )
+        if self.telegram:
+            self.telegram.wake.set()
+        self._message_changed(message_id)
+
+    async def _cloner(self, inbound) -> None:
+        default = self.store.default_contact()
+        if not default["process_commands"]:
+            return  # nur anzeigen
+        msg = self.store.message(inbound.message_id)
+        parsed = cloner.parse(msg["text"])
+        if parsed is None:
+            if msg["text"].strip():  # freie Anweisung: KI-Deutung folgt mit B5
+                self._reply_internal(inbound.conversation_id, cloner.ASK_COMMAND)
+            return
+        command, wish = parsed
+        refs = [a for a in msg["attachments"] if a.get("status") == "saved"]
+        if not refs and msg["reply_to_platform_id"]:
+            replied = self.store.message_by_platform_id(
+                inbound.conversation_id, msg["reply_to_platform_id"]
+            )
+            refs = [a for a in (replied or {}).get("attachments", []) if a.get("status") == "saved"]
+        key = default["media_workflow"]
+        if not key or key not in self.manifest.workflows:
+            self.store.add_system_card(
+                inbound.conversation_id,
+                cloner.card(
+                    command, msg["platform"], "Kein Medien-Workflow im Default-Kontakt gewählt."
+                ),
+            )
+            self._message_changed(0)
+            return
+        wf = self.manifest.workflows[key]
+        takes_image = "image" in wf.params and wf.params["image"].upload
+        if takes_image and not refs:
+            self._reply_internal(inbound.conversation_id, cloner.ASK_REFERENCE)
+            return
+        if not default["auto_orders"]:
+            self.store.add_system_card(
+                inbound.conversation_id,
+                cloner.card(
+                    command, msg["platform"], f"{wish or '–'} · wartet auf Start im Cockpit"
+                ),
+            )
+            self._message_changed(0)
+            return
+        inputs = {}
+        if takes_image:
+            ref = self.cfg.local / refs[0]["path"]
+            inputs["image"] = await asyncio.to_thread(
+                pipeline.store_input, self.cfg, ref.read_bytes(), ref.name
+            )
+        values = {"prompt": wish} if wish and "prompt" in wf.params else {}
+        order_no, jobs = pipeline.create_order(
+            self.store,
+            self.manifest,
+            key,
+            values,
+            inputs,
+            count=self.cfg.production.candidates_default,
+            source="cloner",
+            origin=inbound.message_id,
+        )
+        order = self.store.order(order_no)
+        self.store.link_order(inbound.message_id, order.id)
+        self.store.add_system_card(
+            inbound.conversation_id,
+            cloner.card(command, msg["platform"], f"{order_no} · {wf.title} · {wish or '–'}"),
+            order_id=order.id,
+        )
+        log.info(
+            "Kloner: %s %s → %s (%d Kandidaten)", command, msg["platform"], order_no, len(jobs)
+        )
+        self._enqueue(jobs)
+        self._orders_changed()
+        self._message_changed(0)
+
+    def _cloner_delivery(self, order_id: int, selected: int | None = None) -> None:
+        """Rückversand eines Kloner-Auftrags je Freigabemodus (V0 §8.1): direkt die Kandidaten,
+        nach Auswahl das gewählte bzw. fertiggestellte Ergebnis, „nur Cockpit“ nichts."""
+        order = self.store.order_by_id(order_id)
+        if order.source != "cloner":
+            return
+        stages = self.store.stages(order_id)
+        origin = stages[0].params.get("origin") if stages else None
+        mode = self.store.default_contact()["approval_mode"]
+        if not origin or mode == "cockpit_only":
+            return
+        conv = self.store.message(int(origin))["conversation_id"]
+        last = stages[-1]
+        files: list[str] = []
+        if (
+            mode == "direct"
+            and last.kind == "candidates"
+            and last.status == "waiting"
+            or (
+                mode == "cockpit"
+                and selected is None
+                and last.kind == "finish"
+                and last.status == "done"
+            )
+        ):
+            files = [j["path"] for j in self.store.stage_jobs(last.id) if j["path"]]
+        elif mode == "cockpit" and selected is not None and len(stages) == 1:
+            media = self.store.media_by_id(selected)
+            files = [media["path"]] if media else []
+        for n, path in enumerate(files, 1):
+            label = f"{order.order_no} · Nr. {n}" if len(files) > 1 else order.order_no
+            self._reply_internal(conv, label, [path])
 
     def _default_identity_account(self, platform: str) -> str:
         if platform == "telegram":

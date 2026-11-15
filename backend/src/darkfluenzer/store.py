@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -449,9 +449,43 @@ CREATE TABLE default_contact (
     updated_at       TEXT    NOT NULL
 );
 """,
+    7: """
+-- Systemkarten im Verlauf (INTERNER AUFTRAG, Rückfragen) und Auftragsbezug je Nachricht
+CREATE TABLE channel_messages_v7 (
+    id                   INTEGER PRIMARY KEY,
+    customer_id          INTEGER NOT NULL REFERENCES customers(id),
+    conversation_id      INTEGER NOT NULL REFERENCES channel_conversations(id),
+    direction            TEXT    NOT NULL CHECK (direction IN ('in', 'out', 'system')),
+    platform_message_id  TEXT,
+    reply_to_platform_id TEXT,
+    text                 TEXT    NOT NULL DEFAULT '',
+    attachments          TEXT    NOT NULL DEFAULT '[]',
+    status               TEXT    NOT NULL CHECK (status IN
+                         ('received', 'queued', 'sending', 'sent', 'failed', 'unknown')),
+    error                TEXT,
+    request_id           TEXT,
+    order_id             INTEGER REFERENCES orders(id),
+    sent_at              TEXT    NOT NULL,
+    read_at              TEXT,
+    created_at           TEXT    NOT NULL,
+    UNIQUE (conversation_id, direction, platform_message_id)
+);
+INSERT INTO channel_messages_v7 (id, customer_id, conversation_id, direction,
+    platform_message_id, reply_to_platform_id, text, attachments, status, error, request_id,
+    sent_at, read_at, created_at)
+SELECT id, customer_id, conversation_id, direction, platform_message_id, reply_to_platform_id,
+       text, attachments, status, error, request_id, sent_at, read_at, created_at
+FROM channel_messages;
+DROP TABLE channel_messages;
+ALTER TABLE channel_messages_v7 RENAME TO channel_messages;
+CREATE INDEX channel_messages_customer ON channel_messages(customer_id, id);
+CREATE UNIQUE INDEX channel_messages_request ON channel_messages(request_id)
+    WHERE request_id IS NOT NULL;
+CREATE INDEX channel_messages_order ON channel_messages(order_id) WHERE order_id IS NOT NULL;
+""",
 }
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
-REBUILDS = {5, 6}
+REBUILDS = {5, 6, 7}
 # Artefaktrollen, die in die Galerie gehören (Eingaben, Masken, Vorschauen nicht)
 GALLERY_ROLES = {"master", "candidate", "edit", "refined", "sent"}
 MEDIA_KINDS = {
@@ -736,6 +770,46 @@ class Store:
             self._event("message", cur.lastrowid, "added", customer_id=customer.id)
             self.bump("conversations")
             return Inbound(customer, identity, conv, cur.lastrowid, created)
+
+    def add_system_card(
+        self, conversation_id: int, text: str, *, order_id: int | None = None
+    ) -> int:
+        """Systemkarte im Verlauf (z. B. INTERNER AUFTRAG, Rückfrage-Hinweis) – nie gesendet."""
+        with self.tx() as db:
+            customer = db.execute(
+                "SELECT i.customer_id FROM channel_conversations c"
+                " JOIN channel_identities i ON i.id = c.identity_id WHERE c.id = ?",
+                (conversation_id,),
+            ).fetchone()[0]
+            ts = now()
+            cur = db.execute(
+                "INSERT INTO channel_messages (customer_id, conversation_id, direction, text,"
+                " status, order_id, sent_at, read_at, created_at)"
+                " VALUES (?,?,'system',?,'sent',?,?,?,?)",
+                (customer, conversation_id, text, order_id, ts, ts, ts),
+            )
+            self._event("message", cur.lastrowid, "added", customer_id=customer)
+            self.bump("conversations")
+            return cur.lastrowid
+
+    def link_order(self, message_id: int, order_id: int) -> None:
+        with self.tx() as db:
+            db.execute(
+                "UPDATE channel_messages SET order_id = ? WHERE id = ?", (order_id, message_id)
+            )
+
+    def conversation_revision(self, conversation_id: int) -> int:
+        row = self.db.execute(
+            "SELECT revision FROM channel_conversations WHERE id = ?", (conversation_id,)
+        ).fetchone()
+        return row[0] if row else 0
+
+    def message_by_platform_id(self, conversation_id: int, platform_message_id: str) -> dict | None:
+        row = self.db.execute(
+            "SELECT id FROM channel_messages WHERE conversation_id = ? AND platform_message_id = ?",
+            (conversation_id, platform_message_id),
+        ).fetchone()
+        return self.message(row[0]) if row else None
 
     def set_attachments(self, message_id: int, attachments: list[dict]) -> None:
         """Anhänge nach dem Sichern (Datei, SHA-256, Status) festhalten."""

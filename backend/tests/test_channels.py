@@ -142,3 +142,65 @@ def test_pages_reply_guard_and_mark_read(cfg):
         assert app[server.COCKPIT_KEY].telegram is None  # Testprojekt ohne [telegram]
 
     _run(cfg, scenario)
+
+
+def test_cloner_switch_creates_one_internal_order(cfg):
+    """Default-Absender + Befehl + Referenzbild -> genau ein Kloner-Auftrag mit Systemkarte;
+    freie Anweisung -> genau eine Rückfrage; erneut zugestelltes Ereignis -> nichts."""
+    import shutil
+
+    from PIL import Image
+
+    from darkfluenzer import models
+    from darkfluenzer.config import project_root
+
+    shutil.copytree(project_root() / "workflows", cfg.root / "workflows", dirs_exist_ok=True)
+    for mf in models.load_manifest(cfg.root).engine_files("lustify_sdxl"):  # Modell vorhanden
+        target = models.models_dir(cfg.root) / mf.target
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with open(target, "wb") as fh:
+            fh.truncate(mf.size)
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+        default = store.default_contact()
+        store.update_default_contact(
+            default["revision"],
+            {"media_workflow": "lustify_sdxl_refine", "approval_mode": "direct"},
+            {("telegram", BOT): "99"},
+        )
+        ref = cfg.local / "channels" / "telegram" / "99" / "1_0.png"
+        ref.parent.mkdir(parents=True)
+        Image.new("RGB", (64, 64), (200, 30, 30)).save(ref)
+        photo = {
+            "kind": "photo",
+            "status": "saved",
+            "path": "channels/telegram/99/1_0.png",
+            "sha256": "a" * 64,
+            "size": ref.stat().st_size,
+            "mime": "image/png",
+        }
+
+        def send(update: str, text: str, message: str, files=()):
+            inbound = _inbound(store, update, "99", text, message)
+            if inbound.message_id and files:
+                store.set_attachments(inbound.message_id, list(files))
+            return inbound
+
+        first = send("1", "remix roter Bikini", "1", [photo])
+        assert first.customer.kind == "internal"
+        await cockpit._on_inbound(first)
+        await cockpit._on_inbound(send("1", "remix roter Bikini", "1"))  # Duplikat: message_id None
+        orders = store.db.execute("SELECT order_no, source FROM orders").fetchall()
+        assert [tuple(o) for o in orders] == [("DF-O-000001", "cloner")]
+        items, _ = store.conversation_items(first.customer.id, 0, 20)
+        assert [i["direction"] for i in items] == ["in", "system"]
+        assert items[1]["text"].startswith("INTERNER AUFTRAG · REMIX · TELEGRAM")
+        free = send("2", "mach mir schöne Fotos", "2")
+        await cockpit._on_inbound(free)
+        items, _ = store.conversation_items(first.customer.id, 0, 20)
+        assert items[-1]["direction"] == "out" and items[-1]["status"] == "queued"
+        assert "Befehl" in items[-1]["text"]
+
+    _run(cfg, scenario)
