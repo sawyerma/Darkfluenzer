@@ -164,7 +164,7 @@ Nach Verbindungsverlust ersetzen STATE-Snapshots veraltete Werte; EVENT-Catch-up
 | Bereich (FRONT V1) | Status | Phase |
 |---|---|---|
 | F0–F2 Architektur, vier Reiter, Graphite, ein Stylesheet, Realtime-Vertrag | IMPLEMENTIERT | – |
-| Übersicht: ComfyUI-Zustand | IMPLEMENTIERT | – |
+| Übersicht: drei Karten nach F7.1 (Kundenakten, GPU-Warteschlange, Freigaben ausstehend) + aktuelle Kunden | IMPLEMENTIERT | Kundenfreigaben (C5) |
 | Übersicht: drei Karten *Kundenakten*, *GPU-Warteschlange*, *Freigaben ausstehend* + *Aktuelle Kunden* (F7.1) | TEILWEISE / NUR SPEZIFIZIERT | A2 (GPU-Warteschlange), C2 (Kundenakten), C5 (Freigaben) |
 | F7 Klickreferenz und Screenshots 14.11. als Gestaltungs-/Bedienquelle | REFERENZ (kein Code) | je Reiter in der Phase der Funktion |
 | ComfyUI-Layout F7.5 (links nur Workflows, rechts Steuerung, erweiterte Einstellungen zu, Trainingsdatenordner, Warteschlange + Instanzen rechts) | TEILWEISE (Formular, Queue, Workflow-Verwaltung vorhanden) | A2 (Layout, Trainingsdatenordner), B1/B2 (Training, Produktionsfunktionen) |
