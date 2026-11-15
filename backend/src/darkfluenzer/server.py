@@ -290,6 +290,17 @@ class Cockpit:
                     )
                     other.engine = ""
                 continue
+            if not any(o.running_job for o in self.lanes.values() if o is not lane):
+                # nichts mehr freizugeben und keine andere Instanz arbeitet: Warten hilft nicht
+                log.warning(
+                    "Zulassung: Auftrag %s braucht %.1f GB, frei %.1f GB (Reserve %.0f GB) – "
+                    "nichts mehr freizugeben, Start",
+                    job_id,
+                    need,
+                    free,
+                    self.cfg.server.memory_reserve_gb,
+                )
+                break
             lane.waiting_job, lane.need_gb = job_id, round(need, 1)
             self.hub.set_state(spb.TOPIC_RESOURCES, self._resources())
             await asyncio.sleep(self.cfg.server.observe_s)
