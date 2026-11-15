@@ -9,14 +9,15 @@ import {
   type WorkflowParam,
 } from "../core/generated/darkfluenzer/v1/comfy_pb";
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
+import { takeRenderIntent, type RenderIntent } from "../core/intent";
 import { mediaUrl } from "../core/media";
 import { useConnection } from "../core/realtime";
 import { type MediaItem } from "../core/generated/darkfluenzer/v1/media_pb";
-import { useEventTopic, useStateTopic, type StateValue } from "../core/state";
+import { useEventTopic, useStateTopic } from "../core/state";
 import { MediaPicker } from "./Files";
 
 type Tone = "ok" | "warn" | "bad" | "neutral";
-type Kind = "image" | "video";
+type Kind = "image" | "video" | "ai";
 
 const STATE_LABEL: Record<ComfyState, [string, Tone]> = {
   [ComfyState.UNSPECIFIED]: ["UNBEKANNT", "neutral"],
@@ -33,7 +34,12 @@ const WORKFLOW_TONE: Record<string, Tone> = { PASS: "ok", OFFEN: "neutral", GESP
 const KINDS: readonly [Kind, string][] = [
   ["image", "Fotos"],
   ["video", "Videos"],
+  ["ai", "KI"],
 ];
+/** Unterregister eines Workflows: KI-Instanz (ComfyUI 2) bzw. Foto/Video der Medieninstanz. */
+function tabOf(w: WorkflowInfo): Kind {
+  return w.instance === "ai" ? "ai" : (w.kind as Kind);
+}
 const LABEL: Record<string, string> = {
   negative_prompt: "Negativ-Prompt",
   seed: "Seed",
@@ -51,19 +57,25 @@ export function clock(ms: number): string {
   return new Date(ms).toLocaleTimeString("de-DE");
 }
 
-/** Zustand der ComfyUI-Instanz; veraltete Werte sind als solche gekennzeichnet. */
-export function ComfyBadge({ comfy }: { comfy: StateValue<ComfyStatus> | undefined }) {
-  if (!comfy) return <span className="g-badge">KEINE DATEN</span>;
-  const [label, tone] = STATE_LABEL[comfy.value.state];
-  const stale = comfy.staleSince !== null;
+/** Zustand einer ComfyUI-Instanz; veraltete Werte sind als solche gekennzeichnet. */
+function ComfyBadge({ status, staleSince }: { status: ComfyStatus | undefined; staleSince: number | null }) {
+  if (!status) return <span className="g-badge">KEINE DATEN</span>;
+  const [label, tone] = STATE_LABEL[status.state];
   return (
     <>
-      {stale ? <small>veraltet seit {clock(comfy.staleSince!)}</small> : null}
-      <span className="g-badge" data-tone={stale ? "stale" : tone}>
+      {staleSince !== null ? <small>veraltet seit {clock(staleSince)}</small> : null}
+      <span className="g-badge" data-tone={staleSince !== null ? "stale" : tone}>
         {label}
       </span>
     </>
   );
+}
+
+const INSTANCE_LABEL: Record<string, string> = { media: "ComfyUI 1 · Medien", ai: "ComfyUI 2 · KI" };
+
+/** URL einer bereiten Instanz (für „Öffnen“ im Editor), sonst leer. */
+function readyUrl(s: ComfyStatus | undefined, live: boolean): string {
+  return live && (s?.state === ComfyState.READY || s?.state === ComfyState.BUSY) ? s.url : "";
 }
 
 /** Ein Befehl mit sichtbarem Ergebnis: läuft, Ablehnungsgrund oder Fehler. */
@@ -104,52 +116,64 @@ function Progress({ job }: { job: ActiveJob }) {
   );
 }
 
-/** Instanzen (F7.5, rechts unten): echter Zustand, Start/Stopp nur der eigenen Instanz. */
-function Instances({ comfy, live }: { comfy: StateValue<ComfyStatus> | undefined; live: boolean }) {
+/** Eine Instanz: echter Zustand, Start/Stopp nur der eigenen Instanz. */
+function InstanceCard({ s, staleSince, live }: { s: ComfyStatus; staleSince: number | null; live: boolean }) {
   const cmd = useCommand();
-  const s = comfy?.value;
-  const ready = live && (s?.state === ComfyState.READY || s?.state === ComfyState.BUSY);
-  const showStart = s?.state === ComfyState.STOPPED || s?.state === ComfyState.FAILED;
+  const url = readyUrl(s, live);
+  const showStart = s.state === ComfyState.STOPPED || s.state === ComfyState.FAILED;
   // Stoppen nur ohne laufenden Auftrag und nur die eigene Instanz
-  const showStop = s?.managed === true && (s.state === ComfyState.READY || s.state === ComfyState.UNREACHABLE);
-  const port = s?.url ? new URL(s.url).port : "";
+  const showStop = s.managed && (s.state === ComfyState.READY || s.state === ComfyState.UNREACHABLE);
+  const port = s.url ? new URL(s.url).port : "";
   return (
-    <div className="g-control-part">
-      <h2>Instanzen</h2>
-      <div className="g-card">
+    <div className="g-card">
       <div className="g-line">
-        <strong>ComfyUI 1{port ? ` · ${port}` : ""}</strong>
+        <strong>
+          {INSTANCE_LABEL[s.name] ?? s.name}
+          {port ? ` · ${port}` : ""}
+        </strong>
         <span className="g-value">
-          {s && s.queueRunning + s.queuePending > 0 ? (
+          {s.queueRunning + s.queuePending > 0 ? (
             <small>
               {s.queueRunning} läuft · {s.queuePending} wartet
             </small>
           ) : null}
-          <ComfyBadge comfy={comfy} />
+          <ComfyBadge status={s} staleSince={staleSince} />
         </span>
       </div>
-      <small>
-        Medien{s?.version ? ` · ${s.version} · ${s.device}` : ""}
-        {s && !s.managed && s.version ? " · nicht von Darkfluenzer gestartet" : ""}
-      </small>
-      {s?.error ? (
+      {s.version ? (
+        <small>
+          {s.version} · {s.device}
+          {s.managed ? "" : " · nicht von Darkfluenzer gestartet"}
+        </small>
+      ) : null}
+      {s.error ? (
         <p className="g-note" role="alert">
           {s.error}
         </p>
       ) : null}
       <div className="g-actions">
         {showStart ? (
-          <button type="button" className="g-button g-primary" disabled={!live || cmd.pending} onClick={() => cmd.run({ case: "comfyStart", value: {} })}>
+          <button
+            type="button"
+            className="g-button g-primary"
+            disabled={!live || cmd.pending}
+            onClick={() => cmd.run({ case: "comfyStart", value: { instance: s.name } })}
+          >
             Starten
           </button>
         ) : null}
         {showStop ? (
-          <button type="button" className="g-button" disabled={!live || cmd.pending} onClick={() => cmd.run({ case: "comfyStop", value: {} })}>
+          <button
+            type="button"
+            className="g-button"
+            disabled={!live || cmd.pending}
+            onClick={() => cmd.run({ case: "comfyStop", value: { instance: s.name } })}
+          >
             Stoppen
           </button>
         ) : null}
-        {ready && s ? (
-          <a className="g-button" href={s.url} target="_blank" rel="noreferrer">
+        {url ? (
+          <a className="g-button" href={url} target="_blank" rel="noreferrer">
             ComfyUI öffnen
           </a>
         ) : null}
@@ -159,7 +183,33 @@ function Instances({ comfy, live }: { comfy: StateValue<ComfyStatus> | undefined
           {cmd.notice}
         </p>
       ) : null}
-      </div>
+    </div>
+  );
+}
+
+/** Instanzen (F7.5, rechts unten) mit gemeinsamem Speicher und Zulassung (V0 §4.2). */
+function Instances({ live }: { live: boolean }) {
+  const instances = useStateTopic(Topic.COMFY_INSTANCES);
+  const res = useStateTopic(Topic.RESOURCES)?.value;
+  const waiting = res?.instances.filter((i) => i.waitingJob) ?? [];
+  return (
+    <div className="g-control-part">
+      <h2>Instanzen</h2>
+      {instances ? (
+        instances.value.instances.map((s) => <InstanceCard key={s.name} s={s} staleSince={instances.staleSince} live={live} />)
+      ) : (
+        <span className="g-badge">KEINE DATEN</span>
+      )}
+      {res && res.ramTotalGb ? (
+        <small>
+          Speicher frei {res.ramFreeGb} von {res.ramTotalGb} GB · Swap {Math.round(res.swapUsedMb)} MB · Reserve {res.reserveGb} GB
+        </small>
+      ) : null}
+      {waiting.map((w) => (
+        <small key={w.name}>
+          Auftrag {String(w.waitingJob)} wartet auf Speicher ({w.needGb} GB, {INSTANCE_LABEL[w.name] ?? w.name})
+        </small>
+      ))}
     </div>
   );
 }
@@ -188,9 +238,10 @@ function JobParams({ params }: { params: Record<string, string> }) {
   );
 }
 
-function Queue({ onLoad, canLoad }: { onLoad: LoadDraft; canLoad: (key: string) => boolean }) {
+function Queue({ instance, onLoad, canLoad }: { instance: string; onLoad: LoadDraft; canLoad: (key: string) => boolean }) {
   const active = useStateTopic(Topic.JOBS_ACTIVE)?.value;
-  const jobs = active?.jobs ?? [];
+  const jobs = (active?.jobs ?? []).filter((j) => j.instance === instance);
+  const paused = active?.paused.includes(instance) ?? false;
   const cmd = useCommand();
   const [open, setOpen] = useState<bigint | null>(null);
   return (
@@ -198,7 +249,7 @@ function Queue({ onLoad, canLoad }: { onLoad: LoadDraft; canLoad: (key: string) 
       <div className="g-line g-head">
         <h2>Warteschlange</h2>
         <span className="g-value">
-          {active?.paused ? (
+          {paused ? (
             <span className="g-badge" data-tone="warn">
               ANGEHALTEN
             </span>
@@ -207,9 +258,9 @@ function Queue({ onLoad, canLoad }: { onLoad: LoadDraft; canLoad: (key: string) 
             type="button"
             className="g-button"
             disabled={!active || cmd.pending}
-            onClick={() => cmd.run({ case: "pauseQueue", value: { paused: !active?.paused } })}
+            onClick={() => cmd.run({ case: "pauseQueue", value: { paused: !paused, instance } })}
           >
-            {active?.paused ? "Fortsetzen" : "Anhalten"}
+            {paused ? "Fortsetzen" : "Anhalten"}
           </button>
         </span>
       </div>
@@ -384,7 +435,7 @@ function Workbench({
   live,
   comfyUrl,
   draft,
-  comfy,
+  start,
   onLoad,
   canLoad,
 }: {
@@ -393,7 +444,7 @@ function Workbench({
   live: boolean;
   comfyUrl: string;
   draft?: Record<string, string>;
-  comfy: StateValue<ComfyStatus> | undefined;
+  start?: MediaItem; // aus Dateien übernommenes Eingabebild (Weiterverarbeiten, Video erstellen)
   onLoad: LoadDraft;
   canLoad: (key: string) => boolean;
 }) {
@@ -411,7 +462,7 @@ function Workbench({
   }, [draft]);
   const [files, setFiles] = useState<Record<string, File | undefined>>({});
   // Eingabebild aus der Galerie: exakt dieses Medium über seine ID (Backend prüft den SHA-256)
-  const [picked, setPicked] = useState<Record<string, MediaItem | undefined>>({});
+  const [picked, setPicked] = useState<Record<string, MediaItem | undefined>>(() => (start ? { image: start } : {}));
   const [picking, setPicking] = useState<WorkflowParam | null>(null);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const [checked, setChecked] = useState(false);
@@ -621,8 +672,8 @@ function Workbench({
             {cmd.notice}
           </p>
         ) : null}
-        <Queue onLoad={onLoad} canLoad={canLoad} />
-        <Instances comfy={comfy} live={live} />
+        <Queue instance={wf.instance} onLoad={onLoad} canLoad={canLoad} />
+        <Instances live={live} />
       </aside>
 
       {picking ? (
@@ -655,29 +706,38 @@ function Workbench({
 }
 
 export function ComfyUI() {
-  const comfy = useStateTopic(Topic.COMFY_STATUS);
+  const instances = useStateTopic(Topic.COMFY_INSTANCES);
   const registry = useStateTopic(Topic.COMFY_WORKFLOWS)?.value;
   const workflows = registry?.workflows ?? [];
   const version = registry?.version ?? 0n;
   const connection = useConnection();
   const [kind, setKind] = useState<Kind>("image");
-  const [selected, setSelected] = useState<Record<Kind, string>>({ image: "", video: "" });
+  const [selected, setSelected] = useState<Record<Kind, string>>({ image: "", video: "", ai: "" });
   const [draft, setDraft] = useState<{ key: string; params: Record<string, string>; n: number } | null>(null);
+  const [intent] = useState<RenderIntent | null>(takeRenderIntent);
   const canLoad = (key: string) => workflows.some((w) => w.key === key);
 
   function loadDraft(key: string, params: Record<string, string>) {
     const wf = workflows.find((w) => w.key === key);
     if (!wf) return;
-    setKind(wf.kind as Kind);
-    setSelected((s) => ({ ...s, [wf.kind]: wf.key }));
+    setKind(tabOf(wf));
+    setSelected((s) => ({ ...s, [tabOf(wf)]: wf.key }));
     setDraft((d) => ({ key, params, n: (d?.n ?? 0) + 1 }));
   }
 
-  const live = connection.status === "OPEN" && comfy?.staleSince === null;
-  const s = comfy?.value;
-  const comfyUrl = live && (s?.state === ComfyState.READY || s?.state === ComfyState.BUSY) ? s.url : "";
-  const list = workflows.filter((w) => w.kind === kind);
+  const live = connection.status === "OPEN" && instances?.staleSince === null;
+  const hasAi = instances?.value.instances.some((i) => i.name === "ai") ?? false;
+  useEffect(() => {
+    // Übergabe aus Dateien: Workflow wählen, sobald die Registry ihn meldet
+    const target = intent && workflows.find((w) => w.key === intent.workflow);
+    if (target) {
+      setKind(tabOf(target));
+      setSelected((s) => ({ ...s, [tabOf(target)]: target.key }));
+    }
+  }, [intent, workflows]);
+  const list = workflows.filter((w) => tabOf(w) === kind);
   const current = list.find((w) => w.key === selected[kind]) ?? list[0];
+  const comfyUrl = readyUrl(instances?.value.instances.find((i) => i.name === (current?.instance ?? "media")), live);
   const create = useCommand();
   const dialog = useRef<HTMLDialogElement>(null);
   const [title, setTitle] = useState("");
@@ -688,8 +748,8 @@ export function ComfyUI() {
     // nach dem Anlegen den neuen Workflow auswählen, sobald die Registry ihn meldet
     const fresh = workflows.find((w) => w.title === created);
     if (fresh) {
-      setKind(fresh.kind as Kind);
-      setSelected((s) => ({ ...s, [fresh.kind]: fresh.key }));
+      setKind(tabOf(fresh));
+      setSelected((s) => ({ ...s, [tabOf(fresh)]: fresh.key }));
       setCreated("");
     }
   }, [workflows, created]);
@@ -712,15 +772,15 @@ export function ComfyUI() {
     <section className="g-panel">
       <h1>ComfyUI</h1>
       <div className="g-subtabs" role="tablist" aria-label="Workflow-Art">
-        {KINDS.map(([k, label]) => (
+        {KINDS.filter(([k]) => k !== "ai" || hasAi).map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)}>
-            {label} <small>{workflows.filter((w) => w.kind === k).length}</small>
+            {label} <small>{workflows.filter((w) => tabOf(w) === k).length}</small>
           </button>
         ))}
       </div>
 
       <div className="g-studio">
-        <div className="g-wflist" role="list" aria-label={kind === "image" ? "Foto-Workflows" : "Video-Workflows"}>
+        <div className="g-wflist" role="list" aria-label={`${KINDS.find(([k]) => k === kind)?.[1] ?? ""}-Workflows`}>
           <h2>Workflows</h2>
           <button type="button" className="g-button g-new" disabled={!live || list.length === 0} onClick={openCreate}>
             Neuer Workflow
@@ -744,25 +804,25 @@ export function ComfyUI() {
         </div>
         {current ? (
           <Workbench
-            key={`${current.key}-${draft?.key === current.key ? draft.n : 0}`}
+            key={`${current.key}-${draft?.key === current.key ? draft.n : 0}-${intent?.workflow === current.key ? String(intent.media.mediaId) : ""}`}
             wf={current}
             version={version}
             live={live}
             comfyUrl={comfyUrl}
             draft={draft?.key === current.key ? draft.params : undefined}
-            comfy={comfy}
+            start={intent?.workflow === current.key ? intent.media : undefined}
             onLoad={loadDraft}
             canLoad={canLoad}
           />
         ) : (
           <>
             <div className="g-workmain">
-              <p className="g-note">{connection.status === "OPEN" ? "Keine registrierten Workflows." : "Keine Verbindung"}</p>
+              <p className="g-note">{connection.status === "OPEN" ? kind === "ai" ? "Keine KI-Workflows registriert (folgen in B5)." : "Keine registrierten Workflows." : "Keine Verbindung"}</p>
             </div>
             <aside className="g-control" aria-label="Steuerung">
               <h2>Steuerung</h2>
-              <Queue onLoad={loadDraft} canLoad={canLoad} />
-              <Instances comfy={comfy} live={live} />
+              <Queue instance={kind === "ai" ? "ai" : "media"} onLoad={loadDraft} canLoad={canLoad} />
+              <Instances live={live} />
             </aside>
           </>
         )}

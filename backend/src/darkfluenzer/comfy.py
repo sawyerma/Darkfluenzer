@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import runtime
-from .config import Config
+from .config import ComfyConfig, Config
 from .models import Manifest, Workflow
 
 log = logging.getLogger("darkfluenzer.comfy")
@@ -362,8 +362,9 @@ def run_workflow(
     if wf.status == "GESPERRT":
         raise ComfyError(f"Workflow '{workflow_key}' ist gesperrt.")
     graph = apply_params(load_graph(man, wf), wf, values)
-    runtime.start(cfg)  # einzige Startlogik; idempotent
-    client = ComfyClient(cfg.comfyui.url, client_id=client_id)
+    inst = instance_of(cfg, man, wf)
+    runtime.start(cfg, inst.name)  # einzige Startlogik; idempotent
+    client = ComfyClient(inst.url, client_id=client_id)
     if unload_first:  # andere Engine als zuletzt: deren Modelle vorher kontrolliert entladen
         client.free()
         log.info("Engine-Wechsel zu %s: Modelle entladen", wf.engine)
@@ -392,7 +393,7 @@ def collect_workflow(
     """Auf einen eingereichten Auftrag warten und seine Ausgaben unter ``dest`` sichern – auch für
     einen vor einem Backend-Neustart eingereichten (dann ist ``t0`` unbekannt)."""
     wf = man.workflows[workflow_key]
-    client = ComfyClient(cfg.comfyui.url)
+    client = ComfyClient(instance_of(cfg, man, wf).url)
     start = time.monotonic() if t0 is None else t0
     trace = MemoryTrace(client)
     entry = client.wait(prompt_id, timeout_s, on_poll=trace.sample)
@@ -436,10 +437,15 @@ def collect_workflow(
     return result
 
 
-def prompt_state(cfg: Config, prompt_id: str) -> str:
+def instance_of(cfg: Config, man: Manifest, wf: Workflow) -> ComfyConfig:
+    """ComfyUI-Instanz, die diesen Workflow ausführt (Engine-Feld ``instance``)."""
+    return cfg.instance(man.engines[wf.engine].instance)
+
+
+def prompt_state(inst: ComfyConfig, prompt_id: str) -> str:
     """Wo steht ein eingereichter Auftrag? ``queued`` (wartet/läuft), ``finished`` (im Verlauf)
     oder ``unknown`` (ComfyUI kennt ihn nicht mehr, z. B. nach eigenem Neustart)."""
-    client = ComfyClient(cfg.comfyui.url)
+    client = ComfyClient(inst.url)
     if client.history(prompt_id) is not None:
         return "finished"
     if any(p == prompt_id for _, _, p in client.queued_jobs()):
@@ -857,25 +863,26 @@ def ui_to_api(ui: dict, object_info: dict) -> dict:
     return graph
 
 
-def editor_file(cfg: Config, key: str) -> Path:
-    """Editor-Kopie eines Workflows: je Workflow ein eigener Ordner der ComfyUI-Seitenleiste, damit
-    ``/?workflows=<key>`` (ComfyUI-Frontend, Ordner-Link) genau diesen Graphen lädt."""
-    return cfg.comfyui.path / "user" / "default" / "workflows" / key / f"{key}.json"
+def editor_file(inst: ComfyConfig, key: str) -> Path:
+    """Editor-Kopie eines Workflows in der ausführenden Instanz: je Workflow ein eigener Ordner der
+    ComfyUI-Seitenleiste, damit ``/?workflows=<key>`` genau diesen Graphen lädt."""
+    user = inst.data_dir / "user" if inst.data_dir is not None else inst.path / "user"
+    return user / "default" / "workflows" / key / f"{key}.json"
 
 
 def install_editor_copy(cfg: Config, man: Manifest, key: str, *, replace: bool = False) -> Path:
     """Legt die Editor-Kopie aus dem registrierten UI-Export an, falls sie fehlt; vorhandene
     (ggf. bearbeitete, noch nicht übernommene) Kopien bleiben unangetastet, außer ``replace``
     (nach einer Übernahme: Kopie = registrierte Fassung)."""
-    target = editor_file(cfg, key)
+    target = editor_file(instance_of(cfg, man, man.workflows[key]), key)
     if replace or not target.is_file():
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes((man.root / "workflows" / man.workflows[key].ui).read_bytes())
     return target
 
 
-def remove_editor_copy(cfg: Config, key: str) -> None:
-    target = editor_file(cfg, key)
+def remove_editor_copy(inst: ComfyConfig, key: str) -> None:
+    target = editor_file(inst, key)
     target.unlink(missing_ok=True)
     if target.parent.is_dir() and not any(target.parent.iterdir()):
         target.parent.rmdir()

@@ -2,7 +2,8 @@ syntax = "proto3";
 
 package darkfluenzer.v1;
 
-// Projektionen der verwalteten ComfyUI-Instanz und der vom Backend ausgeführten Renderungen.
+// Projektionen der verwalteten ComfyUI-Instanzen (Medien-ComfyUI 1, KI-ComfyUI 2) und der vom
+// Backend ausgeführten Renderungen.
 
 enum ComfyState {
   COMFY_STATE_UNSPECIFIED = 0;
@@ -29,6 +30,34 @@ message ComfyStatus {
   string error = 6;
   uint32 queue_running = 7;
   uint32 queue_pending = 8;
+  // media | ai
+  string name = 9;
+}
+
+// STATE comfy.instances: alle konfigurierten Instanzen (die KI-Instanz erst mit [comfyui_ai]).
+message ComfyInstances {
+  repeated ComfyStatus instances = 1;
+}
+
+// Speicherbelegung einer Instanz aus Sicht der Zulassung.
+message InstanceLoad {
+  string name = 1;
+  // Engine des letzten Laufs (deren Modelle können noch geladen sein); leer = nichts geladen
+  string engine = 2;
+  // Auftrag, der auf freien Speicher wartet (0 = keiner)
+  uint64 waiting_job = 3;
+  // Gemessener (sonst aus Modellgrößen geschätzter) Bedarf des wartenden Auftrags in GB
+  double need_gb = 4;
+}
+
+// STATE resources: gemeinsamer Unified Memory beider Instanzen und Zulassung (V0 §4.2).
+message Resources {
+  double ram_total_gb = 1;
+  double ram_free_gb = 2;
+  double swap_used_mb = 3;
+  // Mindestens frei zu haltender Speicher (local/config.toml [server] memory_reserve_gb)
+  double reserve_gb = 4;
+  repeated InstanceLoad instances = 5;
 }
 
 // Ein Auftrag in der ComfyUI-Warteschlange.
@@ -44,13 +73,17 @@ message ActiveJob {
   uint32 progress_max = 5;
   // Parameter des Auftrags als Text (Prompt, Seed, …); Upload-Parameter als Dateipfad.
   map<string, string> params = 6;
+  // Ausführende Instanz (media | ai)
+  string instance = 7;
 }
 
 // STATE jobs.active
 message JobsActive {
+  reserved 2;
   repeated ActiveJob jobs = 1;
-  // Angehalten: der laufende Auftrag endet regulär, danach startet nichts bis zum Fortsetzen.
-  bool paused = 2;
+  // Angehaltene Warteschlangen (Instanznamen): der laufende Auftrag endet regulär, danach startet
+  // dort nichts bis zum Fortsetzen.
+  repeated string paused = 4;
   // Domain-Version der Jobs (steigt mit jedem angelegten Job und Statuswechsel).
   uint64 version = 3;
 }
@@ -92,6 +125,8 @@ message WorkflowInfo {
   // Die Editor-Kopie in ComfyUI weicht vom registrierten UI-Export ab (übernehmbar).
   bool editor_changed = 11;
   repeated WorkflowParam params = 12;
+  // Ausführende Instanz (media | ai) laut Engine
+  string instance = 13;
 }
 
 // STATE comfy.workflows

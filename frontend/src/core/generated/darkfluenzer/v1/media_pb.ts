@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/media.proto.
  */
 export const file_darkfluenzer_v1_media: GenFile = /*@__PURE__*/
-  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvbWVkaWEucHJvdG8SD2RhcmtmbHVlbnplci52MSL7AgoJTWVkaWFJdGVtEhAKCG1lZGlhX2lkGAEgASgEEigKBGtpbmQYAiABKA4yGi5kYXJrZmx1ZW56ZXIudjEuTWVkaWFLaW5kEg8KB2NhcHRpb24YAyABKAkSDAoEcGF0aBgEIAEoCRIMCgRzaXplGAUgASgEEg4KBnNoYTI1NhgGIAEoCRIXCg9jcmVhdGVkX3VuaXhfbXMYByABKAMSLAoGb3JpZ2luGAggASgOMhwuZGFya2ZsdWVuemVyLnYxLk1lZGlhT3JpZ2luEhAKCHdvcmtmbG93GAkgASgJEjYKBnBhcmFtcxgKIAMoCzImLmRhcmtmbHVlbnplci52MS5NZWRpYUl0ZW0uUGFyYW1zRW50cnkSDgoGam9iX2lkGAsgASgEEhAKCG9yZGVyX25vGAwgASgJEhMKC2N1c3RvbWVyX25vGA0gASgJGi0KC1BhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiLgoMTWVkaWFSZW1vdmVkEhAKCG1lZGlhX2lkGAEgASgEEgwKBHBhdGgYAiABKAkiRAoJTWVkaWFQYWdlEikKBWl0ZW1zGAEgAygLMhouZGFya2ZsdWVuemVyLnYxLk1lZGlhSXRlbRIMCgRtb3JlGAIgASgIKlMKCU1lZGlhS2luZBIaChZNRURJQV9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQTUVESUFfS0lORF9JTUFHRRABEhQKEE1FRElBX0tJTkRfVklERU8QAiqTAQoLTWVkaWFPcmlnaW4SHAoYTUVESUFfT1JJR0lOX1VOU1BFQ0lGSUVEEAASFwoTTUVESUFfT1JJR0lOX1JFTkRFUhABEhsKF01FRElBX09SSUdJTl9FVkFMVUFUSU9OEAISGAoUTUVESUFfT1JJR0lOX0NPTUZZVUkQAxIWChJNRURJQV9PUklHSU5fT1JERVIQBGIGcHJvdG8z");
+  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvbWVkaWEucHJvdG8SD2RhcmtmbHVlbnplci52MSL7AgoJTWVkaWFJdGVtEhAKCG1lZGlhX2lkGAEgASgEEigKBGtpbmQYAiABKA4yGi5kYXJrZmx1ZW56ZXIudjEuTWVkaWFLaW5kEg8KB2NhcHRpb24YAyABKAkSDAoEcGF0aBgEIAEoCRIMCgRzaXplGAUgASgEEg4KBnNoYTI1NhgGIAEoCRIXCg9jcmVhdGVkX3VuaXhfbXMYByABKAMSLAoGb3JpZ2luGAggASgOMhwuZGFya2ZsdWVuemVyLnYxLk1lZGlhT3JpZ2luEhAKCHdvcmtmbG93GAkgASgJEjYKBnBhcmFtcxgKIAMoCzImLmRhcmtmbHVlbnplci52MS5NZWRpYUl0ZW0uUGFyYW1zRW50cnkSDgoGam9iX2lkGAsgASgEEhAKCG9yZGVyX25vGAwgASgJEhMKC2N1c3RvbWVyX25vGA0gASgJGi0KC1BhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiLgoMTWVkaWFSZW1vdmVkEhAKCG1lZGlhX2lkGAEgASgEEgwKBHBhdGgYAiABKAkiRAoJTWVkaWFQYWdlEikKBWl0ZW1zGAEgAygLMhouZGFya2ZsdWVuemVyLnYxLk1lZGlhSXRlbRIMCgRtb3JlGAIgASgIIj4KD1Byb3ZlbmFuY2VJbnB1dBINCgVwYXJhbRgBIAEoCRIMCgRwYXRoGAIgASgJEg4KBnNoYTI1NhgDIAEoCSJPCg9Qcm92ZW5hbmNlTW9kZWwSDAoEZmlsZRgBIAEoCRIMCgRyZXBvGAIgASgJEhAKCHJldmlzaW9uGAMgASgJEg4KBnNoYTI1NhgEIAEoCSIpCgpHcmFwaElucHV0EgwKBG5hbWUYASABKAkSDQoFdmFsdWUYAiABKAkiWAoJR3JhcGhOb2RlEgoKAmlkGAEgASgJEhIKCmNsYXNzX3R5cGUYAiABKAkSKwoGaW5wdXRzGAMgAygLMhsuZGFya2ZsdWVuemVyLnYxLkdyYXBoSW5wdXQisQEKC01lbW9yeVRyYWNlEhQKDHJhbV90b3RhbF9nYhgBIAEoARIZChFyYW1fZnJlZV9zdGFydF9nYhgCIAEoARIXCg9yYW1fZnJlZV9taW5fZ2IYAyABKAESFwoPcmFtX2ZyZWVfZW5kX2diGAQgASgBEhUKDXN3YXBfc3RhcnRfbWIYBSABKAESEwoLc3dhcF9tYXhfbWIYBiABKAESEwoLc3dhcF9lbmRfbWIYByABKAEi8AMKD01lZGlhUHJvdmVuYW5jZRIQCghtZWRpYV9pZBgBIAEoBBIOCgZqb2JfaWQYAiABKAQSEAoId29ya2Zsb3cYAyABKAkSFgoOd29ya2Zsb3dfdGl0bGUYBCABKAkSDgoGZW5naW5lGAUgASgJEhcKD3dvcmtmbG93X3NoYTI1NhgGIAEoCRIRCglwcm9tcHRfaWQYByABKAkSEgoKZHVyYXRpb25fcxgIIAEoARIXCg9wYXJlbnRfbWVkaWFfaWQYCSABKAQSPAoGcGFyYW1zGAogAygLMiwuZGFya2ZsdWVuemVyLnYxLk1lZGlhUHJvdmVuYW5jZS5QYXJhbXNFbnRyeRIwCgZpbnB1dHMYCyADKAsyIC5kYXJrZmx1ZW56ZXIudjEuUHJvdmVuYW5jZUlucHV0EjAKBm1vZGVscxgMIAMoCzIgLmRhcmtmbHVlbnplci52MS5Qcm92ZW5hbmNlTW9kZWwSKQoFZ3JhcGgYDSADKAsyGi5kYXJrZmx1ZW56ZXIudjEuR3JhcGhOb2RlEiwKBm1lbW9yeRgOIAEoCzIcLmRhcmtmbHVlbnplci52MS5NZW1vcnlUcmFjZRotCgtQYXJhbXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBKlMKCU1lZGlhS2luZBIaChZNRURJQV9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQTUVESUFfS0lORF9JTUFHRRABEhQKEE1FRElBX0tJTkRfVklERU8QAiqTAQoLTWVkaWFPcmlnaW4SHAoYTUVESUFfT1JJR0lOX1VOU1BFQ0lGSUVEEAASFwoTTUVESUFfT1JJR0lOX1JFTkRFUhABEhsKF01FRElBX09SSUdJTl9FVkFMVUFUSU9OEAISGAoUTUVESUFfT1JJR0lOX0NPTUZZVUkQAxIWChJNRURJQV9PUklHSU5fT1JERVIQBGIGcHJvdG8z");
 
 /**
  * @generated from message darkfluenzer.v1.MediaItem
@@ -144,6 +144,263 @@ export type MediaPage = Message<"darkfluenzer.v1.MediaPage"> & {
  */
 export const MediaPageSchema: GenMessage<MediaPage> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_media, 2);
+
+/**
+ * Herkunft eines Mediums: GET /api/v1/provenance/<media_id> -> MediaProvenance
+ * (application/x-protobuf, Sitzung). Medien sind unveränderlich und IDs werden nie neu vergeben:
+ * die Antwort zu einer media_id bleibt gleich (einmal abrufen, dann behalten).
+ *
+ * @generated from message darkfluenzer.v1.ProvenanceInput
+ */
+export type ProvenanceInput = Message<"darkfluenzer.v1.ProvenanceInput"> & {
+  /**
+   * @generated from field: string param = 1;
+   */
+  param: string;
+
+  /**
+   * Pfad relativ zu local/ der tatsächlich hochgeladenen Eingabedatei.
+   *
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string sha256 = 3;
+   */
+  sha256: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.ProvenanceInput.
+ * Use `create(ProvenanceInputSchema)` to create a new message.
+ */
+export const ProvenanceInputSchema: GenMessage<ProvenanceInput> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_media, 3);
+
+/**
+ * @generated from message darkfluenzer.v1.ProvenanceModel
+ */
+export type ProvenanceModel = Message<"darkfluenzer.v1.ProvenanceModel"> & {
+  /**
+   * @generated from field: string file = 1;
+   */
+  file: string;
+
+  /**
+   * @generated from field: string repo = 2;
+   */
+  repo: string;
+
+  /**
+   * @generated from field: string revision = 3;
+   */
+  revision: string;
+
+  /**
+   * @generated from field: string sha256 = 4;
+   */
+  sha256: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.ProvenanceModel.
+ * Use `create(ProvenanceModelSchema)` to create a new message.
+ */
+export const ProvenanceModelSchema: GenMessage<ProvenanceModel> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_media, 4);
+
+/**
+ * Widget-Wert eines Nodes im eingereichten Graphen (Verbindungen ausgelassen), als Text.
+ *
+ * @generated from message darkfluenzer.v1.GraphInput
+ */
+export type GraphInput = Message<"darkfluenzer.v1.GraphInput"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string value = 2;
+   */
+  value: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.GraphInput.
+ * Use `create(GraphInputSchema)` to create a new message.
+ */
+export const GraphInputSchema: GenMessage<GraphInput> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_media, 5);
+
+/**
+ * @generated from message darkfluenzer.v1.GraphNode
+ */
+export type GraphNode = Message<"darkfluenzer.v1.GraphNode"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string class_type = 2;
+   */
+  classType: string;
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.GraphInput inputs = 3;
+   */
+  inputs: GraphInput[];
+};
+
+/**
+ * Describes the message darkfluenzer.v1.GraphNode.
+ * Use `create(GraphNodeSchema)` to create a new message.
+ */
+export const GraphNodeSchema: GenMessage<GraphNode> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_media, 6);
+
+/**
+ * Speicherverlauf des Laufs (freier Unified Memory laut ComfyUI, macOS-Swap).
+ *
+ * @generated from message darkfluenzer.v1.MemoryTrace
+ */
+export type MemoryTrace = Message<"darkfluenzer.v1.MemoryTrace"> & {
+  /**
+   * @generated from field: double ram_total_gb = 1;
+   */
+  ramTotalGb: number;
+
+  /**
+   * @generated from field: double ram_free_start_gb = 2;
+   */
+  ramFreeStartGb: number;
+
+  /**
+   * @generated from field: double ram_free_min_gb = 3;
+   */
+  ramFreeMinGb: number;
+
+  /**
+   * @generated from field: double ram_free_end_gb = 4;
+   */
+  ramFreeEndGb: number;
+
+  /**
+   * @generated from field: double swap_start_mb = 5;
+   */
+  swapStartMb: number;
+
+  /**
+   * @generated from field: double swap_max_mb = 6;
+   */
+  swapMaxMb: number;
+
+  /**
+   * @generated from field: double swap_end_mb = 7;
+   */
+  swapEndMb: number;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.MemoryTrace.
+ * Use `create(MemoryTraceSchema)` to create a new message.
+ */
+export const MemoryTraceSchema: GenMessage<MemoryTrace> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_media, 7);
+
+/**
+ * @generated from message darkfluenzer.v1.MediaProvenance
+ */
+export type MediaProvenance = Message<"darkfluenzer.v1.MediaProvenance"> & {
+  /**
+   * @generated from field: uint64 media_id = 1;
+   */
+  mediaId: bigint;
+
+  /**
+   * 0: Datei ohne Darkfluenzer-Renderjob (z. B. direkt in ComfyUI erzeugt)
+   *
+   * @generated from field: uint64 job_id = 2;
+   */
+  jobId: bigint;
+
+  /**
+   * @generated from field: string workflow = 3;
+   */
+  workflow: string;
+
+  /**
+   * Titel des Workflows, solange er registriert ist (sonst leer)
+   *
+   * @generated from field: string workflow_title = 4;
+   */
+  workflowTitle: string;
+
+  /**
+   * @generated from field: string engine = 5;
+   */
+  engine: string;
+
+  /**
+   * SHA-256 der API-Workflow-Datei beim Einreichen
+   *
+   * @generated from field: string workflow_sha256 = 6;
+   */
+  workflowSha256: string;
+
+  /**
+   * @generated from field: string prompt_id = 7;
+   */
+  promptId: string;
+
+  /**
+   * @generated from field: double duration_s = 8;
+   */
+  durationS: number;
+
+  /**
+   * Medium, aus dem der Auftrag hervorging (0 = keines)
+   *
+   * @generated from field: uint64 parent_media_id = 9;
+   */
+  parentMediaId: bigint;
+
+  /**
+   * @generated from field: map<string, string> params = 10;
+   */
+  params: { [key: string]: string };
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.ProvenanceInput inputs = 11;
+   */
+  inputs: ProvenanceInput[];
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.ProvenanceModel models = 12;
+   */
+  models: ProvenanceModel[];
+
+  /**
+   * Exakt eingereichter API-Graph (fehlt bei Aufträgen vor dem Graph-Snapshot)
+   *
+   * @generated from field: repeated darkfluenzer.v1.GraphNode graph = 13;
+   */
+  graph: GraphNode[];
+
+  /**
+   * @generated from field: darkfluenzer.v1.MemoryTrace memory = 14;
+   */
+  memory?: MemoryTrace | undefined;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.MediaProvenance.
+ * Use `create(MediaProvenanceSchema)` to create a new message.
+ */
+export const MediaProvenanceSchema: GenMessage<MediaProvenance> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_media, 8);
 
 /**
  * @generated from enum darkfluenzer.v1.MediaKind

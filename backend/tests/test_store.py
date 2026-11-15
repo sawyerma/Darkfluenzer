@@ -292,7 +292,7 @@ def test_media_index_migrates_v1_dedupes_numbers_and_customer_names(tmp_path):
         assert d == c + 1 and s.media_by_path("evaluation/x/d.png")["number"] == 4
         removed, gap = s.media_removed(0, 10)
         assert [(r["media_id"], r["path"]) for r in removed] == [(c, "evaluation/x/c.png")]
-        assert not gap and s.removed_media_paths() == {"evaluation/x/c.png"}
+        assert not gap
     finally:
         s.close()
 

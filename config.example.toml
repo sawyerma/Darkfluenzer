@@ -21,6 +21,9 @@ timeout_s = 20
 max_upload_mb = 50
 # Erzeugte Dateien kommen erst in die Galerie, wenn sie so lange unverändert sind (Sekunden).
 media_settle_s = 10
+# Zulassung beider ComfyUI-Instanzen: so viel Unified Memory (GB) bleibt nach dem gemessenen Bedarf
+# eines Auftrags mindestens frei; sonst entlädt eine ruhende Instanz oder der Auftrag wartet.
+memory_reserve_gb = 16
 
 [comfyui]
 # Eigener, gepinnter ComfyUI-Checkout (launcher/setup_comfyui.sh) mit main.py.
@@ -41,3 +44,22 @@ stop_timeout_s = 30
 PYTORCH_ENABLE_MPS_FALLBACK = "1"
 # PYTORCH_MPS_HIGH_WATERMARK_RATIO wird bewusst NICHT gesetzt (PyTorch-Standard).
 # 0.0 hebt die MPS-Speichergrenze komplett auf und darf nur nach einem Speichertest gesetzt werden.
+
+# KI-ComfyUI 2 (PHASENPLAN_V0 §4.2): Dialog, Bildbeschreibung, Prompt, KI-Prüfung. Gleicher
+# ComfyUI-Code und gemeinsame Modellablage, eigener Port und eigene Ordner (user/input/output/temp
+# unter data_dir); eigene Warteschlange, gemeinsame Zulassung nach Speicher ([server]
+# memory_reserve_gb). Ohne diesen Abschnitt gibt es nur die Medien-Instanz.
+[comfyui_ai]
+path = "local/ComfyUI"
+python = "local/ComfyUI/.venv/bin/python"
+host = "127.0.0.1"
+port = 8189
+data_dir = "local/comfyui_ai"
+extra_args = []
+path_prepend = ["/opt/homebrew/bin"]
+startup_timeout_s = 240
+stop_timeout_s = 30
+
+[comfyui_ai.env]
+PYTORCH_ENABLE_MPS_FALLBACK = "1"
+

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/comfy.proto.
  */
 export const file_darkfluenzer_v1_comfy: GenFile = /*@__PURE__*/
-  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvY29tZnkucHJvdG8SD2RhcmtmbHVlbnplci52MSK1AQoLQ29tZnlTdGF0dXMSKgoFc3RhdGUYASABKA4yGy5kYXJrZmx1ZW56ZXIudjEuQ29tZnlTdGF0ZRIPCgdtYW5hZ2VkGAIgASgIEgsKA3VybBgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJEg4KBmRldmljZRgFIAEoCRINCgVlcnJvchgGIAEoCRIVCg1xdWV1ZV9ydW5uaW5nGAcgASgNEhUKDXF1ZXVlX3BlbmRpbmcYCCABKA0i0wEKCUFjdGl2ZUpvYhIOCgZqb2JfaWQYASABKAQSEAoId29ya2Zsb3cYAiABKAkSDwoHcnVubmluZxgDIAEoCBIWCg5wcm9ncmVzc192YWx1ZRgEIAEoDRIUCgxwcm9ncmVzc19tYXgYBSABKA0SNgoGcGFyYW1zGAYgAygLMiYuZGFya2ZsdWVuemVyLnYxLkFjdGl2ZUpvYi5QYXJhbXNFbnRyeRotCgtQYXJhbXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIlcKCkpvYnNBY3RpdmUSKAoEam9icxgBIAMoCzIaLmRhcmtmbHVlbnplci52MS5BY3RpdmVKb2ISDgoGcGF1c2VkGAIgASgIEg8KB3ZlcnNpb24YAyABKAQi5wEKDVdvcmtmbG93UGFyYW0SDAoEbmFtZRgBIAEoCRIMCgR0eXBlGAIgASgJEhAKCHJlcXVpcmVkGAMgASgIEg4KBnVwbG9hZBgEIAEoCBIQCgNtaW4YBSABKAFIAYgBARIQCgNtYXgYBiABKAFIAogBARITCgttdWx0aXBsZV9vZhgHIAEoDRIPCgdjaG9pY2VzGAggAygJEg4KBHRleHQYCSABKAlIABIRCgdpbnRlZ2VyGAogASgDSAASEAoGbnVtYmVyGAsgASgBSABCCQoHZGVmYXVsdEIGCgRfbWluQgYKBF9tYXgigAIKDFdvcmtmbG93SW5mbxILCgNrZXkYASABKAkSDgoGZW5naW5lGAIgASgJEhQKDGVuZ2luZV90aXRsZRgDIAEoCRIMCgRraW5kGAQgASgJEg4KBnN0YXR1cxgFIAEoCRIUCgxtb2RlbHNfcmVhZHkYBiABKAgSEgoKbWlzc2luZ19nYhgHIAEoARINCgV1c2FnZRgIIAEoCRINCgV0aXRsZRgJIAEoCRIPCgdlbmFibGVkGAogASgIEhYKDmVkaXRvcl9jaGFuZ2VkGAsgASgIEi4KBnBhcmFtcxgMIAMoCzIeLmRhcmtmbHVlbnplci52MS5Xb3JrZmxvd1BhcmFtIk4KCVdvcmtmbG93cxIwCgl3b3JrZmxvd3MYASADKAsyHS5kYXJrZmx1ZW56ZXIudjEuV29ya2Zsb3dJbmZvEg8KB3ZlcnNpb24YAiABKAQiNwoJSm9iT3V0cHV0EgwKBHBhdGgYASABKAkSDgoGc2hhMjU2GAIgASgJEgwKBHNpemUYAyABKAQiuAIKDEpvYkNvbXBsZXRlZBIOCgZqb2JfaWQYASABKAQSEAoId29ya2Zsb3cYAiABKAkSDgoGZW5naW5lGAMgASgJEioKBnJlc3VsdBgEIAEoDjIaLmRhcmtmbHVlbnplci52MS5Kb2JSZXN1bHQSDQoFZXJyb3IYBSABKAkSEgoKZHVyYXRpb25fcxgGIAEoARIrCgdvdXRwdXRzGAcgAygLMhouZGFya2ZsdWVuemVyLnYxLkpvYk91dHB1dBIQCghvcmRlcl9ubxgIIAEoCRI5CgZwYXJhbXMYCSADKAsyKS5kYXJrZmx1ZW56ZXIudjEuSm9iQ29tcGxldGVkLlBhcmFtc0VudHJ5Gi0KC1BhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEq2AEKCkNvbWZ5U3RhdGUSGwoXQ09NRllfU1RBVEVfVU5TUEVDSUZJRUQQABIXChNDT01GWV9TVEFURV9TVE9QUEVEEAESGAoUQ09NRllfU1RBVEVfU1RBUlRJTkcQAhIVChFDT01GWV9TVEFURV9SRUFEWRADEhgKFENPTUZZX1NUQVRFX1NUT1BQSU5HEAQSGwoXQ09NRllfU1RBVEVfVU5SRUFDSEFCTEUQBRIWChJDT01GWV9TVEFURV9GQUlMRUQQBhIUChBDT01GWV9TVEFURV9CVVNZEAcqbQoJSm9iUmVzdWx0EhoKFkpPQl9SRVNVTFRfVU5TUEVDSUZJRUQQABITCg9KT0JfUkVTVUxUX0RPTkUQARIVChFKT0JfUkVTVUxUX0ZBSUxFRBACEhgKFEpPQl9SRVNVTFRfQ0FOQ0VMTEVEEANiBnByb3RvMw");
+  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvY29tZnkucHJvdG8SD2RhcmtmbHVlbnplci52MSLDAQoLQ29tZnlTdGF0dXMSKgoFc3RhdGUYASABKA4yGy5kYXJrZmx1ZW56ZXIudjEuQ29tZnlTdGF0ZRIPCgdtYW5hZ2VkGAIgASgIEgsKA3VybBgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJEg4KBmRldmljZRgFIAEoCRINCgVlcnJvchgGIAEoCRIVCg1xdWV1ZV9ydW5uaW5nGAcgASgNEhUKDXF1ZXVlX3BlbmRpbmcYCCABKA0SDAoEbmFtZRgJIAEoCSJBCg5Db21meUluc3RhbmNlcxIvCglpbnN0YW5jZXMYASADKAsyHC5kYXJrZmx1ZW56ZXIudjEuQ29tZnlTdGF0dXMiUgoMSW5zdGFuY2VMb2FkEgwKBG5hbWUYASABKAkSDgoGZW5naW5lGAIgASgJEhMKC3dhaXRpbmdfam9iGAMgASgEEg8KB25lZWRfZ2IYBCABKAEikgEKCVJlc291cmNlcxIUCgxyYW1fdG90YWxfZ2IYASABKAESEwoLcmFtX2ZyZWVfZ2IYAiABKAESFAoMc3dhcF91c2VkX21iGAMgASgBEhIKCnJlc2VydmVfZ2IYBCABKAESMAoJaW5zdGFuY2VzGAUgAygLMh0uZGFya2ZsdWVuemVyLnYxLkluc3RhbmNlTG9hZCLlAQoJQWN0aXZlSm9iEg4KBmpvYl9pZBgBIAEoBBIQCgh3b3JrZmxvdxgCIAEoCRIPCgdydW5uaW5nGAMgASgIEhYKDnByb2dyZXNzX3ZhbHVlGAQgASgNEhQKDHByb2dyZXNzX21heBgFIAEoDRI2CgZwYXJhbXMYBiADKAsyJi5kYXJrZmx1ZW56ZXIudjEuQWN0aXZlSm9iLlBhcmFtc0VudHJ5EhAKCGluc3RhbmNlGAcgASgJGi0KC1BhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiXQoKSm9ic0FjdGl2ZRIoCgRqb2JzGAEgAygLMhouZGFya2ZsdWVuemVyLnYxLkFjdGl2ZUpvYhIOCgZwYXVzZWQYBCADKAkSDwoHdmVyc2lvbhgDIAEoBEoECAIQAyLnAQoNV29ya2Zsb3dQYXJhbRIMCgRuYW1lGAEgASgJEgwKBHR5cGUYAiABKAkSEAoIcmVxdWlyZWQYAyABKAgSDgoGdXBsb2FkGAQgASgIEhAKA21pbhgFIAEoAUgBiAEBEhAKA21heBgGIAEoAUgCiAEBEhMKC211bHRpcGxlX29mGAcgASgNEg8KB2Nob2ljZXMYCCADKAkSDgoEdGV4dBgJIAEoCUgAEhEKB2ludGVnZXIYCiABKANIABIQCgZudW1iZXIYCyABKAFIAEIJCgdkZWZhdWx0QgYKBF9taW5CBgoEX21heCKSAgoMV29ya2Zsb3dJbmZvEgsKA2tleRgBIAEoCRIOCgZlbmdpbmUYAiABKAkSFAoMZW5naW5lX3RpdGxlGAMgASgJEgwKBGtpbmQYBCABKAkSDgoGc3RhdHVzGAUgASgJEhQKDG1vZGVsc19yZWFkeRgGIAEoCBISCgptaXNzaW5nX2diGAcgASgBEg0KBXVzYWdlGAggASgJEg0KBXRpdGxlGAkgASgJEg8KB2VuYWJsZWQYCiABKAgSFgoOZWRpdG9yX2NoYW5nZWQYCyABKAgSLgoGcGFyYW1zGAwgAygLMh4uZGFya2ZsdWVuemVyLnYxLldvcmtmbG93UGFyYW0SEAoIaW5zdGFuY2UYDSABKAkiTgoJV29ya2Zsb3dzEjAKCXdvcmtmbG93cxgBIAMoCzIdLmRhcmtmbHVlbnplci52MS5Xb3JrZmxvd0luZm8SDwoHdmVyc2lvbhgCIAEoBCI3CglKb2JPdXRwdXQSDAoEcGF0aBgBIAEoCRIOCgZzaGEyNTYYAiABKAkSDAoEc2l6ZRgDIAEoBCK4AgoMSm9iQ29tcGxldGVkEg4KBmpvYl9pZBgBIAEoBBIQCgh3b3JrZmxvdxgCIAEoCRIOCgZlbmdpbmUYAyABKAkSKgoGcmVzdWx0GAQgASgOMhouZGFya2ZsdWVuemVyLnYxLkpvYlJlc3VsdBINCgVlcnJvchgFIAEoCRISCgpkdXJhdGlvbl9zGAYgASgBEisKB291dHB1dHMYByADKAsyGi5kYXJrZmx1ZW56ZXIudjEuSm9iT3V0cHV0EhAKCG9yZGVyX25vGAggASgJEjkKBnBhcmFtcxgJIAMoCzIpLmRhcmtmbHVlbnplci52MS5Kb2JDb21wbGV0ZWQuUGFyYW1zRW50cnkaLQoLUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASrYAQoKQ29tZnlTdGF0ZRIbChdDT01GWV9TVEFURV9VTlNQRUNJRklFRBAAEhcKE0NPTUZZX1NUQVRFX1NUT1BQRUQQARIYChRDT01GWV9TVEFURV9TVEFSVElORxACEhUKEUNPTUZZX1NUQVRFX1JFQURZEAMSGAoUQ09NRllfU1RBVEVfU1RPUFBJTkcQBBIbChdDT01GWV9TVEFURV9VTlJFQUNIQUJMRRAFEhYKEkNPTUZZX1NUQVRFX0ZBSUxFRBAGEhQKEENPTUZZX1NUQVRFX0JVU1kQByptCglKb2JSZXN1bHQSGgoWSk9CX1JFU1VMVF9VTlNQRUNJRklFRBAAEhMKD0pPQl9SRVNVTFRfRE9ORRABEhUKEUpPQl9SRVNVTFRfRkFJTEVEEAISGAoUSk9CX1JFU1VMVF9DQU5DRUxMRUQQA2IGcHJvdG8z");
 
 /**
  * STATE comfy.status
@@ -59,6 +59,13 @@ export type ComfyStatus = Message<"darkfluenzer.v1.ComfyStatus"> & {
    * @generated from field: uint32 queue_pending = 8;
    */
   queuePending: number;
+
+  /**
+   * media | ai
+   *
+   * @generated from field: string name = 9;
+   */
+  name: string;
 };
 
 /**
@@ -67,6 +74,106 @@ export type ComfyStatus = Message<"darkfluenzer.v1.ComfyStatus"> & {
  */
 export const ComfyStatusSchema: GenMessage<ComfyStatus> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_comfy, 0);
+
+/**
+ * STATE comfy.instances: alle konfigurierten Instanzen (die KI-Instanz erst mit [comfyui_ai]).
+ *
+ * @generated from message darkfluenzer.v1.ComfyInstances
+ */
+export type ComfyInstances = Message<"darkfluenzer.v1.ComfyInstances"> & {
+  /**
+   * @generated from field: repeated darkfluenzer.v1.ComfyStatus instances = 1;
+   */
+  instances: ComfyStatus[];
+};
+
+/**
+ * Describes the message darkfluenzer.v1.ComfyInstances.
+ * Use `create(ComfyInstancesSchema)` to create a new message.
+ */
+export const ComfyInstancesSchema: GenMessage<ComfyInstances> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_comfy, 1);
+
+/**
+ * Speicherbelegung einer Instanz aus Sicht der Zulassung.
+ *
+ * @generated from message darkfluenzer.v1.InstanceLoad
+ */
+export type InstanceLoad = Message<"darkfluenzer.v1.InstanceLoad"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Engine des letzten Laufs (deren Modelle können noch geladen sein); leer = nichts geladen
+   *
+   * @generated from field: string engine = 2;
+   */
+  engine: string;
+
+  /**
+   * Auftrag, der auf freien Speicher wartet (0 = keiner)
+   *
+   * @generated from field: uint64 waiting_job = 3;
+   */
+  waitingJob: bigint;
+
+  /**
+   * Gemessener (sonst aus Modellgrößen geschätzter) Bedarf des wartenden Auftrags in GB
+   *
+   * @generated from field: double need_gb = 4;
+   */
+  needGb: number;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.InstanceLoad.
+ * Use `create(InstanceLoadSchema)` to create a new message.
+ */
+export const InstanceLoadSchema: GenMessage<InstanceLoad> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_comfy, 2);
+
+/**
+ * STATE resources: gemeinsamer Unified Memory beider Instanzen und Zulassung (V0 §4.2).
+ *
+ * @generated from message darkfluenzer.v1.Resources
+ */
+export type Resources = Message<"darkfluenzer.v1.Resources"> & {
+  /**
+   * @generated from field: double ram_total_gb = 1;
+   */
+  ramTotalGb: number;
+
+  /**
+   * @generated from field: double ram_free_gb = 2;
+   */
+  ramFreeGb: number;
+
+  /**
+   * @generated from field: double swap_used_mb = 3;
+   */
+  swapUsedMb: number;
+
+  /**
+   * Mindestens frei zu haltender Speicher (local/config.toml [server] memory_reserve_gb)
+   *
+   * @generated from field: double reserve_gb = 4;
+   */
+  reserveGb: number;
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.InstanceLoad instances = 5;
+   */
+  instances: InstanceLoad[];
+};
+
+/**
+ * Describes the message darkfluenzer.v1.Resources.
+ * Use `create(ResourcesSchema)` to create a new message.
+ */
+export const ResourcesSchema: GenMessage<Resources> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_comfy, 3);
 
 /**
  * Ein Auftrag in der ComfyUI-Warteschlange.
@@ -112,6 +219,13 @@ export type ActiveJob = Message<"darkfluenzer.v1.ActiveJob"> & {
    * @generated from field: map<string, string> params = 6;
    */
   params: { [key: string]: string };
+
+  /**
+   * Ausführende Instanz (media | ai)
+   *
+   * @generated from field: string instance = 7;
+   */
+  instance: string;
 };
 
 /**
@@ -119,7 +233,7 @@ export type ActiveJob = Message<"darkfluenzer.v1.ActiveJob"> & {
  * Use `create(ActiveJobSchema)` to create a new message.
  */
 export const ActiveJobSchema: GenMessage<ActiveJob> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 1);
+  messageDesc(file_darkfluenzer_v1_comfy, 4);
 
 /**
  * STATE jobs.active
@@ -133,11 +247,12 @@ export type JobsActive = Message<"darkfluenzer.v1.JobsActive"> & {
   jobs: ActiveJob[];
 
   /**
-   * Angehalten: der laufende Auftrag endet regulär, danach startet nichts bis zum Fortsetzen.
+   * Angehaltene Warteschlangen (Instanznamen): der laufende Auftrag endet regulär, danach startet
+   * dort nichts bis zum Fortsetzen.
    *
-   * @generated from field: bool paused = 2;
+   * @generated from field: repeated string paused = 4;
    */
-  paused: boolean;
+  paused: string[];
 
   /**
    * Domain-Version der Jobs (steigt mit jedem angelegten Job und Statuswechsel).
@@ -152,7 +267,7 @@ export type JobsActive = Message<"darkfluenzer.v1.JobsActive"> & {
  * Use `create(JobsActiveSchema)` to create a new message.
  */
 export const JobsActiveSchema: GenMessage<JobsActive> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 2);
+  messageDesc(file_darkfluenzer_v1_comfy, 5);
 
 /**
  * Parameter eines Workflows laut Registry; default ist der Wert im registrierten API-Graphen.
@@ -233,7 +348,7 @@ export type WorkflowParam = Message<"darkfluenzer.v1.WorkflowParam"> & {
  * Use `create(WorkflowParamSchema)` to create a new message.
  */
 export const WorkflowParamSchema: GenMessage<WorkflowParam> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 3);
+  messageDesc(file_darkfluenzer_v1_comfy, 6);
 
 /**
  * Registrierter Workflow (workflows/manifest.toml) und Bereitschaft seiner Modelldateien.
@@ -308,6 +423,13 @@ export type WorkflowInfo = Message<"darkfluenzer.v1.WorkflowInfo"> & {
    * @generated from field: repeated darkfluenzer.v1.WorkflowParam params = 12;
    */
   params: WorkflowParam[];
+
+  /**
+   * Ausführende Instanz (media | ai) laut Engine
+   *
+   * @generated from field: string instance = 13;
+   */
+  instance: string;
 };
 
 /**
@@ -315,7 +437,7 @@ export type WorkflowInfo = Message<"darkfluenzer.v1.WorkflowInfo"> & {
  * Use `create(WorkflowInfoSchema)` to create a new message.
  */
 export const WorkflowInfoSchema: GenMessage<WorkflowInfo> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 4);
+  messageDesc(file_darkfluenzer_v1_comfy, 7);
 
 /**
  * STATE comfy.workflows
@@ -341,7 +463,7 @@ export type Workflows = Message<"darkfluenzer.v1.Workflows"> & {
  * Use `create(WorkflowsSchema)` to create a new message.
  */
 export const WorkflowsSchema: GenMessage<Workflows> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 5);
+  messageDesc(file_darkfluenzer_v1_comfy, 8);
 
 /**
  * @generated from message darkfluenzer.v1.JobOutput
@@ -370,7 +492,7 @@ export type JobOutput = Message<"darkfluenzer.v1.JobOutput"> & {
  * Use `create(JobOutputSchema)` to create a new message.
  */
 export const JobOutputSchema: GenMessage<JobOutput> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 6);
+  messageDesc(file_darkfluenzer_v1_comfy, 9);
 
 /**
  * EVENT job.completed: eine abgeschlossene Renderung aus der jobs-Tabelle.
@@ -433,7 +555,7 @@ export type JobCompleted = Message<"darkfluenzer.v1.JobCompleted"> & {
  * Use `create(JobCompletedSchema)` to create a new message.
  */
 export const JobCompletedSchema: GenMessage<JobCompleted> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_comfy, 7);
+  messageDesc(file_darkfluenzer_v1_comfy, 10);
 
 /**
  * @generated from enum darkfluenzer.v1.ComfyState

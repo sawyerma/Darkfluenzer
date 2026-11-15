@@ -1,6 +1,12 @@
 import { fromBinary } from "@bufbuild/protobuf";
 import { useEffect, useMemo, useState } from "react";
-import { MediaPageSchema, type MediaItem, type MediaPage } from "./generated/darkfluenzer/v1/media_pb";
+import {
+  MediaPageSchema,
+  MediaProvenanceSchema,
+  type MediaItem,
+  type MediaPage,
+  type MediaProvenance,
+} from "./generated/darkfluenzer/v1/media_pb";
 import { Topic } from "./generated/darkfluenzer/v1/stream_pb";
 import { refreshSession, useConnection } from "./realtime";
 import { useEventTopic } from "./state";
@@ -29,6 +35,24 @@ async function get(url: string): Promise<Response> {
 async function fetchMediaPage(before: bigint, limit: number): Promise<MediaPage> {
   const resp = await get(`/api/v1/media-page?before=${before}&limit=${limit}`);
   return fromBinary(MediaPageSchema, new Uint8Array(await resp.arrayBuffer()));
+}
+
+// Medien sind unveränderlich: ihre Herkunft wird je media_id genau einmal abgefragt und behalten
+// (gleichzeitige Anfragen teilen sich eine; fehlgeschlagene werden beim nächsten Aufruf wiederholt).
+const provenances = new Map<bigint, Promise<MediaProvenance>>();
+
+export function fetchProvenance(mediaId: bigint): Promise<MediaProvenance> {
+  let pending = provenances.get(mediaId);
+  if (!pending) {
+    pending = get(`/api/v1/provenance/${mediaId}`)
+      .then(async (resp) => fromBinary(MediaProvenanceSchema, new Uint8Array(await resp.arrayBuffer())))
+      .catch((e: unknown) => {
+        provenances.delete(mediaId);
+        throw e;
+      });
+    provenances.set(mediaId, pending);
+  }
+  return pending;
 }
 
 export type GalleryStatus = "ready" | "loading" | "offline";

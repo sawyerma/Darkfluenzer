@@ -262,11 +262,12 @@ def _render(
     workflow_key = wf.key
     from . import runtime
 
-    runtime.start(cfg)
+    inst = comfy.instance_of(cfg, man, wf)
+    runtime.start(cfg, inst.name)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     dest = evaluation_dir(cfg, wf.engine)
     if resume:  # vor einem Neustart eingereicht: nur abholen, nie ein zweites Mal rendern
-        if comfy.prompt_state(cfg, resume) == "unknown":
+        if comfy.prompt_state(inst, resume) == "unknown":
             raise PipelineError(
                 "Nach dem Neustart ist der Auftrag in ComfyUI nicht mehr vorhanden."
             )
@@ -281,7 +282,7 @@ def _render(
             timeout_s=timeout_s,
         )
     else:
-        client = comfy.ComfyClient(cfg.comfyui.url)
+        client = comfy.ComfyClient(inst.url)
         for name, path in uploads.items():
             values[name] = client.upload_image(path)
         result = comfy.run_workflow(
@@ -330,6 +331,16 @@ def _render(
     sidecar.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     log.info("Evaluation %s: %s (%.1f s)", workflow_key, sidecar.name, result.duration_s)
     return result, record["outputs"]
+
+
+def sidecar_for(cfg: Config, output_rel: str) -> dict | None:
+    """Herkunftsdatei eines Laufs zu einer Ausgabe (``<stem>_NN.ext`` -> ``<stem>.json``)."""
+    out = Path(output_rel)
+    sidecar = cfg.local / out.parent / f"{out.stem.rsplit('_', 1)[0]}.json"
+    try:
+        return json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
 
 
 def _gallery_files(cfg: Config) -> Iterator[tuple[int, Path, str]]:

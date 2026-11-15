@@ -2,7 +2,7 @@ import { create, toBinary } from "@bufbuild/protobuf";
 import { expect, test, vi } from "vitest";
 import {
   ComfyState,
-  ComfyStatusSchema,
+  ComfyInstancesSchema,
   JobCompletedSchema,
   JobResult,
 } from "../src/core/generated/darkfluenzer/v1/comfy_pb";
@@ -19,8 +19,8 @@ async function freshState() {
 }
 
 function comfyFrame(generation: bigint, seq: bigint, state: ComfyState) {
-  const payload = toBinary(ComfyStatusSchema, create(ComfyStatusSchema, { state }));
-  return create(StateFullSchema, { topic: Topic.COMFY_STATUS, generation, seq, payload });
+  const payload = toBinary(ComfyInstancesSchema, create(ComfyInstancesSchema, { instances: [{ name: "media", state }] }));
+  return create(StateFullSchema, { topic: Topic.COMFY_INSTANCES, generation, seq, payload });
 }
 
 function jobEvent(cursor: bigint) {
@@ -38,16 +38,16 @@ test("STATE: älterer Stand verworfen, Trennung veraltet, Snapshot nach Reconnec
   const s = await freshState();
   expect(s.applyState(comfyFrame(1n, 2n, ComfyState.READY))).toBe(true);
   expect(s.applyState(comfyFrame(1n, 1n, ComfyState.STOPPED))).toBe(false);
-  expect(s.stateOf(Topic.COMFY_STATUS)?.value.state).toBe(ComfyState.READY);
+  expect(s.stateOf(Topic.COMFY_INSTANCES)?.value.instances[0]?.state).toBe(ComfyState.READY);
 
   s.markStale();
-  expect(s.stateOf(Topic.COMFY_STATUS)?.staleSince).not.toBeNull();
+  expect(s.stateOf(Topic.COMFY_INSTANCES)?.staleSince).not.toBeNull();
   expect(s.applyState(comfyFrame(1n, 2n, ComfyState.READY))).toBe(true); // gleicher Stand
-  expect(s.stateOf(Topic.COMFY_STATUS)?.staleSince).toBeNull();
+  expect(s.stateOf(Topic.COMFY_INSTANCES)?.staleSince).toBeNull();
 
   // Neuer Backend-Lauf: höhere Generation gilt trotz kleinerer seq
   expect(s.applyState(comfyFrame(2n, 1n, ComfyState.STOPPED))).toBe(true);
-  expect(s.stateOf(Topic.COMFY_STATUS)?.value.state).toBe(ComfyState.STOPPED);
+  expect(s.stateOf(Topic.COMFY_INSTANCES)?.value.instances[0]?.state).toBe(ComfyState.STOPPED);
 });
 
 test("EVENT: Duplikate verworfen, Lücke sichtbar, ersetztes Journal setzt zurück", async () => {

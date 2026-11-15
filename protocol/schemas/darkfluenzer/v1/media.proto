@@ -58,3 +58,66 @@ message MediaPage {
   // Es gibt ältere Einträge.
   bool more = 2;
 }
+
+// Herkunft eines Mediums: GET /api/v1/provenance/<media_id> -> MediaProvenance
+// (application/x-protobuf, Sitzung). Medien sind unveränderlich und IDs werden nie neu vergeben:
+// die Antwort zu einer media_id bleibt gleich (einmal abrufen, dann behalten).
+message ProvenanceInput {
+  string param = 1;
+  // Pfad relativ zu local/ der tatsächlich hochgeladenen Eingabedatei.
+  string path = 2;
+  string sha256 = 3;
+}
+
+message ProvenanceModel {
+  string file = 1;
+  string repo = 2;
+  string revision = 3;
+  string sha256 = 4;
+}
+
+// Widget-Wert eines Nodes im eingereichten Graphen (Verbindungen ausgelassen), als Text.
+message GraphInput {
+  string name = 1;
+  string value = 2;
+}
+
+message GraphNode {
+  string id = 1;
+  string class_type = 2;
+  repeated GraphInput inputs = 3;
+}
+
+// Speicherverlauf des Laufs (freier Unified Memory laut ComfyUI, macOS-Swap).
+message MemoryTrace {
+  double ram_total_gb = 1;
+  double ram_free_start_gb = 2;
+  double ram_free_min_gb = 3;
+  double ram_free_end_gb = 4;
+  double swap_start_mb = 5;
+  double swap_max_mb = 6;
+  double swap_end_mb = 7;
+}
+
+message MediaProvenance {
+  uint64 media_id = 1;
+  // 0: Datei ohne Darkfluenzer-Renderjob (z. B. direkt in ComfyUI erzeugt)
+  uint64 job_id = 2;
+  string workflow = 3;
+  // Titel des Workflows, solange er registriert ist (sonst leer)
+  string workflow_title = 4;
+  string engine = 5;
+  // SHA-256 der API-Workflow-Datei beim Einreichen
+  string workflow_sha256 = 6;
+  string prompt_id = 7;
+  double duration_s = 8;
+  // Medium, aus dem der Auftrag hervorging (0 = keines)
+  uint64 parent_media_id = 9;
+  map<string, string> params = 10;
+  repeated ProvenanceInput inputs = 11;
+  repeated ProvenanceModel models = 12;
+  // Exakt eingereichter API-Graph (fehlt bei Aufträgen vor dem Graph-Snapshot)
+  repeated GraphNode graph = 13;
+  MemoryTrace memory = 14;
+}
+

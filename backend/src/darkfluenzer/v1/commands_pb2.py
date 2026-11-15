@@ -24,45 +24,45 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1e\x64\x61rkfluenzer/v1/commands.proto\x12\x0f\x64\x61rkfluenzer.v1\"\x0c\n\nComfyStart\"\x0b\n\tComfyStop\"u\n\nParamValue\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n\x04text\x18\x02 \x01(\tH\x00R\x04text\x12\x1a\n\x07integer\x18\x03 \x01(\x03H\x00R\x07integer\x12\x18\n\x06number\x18\x04 \x01(\x01H\x00R\x06numberB\x07\n\x05value\"l\n\tInputFile\x12\x14\n\x05param\x18\x01 \x01(\tR\x05param\x12\x1a\n\x08\x66ilename\x18\x02 \x01(\tR\x08\x66ilename\x12\x12\n\x04\x64\x61ta\x18\x03 \x01(\x0cR\x04\x64\x61ta\x12\x19\n\x08media_id\x18\x04 \x01(\x04R\x07mediaId\"\xb3\x01\n\x06Render\x12\x1a\n\x08workflow\x18\x01 \x01(\tR\x08workflow\x12\x33\n\x06values\x18\x02 \x03(\x0b\x32\x1b.darkfluenzer.v1.ParamValueR\x06values\x12\x30\n\x05\x66iles\x18\x03 \x03(\x0b\x32\x1a.darkfluenzer.v1.InputFileR\x05\x66iles\x12&\n\x0fparent_media_id\x18\x04 \x01(\x04R\rparentMediaId\"J\n\x12SetWorkflowEnabled\x12\x1a\n\x08workflow\x18\x01 \x01(\tR\x08workflow\x12\x18\n\x07\x65nabled\x18\x02 \x01(\x08R\x07\x65nabled\"*\n\x0cOpenWorkflow\x12\x1a\n\x08workflow\x18\x01 \x01(\tR\x08workflow\"+\n\rAdoptWorkflow\x12\x1a\n\x08workflow\x18\x01 \x01(\tR\x08workflow\",\n\x0e\x44\x65leteWorkflow\x12\x1a\n\x08workflow\x18\x01 \x01(\tR\x08workflow\">\n\x0e\x43reateWorkflow\x12\x16\n\x06source\x18\x01 \x01(\tR\x06source\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\"\"\n\tCancelJob\x12\x15\n\x06job_id\x18\x01 \x01(\x04R\x05jobId\"$\n\nPauseQueue\x12\x16\n\x06paused\x18\x01 \x01(\x08R\x06paused\"*\n\x0b\x44\x65leteMedia\x12\x1b\n\tmedia_ids\x18\x01 \x03(\x04R\x08mediaIds\"\xd5\x06\n\x0e\x43ommandRequest\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12)\n\x10\x65xpected_version\x18\x02 \x01(\x04R\x0f\x65xpectedVersion\x12>\n\x0b\x63omfy_start\x18\n \x01(\x0b\x32\x1b.darkfluenzer.v1.ComfyStartH\x00R\ncomfyStart\x12;\n\ncomfy_stop\x18\x0b \x01(\x0b\x32\x1a.darkfluenzer.v1.ComfyStopH\x00R\tcomfyStop\x12\x31\n\x06render\x18\x0c \x01(\x0b\x32\x17.darkfluenzer.v1.RenderH\x00R\x06render\x12W\n\x14set_workflow_enabled\x18\r \x01(\x0b\x32#.darkfluenzer.v1.SetWorkflowEnabledH\x00R\x12setWorkflowEnabled\x12\x44\n\ropen_workflow\x18\x0e \x01(\x0b\x32\x1d.darkfluenzer.v1.OpenWorkflowH\x00R\x0copenWorkflow\x12G\n\x0e\x61\x64opt_workflow\x18\x0f \x01(\x0b\x32\x1e.darkfluenzer.v1.AdoptWorkflowH\x00R\radoptWorkflow\x12J\n\x0f\x64\x65lete_workflow\x18\x10 \x01(\x0b\x32\x1f.darkfluenzer.v1.DeleteWorkflowH\x00R\x0e\x64\x65leteWorkflow\x12J\n\x0f\x63reate_workflow\x18\x11 \x01(\x0b\x32\x1f.darkfluenzer.v1.CreateWorkflowH\x00R\x0e\x63reateWorkflow\x12;\n\ncancel_job\x18\x12 \x01(\x0b\x32\x1a.darkfluenzer.v1.CancelJobH\x00R\tcancelJob\x12>\n\x0bpause_queue\x18\x13 \x01(\x0b\x32\x1b.darkfluenzer.v1.PauseQueueH\x00R\npauseQueue\x12\x41\n\x0c\x64\x65lete_media\x18\x14 \x01(\x0b\x32\x1c.darkfluenzer.v1.DeleteMediaH\x00R\x0b\x64\x65leteMediaB\t\n\x07\x63ommand\"\x98\x01\n\x0f\x43ommandResponse\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32\x1e.darkfluenzer.v1.CommandStatusR\x06status\x12\x16\n\x06\x64\x65tail\x18\x03 \x01(\tR\x06\x64\x65tail\x12\x16\n\x06\x65ntity\x18\x04 \x01(\tR\x06\x65ntity\"\xcb\x01\n\x0e\x43ommandReceipt\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32\x1e.darkfluenzer.v1.CommandStatusR\x06status\x12\x18\n\x07\x63ommand\x18\x03 \x01(\tR\x07\x63ommand\x12\x16\n\x06\x65ntity\x18\x04 \x01(\tR\x06\x65ntity\x12\x16\n\x06\x64\x65tail\x18\x05 \x01(\tR\x06\x64\x65tail\x12\x18\n\x07version\x18\x06 \x01(\x04R\x07version*\xdc\x01\n\rCommandStatus\x12\x1e\n\x1a\x43OMMAND_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n\x17\x43OMMAND_STATUS_ACCEPTED\x10\x01\x12\x1b\n\x17\x43OMMAND_STATUS_REJECTED\x10\x02\x12\x1c\n\x18\x43OMMAND_STATUS_COMPLETED\x10\x03\x12\x19\n\x15\x43OMMAND_STATUS_FAILED\x10\x04\x12\x1a\n\x16\x43OMMAND_STATUS_UNKNOWN\x10\x05\x12\x1c\n\x18\x43OMMAND_STATUS_CANCELLED\x10\x06\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1e\x64\x61rkfluenzer/v1/commands.proto\x12\x0f\x64\x61rkfluenzer.v1\"(\n\nComfyStart\x12\x1a\n\x08instance\x18\x01 \x01(\tR\x08instance\"\'\n\tComfyStop\x12\x1a\n\x08instance\x18\x01 \x01(\tR\x08instance\"u\n\nParamValue\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n\x04text\x18\x02 \x01(\tH\x00R\x04text\x12\x1a\n\x07integer\x18\x03 \x01(\x03H\x00R\x07integer\x12\x18\n\x06number\x18\x04 \x01(\x01H\x00R\x06numberB\x07\n\x05value\"l\n\tInputFile\x12\x14\n\x05param\x18\x01 \x01(\tR\x05param\x12\x1a\n\x08\x66ilename\x18\x02 \x01(\tR\x08\x66ilename\x12\x12\n\x04\x64\x61ta\x18\x03 \x01(\x0cR\x04\x64\x61ta\x12\x19\n\x08media_id\x18\x04 \x01(\x04R\x07mediaId\"\xd7\x01\n\x06Render\x12\x1a\n\x08workflow\x18\x01 \x01(\tR\x08workflow\x12\x33\n\x06values\x18\x02 \x03(\x0b\x32\x1b.darkfluenzer.v1.ParamValueR\x06values\x12\x30\n\x05\x66iles\x18\x03 \x03(\x0b\x32\x1a.darkfluenzer.v1.InputFileR\x05\x66iles\x12&\n\x0fparent_media_id\x18\x04 \x01(\x04R\rparentMediaId\x12\"\n\rrepeat_job_id\x18\x05 \x01(\x04R\x0brepeatJobId\"J\n\x12SetWorkflowEnabled\x12\x1a\n\x08workflow\x18\x01 \x01(\tR\x08workflow\x12\x18\n\x07\x65nabled\x18\x02 \x01(\x08R\x07\x65nabled\"*\n\x0cOpenWorkflow\x12\x1a\n\x08workflow\x18\x01 \x01(\tR\x08workflow\"+\n\rAdoptWorkflow\x12\x1a\n\x08workflow\x18\x01 \x01(\tR\x08workflow\",\n\x0e\x44\x65leteWorkflow\x12\x1a\n\x08workflow\x18\x01 \x01(\tR\x08workflow\">\n\x0e\x43reateWorkflow\x12\x16\n\x06source\x18\x01 \x01(\tR\x06source\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\"\"\n\tCancelJob\x12\x15\n\x06job_id\x18\x01 \x01(\x04R\x05jobId\"@\n\nPauseQueue\x12\x16\n\x06paused\x18\x01 \x01(\x08R\x06paused\x12\x1a\n\x08instance\x18\x02 \x01(\tR\x08instance\"*\n\x0b\x44\x65leteMedia\x12\x1b\n\tmedia_ids\x18\x01 \x03(\x04R\x08mediaIds\"\xd5\x06\n\x0e\x43ommandRequest\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12)\n\x10\x65xpected_version\x18\x02 \x01(\x04R\x0f\x65xpectedVersion\x12>\n\x0b\x63omfy_start\x18\n \x01(\x0b\x32\x1b.darkfluenzer.v1.ComfyStartH\x00R\ncomfyStart\x12;\n\ncomfy_stop\x18\x0b \x01(\x0b\x32\x1a.darkfluenzer.v1.ComfyStopH\x00R\tcomfyStop\x12\x31\n\x06render\x18\x0c \x01(\x0b\x32\x17.darkfluenzer.v1.RenderH\x00R\x06render\x12W\n\x14set_workflow_enabled\x18\r \x01(\x0b\x32#.darkfluenzer.v1.SetWorkflowEnabledH\x00R\x12setWorkflowEnabled\x12\x44\n\ropen_workflow\x18\x0e \x01(\x0b\x32\x1d.darkfluenzer.v1.OpenWorkflowH\x00R\x0copenWorkflow\x12G\n\x0e\x61\x64opt_workflow\x18\x0f \x01(\x0b\x32\x1e.darkfluenzer.v1.AdoptWorkflowH\x00R\radoptWorkflow\x12J\n\x0f\x64\x65lete_workflow\x18\x10 \x01(\x0b\x32\x1f.darkfluenzer.v1.DeleteWorkflowH\x00R\x0e\x64\x65leteWorkflow\x12J\n\x0f\x63reate_workflow\x18\x11 \x01(\x0b\x32\x1f.darkfluenzer.v1.CreateWorkflowH\x00R\x0e\x63reateWorkflow\x12;\n\ncancel_job\x18\x12 \x01(\x0b\x32\x1a.darkfluenzer.v1.CancelJobH\x00R\tcancelJob\x12>\n\x0bpause_queue\x18\x13 \x01(\x0b\x32\x1b.darkfluenzer.v1.PauseQueueH\x00R\npauseQueue\x12\x41\n\x0c\x64\x65lete_media\x18\x14 \x01(\x0b\x32\x1c.darkfluenzer.v1.DeleteMediaH\x00R\x0b\x64\x65leteMediaB\t\n\x07\x63ommand\"\x98\x01\n\x0f\x43ommandResponse\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32\x1e.darkfluenzer.v1.CommandStatusR\x06status\x12\x16\n\x06\x64\x65tail\x18\x03 \x01(\tR\x06\x64\x65tail\x12\x16\n\x06\x65ntity\x18\x04 \x01(\tR\x06\x65ntity\"\xcb\x01\n\x0e\x43ommandReceipt\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32\x1e.darkfluenzer.v1.CommandStatusR\x06status\x12\x18\n\x07\x63ommand\x18\x03 \x01(\tR\x07\x63ommand\x12\x16\n\x06\x65ntity\x18\x04 \x01(\tR\x06\x65ntity\x12\x16\n\x06\x64\x65tail\x18\x05 \x01(\tR\x06\x64\x65tail\x12\x18\n\x07version\x18\x06 \x01(\x04R\x07version*\xdc\x01\n\rCommandStatus\x12\x1e\n\x1a\x43OMMAND_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n\x17\x43OMMAND_STATUS_ACCEPTED\x10\x01\x12\x1b\n\x17\x43OMMAND_STATUS_REJECTED\x10\x02\x12\x1c\n\x18\x43OMMAND_STATUS_COMPLETED\x10\x03\x12\x19\n\x15\x43OMMAND_STATUS_FAILED\x10\x04\x12\x1a\n\x16\x43OMMAND_STATUS_UNKNOWN\x10\x05\x12\x1c\n\x18\x43OMMAND_STATUS_CANCELLED\x10\x06\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'darkfluenzer.v1.commands_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_COMMANDSTATUS']._serialized_start=2100
-  _globals['_COMMANDSTATUS']._serialized_end=2320
+  _globals['_COMMANDSTATUS']._serialized_start=2220
+  _globals['_COMMANDSTATUS']._serialized_end=2440
   _globals['_COMFYSTART']._serialized_start=51
-  _globals['_COMFYSTART']._serialized_end=63
-  _globals['_COMFYSTOP']._serialized_start=65
-  _globals['_COMFYSTOP']._serialized_end=76
-  _globals['_PARAMVALUE']._serialized_start=78
-  _globals['_PARAMVALUE']._serialized_end=195
-  _globals['_INPUTFILE']._serialized_start=197
-  _globals['_INPUTFILE']._serialized_end=305
-  _globals['_RENDER']._serialized_start=308
-  _globals['_RENDER']._serialized_end=487
-  _globals['_SETWORKFLOWENABLED']._serialized_start=489
-  _globals['_SETWORKFLOWENABLED']._serialized_end=563
-  _globals['_OPENWORKFLOW']._serialized_start=565
-  _globals['_OPENWORKFLOW']._serialized_end=607
-  _globals['_ADOPTWORKFLOW']._serialized_start=609
-  _globals['_ADOPTWORKFLOW']._serialized_end=652
-  _globals['_DELETEWORKFLOW']._serialized_start=654
-  _globals['_DELETEWORKFLOW']._serialized_end=698
-  _globals['_CREATEWORKFLOW']._serialized_start=700
-  _globals['_CREATEWORKFLOW']._serialized_end=762
-  _globals['_CANCELJOB']._serialized_start=764
-  _globals['_CANCELJOB']._serialized_end=798
-  _globals['_PAUSEQUEUE']._serialized_start=800
-  _globals['_PAUSEQUEUE']._serialized_end=836
-  _globals['_DELETEMEDIA']._serialized_start=838
-  _globals['_DELETEMEDIA']._serialized_end=880
-  _globals['_COMMANDREQUEST']._serialized_start=883
-  _globals['_COMMANDREQUEST']._serialized_end=1736
-  _globals['_COMMANDRESPONSE']._serialized_start=1739
-  _globals['_COMMANDRESPONSE']._serialized_end=1891
-  _globals['_COMMANDRECEIPT']._serialized_start=1894
-  _globals['_COMMANDRECEIPT']._serialized_end=2097
+  _globals['_COMFYSTART']._serialized_end=91
+  _globals['_COMFYSTOP']._serialized_start=93
+  _globals['_COMFYSTOP']._serialized_end=132
+  _globals['_PARAMVALUE']._serialized_start=134
+  _globals['_PARAMVALUE']._serialized_end=251
+  _globals['_INPUTFILE']._serialized_start=253
+  _globals['_INPUTFILE']._serialized_end=361
+  _globals['_RENDER']._serialized_start=364
+  _globals['_RENDER']._serialized_end=579
+  _globals['_SETWORKFLOWENABLED']._serialized_start=581
+  _globals['_SETWORKFLOWENABLED']._serialized_end=655
+  _globals['_OPENWORKFLOW']._serialized_start=657
+  _globals['_OPENWORKFLOW']._serialized_end=699
+  _globals['_ADOPTWORKFLOW']._serialized_start=701
+  _globals['_ADOPTWORKFLOW']._serialized_end=744
+  _globals['_DELETEWORKFLOW']._serialized_start=746
+  _globals['_DELETEWORKFLOW']._serialized_end=790
+  _globals['_CREATEWORKFLOW']._serialized_start=792
+  _globals['_CREATEWORKFLOW']._serialized_end=854
+  _globals['_CANCELJOB']._serialized_start=856
+  _globals['_CANCELJOB']._serialized_end=890
+  _globals['_PAUSEQUEUE']._serialized_start=892
+  _globals['_PAUSEQUEUE']._serialized_end=956
+  _globals['_DELETEMEDIA']._serialized_start=958
+  _globals['_DELETEMEDIA']._serialized_end=1000
+  _globals['_COMMANDREQUEST']._serialized_start=1003
+  _globals['_COMMANDREQUEST']._serialized_end=1856
+  _globals['_COMMANDRESPONSE']._serialized_start=1859
+  _globals['_COMMANDRESPONSE']._serialized_end=2011
+  _globals['_COMMANDRECEIPT']._serialized_start=2014
+  _globals['_COMMANDRECEIPT']._serialized_end=2217
 # @@protoc_insertion_point(module_scope)

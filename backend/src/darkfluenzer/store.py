@@ -678,6 +678,20 @@ class Store:
         )
         return [(r["id"], r["pid"]) for r in rows]
 
+    def engine_peak_gb(self, engine: str) -> float | None:
+        """Gemessener Speicherbedarf (freier Speicher Start minus Minimum) des letzten
+        abgeschlossenen Laufs dieser Engine; None ohne Messung."""
+        row = self.db.execute(
+            "SELECT json_extract(e.data, '$.memory.ram_free_start_gb'),"
+            " json_extract(e.data, '$.memory.ram_free_min_gb') FROM events e"
+            " JOIN jobs j ON j.id = e.entity_id WHERE e.entity = 'job' AND e.event = 'status'"
+            " AND json_extract(e.data, '$.status') = 'done' AND j.engine = ?"
+            " AND json_extract(e.data, '$.memory.ram_free_min_gb') IS NOT NULL"
+            " ORDER BY e.id DESC LIMIT 1",
+            (engine,),
+        ).fetchone()
+        return None if row is None else max(0.0, row[0] - row[1])
+
     def jobs_brief(self, job_ids: list[int]) -> dict[int, tuple[str, dict]]:
         """(Workflow, Parameter) je Job-ID (unbekannte IDs fehlen im Ergebnis)."""
         marks = ",".join("?" * len(job_ids))
@@ -947,15 +961,6 @@ class Store:
         ).fetchall()
         return [dict(r) for r in rows[:limit]][::-1], len(rows) > limit
 
-    def removed_media_paths(self) -> set[str]:
-        return {
-            r[0]
-            for r in self.db.execute(
-                "SELECT json_extract(data, '$.path') FROM events"
-                " WHERE entity = 'media' AND event = 'removed'"
-            )
-        }
-
     def media_by_path(self, rel: str) -> dict | None:
         row = self.db.execute("SELECT * FROM media WHERE path = ?", (rel,)).fetchone()
         return dict(row) if row else None
@@ -963,6 +968,10 @@ class Store:
     def media_by_id(self, media_id: int) -> dict | None:
         row = self.db.execute("SELECT * FROM media WHERE id = ?", (media_id,)).fetchone()
         return dict(row) if row else None
+
+    def media_path_by_sha(self) -> dict[str, str]:
+        """SHA-256 -> Pfad der indizierten Datei (gleicher Inhalt steht nur einmal im Index)."""
+        return {r[0]: r[1] for r in self.db.execute("SELECT sha256, path FROM media")}
 
     def media_paths(self) -> set[str]:
         return {r[0] for r in self.db.execute("SELECT path FROM media")}

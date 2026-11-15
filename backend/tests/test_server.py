@@ -204,7 +204,8 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
 
     def finish_job(i: int) -> None:
         job = store.create_job(None, "lustify_sdxl", "lustify_sdxl_t2i", "p", {"seed": i}, [i])
-        out = {"path": f"evaluation/x_{i}.png", "sha256": "0" * 64, "size": 1}
+        out = {"path": f"evaluation/x_{i}.png", "sha256": f"{i:064d}", "size": 1}
+        store.add_media(out["path"], out["sha256"], 1, job_id=job)  # Ausgabe in der Galerie
         store.set_job_status(job, "done", duration_s=1.5, outputs=[out])
 
     for i in range(4):
@@ -227,7 +228,8 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
         welcome = (await _frame(ws)).welcome
         assert welcome.status == pb.WELCOME_STATUS_ACCEPTED
         assert {(d.topic, d.topic_class) for d in welcome.topics} == {
-            (pb.TOPIC_COMFY_STATUS, pb.TOPIC_CLASS_STATE),
+            (pb.TOPIC_COMFY_INSTANCES, pb.TOPIC_CLASS_STATE),
+            (pb.TOPIC_RESOURCES, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_JOBS_ACTIVE, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_COMFY_WORKFLOWS, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_JOB_COMPLETED, pb.TOPIC_CLASS_EVENT),
@@ -236,12 +238,12 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
             (pb.TOPIC_COMMAND_RECEIPT, pb.TOPIC_CLASS_EVENT),
         }
 
-        sub = pb.Subscribe(topic=pb.TOPIC_COMFY_STATUS)
+        sub = pb.Subscribe(topic=pb.TOPIC_COMFY_INSTANCES)
         await ws.send_bytes(pb.ClientMessage(subscribe=sub).SerializeToString())
         state = (await _frame(ws)).state_full
         assert state.generation > 0 and state.seq >= 1
-        comfy = comfy_pb2.ComfyStatus.FromString(state.payload)
-        assert comfy.state == comfy_pb2.COMFY_STATE_STOPPED
+        (comfy,) = comfy_pb2.ComfyInstances.FromString(state.payload).instances
+        assert comfy.name == "media" and comfy.state == comfy_pb2.COMFY_STATE_STOPPED
 
         # Nachzug ab dem ersten Job: drei neuere, Limit 2 -> die neuesten zwei plus Lücke
         sub = pb.Subscribe(topic=pb.TOPIC_JOB_COMPLETED, after_cursor=cursors[0])
@@ -354,7 +356,7 @@ def test_workflow_commands_enable_render_fifo_and_delete(cfg):
         created = models.load_manifest(cfg.root).workflows["portraet_neu"]
         assert created.engine == "lustify_sdxl" and created.status == "OFFEN"
         assert set(created.params) == set(man.workflows[t2i].params)
-        assert comfy.editor_file(cfg, "portraet_neu").is_file()
+        assert comfy.editor_file(cfg.comfyui, "portraet_neu").is_file()
         assert "vergeben" in (await answer(cmd(create_workflow=new))).detail
 
         gone = "lustify_sdxl_refine"
@@ -363,7 +365,8 @@ def test_workflow_commands_enable_render_fifo_and_delete(cfg):
             await answer(cmd(delete_workflow=commands_pb2.DeleteWorkflow(workflow=gone)))
         ).detail == ""
         assert gone not in models.load_manifest(cfg.root).workflows
-        assert not any(f.exists() for f in files) and not comfy.editor_file(cfg, gone).exists()
+        assert not any(f.exists() for f in files)
+        assert not comfy.editor_file(cfg.comfyui, gone).exists()
         assert all(
             (models.models_dir(cfg.root) / mf.target).exists()
             for mf in man.engine_files("lustify_sdxl")
@@ -390,3 +393,38 @@ def test_client_queue_keeps_latest_state_and_never_drops_events():
     assert not client.overflow
     client.put_frame(b"e3")  # über der Grenze: nicht verwerfen, sondern trennen und nachholen
     assert client.overflow and list(client.frames) == [b"e1", b"e2"]
+
+
+def test_provenance_of_a_rendered_medium(cfg):
+    store = Store(cfg.local)
+    job = store.create_job(
+        None, "lustify_sdxl", "lustify_sdxl_t2i", "p", {"seed": 7, "prompt": "p"}, [7]
+    )
+    graph = {"5": {"class_type": "KSampler", "inputs": {"seed": 7, "model": ["1", 0]}}}
+    store.set_job_submitted(job, "prompt-x", graph, "b" * 64)
+    out = cfg.local / "evaluation" / "lustify_sdxl" / "x_20261115T000000Z_01.png"
+    out.parent.mkdir(parents=True)
+    out.write_bytes(b"png")
+    rel = out.relative_to(cfg.local).as_posix()
+    memory = {"ram_total_gb": 128.0, "ram_free_min_gb": 50.0, "swap_max_mb": 10.0}
+    store.set_job_status(job, "done", duration_s=2.5, outputs=[], memory=memory)
+    media_id = store.add_media(rel, hashlib.sha256(b"png").hexdigest(), 3, job_id=job)
+    store.close()
+
+    async def scenario(client, app, origin):
+        await _csrf(client)
+        resp = await client.get(f"/api/v1/provenance/{media_id}")
+        assert resp.status == 200
+        prov = media_pb2.MediaProvenance.FromString(await resp.read())
+        assert prov.job_id == job and prov.workflow == "lustify_sdxl_t2i"
+        assert prov.workflow_title and prov.prompt_id == "prompt-x"
+        assert prov.params["seed"] == "7" and prov.duration_s == 2.5
+        assert [
+            (n.id, n.class_type, [(i.name, i.value) for i in n.inputs]) for n in prov.graph
+        ] == [
+            ("5", "KSampler", [("seed", "7")])  # Verbindungen ausgelassen
+        ]
+        assert prov.memory.ram_free_min_gb == 50.0
+        assert (await client.get("/api/v1/provenance/999999")).status == 404
+
+    _run(cfg, scenario)

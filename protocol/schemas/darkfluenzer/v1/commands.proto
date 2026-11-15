@@ -8,9 +8,14 @@ package darkfluenzer.v1;
 // (EVENT command.receipt: COMPLETED, FAILED, CANCELLED oder UNKNOWN) plus die passende
 // STATE/EVENT-Projektion; die Oberfläche zeigt erst den belegten Zustand.
 
-message ComfyStart {}
+// Instanz: media | ai (leer = media)
+message ComfyStart {
+  string instance = 1;
+}
 
-message ComfyStop {}
+message ComfyStop {
+  string instance = 1;
+}
 
 // Wert eines Workflow-Parameters (Name und Typ laut workflows/manifest.toml).
 message ParamValue {
@@ -34,12 +39,14 @@ message InputFile {
 
 // Renderauftrag ohne Kundenbezug über den registrierten API-Workflow; FIFO im Backend.
 // parent_media_id: Medium, aus dem dieser Auftrag hervorgeht (Weiterverarbeiten, Wiederholen,
-// Variieren); 0 = neuer Auftrag.
+// Variieren); 0 = neuer Auftrag. repeat_job_id: Parameter und Eingabedateien dieses Jobs desselben
+// Workflows übernehmen (Wiederholen); values überschreiben einzelne davon (Variieren: neuer Seed).
 message Render {
   string workflow = 1;
   repeated ParamValue values = 2;
   repeated InputFile files = 3;
   uint64 parent_media_id = 4;
+  uint64 repeat_job_id = 5;
 }
 
 // Betreiberentscheidung je Workflow, gespeichert in workflows/manifest.toml.
@@ -75,9 +82,10 @@ message CancelJob {
   uint64 job_id = 1;
 }
 
-// Warteschlange anhalten (true) oder fortsetzen (false).
+// Warteschlange einer Instanz anhalten (true) oder fortsetzen (false); leer = media.
 message PauseQueue {
   bool paused = 1;
+  string instance = 2;
 }
 
 // Galerie-Einträge ohne Kundenbezug endgültig löschen (Dateien vom Mac entfernen).

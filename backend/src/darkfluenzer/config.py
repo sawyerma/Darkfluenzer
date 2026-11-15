@@ -19,8 +19,20 @@ class ConfigError(Exception):
     """Konfiguration fehlt oder ist ungültig. Die Meldung ist für Menschen formuliert."""
 
 
+# Instanzen (PHASENPLAN_V0 §4.2): Medien-ComfyUI 1 und KI-ComfyUI 2 mit eigenem Abschnitt
+INSTANCE_SECTIONS = {"media": "comfyui", "ai": "comfyui_ai"}
+# Eigene Verzeichnisse einer Instanz mit data_dir (Code und Modellablage werden geteilt)
+DATA_DIR_ARGS = {
+    "--user-directory": "user",
+    "--input-directory": "input",
+    "--output-directory": "output",
+    "--temp-directory": "temp",
+}
+
+
 @dataclass(frozen=True)
 class ComfyConfig:
+    name: str  # "media" | "ai"
     path: Path
     python: Path
     host: str
@@ -30,11 +42,28 @@ class ComfyConfig:
     env: dict[str, str]
     startup_timeout_s: float
     stop_timeout_s: float
+    data_dir: Path | None  # eigene user/input/output/temp-Ordner; None = ComfyUI-Standard
 
     @property
     def url(self) -> str:
         host = f"[{self.host}]" if ":" in self.host else self.host
         return f"http://{host}:{self.port}"
+
+    def _file(self, suffix: str) -> str:
+        # Medien-Instanz behält die bisherigen Namen; jede weitere Instanz bekommt eigene
+        return f"comfyui{suffix}" if self.name == "media" else f"comfyui_{self.name}{suffix}"
+
+    @property
+    def state_name(self) -> str:
+        return self._file(".json")
+
+    @property
+    def lock_name(self) -> str:
+        return self._file(".lock")
+
+    @property
+    def log_name(self) -> str:
+        return self._file(".log")
 
 
 @dataclass(frozen=True)
@@ -50,6 +79,7 @@ class ServerConfig:
     max_upload_mb: float
     media_settle_s: float
     client_queue_max: int
+    memory_reserve_gb: float
 
     @property
     def url(self) -> str:
@@ -60,8 +90,19 @@ class ServerConfig:
 @dataclass(frozen=True)
 class Config:
     root: Path
-    comfyui: ComfyConfig
+    comfyui: ComfyConfig  # Medien-Instanz (immer vorhanden)
+    comfyui_ai: ComfyConfig | None  # KI-Instanz, sobald [comfyui_ai] konfiguriert ist
     server: ServerConfig
+
+    @property
+    def instances(self) -> tuple[ComfyConfig, ...]:
+        return (self.comfyui,) + ((self.comfyui_ai,) if self.comfyui_ai else ())
+
+    def instance(self, name: str) -> ComfyConfig:
+        found = next((c for c in self.instances if c.name == name), None)
+        if found is None:
+            raise ConfigError(f"ComfyUI-Instanz '{name}' ist nicht eingerichtet ([comfyui_ai]).")
+        return found
 
     @property
     def local(self) -> Path:
@@ -107,28 +148,31 @@ def _loopback(host: str) -> bool:
         return False
 
 
-def _parse_comfy(root: Path, t: dict) -> ComfyConfig:
-    w = "comfyui"
+def _parse_comfy(root: Path, t: dict, name: str) -> ComfyConfig:
+    w = INSTANCE_SECTIONS[name]
     host = _require(t, "host", str, w)
     if not _loopback(host):
-        raise ConfigError(f"Konfiguration: comfyui.host='{host}' ist keine Loopback-Adresse.")
+        raise ConfigError(f"Konfiguration: {w}.host='{host}' ist keine Loopback-Adresse.")
     port = _require(t, "port", int, w)
     if not 1 <= port <= 65535:
-        raise ConfigError(f"Konfiguration: comfyui.port={port} ist ungültig.")
+        raise ConfigError(f"Konfiguration: {w}.port={port} ist ungültig.")
     extra = t.get("extra_args", [])
     prepend = t.get("path_prepend", [])
     env = t.get("env", {})
     if not (isinstance(extra, list) and all(isinstance(a, str) for a in extra)):
-        raise ConfigError("Konfiguration: comfyui.extra_args muss eine Liste von Texten sein.")
+        raise ConfigError(f"Konfiguration: {w}.extra_args muss eine Liste von Texten sein.")
     if not (isinstance(prepend, list) and all(isinstance(a, str) for a in prepend)):
-        raise ConfigError("Konfiguration: comfyui.path_prepend muss eine Liste von Texten sein.")
+        raise ConfigError(f"Konfiguration: {w}.path_prepend muss eine Liste von Texten sein.")
     if not (isinstance(env, dict) and all(isinstance(v, str) for v in env.values())):
-        raise ConfigError("Konfiguration: [comfyui.env] darf nur Text-Werte enthalten.")
-    reserved = {"--listen", "--port", "--auto-launch"}
+        raise ConfigError(f"Konfiguration: [{w}.env] darf nur Text-Werte enthalten.")
+    data_dir = t.get("data_dir")
+    if data_dir is not None and not isinstance(data_dir, str):
+        raise ConfigError(f"Konfiguration: {w}.data_dir muss ein Pfad (Text) sein.")
+    reserved = {"--listen", "--port", "--auto-launch", *(DATA_DIR_ARGS if data_dir else ())}
     if reserved & {a.split("=")[0] for a in extra}:
         raise ConfigError(
-            "Konfiguration: --listen/--port/--auto-launch werden vom Launcher gesetzt "
-            "und dürfen nicht in comfyui.extra_args stehen."
+            f"Konfiguration: {', '.join(sorted(reserved))} werden vom Launcher gesetzt "
+            f"und dürfen nicht in {w}.extra_args stehen."
         )
     wm = env.get("PYTORCH_MPS_HIGH_WATERMARK_RATIO")
     if wm is not None:
@@ -145,11 +189,12 @@ def _parse_comfy(root: Path, t: dict) -> ComfyConfig:
 
     startup = t.get("startup_timeout_s", 240)
     stop = t.get("stop_timeout_s", 30)
-    for name, val in (("startup_timeout_s", startup), ("stop_timeout_s", stop)):
+    for key, val in (("startup_timeout_s", startup), ("stop_timeout_s", stop)):
         if isinstance(val, bool) or not isinstance(val, int | float) or val <= 0:
-            raise ConfigError(f"Konfiguration: comfyui.{name} muss eine positive Zahl sein.")
+            raise ConfigError(f"Konfiguration: {w}.{key} muss eine positive Zahl sein.")
 
     return ComfyConfig(
+        name=name,
         path=_resolve(root, _require(t, "path", str, w)),
         python=_resolve(root, _require(t, "python", str, w)),
         host=host,
@@ -159,6 +204,7 @@ def _parse_comfy(root: Path, t: dict) -> ComfyConfig:
         env=dict(env),
         startup_timeout_s=float(startup),
         stop_timeout_s=float(stop),
+        data_dir=_resolve(root, data_dir) if data_dir else None,
     )
 
 
@@ -187,6 +233,7 @@ def _parse_server(t: dict) -> ServerConfig:
         max_upload_mb=_positive(t, "max_upload_mb", 50, w),
         media_settle_s=_positive(t, "media_settle_s", 10, w),
         client_queue_max=int(_positive(t, "client_queue_max", 2000, w)),
+        memory_reserve_gb=_positive(t, "memory_reserve_gb", 16, w),
     )
 
 
@@ -205,11 +252,21 @@ def load(root: Path | None = None) -> Config:
     for section in ("comfyui", "server"):
         if not isinstance(data.get(section), dict):
             raise ConfigError(f"Konfiguration {path}: Abschnitt [{section}] fehlt.")
-    return Config(
-        root=root,
-        comfyui=_parse_comfy(root, data["comfyui"]),
-        server=_parse_server(data["server"]),
-    )
+    media = _parse_comfy(root, data["comfyui"], "media")
+    ai = None
+    if "comfyui_ai" in data:
+        if not isinstance(data["comfyui_ai"], dict):
+            raise ConfigError(f"Konfiguration {path}: [comfyui_ai] muss ein Abschnitt sein.")
+        ai = _parse_comfy(root, data["comfyui_ai"], "ai")
+        if ai.port == media.port:
+            raise ConfigError(
+                "Konfiguration: comfyui_ai.port muss sich von comfyui.port unterscheiden."
+            )
+        if ai.data_dir is None:
+            raise ConfigError(
+                "Konfiguration: comfyui_ai.data_dir fehlt (eigene Ordner der KI-Instanz)."
+            )
+    return Config(root=root, comfyui=media, comfyui_ai=ai, server=_parse_server(data["server"]))
 
 
 def setup_logging(cfg: Config, name: str = "darkfluenzer.log") -> Path:

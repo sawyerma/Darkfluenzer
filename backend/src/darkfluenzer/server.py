@@ -16,7 +16,7 @@ import os
 import secrets
 import uuid
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -24,7 +24,7 @@ from aiohttp import web
 from google.protobuf.message import DecodeError
 
 from . import comfy, models, pipeline, runtime
-from .config import Config
+from .config import ComfyConfig, Config
 from .store import Store, StoreError
 from .stream import Hub, schema_id
 from .v1 import comfy_pb2, commands_pb2, media_pb2
@@ -82,9 +82,32 @@ class _Call:
     recorded: bool = False  # Handler hat Befehl und Effekt in einem Commit festgehalten (Render)
 
 
+@dataclass(eq=False)
+class _Lane:
+    """Eine ComfyUI-Instanz mit eigener Warteschlange (PHASENPLAN_V0 §4.2): Zustand, ComfyUI-Queue,
+    Fortschritt, FIFO der Backend-Renderjobs, Anhalten und zuletzt geladene Engine."""
+
+    inst: ComfyConfig
+    client_id: str = field(default_factory=lambda: uuid.uuid4().hex)  # Fortschritt nur an uns
+    status: dict = field(default_factory=dict)
+    queue: list[tuple[int, bool, str]] = field(default_factory=list)  # (Job, läuft?, prompt_id)
+    progress: dict[str, tuple[int, int]] = field(default_factory=dict)
+    renders: asyncio.Queue[int] = field(default_factory=asyncio.Queue)
+    resume: asyncio.Event = field(default_factory=asyncio.Event)  # gesetzt = läuft
+    busy: str = ""  # "start" | "stop", solange ein ComfyUI-Befehl läuft
+    error: str = ""
+    engine: str = ""  # Engine des letzten Laufs (Entladen beim Wechsel, Zulassung)
+    waiting_job: int = 0  # Auftrag, der auf freien Speicher wartet
+    need_gb: float = 0.0
+    running_job: int = 0
+
+    def __post_init__(self) -> None:
+        self.resume.set()
+
+
 class Cockpit:
-    """Projektionen und Befehle: ComfyUI-Zustand, Warteschlange und Workflows (STATE),
-    abgeschlossene Jobs, Medien und Befehls-Receipts (EVENT)."""
+    """Projektionen und Befehle: ComfyUI-Instanzen, Warteschlangen, Ressourcen und Workflows
+    (STATE), abgeschlossene Jobs, Medien und Befehls-Receipts (EVENT)."""
 
     def __init__(self, cfg: Config, hub: Hub, store: Store) -> None:
         self.cfg = cfg
@@ -92,29 +115,33 @@ class Cockpit:
         self.store = store
         # Einzige Registry; Änderungen aus dem Cockpit ersetzen dieses Objekt nach dem Speichern.
         self.manifest = models.load_manifest(cfg.root)
-        self._busy = ""  # "start" | "stop", solange ein ComfyUI-Befehl läuft
-        self._error = ""
-        self._status: dict = {}
-        # ComfyUI-Warteschlange: (Job-ID oder 0, läuft?, prompt_id)
-        self._queue: list[tuple[int, bool, str]] = []
-        # Eigene ComfyUI-Client-ID der Renderjobs: nur an sie meldet ComfyUI den Fortschritt
-        self.client_id = uuid.uuid4().hex
-        self._progress: dict[str, tuple[int, int]] = {}  # prompt_id -> (Wert, Maximum)
-        self._resume = asyncio.Event()  # gesetzt = Warteschlange läuft, gelöscht = angehalten
-        self._resume.set()
+        self.lanes = {inst.name: _Lane(inst) for inst in cfg.instances}
+        self._memory: dict = {}  # letzte Messung: ram_total, ram_free (Bytes), swap (MB)
         self._cancelled: set[int] = set()  # laufende Jobs mit Abbruchwunsch des Betreibers
         self._seen_media = store.media_paths()  # bereits geprüfte Dateien des Galerie-Index
-        self._renders: asyncio.Queue[int] = asyncio.Queue()  # FIFO der Backend-Renderjobs
         # Registry-Änderungen und das Lesen der Workflow-Projektion nie gleichzeitig
         self._registry = asyncio.Lock()
         self._manifest_mtime = self._manifest_path().stat().st_mtime_ns
         self._tasks: set[asyncio.Task] = set()
         self._inflight: dict[str, asyncio.Future] = {}  # request_id -> laufende Ausführung
-        self._last_engine = ""  # Engine des letzten Renders (Entladen beim Wechsel)
-        for key in self.manifest.workflows:  # Editor-Kopien für "Öffnen" bereitstellen
-            comfy.install_editor_copy(cfg, self.manifest, key)
+        self._resuming: set[int] = set()  # vor dem Neustart eingereichte Jobs (nur abholen)
+        self._install_editor_copies()
         self._registry_version = store.bump("workflows", self._fingerprint())
         self._settle_open_commands()
+
+    def _install_editor_copies(self) -> None:
+        """Editor-Kopien für "Öffnen" in der jeweils ausführenden, eingerichteten Instanz."""
+        for key, wf in self.manifest.workflows.items():
+            if self._lane_of(wf) is not None:
+                comfy.install_editor_copy(self.cfg, self.manifest, key)
+
+    def _lane_of(self, wf: models.Workflow) -> _Lane | None:
+        """Bahn der Instanz, die diesen Workflow ausführt (None: Instanz nicht eingerichtet)."""
+        return self.lanes.get(self.manifest.engines[wf.engine].instance)
+
+    def _lane_of_job(self, job_id: int) -> _Lane:
+        wf = self.manifest.workflows.get(self.store.job(job_id)["workflow"])
+        return (self._lane_of(wf) if wf else None) or self.lanes["media"]
 
     def _fingerprint(self) -> str:
         """Hash über Manifest und alle registrierten UI-/API-Graphen (Registry-Version)."""
@@ -156,57 +183,129 @@ class Cockpit:
         except models.ManifestError as exc:
             log.error("Geänderte Registry ungültig, bisherige bleibt aktiv: %s", exc)
             return None
-        for key in self.manifest.workflows:
-            comfy.install_editor_copy(self.cfg, self.manifest, key)
+        self._install_editor_copies()
         log.info("Registry neu geladen (%d Workflows)", len(self.manifest.workflows))
         return self._fingerprint()
 
-    async def render_worker(self) -> None:
-        """Führt Renderjobs nacheinander (FIFO) über den einen Renderpfad aus. Nach einem
-        Neustart: bei ComfyUI eingereichte Jobs werden abgeholt statt neu gerendert (prompt_id),
-        nie eingereichte laufen erneut, angelegte folgen in Reihenfolge."""
-        resume: set[int] = set()
+    def enqueue_existing(self) -> None:
+        """Nach einem Neustart: bei ComfyUI eingereichte Jobs abholen statt neu rendern
+        (prompt_id), nie eingereichte erneut einreihen, angelegte in Reihenfolge fortsetzen."""
         for job_id, pid in self.store.running_jobs():
             if pid and pid != os.getpid() and runtime.pid_alive(pid):
                 continue  # ein anderer Prozess (z. B. CLI-Evaluation) führt ihn aus
             if self.store.job(job_id)["prompt_id"]:
-                resume.add(job_id)
-                self._renders.put_nowait(job_id)
+                self._resuming.add(job_id)
+                self._lane_of_job(job_id).renders.put_nowait(job_id)
             else:
                 self.store.requeue_job(job_id)
         for job_id, _ in self.store.queued_jobs():
-            self._renders.put_nowait(job_id)
+            self._lane_of_job(job_id).renders.put_nowait(job_id)
+
+    async def render_worker(self, lane: _Lane) -> None:
+        """Führt die Renderjobs einer Instanz nacheinander (FIFO) aus; vor jedem Start prüft die
+        gemeinsame Zulassung den freien Speicher (§4.2)."""
         while True:
-            job_id = await self._renders.get()
-            await self._resume.wait()  # angehalten: nächster Job wartet
-            status = self.store.job(job_id)["status"]
-            if status != "queued" and not (status == "running" and job_id in resume):
+            job_id = await lane.renders.get()
+            await lane.resume.wait()  # angehalten: nächster Job wartet
+            job = self.store.job(job_id)
+            status = job["status"]
+            if status != "queued" and not (status == "running" and job_id in self._resuming):
                 continue  # inzwischen entfernt
-            resume.discard(job_id)
-            engine = self.store.job(job_id)["engine"]
+            self._resuming.discard(job_id)
+            engine = job["engine"]
+            if not await self._admit(lane, job_id, engine):
+                continue  # während des Wartens auf Speicher entfernt
+            lane.running_job = job_id
             try:
                 await asyncio.to_thread(
                     pipeline.run_render,
                     self.cfg,
                     self.manifest,
                     job_id,
-                    client_id=self.client_id,
+                    client_id=lane.client_id,
                     is_cancelled=lambda job=job_id: job in self._cancelled,
-                    unload_first=bool(self._last_engine) and self._last_engine != engine,
+                    unload_first=bool(lane.engine) and lane.engine != engine,
                 )
             except Exception as exc:  # im Journal als fehlgeschlagen festgehalten
                 log.error("Renderjob %s fehlgeschlagen: %s", job_id, exc)
-            self._last_engine = engine
+            lane.engine, lane.running_job = engine, 0
             self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
             self.hub.push_events(spb.TOPIC_MEDIA_ADDED)
             self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
             self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
+            self.hub.set_state(spb.TOPIC_RESOURCES, self._resources())
+
+    def _need_gb(self, engine: str) -> float:
+        """Speicherbedarf einer Engine: gemessene Spitze des letzten Laufs, bis zur ersten
+        Messung die Summe ihrer Modelldateien."""
+        if (peak := self.store.engine_peak_gb(engine)) is not None:
+            return peak
+        return sum(mf.size for mf in self.manifest.engine_files(engine)) / 1e9
+
+    async def _admit(self, lane: _Lane, job_id: int, engine: str) -> bool:
+        """Zulassung (§4.2): startet erst, wenn nach dem Bedarf die Reserve frei bleibt. Ist sie zu
+        knapp, entlädt eine ruhende andere Instanz ihre Modelle; sonst wartet der Auftrag.
+        False: der Auftrag wurde während des Wartens entfernt."""
+        need = self._need_gb(engine)
+        if lane.engine == engine:
+            return True  # gleiche Engine: Modelle sind bereits geladen
+        while True:
+            if self.store.job(job_id)["status"] not in ("queued", "running"):
+                lane.waiting_job, lane.need_gb = 0, 0.0
+                self.hub.set_state(spb.TOPIC_RESOURCES, self._resources())
+                return False
+            free = (await asyncio.to_thread(self._measure)).get("ram_free", 0) / 2**30
+            if not free or free - need >= self.cfg.server.memory_reserve_gb:
+                break
+            idle = [
+                other
+                for other in self.lanes.values()
+                if other is not lane and other.engine and not other.running_job
+            ]
+            if idle:
+                for other in idle:
+                    await asyncio.to_thread(comfy.ComfyClient(other.inst.url).free)
+                    log.info(
+                        "Zulassung: %s entlädt %s für Auftrag %s",
+                        other.inst.name,
+                        other.engine,
+                        job_id,
+                    )
+                    other.engine = ""
+                continue
+            lane.waiting_job, lane.need_gb = job_id, round(need, 1)
+            self.hub.set_state(spb.TOPIC_RESOURCES, self._resources())
+            await asyncio.sleep(self.cfg.server.observe_s)
+        if lane.waiting_job:
+            lane.waiting_job, lane.need_gb = 0, 0.0
+            self.hub.set_state(spb.TOPIC_RESOURCES, self._resources())
+        return True
+
+    def _measure(self) -> dict:
+        """Freier Unified Memory (über eine erreichbare Instanz) und macOS-Swap."""
+        for lane in self.lanes.values():
+            if lane.status.get("health"):
+                try:
+                    stats = comfy.ComfyClient(lane.inst.url, timeout=self.cfg.server.observe_s)
+                    system = stats._json("GET", "/system_stats").get("system") or {}
+                except comfy.ComfyError:
+                    continue
+                self._memory = {
+                    "ram_total": int(system.get("ram_total") or 0),
+                    "ram_free": int(system.get("ram_free") or 0),
+                    "swap": comfy.swap_used_mb(),
+                }
+                return self._memory
+        self._memory = {"swap": comfy.swap_used_mb()}
+        return self._memory
 
     async def observe(self) -> None:
         """Beobachtet ComfyUI, Modelldateien und Job-Journal; gepusht wird nur bei Änderung."""
         while True:
             try:
                 await self.refresh_comfy()
+                await asyncio.to_thread(self._measure)
+                self.hub.set_state(spb.TOPIC_RESOURCES, self._resources())
                 async with self._registry:
                     if fingerprint := await asyncio.to_thread(self._reload_if_changed):
                         self._registry_version = self.store.bump("workflows", fingerprint)
@@ -223,71 +322,76 @@ class Cockpit:
             await asyncio.sleep(self.cfg.server.observe_s)
 
     async def refresh_comfy(self) -> None:
-        try:
-            self._status = await asyncio.to_thread(runtime.status, self.cfg)
-        except runtime.RuntimeFailure as exc:
-            self._status = {"state": "error", "managed": False}
-            self._error = str(exc)
-        self._queue = (
-            await asyncio.to_thread(self._read_queue) if self._status.get("health") else []
-        )
-        queued = {prompt_id for _, _, prompt_id in self._queue}
-        self._progress = {p: v for p, v in self._progress.items() if p in queued}
-        self.hub.set_state(spb.TOPIC_COMFY_STATUS, self._comfy_status().SerializeToString())
+        for lane in self.lanes.values():
+            try:
+                lane.status = await asyncio.to_thread(runtime.status, self.cfg, lane.inst.name)
+            except runtime.RuntimeFailure as exc:
+                lane.status = {"state": "error", "managed": False}
+                lane.error = str(exc)
+            lane.queue = (
+                await asyncio.to_thread(self._read_queue, lane) if lane.status.get("health") else []
+            )
+            queued = {prompt_id for _, _, prompt_id in lane.queue}
+            lane.progress = {p: v for p, v in lane.progress.items() if p in queued}
+        self.hub.set_state(spb.TOPIC_COMFY_INSTANCES, self._instances())
         self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
 
-    async def progress_listener(self) -> None:
+    async def progress_listener(self, lane: _Lane) -> None:
         """Fortschritt (z. B. Sampler-Schritte) der eigenen Aufträge aus ComfyUIs WebSocket in die
         Warteschlange übernehmen; bei Verbindungsverlust nach der Beobachtungspause erneut."""
         while True:
-            if self._status.get("health"):
+            if lane.status.get("health"):
                 try:
                     async for prompt_id, value, maximum in comfy.progress_events(
-                        self.cfg.comfyui.url, self.client_id
+                        lane.inst.url, lane.client_id
                     ):
                         if maximum:
-                            self._progress[prompt_id] = (value, maximum)
+                            lane.progress[prompt_id] = (value, maximum)
                         else:
-                            self._progress.pop(prompt_id, None)
+                            lane.progress.pop(prompt_id, None)
                         self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
                 except Exception as exc:  # ComfyUI beendet/neu gestartet: später neu verbinden
-                    log.debug("ComfyUI-Fortschritt getrennt: %s", exc)
+                    log.debug("ComfyUI-Fortschritt %s getrennt: %s", lane.inst.name, exc)
             await asyncio.sleep(self.cfg.server.observe_s)
 
-    def _read_queue(self) -> list[tuple[int, bool, str]]:
-        client = comfy.ComfyClient(self.cfg.comfyui.url, timeout=self.cfg.server.observe_s)
+    def _read_queue(self, lane: _Lane) -> list[tuple[int, bool, str]]:
+        client = comfy.ComfyClient(lane.inst.url, timeout=self.cfg.server.observe_s)
         try:
             return client.queued_jobs()
         except comfy.ComfyError:
             return []
 
     def _jobs_active(self) -> bytes:
-        """FIFO-Sicht: ComfyUI (läuft, wartet), danach angelegte, noch nicht übergebene Jobs."""
+        """FIFO-Sicht je Instanz: ComfyUI (läuft, wartet), danach angelegte, noch nicht
+        übergebene Jobs."""
         queued = [job_id for job_id, _ in self.store.queued_jobs()]
-        in_comfy = [job_id for job_id, _, _ in self._queue if job_id]
+        in_comfy = [job_id for lane in self.lanes.values() for job_id, _, _ in lane.queue if job_id]
         ids = in_comfy + [j for j in queued if j not in in_comfy]
         brief = self.store.jobs_brief(ids) if ids else {}
         msg = comfy_pb2.JobsActive(
-            paused=not self._resume.is_set(), version=self.store.domain_version("jobs")
+            paused=[n for n, lane in self.lanes.items() if not lane.resume.is_set()],
+            version=self.store.domain_version("jobs"),
         )
 
-        def add(job_id: int, running: bool, prompt_id: str = "") -> None:
+        def add(lane: _Lane, job_id: int, running: bool, prompt_id: str = "") -> None:
             workflow, params = brief.get(job_id, ("", {}))
-            value, maximum = self._progress.get(prompt_id, (0, 0)) if running else (0, 0)
+            value, maximum = lane.progress.get(prompt_id, (0, 0)) if running else (0, 0)
             job = msg.jobs.add(
                 job_id=job_id,
                 workflow=workflow,
                 running=running,
                 progress_value=value,
                 progress_max=maximum,
+                instance=lane.inst.name,
             )
             job.params.update({k: str(v) for k, v in params.items()})
 
-        for job_id, running, prompt_id in self._queue:
-            add(job_id, running, prompt_id)
+        for lane in self.lanes.values():
+            for job_id, running, prompt_id in lane.queue:
+                add(lane, job_id, running, prompt_id)
         for job_id in queued:
             if job_id not in in_comfy:
-                add(job_id, False)
+                add(self._lane_of_job(job_id), job_id, False)
         return msg.SerializeToString()
 
     def _workflows(self) -> bytes:
@@ -295,8 +399,9 @@ class Cockpit:
         msg = comfy_pb2.Workflows(version=self._registry_version)
         for key, wf in self.manifest.workflows.items():
             eng, ready = self.manifest.engines[wf.engine], engines[wf.engine]
+            lane = self._lane_of(wf)
             registry_ui = self.manifest.root / "workflows" / wf.ui
-            editor = comfy.editor_file(self.cfg, key)
+            editor = comfy.editor_file(lane.inst, key) if lane else None
             info = msg.workflows.add(
                 key=key,
                 engine=wf.engine,
@@ -308,7 +413,10 @@ class Cockpit:
                 usage=eng.usage,
                 title=wf.title,
                 enabled=wf.enabled,
-                editor_changed=editor.is_file() and editor.read_bytes() != registry_ui.read_bytes(),
+                editor_changed=editor is not None
+                and editor.is_file()
+                and editor.read_bytes() != registry_ui.read_bytes(),
+                instance=eng.instance,
             )
             graph = comfy.load_graph(self.manifest, wf)
             for name, p in wf.params.items():
@@ -335,32 +443,56 @@ class Cockpit:
                     param.text = str(default)
         return msg.SerializeToString()
 
-    def _comfy_status(self) -> comfy_pb2.ComfyStatus:
-        st = self._status
+    def _instances(self) -> bytes:
+        msg = comfy_pb2.ComfyInstances()
+        for lane in self.lanes.values():
+            msg.instances.append(self._comfy_status(lane))
+        return msg.SerializeToString()
+
+    def _resources(self) -> bytes:
+        mem = self._memory
+        msg = comfy_pb2.Resources(
+            ram_total_gb=round(mem.get("ram_total", 0) / 2**30, 1),
+            ram_free_gb=round(mem.get("ram_free", 0) / 2**30, 1),
+            swap_used_mb=round(mem.get("swap", 0.0), 1),
+            reserve_gb=self.cfg.server.memory_reserve_gb,
+        )
+        for lane in self.lanes.values():
+            msg.instances.add(
+                name=lane.inst.name,
+                engine=lane.engine,
+                waiting_job=lane.waiting_job,
+                need_gb=lane.need_gb,
+            )
+        return msg.SerializeToString()
+
+    def _comfy_status(self, lane: _Lane) -> comfy_pb2.ComfyStatus:
+        st = lane.status
         health = st.get("health") or {}
-        running = sum(1 for _, r, _ in self._queue if r)
-        if self._busy == "start":
+        running = sum(1 for _, r, _ in lane.queue if r)
+        if lane.busy == "start":
             state = comfy_pb2.COMFY_STATE_STARTING
-        elif self._busy == "stop":
+        elif lane.busy == "stop":
             state = comfy_pb2.COMFY_STATE_STOPPING
         elif health and st.get("state") in ("running", "foreign"):
             state = comfy_pb2.COMFY_STATE_BUSY if running else comfy_pb2.COMFY_STATE_READY
-            self._error = ""
+            lane.error = ""
         elif st.get("state") == "starting":
             state = comfy_pb2.COMFY_STATE_STARTING
         elif st.get("state") == "stopped":
-            state = comfy_pb2.COMFY_STATE_FAILED if self._error else comfy_pb2.COMFY_STATE_STOPPED
+            state = comfy_pb2.COMFY_STATE_FAILED if lane.error else comfy_pb2.COMFY_STATE_STOPPED
         else:  # unhealthy, fremder Prozess ohne ComfyUI-Antwort, Prüffehler
             state = comfy_pb2.COMFY_STATE_UNREACHABLE
         return comfy_pb2.ComfyStatus(
             state=state,
             managed=bool(st.get("managed")),
-            url=self.cfg.comfyui.url,
+            url=lane.inst.url,
             version=health.get("comfyui_version") or "",
             device=health.get("device_type") or "",
-            error=self._error,
+            error=lane.error,
             queue_running=running,
-            queue_pending=len(self._queue) - running,
+            queue_pending=len(lane.queue) - running,
+            name=lane.inst.name,
         )
 
     async def command(
@@ -404,7 +536,7 @@ class Cockpit:
         }
         version = 0
         if which in ("comfy_start", "comfy_stop"):
-            reason = self._comfy_command(which, call)
+            reason = self._comfy_command(which, getattr(req, which).instance or "media", call)
         elif which not in handlers:
             reason = "Unbekannter Befehl"
         else:
@@ -456,12 +588,26 @@ class Cockpit:
     async def _render(self, msg: commands_pb2.Render, call: _Call) -> str:
         wf = self._workflow(msg.workflow)
         call.entity = f"workflow:{wf.key}"
+        lane = self._lane_of(wf)
+        if lane is None:
+            return "Die ausführende ComfyUI-Instanz ist nicht eingerichtet."
         if reason := await asyncio.to_thread(self._not_startable, wf):
             return reason
         values = {
             v.name: getattr(v, v.WhichOneof("value")) for v in msg.values if v.WhichOneof("value")
         }
         inputs = {}
+        if msg.repeat_job_id:  # Wiederholen/Variieren: Parameter und Eingaben des Ursprungsjobs
+            origin = self.store.job(msg.repeat_job_id)
+            if origin["workflow"] != wf.key:
+                return (
+                    f"Auftrag {msg.repeat_job_id} gehört zu {origin['workflow']}, nicht {wf.key}."
+                )
+            for name, value in origin["params"].items():
+                if name in wf.params and wf.params[name].upload:
+                    inputs[name] = value
+                elif name in wf.params:
+                    values.setdefault(name, value)
         for f in msg.files:
             if f.param not in wf.params or not wf.params[f.param].upload:
                 return f"{f.param}: kein Upload-Parameter von {wf.key}."
@@ -488,8 +634,8 @@ class Cockpit:
             },
         )
         call.entity, call.recorded = f"job:{job_id}", True
-        log.info("Renderjob %s (%s) eingereiht", job_id, wf.key)
-        self._renders.put_nowait(job_id)
+        log.info("Renderjob %s (%s, %s) eingereiht", job_id, wf.key, lane.inst.name)
+        lane.renders.put_nowait(job_id)
         return ""
 
     async def _set_enabled(self, msg: commands_pb2.SetWorkflowEnabled, call: _Call) -> str:
@@ -503,21 +649,22 @@ class Cockpit:
 
     async def _open(self, msg: commands_pb2.OpenWorkflow, call: _Call) -> str:
         call.entity = f"workflow:{msg.workflow}"
-        self._workflow(msg.workflow)
-        if not self._status.get("health"):
-            return "ComfyUI läuft nicht."
+        lane = self._lane_of(self._workflow(msg.workflow))
+        if lane is None or not lane.status.get("health"):
+            return "Die ausführende ComfyUI-Instanz läuft nicht."
         await asyncio.to_thread(comfy.install_editor_copy, self.cfg, self.manifest, msg.workflow)
         return ""
 
     async def _adopt(self, msg: commands_pb2.AdoptWorkflow, call: _Call) -> str:
         call.entity = f"workflow:{msg.workflow}"
         wf = self._workflow(msg.workflow)
-        if not self._status.get("health"):
-            return "ComfyUI läuft nicht (Node-Definitionen für die Prüfung fehlen)."
+        lane = self._lane_of(wf)
+        if lane is None or not lane.status.get("health"):
+            return "Die ausführende ComfyUI-Instanz läuft nicht (Node-Definitionen fehlen)."
 
         def adopt() -> models.Manifest:
-            info = comfy.ComfyClient(self.cfg.comfyui.url, timeout=120).object_info()
-            edited = json.loads(comfy.editor_file(self.cfg, wf.key).read_text(encoding="utf-8"))
+            info = comfy.ComfyClient(lane.inst.url, timeout=120).object_info()
+            edited = json.loads(comfy.editor_file(lane.inst, wf.key).read_text(encoding="utf-8"))
             registry_ui = json.loads((self.manifest.root / "workflows" / wf.ui).read_text())
             api = comfy.ui_to_api(edited, info)
             uploads = {(p.node, p.input) for p in wf.params.values() if p.upload}
@@ -540,7 +687,8 @@ class Cockpit:
             models.create_workflow, self.cfg.root, msg.source, msg.title
         )
         call.entity = f"workflow:{key}"
-        await asyncio.to_thread(comfy.install_editor_copy, self.cfg, self.manifest, key)
+        if self._lane_of(self.manifest.workflows[key]) is not None:
+            await asyncio.to_thread(comfy.install_editor_copy, self.cfg, self.manifest, key)
         log.info("Workflow %s als Kopie von %s angelegt", key, msg.source)
         return ""
 
@@ -555,21 +703,27 @@ class Cockpit:
             return ""
         if job["status"] != "running":
             return "Auftrag ist bereits abgeschlossen."
-        prompt = next((p for j, _, p in self._queue if j == msg.job_id), "")
+        lane = self._lane_of_job(msg.job_id)
+        prompt = next((p for j, _, p in lane.queue if j == msg.job_id), "")
         if not prompt:
             return "Auftrag startet gerade – gleich erneut versuchen."
         self._cancelled.add(msg.job_id)
-        client = comfy.ComfyClient(self.cfg.comfyui.url, timeout=self.cfg.server.timeout_s)
+        client = comfy.ComfyClient(lane.inst.url, timeout=self.cfg.server.timeout_s)
         await asyncio.to_thread(client.cancel, prompt)
         log.info("Job %s (prompt %s) abgebrochen", msg.job_id, prompt)
         return ""
 
     async def _pause(self, msg: commands_pb2.PauseQueue, call: _Call) -> str:
+        name = msg.instance or "media"
+        call.entity = f"comfyui:{name}"
+        lane = self.lanes.get(name)
+        if lane is None:
+            return f"ComfyUI-Instanz '{name}' ist nicht eingerichtet."
         if msg.paused:
-            self._resume.clear()
+            lane.resume.clear()
         else:
-            self._resume.set()
-        log.info("Warteschlange %s", "angehalten" if msg.paused else "fortgesetzt")
+            lane.resume.set()
+        log.info("Warteschlange %s %s", name, "angehalten" if msg.paused else "fortgesetzt")
         return ""
 
     async def _delete(self, msg: commands_pb2.DeleteWorkflow, call: _Call) -> str:
@@ -578,8 +732,10 @@ class Cockpit:
         active = comfy_pb2.JobsActive.FromString(self._jobs_active())
         if any(job.workflow == wf.key for job in active.jobs):
             return "Workflow hat laufende oder wartende Aufträge."
+        lane = self._lane_of(wf)
         self.manifest = await asyncio.to_thread(models.delete_workflow, self.cfg.root, wf.key)
-        await asyncio.to_thread(comfy.remove_editor_copy, self.cfg, wf.key)
+        if lane is not None:
+            await asyncio.to_thread(comfy.remove_editor_copy, lane.inst, wf.key)
         log.info("Workflow %s gelöscht (Registrierung, UI/API, Editor-Kopie)", wf.key)
         return ""
 
@@ -594,31 +750,38 @@ class Cockpit:
         log.info("Galerie: %d Datei(en) gelöscht", len(removed))
         return ""
 
-    def _comfy_command(self, which: str, call: _Call) -> str:
-        if self._busy:
-            return "Ein ComfyUI-Befehl läuft bereits"
-        if self._status.get("state") == "foreign":
+    def _comfy_command(self, which: str, name: str, call: _Call) -> str:
+        call.entity = f"comfyui:{name}"
+        lane = self.lanes.get(name)
+        if lane is None:
+            return f"ComfyUI-Instanz '{name}' ist nicht eingerichtet."
+        if lane.busy:
+            return "Ein Befehl für diese ComfyUI-Instanz läuft bereits"
+        if lane.status.get("state") == "foreign":
             return "Port belegt durch eine nicht von Darkfluenzer gestartete Instanz"
+        if which == "comfy_stop" and (lane.running_job or lane.queue):
+            return "Instanz arbeitet – erst nach dem laufenden Auftrag stoppen."
         action = "start" if which == "comfy_start" else "stop"
-        call.entity = "comfyui:media"
-        self._busy, self._error = action, ""
-        self.hub.set_state(spb.TOPIC_COMFY_STATUS, self._comfy_status().SerializeToString())
-        task = asyncio.create_task(self._run(action, call.request_id))
+        lane.busy, lane.error = action, ""
+        self.hub.set_state(spb.TOPIC_COMFY_INSTANCES, self._instances())
+        task = asyncio.create_task(self._run(lane, action, call.request_id))
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
         return ""
 
-    async def _run(self, action: str, request_id: str) -> None:
+    async def _run(self, lane: _Lane, action: str, request_id: str) -> None:
         fn = runtime.start if action == "start" else runtime.stop
         try:
-            await asyncio.to_thread(fn, self.cfg)
+            await asyncio.to_thread(fn, self.cfg, lane.inst.name)
         except runtime.RuntimeFailure as exc:
-            log.error("ComfyUI %s fehlgeschlagen: %s", action, exc)
-            self._error = str(exc)
+            log.error("ComfyUI %s %s fehlgeschlagen: %s", lane.inst.name, action, exc)
+            lane.error = str(exc)
         finally:
-            self._busy = ""
+            lane.busy = ""
+        if action == "stop":
+            lane.engine = ""  # gestoppt: keine Modelle mehr geladen
         self.store.finish_command(
-            request_id, "failed" if self._error else "completed", detail=self._error
+            request_id, "failed" if lane.error else "completed", detail=lane.error
         )
         self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
         await self.refresh_comfy()
@@ -661,8 +824,8 @@ class Cockpit:
 
     def read_jobs(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
         rows, gap = self.store.finished_jobs(after, limit)
-        removed = self.store.removed_media_paths() if rows else set()
-        return [(r["id"], _unix_ms(r["created_at"]), _job_completed(r, removed)) for r in rows], gap
+        indexed = self.store.media_path_by_sha() if rows else {}
+        return [(r["id"], _unix_ms(r["created_at"]), _job_completed(r, indexed)) for r in rows], gap
 
 
 def _unix_ms(iso: str) -> int:
@@ -702,7 +865,65 @@ def _media_item(row: dict) -> media_pb2.MediaItem:
     return item
 
 
-def _job_completed(row: dict, removed: set[str]) -> bytes:
+def _provenance(cockpit: Cockpit, media_id: int) -> media_pb2.MediaProvenance | None:
+    """Herkunft eines Mediums aus Job-Journal, Graph-Snapshot und Herkunftsdatei des Laufs."""
+    store, man = cockpit.store, cockpit.manifest
+    row = store.media_by_id(media_id)
+    if row is None:
+        return None
+    msg = media_pb2.MediaProvenance(media_id=media_id)
+    if not row["job_id"]:
+        return msg
+    job = store.job(row["job_id"])
+    wf = man.workflows.get(job["workflow"])
+    msg.job_id = job["id"]
+    msg.workflow = job["workflow"]
+    msg.workflow_title = wf.title if wf else ""
+    msg.engine = job["engine"]
+    msg.workflow_sha256 = job["workflow_sha256"] or ""
+    msg.prompt_id = job["prompt_id"] or ""
+    msg.parent_media_id = job["parent_media_id"] or 0
+    msg.params.update({k: str(v) for k, v in job["params"].items()})
+    done = next(
+        (
+            e["data"]
+            for e in reversed(store.events("job", job["id"]))
+            if e["event"] == "status" and e["data"].get("status") == "done"
+        ),
+        {},
+    )
+    msg.duration_s = float(done.get("duration_s") or 0)
+    if memory := done.get("memory"):
+        msg.memory.CopyFrom(media_pb2.MemoryTrace(**memory_fields(memory)))
+    sidecar = pipeline.sidecar_for(cockpit.cfg, row["path"]) or {}
+    for param, inp in (sidecar.get("inputs") or {}).items():
+        path = Path(inp["file"])
+        rel = path.relative_to(cockpit.cfg.local).as_posix() if path.is_absolute() else str(path)
+        msg.inputs.add(param=param, path=rel, sha256=inp["sha256"])
+    for model in (sidecar.get("provenance") or {}).get("models") or []:
+        msg.models.add(
+            file=model["file"],
+            repo=model["repo"],
+            revision=model["revision"],
+            sha256=model["sha256"],
+        )
+    for nid, node in (job["graph"] or {}).items():
+        gnode = msg.graph.add(id=nid, class_type=node["class_type"])
+        for name, value in node["inputs"].items():
+            if not (isinstance(value, list) and len(value) == 2 and isinstance(value[1], int)):
+                gnode.inputs.add(name=name, value=str(value))
+    return msg
+
+
+def memory_fields(memory: dict) -> dict:
+    """Felder des Speicherverlaufs, die MemoryTrace kennt."""
+    names = set(media_pb2.MemoryTrace.DESCRIPTOR.fields_by_name)
+    return {k: float(v) for k, v in memory.items() if k in names}
+
+
+def _job_completed(row: dict, indexed: dict[str, str]) -> bytes:
+    """Abgeschlossener Job; Ausgaben verweisen auf die indizierte Datei gleichen Inhalts (eine
+    bitgleiche Wiederholung zeigt auf das vorhandene Medium), gelöschte entfallen."""
     data = row["data"]
     msg = comfy_pb2.JobCompleted(
         job_id=row["job_id"],
@@ -718,9 +939,10 @@ def _job_completed(row: dict, removed: set[str]) -> bytes:
         order_no=row["order_no"] or "",
     )
     for out in data.get("outputs") or []:
-        if out["path"] in removed:  # vom Betreiber gelöscht
+        path = indexed.get(out["sha256"])
+        if path is None:  # vom Betreiber gelöscht (oder nicht in der Galerie)
             continue
-        msg.outputs.add(path=out["path"], sha256=out["sha256"], size=out["size"])
+        msg.outputs.add(path=path, sha256=out["sha256"], size=out["size"])
     msg.params.update({k: str(v) for k, v in (row.get("params") or {}).items()})
     return msg.SerializeToString()
 
@@ -867,6 +1089,21 @@ async def _media_page(request: web.Request) -> web.Response:
     return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
 
 
+async def _provenance_route(request: web.Request) -> web.Response:
+    """Herkunft eines Mediums (Protobuf, bei Aufruf; Medien sind unveränderlich)."""
+    if request.app[GUARD_KEY].csrf_of(request) is None:
+        return web.Response(status=401, text="Keine gültige Sitzung")
+    try:
+        media_id = int(request.match_info["media_id"])
+    except ValueError:
+        return web.Response(status=400, text="media_id muss eine Zahl sein")
+    msg = _provenance(request.app[COCKPIT_KEY], media_id)
+    if msg is None:
+        raise web.HTTPNotFound()
+    headers = {"Cache-Control": "private, max-age=31536000, immutable"}
+    return web.Response(body=msg.SerializeToString(), content_type=PROTOBUF, headers=headers)
+
+
 def _static(dist: Path):
     """index.html stets revalidieren, gehashte Vite-Assets unveränderlich cachen."""
     assets = dist / "assets"
@@ -898,7 +1135,8 @@ def create_app(cfg: Config) -> web.Application:
         client_queue_max=cfg.server.client_queue_max,
     )
     cockpit = Cockpit(cfg, hub, store)
-    hub.offer_state(spb.TOPIC_COMFY_STATUS, comfy_pb2.ComfyStatus.DESCRIPTOR.full_name)
+    hub.offer_state(spb.TOPIC_COMFY_INSTANCES, comfy_pb2.ComfyInstances.DESCRIPTOR.full_name)
+    hub.offer_state(spb.TOPIC_RESOURCES, comfy_pb2.Resources.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_JOBS_ACTIVE, comfy_pb2.JobsActive.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_COMFY_WORKFLOWS, comfy_pb2.Workflows.DESCRIPTOR.full_name)
     hub.offer_events(
@@ -930,12 +1168,17 @@ def create_app(cfg: Config) -> web.Application:
     app.router.add_get("/ws/v1/stream", _stream)
     app.router.add_get("/api/v1/media/{path:.+}", _media(cfg.local))
     app.router.add_get("/api/v1/media-page", _media_page)
+    app.router.add_get("/api/v1/provenance/{media_id}", _provenance_route)
 
     async def lifecycle(_: web.Application):
+        cockpit.enqueue_existing()
         tasks = [
             asyncio.create_task(cockpit.observe()),
-            asyncio.create_task(cockpit.render_worker()),
-            asyncio.create_task(cockpit.progress_listener()),
+            *(asyncio.create_task(cockpit.render_worker(lane)) for lane in cockpit.lanes.values()),
+            *(
+                asyncio.create_task(cockpit.progress_listener(lane))
+                for lane in cockpit.lanes.values()
+            ),
         ]
         yield
         for task in tasks:

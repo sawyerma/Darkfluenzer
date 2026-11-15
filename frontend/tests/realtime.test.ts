@@ -1,6 +1,6 @@
 import { create, fromBinary, toBinary, type MessageInitShape } from "@bufbuild/protobuf";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { ComfyStatusSchema, JobCompletedSchema } from "../src/core/generated/darkfluenzer/v1/comfy_pb";
+import { ComfyInstancesSchema, JobCompletedSchema } from "../src/core/generated/darkfluenzer/v1/comfy_pb";
 import {
   ClientMessageSchema,
   ServerMessageSchema,
@@ -70,7 +70,7 @@ async function connected(n: number): Promise<FakeSocket> {
 }
 
 const TOPICS = [
-  { topic: Topic.COMFY_STATUS, topicClass: TopicClass.STATE, payloadType: ComfyStatusSchema.typeName },
+  { topic: Topic.COMFY_INSTANCES, topicClass: TopicClass.STATE, payloadType: ComfyInstancesSchema.typeName },
   { topic: Topic.JOB_COMPLETED, topicClass: TopicClass.EVENT, payloadType: JobCompletedSchema.typeName },
 ];
 
@@ -84,7 +84,7 @@ test("Handshake, Abonnements, Abbruch -> veraltet -> Reconnect mit Resume-Cursor
   first.server({ msg: { case: "welcome", value: { status: WelcomeStatus.ACCEPTED, heartbeatIntervalMs: 15000, topics: TOPICS } } });
   expect(rt.connectionInfo().status).toBe("OPEN");
   expect(first.sent.slice(1).map((m) => m.msg.case === "subscribe" && m.msg.value.topic)).toEqual([
-    Topic.COMFY_STATUS,
+    Topic.COMFY_INSTANCES,
     Topic.JOB_COMPLETED,
   ]);
   const payload = toBinary(JobCompletedSchema, create(JobCompletedSchema, { jobId: 1n }));

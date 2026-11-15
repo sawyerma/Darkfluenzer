@@ -25,7 +25,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from . import __version__, comfy, models, pipeline, runtime, training
-from .config import ConfigError, load, project_root, setup_logging
+from .config import INSTANCE_SECTIONS, ConfigError, load, project_root, setup_logging
 
 log = logging.getLogger("darkfluenzer.app")
 
@@ -101,14 +101,14 @@ def _emit(payload: dict, as_json: bool) -> None:
         )
 
 
-def _comfy(action: str) -> tuple[dict, int]:
+def _comfy(action: str, instance: str) -> tuple[dict, int]:
     cfg = load()
     setup_logging(cfg)
     if action == "start":
-        return {"ok": True, **runtime.start(cfg)}, 0
+        return {"ok": True, **runtime.start(cfg, instance)}, 0
     if action == "stop":
-        return {"ok": True, **runtime.stop(cfg)}, 0
-    st = runtime.status(cfg)
+        return {"ok": True, **runtime.stop(cfg, instance)}, 0
+    st = runtime.status(cfg, instance)
     if action == "status":
         return {"ok": True, **st}, 0
     if st["state"] == "running":
@@ -259,8 +259,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="darkfluenzer", description="Darkfluenzer-Dienst")
     parser.add_argument("--version", action="version", version=__version__)
     sub = parser.add_subparsers(dest="area", required=True)
-    cmd = sub.add_parser("comfy", help="verwaltete ComfyUI-Instanz")
+    cmd = sub.add_parser("comfy", help="verwaltete ComfyUI-Instanzen")
     cmd.add_argument("action", choices=["start", "stop", "status", "health"])
+    cmd.add_argument("--instance", choices=list(INSTANCE_SECTIONS), default="media")
     cmd.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     mod = sub.add_parser("models", help="Modell-Registry workflows/manifest.toml")
     mod.add_argument("action", choices=["status", "download", "verify", "orphans"])
@@ -298,7 +299,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.area == "comfy":
-            payload, code = _comfy(args.action)
+            payload, code = _comfy(args.action, args.instance)
         elif args.area == "models":
             payload, code = _models(args)
         elif args.area == "workflows":

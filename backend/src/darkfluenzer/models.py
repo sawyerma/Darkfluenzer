@@ -28,6 +28,7 @@ GATES = ("load", "render", "quality", "license_pass")
 GATE_VALUES = {"OFFEN", "PASS", "FAIL", "GESPERRT"}
 USAGES = {"evaluation", "production"}
 KINDS = {"image", "video"}
+INSTANCES = ("media", "ai")
 STAGING = ".staging"
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 
@@ -70,6 +71,8 @@ class Engine:
     usage: str
     gates: dict[str, str]
     note: str
+    # ausführende ComfyUI-Instanz (PHASENPLAN_V0 §4.2): media (Foto/Video) oder ai (KI-Workflows)
+    instance: str
 
 
 PARAM_TYPES = {"str": str, "int": int, "float": float}
@@ -209,7 +212,10 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             usage=_str(t, "usage", w),
             gates=dict(gates),
             note=str(t.get("note", "")),
+            instance=str(t.get("instance", "media")),
         )
+        if eng.instance not in INSTANCES:
+            raise ManifestError(f"Manifest: {w}.instance muss {INSTANCES} sein.")
         if eng.kind not in KINDS:
             raise ManifestError(f"Manifest: {w}.kind muss {KINDS} sein.")
         if eng.usage not in USAGES:

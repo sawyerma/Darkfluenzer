@@ -28,13 +28,10 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from .config import Config
+from .config import DATA_DIR_ARGS, ComfyConfig, Config
 
 log = logging.getLogger("darkfluenzer.runtime")
 
-STATE_NAME = "comfyui.json"
-LOCK_NAME = "comfyui.lock"
-COMFY_LOG_NAME = "comfyui.log"
 SERVER_LOG_NAME = "server.log"
 LOG_KEEP = 3
 SERVER_MARK = "-m darkfluenzer serve"
@@ -185,12 +182,12 @@ def health_summary(stats: dict | None) -> dict | None:
 # --------------------------------------------------------------------------- Zustand
 
 
-def _state_path(cfg: Config) -> Path:
-    return cfg.local / STATE_NAME
+def _state_path(cfg: Config, c: ComfyConfig) -> Path:
+    return cfg.local / c.state_name
 
 
-def read_state(cfg: Config) -> Instance | None:
-    path = _state_path(cfg)
+def read_state(cfg: Config, c: ComfyConfig) -> Instance | None:
+    path = _state_path(cfg, c)
     if not path.exists():
         return None
     try:
@@ -200,16 +197,16 @@ def read_state(cfg: Config) -> Instance | None:
         return None
 
 
-def _write_state(cfg: Config, inst: Instance) -> None:
-    path = _state_path(cfg)
+def _write_state(cfg: Config, c: ComfyConfig, inst: Instance) -> None:
+    path = _state_path(cfg, c)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(asdict(inst), indent=2), encoding="utf-8")
     os.replace(tmp, path)
 
 
-def _clear_state(cfg: Config) -> None:
+def _clear_state(cfg: Config, c: ComfyConfig) -> None:
     with contextlib.suppress(FileNotFoundError):
-        _state_path(cfg).unlink()
+        _state_path(cfg, c).unlink()
 
 
 def is_same_process(inst: Instance) -> bool:
@@ -223,9 +220,9 @@ def is_same_process(inst: Instance) -> bool:
 
 
 @contextlib.contextmanager
-def _locked(cfg: Config, timeout: float) -> Iterator[None]:
+def _locked(cfg: Config, c: ComfyConfig, timeout: float) -> Iterator[None]:
     cfg.local.mkdir(parents=True, exist_ok=True)
-    fd = os.open(cfg.local / LOCK_NAME, os.O_CREAT | os.O_RDWR, 0o600)
+    fd = os.open(cfg.local / c.lock_name, os.O_CREAT | os.O_RDWR, 0o600)
     try:
         deadline = time.monotonic() + timeout
         while True:
@@ -248,8 +245,7 @@ def _locked(cfg: Config, timeout: float) -> Iterator[None]:
 # --------------------------------------------------------------------------- Start / Stop
 
 
-def validate_setup(cfg: Config) -> None:
-    c = cfg.comfyui
+def validate_setup(c: ComfyConfig) -> None:
     if not (c.path / "main.py").is_file():
         raise InvalidSetup(
             f"ComfyUI nicht gefunden: {c.path}/main.py existiert nicht. "
@@ -264,8 +260,11 @@ def validate_setup(cfg: Config) -> None:
         )
 
 
-def build_command(cfg: Config) -> list[str]:
-    c = cfg.comfyui
+def build_command(c: ComfyConfig) -> list[str]:
+    own_dirs = []
+    if c.data_dir is not None:  # eigene Ordner der Instanz, gemeinsame Modellablage
+        for flag, sub in DATA_DIR_ARGS.items():
+            own_dirs += [flag, str(c.data_dir / sub)]
     return [
         str(c.python),
         "main.py",
@@ -274,13 +273,13 @@ def build_command(cfg: Config) -> list[str]:
         "--port",
         str(c.port),
         "--disable-auto-launch",
+        *own_dirs,
         *c.extra_args,
     ]
 
 
-def build_env(cfg: Config, base: dict[str, str] | None = None) -> dict[str, str]:
+def build_env(c: ComfyConfig, base: dict[str, str] | None = None) -> dict[str, str]:
     """Umgebung wie nach ``conda activate``: Env-bin vorn im PATH, CONDA_PREFIX gesetzt."""
-    c = cfg.comfyui
     env = dict(os.environ if base is None else base)
     for key in _ENV_DROP:
         env.pop(key, None)
@@ -341,8 +340,7 @@ def _terminate(pid: int, timeout: float) -> None:
     raise StopFailed(f"Prozess {pid} ließ sich nicht beenden.", pid=pid)
 
 
-def _await_ready(cfg: Config, inst: Instance, proc: subprocess.Popen | None) -> dict:
-    c = cfg.comfyui
+def _await_ready(c: ComfyConfig, inst: Instance, proc: subprocess.Popen | None) -> dict:
     deadline = time.monotonic() + c.startup_timeout_s
     while True:
         exited = proc.poll() if proc is not None else (None if is_same_process(inst) else -1)
@@ -365,36 +363,36 @@ def _await_ready(cfg: Config, inst: Instance, proc: subprocess.Popen | None) -> 
         time.sleep(_POLL_S)
 
 
-def _instance_payload(cfg: Config, inst: Instance, stats: dict | None) -> dict:
+def _instance_payload(c: ComfyConfig, inst: Instance, stats: dict | None) -> dict:
     return {
         "pid": inst.pid,
         "instance_id": inst.instance_id,
-        "url": cfg.comfyui.url,
+        "url": c.url,
         "started_at": inst.started_at,
         "log": inst.log_path,
         "health": health_summary(stats),
     }
 
 
-def start(cfg: Config) -> dict:
-    """Startet die verwaltete Instanz oder meldet die bereits laufende. Idempotent."""
-    validate_setup(cfg)
-    c = cfg.comfyui
-    with _locked(cfg, timeout=c.startup_timeout_s + 30):
-        inst = read_state(cfg)
+def start(cfg: Config, name: str = "media") -> dict:
+    """Startet die verwaltete Instanz ``name`` oder meldet die bereits laufende. Idempotent."""
+    c = cfg.instance(name)
+    validate_setup(c)
+    with _locked(cfg, c, timeout=c.startup_timeout_s + 30):
+        inst = read_state(cfg, c)
         if inst is not None:
             if is_same_process(inst):
                 stats = probe(c.host, c.port)
                 if stats is not None and inst.pid in listening_pids(c.port):
                     log.info("Start angefragt: verwaltete Instanz PID %s läuft bereits", inst.pid)
-                    return {"result": "already_running", **_instance_payload(cfg, inst, stats)}
+                    return {"result": "already_running", **_instance_payload(c, inst, stats)}
                 log.info("Verwaltete Instanz PID %s lebt, ist aber nicht bereit – warte", inst.pid)
-                stats = _await_ready(cfg, inst, None)
+                stats = _await_ready(c, inst, None)
                 inst.status = "running"
-                _write_state(cfg, inst)
-                return {"result": "already_running", **_instance_payload(cfg, inst, stats)}
+                _write_state(cfg, c, inst)
+                return {"result": "already_running", **_instance_payload(c, inst, stats)}
             log.warning("Veralteter Zustand für PID %s entfernt", inst.pid)
-            _clear_state(cfg)
+            _clear_state(cfg, c)
 
         foreign = listening_pids(c.port)
         if foreign:
@@ -413,15 +411,18 @@ def start(cfg: Config) -> dict:
                 health=health_summary(stats),
             )
 
-        log_path = _rotate_log(cfg, COMFY_LOG_NAME)
-        cmd = build_command(cfg)
-        log.info("Starte ComfyUI: cwd=%s cmd=%s", c.path, cmd)
+        log_path = _rotate_log(cfg, c.log_name)
+        cmd = build_command(c)
+        if c.data_dir is not None:
+            for sub in DATA_DIR_ARGS.values():
+                (c.data_dir / sub).mkdir(parents=True, exist_ok=True)
+        log.info("Starte ComfyUI %s: cwd=%s cmd=%s", c.name, c.path, cmd)
         with open(log_path, "ab") as logf:
             try:
                 proc = subprocess.Popen(
                     cmd,
                     cwd=c.path,
-                    env=build_env(cfg),
+                    env=build_env(c),
                     stdin=subprocess.DEVNULL,
                     stdout=logf,
                     stderr=subprocess.STDOUT,
@@ -451,18 +452,18 @@ def start(cfg: Config) -> dict:
             started_at=datetime.now(UTC).isoformat(timespec="seconds"),
             log_path=str(log_path),
         )
-        _write_state(cfg, inst)
+        _write_state(cfg, c, inst)
         t0 = time.monotonic()
         try:
-            stats = _await_ready(cfg, inst, proc)
+            stats = _await_ready(c, inst, proc)
         except BaseException:
             log.error("Start fehlgeschlagen – beende eigene Instanz PID %s", proc.pid)
             with contextlib.suppress(RuntimeFailure):
                 _terminate(proc.pid, c.stop_timeout_s)
-            _clear_state(cfg)
+            _clear_state(cfg, c)
             raise
         inst.status = "running"
-        _write_state(cfg, inst)
+        _write_state(cfg, c, inst)
         log.info(
             "ComfyUI bereit: PID %s nach %.1f s, Version %s",
             proc.pid,
@@ -472,19 +473,19 @@ def start(cfg: Config) -> dict:
         return {
             "result": "started",
             "startup_s": round(time.monotonic() - t0, 1),
-            **_instance_payload(cfg, inst, stats),
+            **_instance_payload(c, inst, stats),
         }
 
 
-def stop(cfg: Config) -> dict:
-    """Beendet ausschließlich die eindeutig zugeordnete eigene Instanz."""
-    c = cfg.comfyui
-    with _locked(cfg, timeout=c.startup_timeout_s + c.stop_timeout_s + 30):
-        inst = read_state(cfg)
+def stop(cfg: Config, name: str = "media") -> dict:
+    """Beendet ausschließlich die eindeutig zugeordnete eigene Instanz ``name``."""
+    c = cfg.instance(name)
+    with _locked(cfg, c, timeout=c.startup_timeout_s + c.stop_timeout_s + 30):
+        inst = read_state(cfg, c)
         if inst is None or not is_same_process(inst):
             if inst is not None:
                 log.warning("Stop: veralteter Zustand für PID %s entfernt", inst.pid)
-                _clear_state(cfg)
+                _clear_state(cfg, c)
             foreign = listening_pids(c.port)
             if foreign:
                 log.info("Stop: Port %s gehört fremder PID %s – nicht beendet", c.port, foreign)
@@ -497,15 +498,15 @@ def stop(cfg: Config) -> dict:
             return {"result": "not_running"}
         log.info("Stoppe verwaltete Instanz PID %s", inst.pid)
         _terminate(inst.pid, c.stop_timeout_s)
-        _clear_state(cfg)
+        _clear_state(cfg, c)
         log.info("Verwaltete Instanz PID %s beendet", inst.pid)
         return {"result": "stopped", "pid": inst.pid}
 
 
-def status(cfg: Config) -> dict:
+def status(cfg: Config, name: str = "media") -> dict:
     """Nur lesend. Zustände: stopped | starting | running | unhealthy | foreign."""
-    c = cfg.comfyui
-    inst = read_state(cfg)
+    c = cfg.instance(name)
+    inst = read_state(cfg, c)
     managed = inst is not None and is_same_process(inst)
     listeners = listening_pids(c.port)
     stats = probe(c.host, c.port) if listeners else None
@@ -517,7 +518,7 @@ def status(cfg: Config) -> dict:
             state = "starting"
         else:
             state = "unhealthy"
-        return {"state": state, "managed": True, **_instance_payload(cfg, inst, stats)}
+        return {"state": state, "managed": True, **_instance_payload(c, inst, stats)}
     payload: dict = {"managed": False, "url": c.url}
     if inst is not None:
         payload["stale_state"] = True
@@ -558,7 +559,7 @@ def _cockpit_pids(cfg: Config) -> tuple[list[int], list[int]]:
 def cockpit_up(cfg: Config) -> dict:
     """Startet den Cockpit-Server, falls nötig, und wartet auf seinen Health-Check. Idempotent."""
     s = cfg.server
-    with _locked(cfg, timeout=s.timeout_s + 30):
+    with _locked(cfg, cfg.comfyui, timeout=s.timeout_s + 30):
         own, foreign = _cockpit_pids(cfg)
         if foreign:
             raise ForeignInstance(
@@ -624,7 +625,7 @@ def cockpit_restart(cfg: Config) -> dict:
             f"{busy} Renderjob(s) warten oder laufen – ein Neustart würde sie abbrechen. "
             "Nach Abschluss erneut versuchen."
         )
-    with _locked(cfg, timeout=cfg.server.timeout_s + 30):
+    with _locked(cfg, cfg.comfyui, timeout=cfg.server.timeout_s + 30):
         own, _ = _cockpit_pids(cfg)
         for pid in own:
             log.info("Neustart: stoppe Cockpit-Server PID %s", pid)
@@ -633,15 +634,15 @@ def cockpit_restart(cfg: Config) -> dict:
 
 
 def cockpit_down(cfg: Config) -> dict:
-    """Beendet den eigenen Cockpit-Server und die eigene ComfyUI-Instanz; Fremdes bleibt."""
-    with _locked(cfg, timeout=cfg.server.timeout_s + 30):
+    """Beendet den eigenen Cockpit-Server und die eigenen ComfyUI-Instanzen; Fremdes bleibt."""
+    with _locked(cfg, cfg.comfyui, timeout=cfg.server.timeout_s + 30):
         own, _ = _cockpit_pids(cfg)
         for pid in own:
             log.info("Stoppe Cockpit-Server PID %s", pid)
             _terminate(pid, cfg.server.timeout_s)
-    comfy = stop(cfg)
+    stopped = {c.name: stop(cfg, c.name)["result"] for c in cfg.instances}
     return {
         "result": "stopped" if own else "not_running",
         "cockpit_pids": own,
-        "comfyui": comfy["result"],
+        "comfyui": stopped,
     }

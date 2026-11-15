@@ -47,7 +47,7 @@ def test_stop_then_restart(cfg: Config):
     assert runtime.stop(cfg) == {"result": "stopped", "pid": pid}
     assert not runtime.pid_alive(pid)
     assert runtime.listening_pids(cfg.comfyui.port) == []
-    assert runtime.read_state(cfg) is None
+    assert runtime.read_state(cfg, cfg.comfyui) is None
     assert runtime.stop(cfg)["result"] == "not_running"
     again = runtime.start(cfg)
     assert again["result"] == "started" and again["pid"] != pid
@@ -83,7 +83,7 @@ def test_crashing_start_is_not_marked_running(cfg: Config):
         runtime.start(with_env(cfg, FAKE_MODE="crash"))
     assert exc.value.details["exit_code"] == 3
     assert "fake crash" in exc.value.details["log_tail"]
-    assert runtime.read_state(cfg) is None
+    assert runtime.read_state(cfg, cfg.comfyui) is None
     assert runtime.status(cfg)["state"] == "stopped"
 
 
@@ -92,7 +92,7 @@ def test_startup_timeout_kills_own_process(cfg: Config):
     hanging = replace(hanging, comfyui=replace(hanging.comfyui, startup_timeout_s=1.5))
     with pytest.raises(runtime.StartFailed, match="nicht betriebsbereit"):
         runtime.start(hanging)
-    assert runtime.read_state(cfg) is None
+    assert runtime.read_state(cfg, cfg.comfyui) is None
     out = subprocess.run(["pgrep", "-f", str(cfg.comfyui.path)], capture_output=True, text=True)
     assert out.stdout.strip() == "", "hängender eigener Prozess muss beendet sein"
 
@@ -101,7 +101,7 @@ def test_invalid_python_path_reported(cfg: Config, tmp_path):
     bad = replace(cfg, comfyui=replace(cfg.comfyui, python=tmp_path / "nope" / "python"))
     with pytest.raises(runtime.InvalidSetup, match="ComfyUI-Python nicht gefunden"):
         runtime.start(bad)
-    assert runtime.read_state(cfg) is None
+    assert runtime.read_state(cfg, cfg.comfyui) is None
 
 
 def test_invalid_comfy_path_reported(cfg: Config, tmp_path):
@@ -125,11 +125,11 @@ def test_stale_state_is_not_trusted(cfg: Config):
             started_at="",
             log_path="",
         )
-        (cfg.local / runtime.STATE_NAME).write_text(json.dumps(fake.__dict__))
+        (cfg.local / cfg.comfyui.state_name).write_text(json.dumps(fake.__dict__))
         assert runtime.status(cfg)["state"] == "stopped"
         assert runtime.stop(cfg)["result"] == "not_running"
         assert other.poll() is None, "fremder Prozess mit gleicher PID darf nicht beendet werden"
-        assert runtime.read_state(cfg) is None
+        assert runtime.read_state(cfg, cfg.comfyui) is None
     finally:
         other.terminate()
         other.wait(5)
@@ -137,7 +137,7 @@ def test_stale_state_is_not_trusted(cfg: Config):
 
 def test_env_drops_foreign_python_vars(cfg: Config):
     env = runtime.build_env(
-        cfg, base={"PATH": "/usr/bin", "PYTHONPATH": "/x", "__PYVENV_LAUNCHER__": "/y"}
+        cfg.comfyui, base={"PATH": "/usr/bin", "PYTHONPATH": "/x", "__PYVENV_LAUNCHER__": "/y"}
     )
     assert "PYTHONPATH" not in env and "__PYVENV_LAUNCHER__" not in env
     assert env["PATH"].split(os.pathsep)[0] == str(cfg.comfyui.python.parent)
@@ -145,7 +145,7 @@ def test_env_drops_foreign_python_vars(cfg: Config):
 
 
 def test_command_has_no_auto_launch_and_loopback(cfg: Config):
-    cmd = runtime.build_command(cfg)
+    cmd = runtime.build_command(cfg.comfyui)
     assert cmd[1] == "main.py"
     assert cmd[cmd.index("--listen") + 1] == "127.0.0.1"
     assert "--disable-auto-launch" in cmd
