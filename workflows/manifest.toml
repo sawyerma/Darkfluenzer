@@ -33,45 +33,6 @@ usage = "evaluation"
 gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
 note = "Modellkarte: 50 Schritte, Guidance 3,5, Prompt-Upsampling empfohlen. Repo gated – Lizenz auf HF akzeptieren."
 
-[engines.flux2_dev]
-title = "FLUX.2 Dev 32B (BF16) – Qualitätsbenchmark"
-kind = "image"
-role = "master_benchmark"
-arch = "flux2"
-precision = "bf16"
-wave = 2
-files = ["flux2_dev_bf16", "mistral3_small_flux2_bf16", "flux2_vae"]
-license = "FLUX Non-Commercial License (BFL)"
-usage = "evaluation"
-gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
-note = "Transformer im BFL-Originalformat (64,5 GB); Text-Encoder Mistral Small 3 (35,6 GB)."
-
-[engines.qwen_image_20b]
-title = "Qwen-Image (Original, 20B, BF16)"
-kind = "image"
-role = "master_benchmark"
-arch = "qwen_image"
-precision = "bf16"
-wave = 1
-files = ["qwen_image_bf16", "qwen25vl_7b_bf16", "qwen_image_vae"]
-license = "Apache-2.0"
-usage = "evaluation"
-gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
-note = ""
-
-[engines.qwen_image_21]
-title = "Qwen-Image 2.1 (BF16) – Forschungsbenchmark"
-kind = "image"
-role = "master_benchmark"
-arch = "qwen_image_21"
-precision = "bf16"
-wave = 1
-files = ["qwen_image_21_bf16", "qwen3vl_8b_bf16", "qwen_image_21_vae"]
-license = "Qwen Research License (qwen-research)"
-usage = "evaluation"
-gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
-note = "Forschungslizenz: nur Evaluation."
-
 [engines.lustify_sdxl]
 title = "LUSTIFY! v2.0 (SDXL) – maskiertes Spezial-Inpainting"
 kind = "image"
@@ -84,19 +45,6 @@ license = "unbekannt – HF-Spiegel ohne Lizenzangabe (Original auf Civitai prü
 usage = "evaluation"
 gates = { load = "PASS", render = "PASS", quality = "OFFEN", license_pass = "OFFEN" }
 note = "Mac-Test 14.11.2026: 896×1152/36 Schritte 84–139 s, Peak 13 GB, Seed bitidentisch reproduzierbar; Inpaint 0 Pixel außerhalb der Maske verändert. Ohne Kleidungsangabe Tendenz zu unbekleideten Motiven; Rechteckmasken erzeugen sichtbare Kanten (Objektmasken nötig)."
-
-[engines.realcore_illustrious]
-title = "RealCore Illustrious v1.0 (SDXL/Illustrious)"
-kind = "image"
-role = "edit_benchmark"
-arch = "illustrious"
-precision = "fp16"
-wave = 1
-files = ["realcore_illustrious_v10"]
-license = "CreativeML Open RAIL++-M (laut Modellkarte); Illustrious-Basis gesondert prüfen"
-usage = "evaluation"
-gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
-note = "Illustrious-LoRAs nicht automatisch mit SDXL-LoRAs kompatibel."
 
 [engines.wan22_i2v]
 title = "Wan 2.2 I2V 14B (offiziell, FP16) – Referenz"
@@ -167,38 +115,7 @@ target = "vae/flux2/flux2-vae.safetensors"
 size = 336211292
 sha256 = "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3"
 
-[files.flux2_dev_bf16]
-repo = "black-forest-labs/FLUX.2-dev"
-revision = "26afe3a78bb242c0a8bb181dcc8937bb16e5c66c"
-source = "flux2-dev.safetensors"
-target = "diffusion_models/flux2/flux2-dev-bf16.safetensors"
-size = 64446596128
-sha256 = "6159a3f19f829c8e84ba6e9996b7afaf7c0a5f3428677f5b37445778a320d275"
-
-[files.mistral3_small_flux2_bf16]
-repo = "Comfy-Org/Flux-2-Dev"
-revision = "9630c1b4b6e690497ae0c19bb6b1b35d4ebedcb7"
-source = "split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors"
-target = "text_encoders/mistral3/mistral_3_small_flux2_bf16.safetensors"
-size = 35584897447
-sha256 = "7d79902f60b1aeb3a6de2cfad02f4367b5e300a1387de3d03ac717cfa3df117c"
-
-[files.qwen_image_bf16]
-repo = "Comfy-Org/Qwen-Image_ComfyUI"
-revision = "1f12b17be14c89b026c51a91d67c32f84bb047bc"
-source = "split_files/diffusion_models/qwen_image_bf16.safetensors"
-target = "diffusion_models/qwen-image/qwen_image_bf16.safetensors"
-size = 40861031488
-sha256 = "d08fb5d68026c0d87325f9a7b3ad6454061113a2bc73cc883114dae172937ae7"
-
-[files.qwen25vl_7b_bf16]
-repo = "Comfy-Org/Qwen-Image_ComfyUI"
-revision = "1f12b17be14c89b026c51a91d67c32f84bb047bc"
-source = "split_files/text_encoders/qwen_2.5_vl_7b.safetensors"
-target = "text_encoders/qwen2.5vl/qwen_2.5_vl_7b.safetensors"
-size = 16584415576
-sha256 = "cfafd739459bc86257397259f612a9aee88e5b98e85b5c0d0d1717e898b3463a"
-
+# keiner Engine zugeordnet: dieselbe Datei (SHA-256) wie Comfy-Org/Krea-2 vae/qwen_image_vae.safetensors – Krea 2
 [files.qwen_image_vae]
 repo = "Comfy-Org/Qwen-Image_ComfyUI"
 revision = "1f12b17be14c89b026c51a91d67c32f84bb047bc"
@@ -207,30 +124,6 @@ target = "vae/qwen-image/qwen_image_vae.safetensors"
 size = 253806246
 sha256 = "a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f"
 
-[files.qwen_image_21_bf16]
-repo = "Comfy-Org/Qwen-Image-2.1"
-revision = "aacf31a6d48e707f352ecba714cee0680da3479b"
-source = "diffusion_models/qwen_image_2.1_bf16.safetensors"
-target = "diffusion_models/qwen-image/qwen_image_2.1_bf16.safetensors"
-size = 14230280616
-sha256 = "89f4158d066cc33906a199fca85634f766892dd78f49b6698dabf187ac86c4bc"
-
-[files.qwen3vl_8b_bf16]
-repo = "Comfy-Org/Qwen-Image-2.1"
-revision = "aacf31a6d48e707f352ecba714cee0680da3479b"
-source = "text_encoders/qwen3vl_8b_bf16.safetensors"
-target = "text_encoders/qwen3vl/qwen3vl_8b_bf16.safetensors"
-size = 17534334616
-sha256 = "68bdc82bc1b66851162ae656225e7e2068166b603db19bd5d5a3b90eb12669a9"
-
-[files.qwen_image_21_vae]
-repo = "Comfy-Org/Qwen-Image-2.1"
-revision = "aacf31a6d48e707f352ecba714cee0680da3479b"
-source = "vae/qwen_image_2.1_vae_bf16.safetensors"
-target = "vae/qwen-image/qwen_image_2.1_vae_bf16.safetensors"
-size = 675509688
-sha256 = "bb21f7473051e1ac368515dd3f2e15cd44d7a11748ee8823e1ddca3e4876b7c9"
-
 [files.lustify_v20]
 repo = "asertvc/LUSTIFY-v2.0"
 revision = "50b7486d60aa236e4d478a7045033782e593580e"
@@ -238,14 +131,6 @@ source = "lustifySDXLNSFWSFW_v20.safetensors"
 target = "checkpoints/sdxl/lustifySDXLNSFWSFW_v20.safetensors"
 size = 6938043264
 sha256 = "34caf7f4fccf4456545d9628248a6f833b7c4f5ac4778edf3f4b912fb25da329"
-
-[files.realcore_illustrious_v10]
-repo = "rityak/RealCore_Illustrious"
-revision = "e717530895ec00e881e04bc215d7d0be8ad9c10f"
-source = "RealCore_Illustrious_v10.safetensors"
-target = "checkpoints/illustrious/RealCore_Illustrious_v10.safetensors"
-size = 6938144018
-sha256 = "a31a339e9cc34ac12ab96180ed04e4017b53d5f8f8b42a39e2b70175c33bc817"
 
 [files.wan22_i2v_high_fp16]
 repo = "Comfy-Org/Wan_2.2_ComfyUI_Repackaged"
@@ -387,53 +272,6 @@ steps = { node = "7", input = "steps", type = "int", min = 16, max = 80 }
 cfg = { node = "7", input = "cfg", type = "float", min = 1.0, max = 8.0 }
 width = { node = "6", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
 height = { node = "6", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
-
-[workflows.realcore_illustrious_t2i]
-engine = "realcore_illustrious"
-ui = "image/realcore_illustrious_t2i.ui.json"
-api = "image/realcore_illustrious_t2i.api.json"
-status = "OFFEN"
-title = "RealCore Illustrious · Text zu Bild"
-
-[workflows.realcore_illustrious_t2i.params]
-prompt = { node = "2", input = "text", type = "str", required = true }
-negative_prompt = { node = "3", input = "text", type = "str" }
-seed = { node = "5", input = "seed", type = "int", min = 0, max = 4294967295 }
-steps = { node = "5", input = "steps", type = "int", min = 8, max = 80 }
-cfg = { node = "5", input = "cfg", type = "float", min = 1.0, max = 12.0 }
-width = { node = "4", input = "width", type = "int", min = 512, max = 2048, multiple_of = 64 }
-height = { node = "4", input = "height", type = "int", min = 512, max = 2048, multiple_of = 64 }
-
-[workflows.qwen_image_21_t2i]
-engine = "qwen_image_21"
-ui = "image/qwen_image_21_t2i.ui.json"
-api = "image/qwen_image_21_t2i.api.json"
-status = "OFFEN"
-title = "Qwen-Image 2.1 · Text zu Bild"
-
-[workflows.qwen_image_21_t2i.params]
-prompt = { node = "4", input = "prompt", type = "str", required = true }
-negative_prompt = { node = "4", input = "negative_prompt", type = "str" }
-seed = { node = "6", input = "seed", type = "int", min = 0, max = 4294967295 }
-steps = { node = "6", input = "steps", type = "int", min = 8, max = 80 }
-width = { node = "5", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
-height = { node = "5", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
-
-[workflows.qwen_image_20b_t2i]
-engine = "qwen_image_20b"
-ui = "image/qwen_image_20b_t2i.ui.json"
-api = "image/qwen_image_20b_t2i.api.json"
-status = "OFFEN"
-title = "Qwen-Image 20B · Text zu Bild"
-
-[workflows.qwen_image_20b_t2i.params]
-prompt = { node = "5", input = "text", type = "str", required = true }
-negative_prompt = { node = "6", input = "text", type = "str" }
-seed = { node = "8", input = "seed", type = "int", min = 0, max = 4294967295 }
-steps = { node = "8", input = "steps", type = "int", min = 8, max = 80 }
-cfg = { node = "8", input = "cfg", type = "float", min = 1.0, max = 10.0 }
-width = { node = "7", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
-height = { node = "7", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
 
 [workflows.wan22_i2v]
 engine = "wan22_i2v"

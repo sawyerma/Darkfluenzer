@@ -19,7 +19,7 @@ def test_repository_manifest_is_valid():
     man = models.load_manifest(REPO_ROOT)
     assert "flux3_klein_base" in man.engines
     # gemeinsam genutzte Dateien existieren nur einmal (Dedupe über SHA-256 im Loader erzwungen)
-    assert man.engines["flux2_dev"].files[-1] == man.engines["flux3_klein_base"].files[-1]
+    assert man.engines["wan22_i2v"].files[-2:] == man.engines["wan22_remix_v30"].files[-2:]
     for eng in man.engines.values():
         assert eng.usage == "evaluation" or all(v == "PASS" for v in eng.gates.values())
 
@@ -154,8 +154,7 @@ def test_workflow_must_only_load_engine_files(tmp_path):
 def test_select_orders_smallest_remaining_engine_first(tmp_path):
     man = models.load_manifest(REPO_ROOT)
     keys = models.select(man, wave=1, base=tmp_path)
-    first_engine = {"lustify_v20", "realcore_illustrious_v10"}
-    assert set(keys[:2]) == first_engine
+    assert keys == ["lustify_v20", *man.engines["flux3_klein_base"].files]
     assert len(keys) == len(set(keys))
     with pytest.raises(models.ModelError):
         models.select(man, engines=["gibt_es_nicht"])
