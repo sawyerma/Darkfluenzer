@@ -244,7 +244,7 @@ Versioniert: Referenzbilder (Gesicht/Halb-/Ganzkörper), Adapter (Modellfamilie,
 | Training | `training.py` (SDXL, diffusers) | ComfyUI-Trainingsworkflow (Medien-Instanz), mflux für Krea 2 |
 | Identitätsmetrik | – | AuraFace-v1 (`glintr100.onnx`), OpenCV SFace/YuNet |
 
-**Nicht eingeplant:** MiniMax H3/H3-Image, HunyuanVideo 1.5 (EU ausgeschlossen), FLUX.2 Dev (nicht kommerziell), NVIDIA Cosmos 3; am 15.11.2026 entfernt: Qwen-Image 20B, Qwen-Image 2.1 (nicht kommerziell), RealCore Illustrious. Kandidaten lädt Darkfluenzer selbst nach §14.1 / `ki_modelle.md`; Manifest-Eintrag mit Revision + SHA-256 und `models verify` in Block B. **LTX Desktop** lokal erst ab macOS 26; der ComfyUI-Pfad wird separat getestet.
+**Nicht eingeplant:** MiniMax H3/H3-Image, HunyuanVideo 1.5 (EU ausgeschlossen), FLUX.2 Dev (nicht kommerziell), NVIDIA Cosmos 3; am 15.11.2026 entfernt: Qwen-Image 20B, Qwen-Image 2.1 (nicht kommerziell), RealCore Illustrious. Kandidaten lädt der Betreiber nach §14.1 / `ki_modelle.md`; Manifest-Eintrag mit Präzision aus dem Dateikopf, SHA-256 und Quelle sowie `models verify` in Block B. **LTX Desktop** lokal erst ab macOS 26; der ComfyUI-Pfad wird separat getestet.
 
 ### 9.4 Workflows
 
@@ -440,11 +440,11 @@ Jede Phase: echte Umsetzung, gezielte Tests (Normalfall, wesentlicher Fehlerfall
 ## 14. Voraussetzungen durch den Betreiber
 
 - Charakterfotos in `local/character/photos/` (B1).
-- Modelle lädt Darkfluenzer selbst (Betreiberentscheidung 15.11.2026, Downloads laufen bereits); der Betreiber nimmt die FLUX-3-Lizenz auf Hugging Face an und lädt LUSTIFY v10 bei Civitai (§14.1, `ki_modelle.md`). **Block A und B1 brauchen keine neuen Modelle.**
+- Modelle lädt der Betreiber selbst in der gewählten Präzisionsstufe in die Ordner laut `ki_modelle.md` (§14.1). **Block A und B1 brauchen keine neuen Modelle.**
 - macOS-26-Update (B3).
 - Kostenloses Tunnel-Konto (Tailscale oder ngrok) – nur für Instagram (C2).
 - Telegram-Bot (BotFather-Token); professionelles Instagram-Konto der Influencerin mit Meta-App (C2–C5); freigegebene Absender-Accounts. WhatsApp Business erst für C7.
 
 ### 14.1 Modelle und Downloads
 
-Vollständige Liste mit Präzision, Größe, Quelle/Revision, Ablage und Status: **[ki_modelle.md](ki_modelle.md)**. Darkfluenzer lädt die frei zugänglichen Modelle selbst (laufend seit 15.11.2026, SHA-256 geprüft); die Registrierung im Manifest folgt in Block B. FLUX 3 Klein (Lizenzannahme auf Hugging Face) und LUSTIFY v10 (Civitai-Anmeldung) schaltet bzw. lädt der Betreiber.
+Vollständige Liste mit Präzision, Größe, Quelle/Revision, Ablage und Status: **[ki_modelle.md](ki_modelle.md)**. **Der Betreiber lädt alle Modelle selbst und wählt die Präzisionsstufe** (Betreiberentscheidung 15.11.2026, eigene Downloads abgebrochen); `ki_modelle.md` nennt je Modell die verfügbaren Stufen mit Größe und den Ablageordner. Darkfluenzer registriert die Dateien in Block B (Präzision aus dem Dateikopf, SHA-256, Quelle).

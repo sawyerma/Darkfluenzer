@@ -1,13 +1,16 @@
 # Darkfluenzer – KI-Modelle: Bestand, Downloads, Präzision
 
-**Stand:** 15.11.2026 · Teil von [PHASENPLAN_V0.md](PHASENPLAN_V0.md) §14.1 · Ablage immer unter `local/models/`
+**Stand:** 15.11.2026 (nach Abbruch der eigenen Downloads) · Teil von [PHASENPLAN_V0.md](PHASENPLAN_V0.md) §14.1 · Ablage immer unter `local/models/`
 
-**Präzisionsregel (V0 Regel 1 und 7):** Immer die beste verfügbare Originalpräzision (BF16/FP16, FP32 wo das Original FP32 ist). Abwägung: leichte Tendenz zu besserem Bild, aber in angemessener Zeit. Über die Geschwindigkeit entscheidet die Variante des Modells (z. B. Turbo statt Raw, 3B statt 7B), nicht eine schlechtere Quantisierung. FP8-, INT8-, MXFP8- und NVFP4-Dateien werden nicht verwendet:
-- Sie verlieren Qualität.
-- MXFP8 und NVFP4 brauchen NVIDIA-Hardware.
-- Ob FP8 auf dem Mac (MPS) einen Geschwindigkeitsvorteil bringt, ist nicht belegt und wird geprüft (V0 §9).
+**Du lädst die Modelle selbst** (Betreiberentscheidung 15.11.2026): Du wählst die Präzisionsstufe, Darkfluenzer lädt nichts mehr eigenständig. Dateinamen bitte unverändert lassen. Bei der Registrierung in Block B liest Darkfluenzer die tatsächliche Präzision aus dem Dateikopf und hält SHA-256, Quelle und Größe im Manifest fest.
 
-Erst nach dem Download werden die Modelle in Block B ins Manifest eingetragen und eingebunden.
+**Ablage:** alles unter `/Users/sawyer_ma/Desktop/Firma/2_DarkMa/8_Darkfluenzer/local/models/` im jeweils genannten Unterordner (`<ComfyUI-Typ>/<Familie>/`). Mehrere Präzisionsstufen desselben Modells dürfen nebeneinander liegen, die Dateinamen unterscheiden sich.
+
+**Hinweise zu den Stufen:**
+- **BF16/FP16** ist die Originalqualität.
+- **FP8/INT8** halbieren etwa den Speicher und verlieren etwas Qualität. Ob sie auf dem Mac (MPS) schneller rechnen, ist nicht belegt und wird in B2 gemessen.
+- **MXFP8/NVFP4** sind für NVIDIA-Blackwell-Karten gebaut und auf dem Mac nicht erprobt.
+- **GGUF Q…** sind starke Quantisierungen für Sprachmodelle bzw. Speicherknappheit.
 
 ## 1. Vorhanden (Datentyp aus dem Dateikopf gelesen)
 
@@ -25,49 +28,52 @@ Erst nach dem Download werden die Modelle in Block B ins Manifest eingetragen un
 
 **Wan Remix:** v3.0 gibt es im Repo `FX-FeiHou/wan2.2-Remix` nur als FP8. Als FP16 liegt nur die ältere v2.1 vor (je 28,58 GB). Welche Remix-Version bleibt, entscheidet der Video-Vergleich in B4.
 
-## 2. Lädt Darkfluenzer gerade selbst
+## 2. Lädst du selbst – verfügbare Stufen und Ablageordner
 
-Feste Revisionen; jede Datei wird nach dem Download per SHA-256 gegen Hugging Face geprüft. Protokoll: `local/logs/model_downloads.log`.
+Größen laut Hugging Face / Civitai (15.11.2026). In den Spalten stehen die Präzision, dann die Größe; ★ ist die Originalpräzision.
 
-| Modell | Datei | Präzision | Größe | Quelle @ Revision | Ablage | Phase |
-|---|---|---|---|---|---|---|
-| SAM 3.1 (Masken) | `sam3.1_multiplex_fp16.safetensors` | FP16 (einzige Variante) | 1,75 GB | Comfy-Org/sam3.1 @ 7bb8374 | `checkpoints/sam3/` | B2 |
-| SeedVR2-VAE | `seedvr2_ema_vae_fp16.safetensors` | FP16 | 0,50 GB | Comfy-Org/SeedVR2 @ df48879 | `vae/seedvr2/` | B2 |
-| SeedVR2 3B (Upscaler, schnell) | `seedvr2_3b_fp16.safetensors` | FP16 | 6,78 GB | Comfy-Org/SeedVR2 @ df48879 | `diffusion_models/seedvr2/` | B2 |
-| SeedVR2 7B (Upscaler, Qualität) | `seedvr2_7b_fp16.safetensors` | FP16 | 16,48 GB | Comfy-Org/SeedVR2 @ df48879 | `diffusion_models/seedvr2/` | B2 |
-| Krea-2-Textencoder Qwen3-VL-4B | `qwen3vl_4b_bf16.safetensors` | BF16 | 8,88 GB | Comfy-Org/Krea-2 @ 588feaf | `text_encoders/krea2/` | B2 |
-| Krea 2 Raw (Qualität, Training) | `krea2_raw_bf16.safetensors` | BF16 | 26,28 GB | Comfy-Org/Krea-2 @ 588feaf | `diffusion_models/krea2/` | B2 |
-| Krea 2 Turbo (schnell) | `krea2_turbo_bf16.safetensors` | BF16 | 26,28 GB | Comfy-Org/Krea-2 @ 588feaf | `diffusion_models/krea2/` | B2 |
-| AuraFace-v1 (Gesichtsprüfung) | `glintr100.onnx` | FP32 (Original) | 0,26 GB | fal/AuraFace-v1 @ af6d057 | `face/auraface/` | B2 |
-| YuNet (Gesichtserkennung) | `face_detection_yunet_2023mar.onnx` | FP32 (nicht die `_int8`-Variante) | < 0,01 GB | opencv/face_detection_yunet @ 3cc26e7 | `face/opencv/` | B2 |
-| SFace (Gesichtsvergleich) | `face_recognition_sface_2021dec.onnx` | FP32 (nicht die `_int8`-Variante) | 0,04 GB | opencv/face_recognition_sface @ 3d70824 | `face/opencv/` | B2 |
-| SDPose Wholebody (Pose) | `sdpose_wholebody_fp16.safetensors` | FP16 (einzige Variante) | 1,92 GB | Comfy-Org/SDPose @ acb43fb | `checkpoints/sdpose/` | B2 |
-| Personendetektor zu SDPose | `rt_detr_v4-x-hgnet_fp32.safetensors` | FP32 | 0,25 GB | Comfy-Org/SDPose @ acb43fb | `diffusion_models/sdpose/` | B2 |
-| Depth Anything 3 Mono Large | `depth_anything_3_mono_large.safetensors` | wird aus dem Dateikopf bestätigt | 1,34 GB | Comfy-Org/Depth-Anything-3 @ 8265be0 | `geometry_estimation/depth_anything3/` | B2 |
-| Wan Animate 2: CLIP Vision H | `clip_vision_h.safetensors` | wird aus dem Dateikopf bestätigt | 1,26 GB | Comfy-Org/Wan-Animate-2 @ e7181fe | `clip_vision/wan/` | B4 |
-| Wan Animate 2: VAE | `Wan2_1_VAE_bf16.safetensors` | BF16 | 0,25 GB | Comfy-Org/Wan-Animate-2 @ e7181fe | `vae/wan/` | B4 |
-| Wan Animate 2: LoRA der Vorlage | `lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors` | BF16 | 0,74 GB | Comfy-Org/Wan-Animate-2 @ e7181fe | `loras/wan/` | B4 |
-| Wan Animate 2 (Bewegungsübertragung) | `wan_animate_2_bf16.safetensors` | BF16 | 32,79 GB | Comfy-Org/Wan-Animate-2 @ e7181fe | `diffusion_models/wan22/` | B4 |
-
-Zusammen ≈ 126 GB. Nicht geladen werden die ebenfalls angebotenen FP8/INT8/MXFP8/NVFP4-Fassungen. Krea 2 und SeedVR2 kommen bewusst in zwei Größen bzw. Varianten: Der Vergleich in B2 entscheidet mit Zeitmessung, welche Variante Standard wird.
-
-## 3. Musst du freischalten oder laden (Kontosperre)
-
-| Modell | Präzision | Größe | Was du tust | Danach |
+| Modell | Verfügbare Stufen | Quelle | Ablageordner unter `local/models/` | Phase |
 |---|---|---|---|---|
-| FLUX 3 Image Klein Base | BF16 | 11,08 GB | Auf [huggingface.co/black-forest-labs/flux-3-image-klein-comfy](https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy) mit dem Hugging-Face-Konto, dessen Token auf diesem Mac liegt, die Lizenz annehmen (derzeit 403) | Darkfluenzer lädt `flux3-image-klein-base-bf16.safetensors` und `qwen3vl_4b_bf16.safetensors` (BF16, 8,88 GB) selbst über das Manifest (`models download --engine flux3_klein_base`, SHA-256 fest). |
-| LUSTIFY v10 Krea **Raw** | BF16 | 26,28 GB | Bei Civitai angemeldet laden: [Datei 3015315](https://civitai.com/api/download/models/3112728?fileId=3015315) → `local/models/diffusion_models/lustify/lustify-v10-krea-raw-bf16.safetensors` | SHA-256 laut Civitai `017F3363CAB2C9245CB156A70E41D12D67938DD6AF052B8432FF565436FEBBA4`; Darkfluenzer prüft und registriert. |
-| LUSTIFY v10 Krea **Turbo** | BF16 | 26,28 GB | Bei Civitai angemeldet laden: [Datei 3015314](https://civitai.com/api/download/models/3112728?fileId=3015314) → `local/models/diffusion_models/lustify/lustify-v10-krea-turbo-bf16.safetensors` | SHA-256 laut Civitai `04571B6CF9B9C8A3868ED3695C94DE48D8206A37670EA36C6A043E86DDA327D3`; Darkfluenzer prüft und registriert. |
+| **Krea 2 Raw** (Qualität, Training) | ★ BF16 26,28 GB · FP8-scaled 13,14 · INT8 13,49 | [Comfy-Org/Krea-2](https://huggingface.co/Comfy-Org/Krea-2/tree/main/diffusion_models) | `diffusion_models/krea2/` | B2 |
+| **Krea 2 Turbo** (schnell) | ★ BF16 26,28 · FP8 12,90 · FP8-scaled 13,14 · INT8 13,49 · MXFP8 13,53 · NVFP4 7,67 | [Comfy-Org/Krea-2](https://huggingface.co/Comfy-Org/Krea-2/tree/main/diffusion_models) | `diffusion_models/krea2/` | B2 |
+| Krea-2-Textencoder Qwen3-VL-4B | ★ BF16 8,88 · FP8-scaled 5,24 · INT8 4,86 | [Comfy-Org/Krea-2](https://huggingface.co/Comfy-Org/Krea-2/tree/main/text_encoders) | `text_encoders/krea2/` (**nicht** `qwen3vl/` – gleicher Name wie bei FLUX 3, andere Datei) | B2 |
+| Krea-2-VAE | ★ BF16 0,25 | vorhanden (`vae/qwen-image/qwen_image_vae.safetensors`) | – | B2 |
+| **LUSTIFY v10 Krea Raw** | ★ BF16 26,28 · INT8 12,84 | [Civitai 573152 · v10](https://civitai.com/models/573152) (Anmeldung) | `diffusion_models/lustify/` | B2 |
+| **LUSTIFY v10 Krea Turbo** | ★ BF16 26,28 · FP8 12,52 · INT8 12,84 · GGUF Q4_0 8,12 · GGUF Q2_K 4,90 | [Civitai 573152 · v10](https://civitai.com/models/573152) (Anmeldung) | `diffusion_models/lustify/` | B2 |
+| **FLUX 3 Image Klein Base** | ★ BF16 11,08 · INT8 5,81 · NVFP4 5,26 | [black-forest-labs/flux-3-image-klein-comfy](https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy) (Lizenz annehmen) | `diffusion_models/flux3/` | B2 |
+| FLUX 3 Image Klein (destilliert, schnell) | ★ BF16 11,10 · INT8 5,83 · NVFP4 5,28 | wie oben | `diffusion_models/flux3/` | B2 |
+| FLUX-3-Textencoder Qwen3-VL-4B | ★ BF16 8,88 · INT8 4,86 | wie oben | `text_encoders/qwen3vl/` | B2 |
+| FLUX-3-Prompt-Upsampler Qwen3.5-9B (optional) | ★ BF16 18,82 · INT8 9,75 · W4A8 6,72 | wie oben | `text_encoders/qwen3vl/` | B2 |
+| FLUX-2-VAE (für FLUX 3) | ★ FP32 0,34 | vorhanden (`vae/flux2/`) | – | B2 |
+| **SAM 3.1** (Masken) | ★ FP16 1,75 (einzige Stufe) | [Comfy-Org/sam3.1](https://huggingface.co/Comfy-Org/sam3.1/tree/main/checkpoints) | `checkpoints/sam3/` | B2 |
+| **SeedVR2 3B** (Upscaler, schnell) | ★ FP16 6,78 · FP8 3,39 · INT8 3,46 · MXFP8 3,56 · NVFP4 2,00 | [Comfy-Org/SeedVR2](https://huggingface.co/Comfy-Org/SeedVR2/tree/main/diffusion_models) | `diffusion_models/seedvr2/` | B2 |
+| **SeedVR2 7B** (Upscaler, Qualität) | ★ FP16 16,48 · FP8 8,24 · INT8 8,33 · MXFP8 8,58 · NVFP4 4,76 | wie oben | `diffusion_models/seedvr2/` | B2 |
+| SeedVR2 7B Sharp (schärfer) | ★ FP16 16,48 · FP8 8,24 · INT8 8,33 · MXFP8 8,58 · NVFP4 4,76 | wie oben | `diffusion_models/seedvr2/` | B2 |
+| SeedVR2-VAE | ★ FP16 0,50 | [Comfy-Org/SeedVR2](https://huggingface.co/Comfy-Org/SeedVR2/tree/main/vae) | `vae/seedvr2/` | B2 |
+| AuraFace-v1 (Gesichtsprüfung) | ★ `glintr100.onnx` FP32 0,26 (nur diese Datei) | [fal/AuraFace-v1](https://huggingface.co/fal/AuraFace-v1/tree/main) | `face/auraface/` | B2 |
+| YuNet (Gesichtserkennung) | ★ `face_detection_yunet_2023mar.onnx` (nicht `_int8`) | [opencv/face_detection_yunet](https://huggingface.co/opencv/face_detection_yunet/tree/main) | `face/opencv/` | B2 |
+| SFace (Gesichtsvergleich) | ★ `face_recognition_sface_2021dec.onnx` 0,04 (nicht `_int8`) | [opencv/face_recognition_sface](https://huggingface.co/opencv/face_recognition_sface/tree/main) | `face/opencv/` | B2 |
+| SDPose Wholebody (Pose) | ★ FP16 1,92 (einzige Stufe) | [Comfy-Org/SDPose](https://huggingface.co/Comfy-Org/SDPose/tree/main/checkpoints) | `checkpoints/sdpose/` | B2 |
+| Personendetektor RT-DETR v4 | ★ FP32 0,25 · FP16 0,12 | [Comfy-Org/SDPose](https://huggingface.co/Comfy-Org/SDPose/tree/main/diffusion_models) | `diffusion_models/sdpose/` | B2 |
+| Depth Anything 3 | Mono Large 1,34 · Metric Large 1,34 · Base 0,54 · Small 0,14 | [Comfy-Org/Depth-Anything-3](https://huggingface.co/Comfy-Org/Depth-Anything-3/tree/main/geometry_estimation) | `geometry_estimation/depth_anything3/` (Ordnerzuordnung in ComfyUI folgt in B2) | B2 |
+| **Wan Animate 2** (Bewegungsübertragung) | ★ BF16 32,79 · INT8 16,65 | [Comfy-Org/Wan-Animate-2](https://huggingface.co/Comfy-Org/Wan-Animate-2/tree/main/diffusion_models) | `diffusion_models/wan22/` | B4 |
+| Wan Animate 2 Distill (schnell) | ★ BF16 32,79 · INT8 16,65 | wie oben | `diffusion_models/wan22/` | B4 |
+| Wan Animate 2: CLIP Vision H | 1,26 (einzige Stufe) | [Comfy-Org/Wan-Animate-2](https://huggingface.co/Comfy-Org/Wan-Animate-2/tree/main/clip_vision) | `clip_vision/wan/` | B4 |
+| Wan Animate 2: VAE | ★ BF16 0,25 | [Comfy-Org/Wan-Animate-2](https://huggingface.co/Comfy-Org/Wan-Animate-2/tree/main/vae) | `vae/wan/` | B4 |
+| Wan Animate 2: LoRA der Vorlage (lightx2v) | ★ BF16 0,74 | [Comfy-Org/Wan-Animate-2](https://huggingface.co/Comfy-Org/Wan-Animate-2/tree/main/loras) | `loras/wan/` | B4 |
+| umt5-xxl (Wan-Textencoder) | ★ FP16 11,37 · FP8-scaled 6,74 | FP16 vorhanden (`text_encoders/umt5/`) | – | B1/B4 |
 
-Bei LUSTIFY v10 bitte **nicht** die Dateien `…-fp8`, `…-int8_convrot` oder `…-Q2_K/Q4_0.gguf` laden. Das sind verlustbehaftete Quantisierungen.
+**Schon von mir geladen, vor deinem Abbruch:**
+- SAM 3.1 FP16 → `checkpoints/sam3/sam3.1_multiplex_fp16.safetensors`
+- SeedVR2-VAE FP16 → `vae/seedvr2/seedvr2_ema_vae_fp16.safetensors`
+
+Beides ist die jeweils einzige verfügbare Stufe. Ein angefangener Teil-Download von SeedVR2 3B liegt unter `.staging/block_b/`.
 
 ## 4. Später, noch nicht laden
 
 | Modell | Präzision | Größe | Hinweis | Phase |
 |---|---|---|---|---|
-| LTX 2.5 Distilled + Gemma-4-12B-Encoder + VAEs + Upscaler | BF16 | ≈ 71 GB | steht schon im Manifest (Lightricks/LTX-2.5) | B4 |
-| Cydonia 24B v4.1 (Dialog-LLM) | **Q8_0 (8-Bit-GGUF)** | 25,05 GB | Im GGUF-Repo ist Q8_0 die höchste Stufe (Dateiname „v4j“). Ob Q8_0 reicht oder das BF16-Original nötig ist, zeigt der Vergleich in B5. | B5 |
-| FILM (Bildinterpolation) | FP16 | 0,07 GB | Comfy-Org/Frame-Interpolation | B4 |
+| LTX 2.5 Distilled + Gemma-4-12B-Encoder + VAEs + Upscaler | BF16 | ≈ 71 GB | Lightricks/LTX-2.5; Ablage laut Manifest: `diffusion_models/ltx25/`, `text_encoders/gemma4/`, `vae/ltx25/`, `latent_upscale_models/ltx25/` | B4 |
+| Cydonia 24B v4.1 (Dialog-LLM) | GGUF Q8_0 25,05 · Q6_K 19,35 · Q5_K_M 16,76 · Q4_K_M 14,33 | 25,05 GB (Q8_0) | Im GGUF-Repo ist Q8_0 die höchste Stufe (Dateiname „v4j“). Ob Q8_0 reicht oder das BF16-Original nötig ist, zeigt der Vergleich in B5. | B5 |
+| FILM / RIFE (Bildinterpolation) | FP16 | 0,02–0,09 GB | Comfy-Org/Frame-Interpolation; Ablage `frame_interpolation/film/` (Ordnerzuordnung folgt in B4) | B4 |
 | RelayVSR (Video-Upscaler, Vergleich) | **nur INT8** (Decoder FP32) | 5,3 GB | Keine BF16-Fassung verfügbar, daher nur Vergleichskandidat | B4 |
-| Wan Animate 2 Distill | BF16 | 32,79 GB | Schnellere Variante; nur wenn B4 sie für das Zeitbudget braucht | B4 |
-| FLUX-3-Prompt-Upsampler Qwen3.5-9B | BF16 | 18,82 GB | optional, laut Modellkarte empfohlen | B2 |
