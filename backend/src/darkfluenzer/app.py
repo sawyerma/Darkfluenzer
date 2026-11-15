@@ -37,9 +37,16 @@ _HUMAN = {
     "not_running": "Keine verwaltete ComfyUI-Instanz aktiv",
     "not_managed": "Laufende ComfyUI ist fremd und wird nicht beendet",
 }
+# up/restart/down betreffen den Cockpit-Server (dieselben Ergebniswerte, anderer Gegenstand)
+_HUMAN_COCKPIT = {
+    "started": "Cockpit gestartet",
+    "already_running": "Cockpit läuft bereits",
+    "stopped": "Cockpit beendet",
+    "not_running": "Kein Cockpit aktiv",
+}
 
 
-def _emit(payload: dict, as_json: bool) -> None:
+def _emit(payload: dict, as_json: bool, labels: dict[str, str] = _HUMAN) -> None:
     if as_json:
         print(json.dumps(payload, ensure_ascii=False))
         return
@@ -89,7 +96,7 @@ def _emit(payload: dict, as_json: bool) -> None:
         for rel in payload.get("orphans") or []:
             print(f"  nicht registriert: {rel}")
         return
-    head = _HUMAN.get(payload.get("result", ""), payload.get("state", ""))
+    head = labels.get(payload.get("result", ""), payload.get("state", ""))
     print(head)
     for key in ("url", "pid", "startup_s", "log", "foreign_pids", "message"):
         if payload.get(key) is not None:
@@ -361,5 +368,6 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:  # letzte Linie: nie still scheitern, immer melden
         log.exception("Unerwarteter Fehler bei %s", getattr(args, "action", args.area))
         payload, code = {"ok": False, "error": "internal", "message": repr(exc)}, 1
-    _emit(payload, args.json)
+    cockpit = args.area in ("up", "restart", "down")
+    _emit(payload, args.json, _HUMAN_COCKPIT if cockpit else _HUMAN)
     return code
