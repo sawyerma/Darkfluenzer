@@ -1,6 +1,6 @@
 # DARKFLUENZER — PHASENPLAN V0 (verbindlicher Gesamt- und Implementierungsplan)
 
-**Version:** 0.4.1 · **Stand:** 15.11.2026 · **Repository:** `sawyerma/Darkfluenzer`, ausschließlich `main`
+**Version:** 0.4.2 · **Stand:** 15.11.2026 · **Repository:** `sawyerma/Darkfluenzer`, ausschließlich `main`
 **Status:** verbindlich. Bestandsaufnahme gegen Code (`main` 62c4bc9), Chatwoot-v4.19.1-Quellcode und die Betreiber-ZIP abgeschlossen; abgeglichen mit FRONT V1.10 (DF-PUSH A–D, F7-Cockpitreferenz) und BACK V1.13; V0.3: Auflösungsregel (Original ≥ 1K, darüber Upscaler, Instagram-Ausgabeprofile, §9.7) und Default-Nutzer als Produktionsassistent mit Rückversand per Telegram (§8.1). **V0.4: verbindliche Reihenfolge Block A (ComfyUI + Dateien) → Block B (KI-Modelle und Produktionsworkflows) → Block C (Telegram/Instagram, Kundenbetrieb), keine parallele Entwicklung (§12); verbindliche Dokumente (§0).** Umsetzung ab A1.
 
 ## 0. Dokumentenhierarchie
@@ -31,7 +31,7 @@ Darkfluenzer ist zugleich Kunden-Cockpit (F4): Kunden über **Instagram und Tele
 3. **Explizite Bearbeitung nur abgeleitet** (maskiert vom freigegebenen Bild; im Bearbeitungsschritt 0 Pixel außerhalb der Maske, automatisch geprüft). **Video nur vom freigegebenen Foto** bzw. bei Bewegungsübertragung mit dem freigegebenen Charakterbild als Identitätsreferenz.
 4. **Face-Swap ausschließlich auf eigenen, synthetisch erzeugten Bildern.** Nie auf fremden Referenzfotos/-videos; fremde Vorlagen liefern nur Pose, Komposition, Licht, Stil bzw. Bewegung. Gesichtszüge abgebildeter Personen werden nie Teil eines Charakterprofils; kein Ersetzen realer Personen in fremden Videos.
 5. **Vollständige Reproduzierbarkeit** jedes Bildes/Videos (§9.5).
-6. **Lokal, lizenzsauber, nativ:** keine Cloud-Generierung, **kein Docker**, keine Electron-Pflicht, keine Parallelarchitektur; jede Modelldatei mit Quelle, Revision, SHA-256 und Nutzungsbedingungen im Manifest; Umsatzgrenzen beachten. Modelle und Dateien werden nur auf Betreiberauftrag gelöscht oder neu installiert (15.11.2026: RealCore Illustrious, Qwen-Image 20B, Qwen-Image 2.1 und der FLUX.2-Dev-Eintrag entfernt, §9.3).
+6. **Lokal, dokumentiert, nativ:** keine Cloud-Generierung, **kein Docker**, keine Electron-Pflicht, keine Parallelarchitektur; jede Modelldatei mit Quelle, Revision, SHA-256 und Nutzungsbedingungen im Manifest. Lizenzbedingungen sind **kein Auswahlkriterium** (Betreiberentscheidung 15.11.2026). Modelle werden nur nach ausdrücklicher Betreiberbestätigung gelöscht; ein Downloadplan ist keine Löschfreigabe (15.11.2026 entfernt: RealCore Illustrious, Qwen-Image 20B; Qwen-Image 2.1, Qwen-Image-2512 und FLUX.2 Dev danach wieder in die Downloadkette aufgenommen, §9.3).
 7. **Präzision je Komponente** (Generierungsmodell, Encoder, VAE/Decoder, Adapter, Hilfsmodelle): beste verfügbare kompatible Originalpräzision; FP32-Komponenten bleiben FP32 (z. B. RelayVSR-Decoder); Umwandlung aus quantisierten Dateien gewinnt keine Genauigkeit zurück; Speicherformat und Rechendatentyp dokumentiert. Dokumentierte Ausnahme: mflux trainiert mit 8-Bit-Basis.
 8. **Ein Cockpit:** die bestehende React-Oberfläche (vier Hauptreiter **Übersicht · Nachrichten · ComfyUI · Dateien**, Graphite, ein Stylesheet); Gestaltung und Bedienlogik nach der freigegebenen Klickreferenz F7 (`docs/design/Darkfluenzer_Cockpit_Interaktiv.html`, FRONT F7). React spricht nur mit dem Python-Backend; **nie direkt mit Plattform- oder ComfyUI-APIs**.
 9. **Zwei ComfyUI-Instanzen** (§4.2) mit getrennten Warteschlangen und gemeinsamer Ressourcensteuerung; keine dritte KI-Engine.
@@ -44,7 +44,7 @@ Darkfluenzer ist zugleich Kunden-Cockpit (F4): Kunden über **Instagram und Tele
 - **NO LEGACY:** keine Altlasten, Kompatibilitätsschichten oder parallelen veralteten Implementierungen; Überholtes sauber ersetzen.
 - **NO MOCK:** keine simulierten Ergebnisse, Fake-Daten oder Scheinabnahmen; ausschließlich echte Funktionen und reale Tests – jede Abnahme läuft real auf dem M4 Max.
 - **NO DOCKER / NO VM:** native Ausführung auf macOS/Apple Silicon; keine Container, Linux-VMs oder zusätzlichen Virtualisierungsschichten (die vorgesehenen Python-venvs sind zulässig).
-- **FREE ONLY:** ausschließlich lokal betreibbare, frei verfügbare Komponenten; Lizenzbedingungen beachten.
+- **FREE ONLY:** ausschließlich lokal betreibbare, kostenlos verfügbare Komponenten; Lizenzbedingungen werden dokumentiert, sind aber kein Auswahlkriterium (Betreiberentscheidung 15.11.2026).
 - **NO JSON als Konfiguration:** TOML und die bestehenden Protobuf-Verträge; JSON nur, wo externe APIs oder ComfyUI-Workflows es technisch erfordern.
 - **NO DUPLICATION:** vorhandene Funktionen wiederverwenden statt doppelte Architekturen aufzubauen.
 - **PHASENPLAN FIRST:** ausschließlich nach diesem Plan; FRONT und BACK als abgestimmte technische Spezifikationen.
@@ -237,14 +237,14 @@ Versioniert: Referenzbilder (Gesicht/Halb-/Ganzkörper), Adapter (Modellfamilie,
 
 | Rolle | Vorhanden (weiterverwenden) | Kandidaten (A/B, schrittweise installiert) |
 |---|---|---|
-| Foto | LUSTIFY v2.0 SDXL (getestet) | Krea 2 Raw/Turbo BF16, LUSTIFY v10 Krea Raw/Turbo BF16, FLUX 3 Image Klein Base BF16 |
-| Video | Wan 2.2 I2V A14B FP16, Wan 2.2 Remix v3.0 (FP8, Lightning: 4+4 Schritte, CFG 1, euler/simple, Shift 8) | LTX 2.5 (Dev/Distilled BF16), Wan Animate 2 (Bewegungsübertragung), VACE/Fun Control (Vergleich) |
-| Analyse/Steuerung | – | SAM 3.1, SDPose, Depth Anything 3, Krea-2-Depth/Pose-Adapter (nur mit Nachweis) |
+| Foto | LUSTIFY v2.0 SDXL (getestet) | Krea 2 Turbo BF16 (Inferenz; Raw BF16 = Trainingsbasis laut Modellkarte), LUSTIFY v10 BF16, FLUX 3 Image Klein Base BF16, Qwen-Image-2512 BF16, Qwen-Image 2.1 BF16, FLUX.2 Dev BF16 (nach Platzentscheidung) |
+| Video | Wan 2.2 I2V A14B FP16, Wan 2.2 Remix v3.0 (FP8, Lightning: 4+4 Schritte, CFG 1, euler/simple, Shift 8) | LTX 2.5 Dev BF16, Wan Animate 2 BF16 (Bewegungsübertragung), VACE/Fun Control (Vergleich) |
+| Analyse/Steuerung | SAM 3.1 FP16 (Bearbeiten mit SAM 3.1) | SDPose, Depth Anything 3, Krea-2-Depth/Pose-Adapter (nur mit Nachweis) |
 | Hochskalierung (§9.7) | – | Bild: SeedVR2 7B/3B (ComfyUI-Kern); Video: SeedVR2 Video, RelayVSR; FILM (Bildrate); native 4K (FLUX 3 Klein, LTX) im Vergleich |
 | Training | `training.py` (SDXL, diffusers) | ComfyUI-Trainingsworkflow (Medien-Instanz), mflux für Krea 2 |
-| Identitätsmetrik | – | AuraFace-v1 (`glintr100.onnx`), OpenCV SFace/YuNet |
+| Identitätsmetrik | AuraFace-v1 (`glintr100.onnx`), OpenCV SFace/YuNet (`identity.py`) | – |
 
-**Nicht eingeplant:** MiniMax H3/H3-Image, HunyuanVideo 1.5 (EU ausgeschlossen), FLUX.2 Dev (nicht kommerziell), NVIDIA Cosmos 3; am 15.11.2026 entfernt: Qwen-Image 20B, Qwen-Image 2.1 (nicht kommerziell), RealCore Illustrious. Kandidaten lädt der Betreiber nach §14.1 / `ki_modelle.md`; Manifest-Eintrag mit Präzision aus dem Dateikopf, SHA-256 und Quelle sowie `models verify` in Block B. **LTX Desktop** lokal erst ab macOS 26; der ComfyUI-Pfad wird separat getestet.
+**Nicht eingeplant:** MiniMax H3/H3-Image, HunyuanVideo 1.5, NVIDIA Cosmos 3; am 15.11.2026 entfernt: Qwen-Image 20B (ersetzt durch Qwen-Image-2512), RealCore Illustrious. Kandidaten lädt Darkfluenzer nacheinander nach §14.1 / `ki_modelle.md` (Reihenfolge, Platzbilanz); Manifest-Eintrag mit Präzision aus dem Dateikopf, SHA-256 und Quelle sowie `models verify` in Block B. **LTX Desktop** lokal erst ab macOS 26; der ComfyUI-Pfad wird separat getestet.
 
 ### 9.4 Workflows
 
@@ -420,7 +420,7 @@ Jede Phase: echte Umsetzung, gezielte Tests (Normalfall, wesentlicher Fehlerfall
 |---|---|---|
 | Autorität | BACK „einziger normativer Masterplan“; FRONT nennt nur BACK | V0 verbindlich (§0) |
 | Modelle für den ersten Kettennachweis | BACK §0: keine weiteren Modelle | gilt für **B1**; danach A/B mit Kandidaten (B2/B4) |
-| Master-Rolle FLUX 3 Klein, FLUX.2 Dev als Benchmark (BACK) | fest | Kandidaten im A/B; FLUX.2 Dev nicht eingeplant |
+| Master-Rolle FLUX 3 Klein, FLUX.2 Dev als Benchmark (BACK) | fest | Kandidaten im A/B; FLUX.2 Dev nach Platzentscheidung |
 | Erster Videopfad | BACK: Wan FP16 zuerst; V0.1: Remix-Rezept | B1 Wan FP16; Remix-Korrektur in B1, Vergleich B4 |
 | Trainingsort | BACK: in ComfyUI 1; V0.1: mflux | B1: ComfyUI-Trainingsworkflow zuerst, diffusers als Ausweich; Krea 2: mflux (B2) |
 | Datensatz | BACK ≥ 15/768 px; V0.1 25–40/1024 px | Minimum 15/768 (Gate), empfohlen 25–40/1024 |
@@ -441,16 +441,16 @@ Jede Phase: echte Umsetzung, gezielte Tests (Normalfall, wesentlicher Fehlerfall
 | Medienversand und Kloner-Rückversand | ungeregelt | Eingabefeld nur Text; Kundenmedien nur nach Zahlung + Freigabe, als Zustellkopie bei Kanalgrenze; Ergebnisse des Default-Nutzers per Telegram an ihn zurück (Betreiberentscheidung 15.11.2026; ändert FRONT F7.4 „ausschließlich Mitte und Dateien“), zusätzlich in Nachrichten und Dateien (§6, §8.1) |
 | Fertigstellung 4K (BACK, V0.1) | 4K als Fertigstellungsstufe | Original ≥ 1K; 2K/4K nur per Upscaler auf Wunsch (§9.7) |
 | Reihenfolge (V0.2/0.3) | Kernkette P0 zuerst | Block A (ComfyUI + Dateien) → Block B (Modelle, Workflows) → Block C (Kanäle); keine parallele Entwicklung (Betreiberentscheidung 15.11.2026, §12) |
-| Modellbestand | „nicht pauschal löschen“ | Betreiberauftrag 15.11.2026: RealCore, Qwen-Image 20B/2.1, FLUX.2 Dev entfernt (§9.3) |
+| Modellbestand | „nicht pauschal löschen“ | Betreiberauftrag 15.11.2026: RealCore, Qwen-Image 20B entfernt; Löschen nur nach ausdrücklicher Bestätigung (§9.3) |
 
 ## 14. Voraussetzungen durch den Betreiber
 
 - Charakterfotos in `local/character/photos/` (B1).
-- Modelle lädt der Betreiber selbst in der gewählten Präzisionsstufe in die Ordner laut `ki_modelle.md` (§14.1). **Block A und B1 brauchen keine neuen Modelle.**
+- Modelle: Darkfluenzer lädt nacheinander (§14.1); der Betreiber lädt nur Dateien hinter Anmeldung/Lizenzannahme (LUSTIFY v10, FLUX 3 Klein), nimmt die LTX-2.5-Lizenz auf Hugging Face an und entscheidet über Platz (FLUX.2 Dev) und jedes Löschen. **Block A und B1 brauchen keine neuen Modelle.**
 - macOS-26-Update (B3).
 - Kostenloses Tunnel-Konto (Tailscale oder ngrok) – nur für Instagram (C2).
 - Telegram-Bot (BotFather-Token); professionelles Instagram-Konto der Influencerin mit Meta-App (C2–C5); freigegebene Absender-Accounts. WhatsApp Business erst für C7.
 
 ### 14.1 Modelle und Downloads
 
-Vollständige Liste mit Präzision, Größe, Quelle/Revision, Ablage und Status: **[ki_modelle.md](ki_modelle.md)**. **Der Betreiber lädt alle Modelle selbst und wählt die Präzisionsstufe** (Betreiberentscheidung 15.11.2026, eigene Downloads abgebrochen); `ki_modelle.md` nennt je Modell die verfügbaren Stufen mit Größe und den Ablageordner. Darkfluenzer registriert die Dateien in Block B (Präzision aus dem Dateikopf, SHA-256, Quelle).
+Vollständige Liste mit Präzision, Größe, Quelle/Revision, Ablage, Status und Platzbilanz: **[ki_modelle.md](ki_modelle.md)**. **Darkfluenzer lädt die Modelle selbst, streng nacheinander** (Betreiberhinweis 15.11.2026): je eine Datei vollständig, SHA-256 geprüft, erst dann die nächste; nach jeder fertigen Gruppe wird ihr Workflow gebaut und real getestet, während die nächste lädt. Geladen wird die Originalpräzision; vor jeder Datei Platzprüfung mit 30 GB Reserve. Registrierung im Manifest mit Präzision aus dem Dateikopf, SHA-256 und Quelle.
