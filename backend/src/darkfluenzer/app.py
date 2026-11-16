@@ -24,7 +24,7 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
-from . import __version__, comfy, models, pipeline, runtime, training
+from . import __version__, comfy, keychain, models, pipeline, runtime, training
 from .config import INSTANCE_SECTIONS, ConfigError, load, project_root, setup_logging
 from .identity import FaceIdentity, IdentityError
 from .store import Store
@@ -277,6 +277,61 @@ def _character(args: argparse.Namespace) -> tuple[dict, int]:
     return {"ok": True, **training.train_sdxl_lora(base, dataset, out, params)}, 0
 
 
+# Zugangsdaten, die der Betreiber selbst einträgt (Dienstnamen aus config.toml). Wie bei Project_0
+# (`p0ctl provider credential set`): verdeckte Eingabe, nie als Argument, nie in Historie/Logs.
+SECRET_RULES = {
+    "telegram.api_id": ("telegram_account", "api_id_service", r"^\d{3,12}$", "nur Ziffern"),
+    "telegram.api_hash": (
+        "telegram_account",
+        "api_hash_service",
+        r"^[0-9a-f]{32}$",
+        "32 Hex-Zeichen",
+    ),
+}
+
+
+def _secret_service(name: str) -> str:
+    import tomllib
+
+    section, key, _rx, _hint = SECRET_RULES[name]
+    cfg_path = project_root() / "local" / "config.toml"
+    table = tomllib.loads(cfg_path.read_text(encoding="utf-8")).get(section) or {}
+    default = f"darkfluenzer.{name}"
+    return str(table.get(key, default))
+
+
+def _secret(args: argparse.Namespace) -> tuple[dict, int]:
+    """Zugangsdaten im macOS-Schlüsselbund: Status (ohne Werte) oder verdeckt eintragen."""
+    import getpass
+    import re
+
+    if args.action == "status":
+        entries = {n: keychain.secret(_secret_service(n)) is not None for n in SECRET_RULES}
+        return {"ok": True, "entries": entries}, 0
+    if args.name not in SECRET_RULES:
+        return {"ok": False, "error": f"unbekannt; erlaubt: {', '.join(SECRET_RULES)}"}, 2
+    service = _secret_service(args.name)
+    _section, _key, rx, hint = SECRET_RULES[args.name]
+    if keychain.secret(service) is not None and not args.replace:
+        if not sys.stdin.isatty():
+            return {"ok": False, "error": f"{service} existiert schon – mit --replace ersetzen"}, 1
+        answer = input(f"{service} ist bereits im Schlüsselbund. Ersetzen? [j/N] ")
+        if answer.strip().lower() not in ("j", "ja", "y", "yes"):
+            return {"ok": False, "error": "nicht ersetzt"}, 1
+    if sys.stdin.isatty():
+        value = getpass.getpass(f"{args.name} eingeben (wird nicht angezeigt): ").strip()
+    else:
+        value = sys.stdin.readline().strip()
+    if not re.fullmatch(rx, value):
+        return {
+            "ok": False,
+            "error": f"{args.name}: ungültiges Format ({hint}) – nichts gespeichert",
+        }, 1
+    if not keychain.store_secret(service, value):
+        return {"ok": False, "error": f"{service}: Schlüsselbund hat abgelehnt"}, 1
+    return {"ok": True, "stored": service, "verified": keychain.secret(service) == value}, 0
+
+
 def _serve() -> tuple[dict, int]:
     from . import server  # aiohttp nur für den Server laden
 
@@ -322,6 +377,11 @@ def main(argv: list[str] | None = None) -> int:
     chp.add_argument("--rank", type=int, default=16)
     chp.add_argument("--seed", type=int, default=1)
     chp.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
+    sec = sub.add_parser("secret", help="Zugangsdaten im macOS-Schlüsselbund (verdeckte Eingabe)")
+    sec.add_argument("action", choices=["status", "set"])
+    sec.add_argument("name", nargs="?", default="", help=f"bei set: {', '.join(SECRET_RULES)}")
+    sec.add_argument("--replace", action="store_true", help="vorhandenen Eintrag ersetzen")
+    sec.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     srv = sub.add_parser("serve", help="Cockpit-Server (React-Build + Protobuf-API)")
     srv.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     for name, text in (
@@ -346,6 +406,8 @@ def main(argv: list[str] | None = None) -> int:
             payload, code = _character(args)
         elif args.area == "serve":
             payload, code = _serve()
+        elif args.area == "secret":
+            payload, code = _secret(args)
         elif args.area in ("up", "restart", "down"):
             cfg = load()
             setup_logging(cfg)
