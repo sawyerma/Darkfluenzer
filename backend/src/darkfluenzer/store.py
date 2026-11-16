@@ -2285,6 +2285,15 @@ class Store:
         entstehen in EINEM Commit, damit eine Wiederholung nie einen zweiten Job erzeugt."""
         with self.tx() as db:
             order_id = self.order(order_no).id if order_no else None
+            if (
+                order_id is None and stage_id is not None
+            ):  # bugs_v1 BUG-006: Kundenauftrag ab Anlage
+                row = db.execute(
+                    "SELECT o.id FROM order_stages s JOIN orders o ON o.id = s.order_id"
+                    " WHERE s.id = ? AND o.source = 'customer'",
+                    (stage_id,),
+                ).fetchone()
+                order_id = row[0] if row else None
             ts = now()
             cur = db.execute(
                 "INSERT INTO jobs (order_id, engine, workflow, prompt, params, seeds, created_at,"

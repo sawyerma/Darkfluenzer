@@ -240,3 +240,44 @@ def test_bug005_underpayment_never_books_the_full_price(tmp_path):
     store.assign_inflow(full["id"], order.order_no, "Betreiber")
     assert store.order(order.order_no).status == "paid"
     store.close()
+
+
+def test_bug006_customer_order_jobs_and_media_carry_the_order(cfg):
+    """BUG-006: Jobs eines bezahlten Kundenauftrags tragen den Auftrag ab der Anlage; seine Medien
+    sind Kundenmedien und lassen sich weder über die Galerie noch per Befehl löschen."""
+    import shutil
+
+    import pytest
+    from test_channels import _inbound
+
+    from darkfluenzer import models, pipeline
+    from darkfluenzer.config import project_root
+    from darkfluenzer.store import Store, StoreError
+
+    shutil.copytree(project_root() / "workflows", cfg.root / "workflows", dirs_exist_ok=True)
+    man = models.load_manifest(cfg.root)
+    store = Store(cfg.local)
+    first = _inbound(store, "1", "42", "hallo", "10")
+    evm = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"
+    order = store.create_offer(
+        first.customer.id, first.conversation_id, "Foto", False, 2500,
+        "2099-01-01T00:00:00.000+00:00", {"usdt": ("27.7801", evm, 0.9, 1)},
+    )  # fmt: skip
+    store.upsert_payment(
+        method="usdt", network="bsc", asset="USDT", amount="27.7801", txid="0x1", position=0,
+        block=1, confirmations=15, required=15, eur=25.0, rate=0.9, rate_ms=1,
+    )  # fmt: skip
+    assert store.order(order.order_no).status == "paid"
+    _, (job,) = pipeline.create_order(
+        store, man, "krea2_turbo_t2i", {"prompt": "Strand"}, {}, count=1,
+        customer_order_no=order.order_no,
+    )  # fmt: skip
+    assert store.job(job)["order_id"] == order.id  # Auftragsbezug ab der Anlage
+    rel = "evaluation/krea2_turbo/kunde.png"
+    (cfg.local / rel).parent.mkdir(parents=True, exist_ok=True)
+    (cfg.local / rel).write_bytes(b"\\x89PNG\\r\\n\\x1a\\nkunde")
+    media = store.add_media(rel, hashlib.sha256(b"x").hexdigest(), 20, job_id=job)
+    assert store.media_by_id(media)["order_id"] == order.id
+    with pytest.raises(StoreError, match="Kundenauftrags"):
+        store.remove_media([media])
+    store.close()

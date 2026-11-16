@@ -54,7 +54,7 @@
 - **Eigene Gegenprüfung:** **CODE/TEILWEISE** – `pipeline.py`, `create_job` (um 209) ruft `store.create_job(None, ... stage_id=stage_id)`; `store.py`, `create_job` legt bei `order_no=None` zunächst `jobs.order_id=NULL` an. `store.register_media` leitet Medienauftrag aus Job-/Artefaktbezug ab, und `remove_media` schützt nur Zeilen mit `media.order_id IS NOT NULL`. **Ob ein späterer `artifact_id`-Pfad den Bezug vor dem Galerieeintrag rettet, muss der End-to-End-Test zeigen.**
 - **Prüfung:** Realen Kundenauftrag von `paid` bis Galerieeintrag ausführen, `jobs/order_stages/artifacts/media.order_id` vor/nach Finalisierung kontrollieren; Löschversuch über UI **und** manipulierten Befehl muss abgewiesen werden.
 - **Soll:** Auftragsbezug bei Anlage des Jobs und durchgehend bis zu Artefakt und Galerieeintrag; unveränderliche Kundendateien.
-- **Status:** OFFEN – Codebefund und möglicher Folgefehler.
+- **Status:** BESTÄTIGT und behoben (Protokoll §7, BUG-006).
 
 ## 2. P1 – Zuverlässigkeit und wesentliche Betriebsfehler
 
@@ -218,6 +218,24 @@ Regression: gleicher Zahlungsweg wie im Angebot -> mindestens dessen exakter Bet
   nicht“, Eingang bleibt nicht zugeordnet, Auftrag unbezahlt; ausreichender Eingang wird zugeordnet;
   test_customer_orders an die korrigierte Regel angepasst (dort war eine Unterzahlung manuell zugeordnet)
 Mac-End-to-End: NICHT GELAUFEN (keine echten Zahlungsadressen; kein echter Geldfluss simuliert)
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
+ID: BUG-006
+Git-Commit / geprüfte Datei + Zeilen: 9927140 / backend/src/darkfluenzer/store.py, Store.create_job
+  (Aufruf aus pipeline.create_render mit order_no=None und stage_id)
+Behauptung: BESTÄTIGT
+Nachweis: tests/test_bugs_v1.py::test_bug006_customer_order_jobs_and_media_carry_the_order – Job eines
+  bezahlten Kundenauftrags (pipeline.create_order mit customer_order_no) hatte jobs.order_id = NULL; sein
+  Medium wäre als Betreiberdatei löschbar gewesen (rot vor der Korrektur)
+Ursache: create_render legt Jobs immer ohne Auftrag an; der Bezug lief nur über die Stufe, die
+  Galerie/Löschschutz nicht kennen
+Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-006"
+Regression: Jobs von Stufen eines Kundenauftrags tragen dessen ID ab der Anlage; Medium erbt order_id;
+  remove_media weist ab („Medien eines Kundenauftrags …“), DB-Trigger media_order_no_delete greift
+  zusätzlich; Betreiber-/Kloner-Aufträge unverändert löschbar; Kundenauftrags- und Auftragstests grün
+Mac-End-to-End: NICHT GELAUFEN (erster echter Kundenauftrag steht aus)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
