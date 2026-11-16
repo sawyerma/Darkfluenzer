@@ -867,6 +867,10 @@ class InstagramAccount:
     async def _send(self, item: dict) -> None:
         message_id = int(item["id"])
         partner = str(item["platform_conversation_id"])
+        # Zustellung an Kunden: Gate im Versandmoment frisch prüfen (approval.py, V0 §8.4 Punkt 9)
+        if item.get("delivery_id") and (reason := self.gate(item)):
+            self._finish(message_id, "failed", error=reason)
+            return
         human = message_id in self._ids(HUMAN)
         plan = self.send_check(partner, human_agent=human) or self._parts(item)
         if isinstance(plan, str):
@@ -1053,6 +1057,8 @@ class InstagramAccount:
 
     # Server setzt diesen Rückruf (Push des geänderten Nachrichtenstatus)
     on_change_message: Callable[[int], None] = staticmethod(lambda _id: None)  # type: ignore[assignment]
+    # Server setzt die Versandprüfung für Zustellungen (leer = senden, sonst der Sperrgrund)
+    gate: Callable[[dict], str] = staticmethod(lambda _item: "Keine Versandprüfung.")  # type: ignore[assignment]
 
 
 def _mac(key: str, rel: str, exp: int) -> str:

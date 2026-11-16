@@ -253,6 +253,9 @@ message SendReply {
   string platform = 4;
   uint64 revision = 5;
   string text = 6;
+  // Instagram außerhalb des 24-h-Fensters: manuelle Antwort mit Human-Agent-Kennzeichnung (nur
+  // der Betreiber, nie die KI; höchstens bis zum verlängerten Fenster)
+  bool human_agent = 7;
 }
 
 // Operator-Felder des Default-Kontakts (F7.4) speichern; CAS über DefaultContact.revision.

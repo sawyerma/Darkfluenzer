@@ -435,3 +435,40 @@ def test_config_instagram_section(project, tmp_path):
         fh.write(f'\n[instagram]\npublic_base_url = "{BASE}/"\n')
     loaded = config.load(project).instagram
     assert loaded is not None and loaded.redirect_uri == f"{BASE}/instagram/oauth"
+
+
+def test_server_routes_only_public_paths_through_tunnel(cfg, vault, monkeypatch):
+    """Über den Tunnel-Host nur Webhook, OAuth und signierte Medien; alles andere 403. Anmeldelink
+    nur mit Sitzung; Webhook nur mit Meta-Signatur."""
+    from test_server import _csrf, _run
+
+    from darkfluenzer import server
+
+    async def idle(self):  # kein Netz: Kontoprüfung gegen Meta läuft im Test nicht
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(instagram.InstagramAccount, "run", idle)
+    ig = config._parse_instagram({"public_base_url": BASE}, Path("config.toml"))
+    cfg = dataclasses.replace(cfg, instagram=ig)
+    public = {"Host": urlsplit(BASE).netloc}
+
+    async def scenario(client, app, origin):
+        assert (await client.get("/api/v1/session", headers=public)).status == 403
+        assert (await client.get("/", headers=public)).status == 403
+        query = {"hub.mode": "subscribe", "hub.verify_token": VERIFY, "hub.challenge": "c-1"}
+        resp = await client.get(ig.webhook_path, params=query, headers=public)
+        assert resp.status == 200 and await resp.text() == "c-1"
+        query["hub.verify_token"] = "falsch"
+        assert (await client.get(ig.webhook_path, params=query, headers=public)).status == 403
+        body = _hook(_msg("m-1"))
+        bad = public | {"X-Hub-Signature-256": "sha256=00"}
+        assert (await client.post(ig.webhook_path, data=body, headers=bad)).status == 403
+        assert (await client.get(ig.media_path + "/x.png?t=1.abc", headers=public)).status == 403
+        assert (await client.get("/api/v1/instagram/login", allow_redirects=False)).status == 401
+        await _csrf(client)
+        resp = await client.get("/api/v1/instagram/login", allow_redirects=False)
+        assert resp.status == 302 and resp.headers["Location"].startswith(ig.oauth_authorize_url)
+        cockpit = app[server.COCKPIT_KEY]
+        assert {c["platform"] for c in [cockpit.instagram.status()]} == {"instagram"}
+
+    _run(cfg, scenario)

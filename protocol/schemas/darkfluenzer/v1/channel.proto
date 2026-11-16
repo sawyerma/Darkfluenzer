@@ -135,6 +135,10 @@ message ChannelIdentity {
   // KI-Hinweis (Regel 12 b): leer = nicht ausgelöst, sonst Status der Hinweisnachricht
   // (queued | sending | sent | failed | unknown)
   string ai_notice = 9;
+  // Instagram-Antwortfenster (FRONT F4 Punkt 10): offen bis (Unix-ms, 0 = abgelaufen bzw. kein
+  // Instagram) und das verlängerte Fenster für manuelle Antworten mit Human-Agent-Kennzeichnung
+  int64 window_until_ms = 10;
+  int64 human_until_ms = 11;
 }
 
 // Operator-Felder des internen Kontakts Default (F7.4, V0 §8/§8.1).

@@ -31,6 +31,7 @@ from aiohttp import web
 from google.protobuf.message import DecodeError
 
 from . import aimeta, approval, cloner, comfy, models, pipeline, runtime, training
+from .channels.instagram import InstagramAccount, InstagramError
 from .channels.telegram import TelegramAccount
 from .config import ComfyConfig, Config
 from .payments.chain import SATOSHI, WalletWatcher, decimal_text
@@ -178,9 +179,14 @@ class Cockpit:
             if cfg.telegram
             else None
         )
-        if self.telegram:
-            self.telegram.on_change_message = self._message_changed
-            self.telegram.gate = self._delivery_gate
+        self.instagram = (
+            InstagramAccount(cfg, store, self._on_inbound, self._channels_changed)
+            if cfg.instagram
+            else None
+        )
+        for adapter in filter(None, (self.telegram, self.instagram)):
+            adapter.on_change_message = self._message_changed
+            adapter.gate = self._delivery_gate
         self._settle_deliveries()
 
     def _install_editor_copies(self) -> None:
@@ -938,7 +944,10 @@ class Cockpit:
             msg.channels.add(
                 platform="telegram", state="OFF", missing="Abschnitt [telegram_account]"
             )
-        msg.channels.add(platform="instagram", state="OFF", missing="Meta-App und Tunnel")
+        if self.instagram:
+            msg.channels.add(**self.instagram.status())
+        else:
+            msg.channels.add(platform="instagram", state="OFF", missing="Abschnitt [instagram]")
         msg.channels.add(platform="whatsapp", state="OFF", missing="WhatsApp folgt später (C7)")
         return msg.SerializeToString()
 
@@ -1030,9 +1039,11 @@ class Cockpit:
         )
         if ident is None:
             return "Kanalidentität gehört nicht zu dieser Kundenakte."
-        adapter = self.telegram if ident["platform"] == "telegram" else None
+        adapter = self._adapter(ident["platform"])
         if adapter is None or adapter.state != "READY":
             return f"{ident['platform']} ist nicht verbunden."
+        if reason := self._send_check(ident["platform"], ident["platform_conversation_id"]):
+            return reason
         message_id = self.store.queue_ai_notice(
             msg.customer_id, msg.identity_id, figure["ai_notice"].strip()
         )
@@ -1083,7 +1094,13 @@ class Cockpit:
     # ------------------------------------------------------------ Kundenauftrag (C5/C5a)
 
     def _adapter(self, platform: str):
-        return self.telegram if platform == "telegram" else None
+        return {"telegram": self.telegram, "instagram": self.instagram}.get(platform)
+
+    def _send_check(self, platform: str, partner: str, *, human_agent: bool = False) -> str:
+        """Kanalgrenzen vor dem Einreihen (Instagram: 24-h-Fenster); leer = erlaubt."""
+        if platform == "instagram" and self.instagram:
+            return self.instagram.send_check(partner, human_agent=human_agent)
+        return "Human-Agent gibt es nur bei Instagram." if human_agent else ""
 
     def _offer_amounts(self, price_cents: int) -> dict[str, tuple[str, str, float, int]]:
         """Je eingerichtetem Zahlungsweg ein noch nie vergebener, exakter Betrag zum aktuellen Kurs
@@ -1442,8 +1459,9 @@ class Cockpit:
             revision=self.store.conversation_revision(conversation_id),
             attachments=attachments,
         )
-        if self.telegram:
-            self.telegram.wake.set()
+        adapter = self._adapter(self.store.conversation_platform(conversation_id))
+        if adapter is not None:
+            adapter.wake.set()
         self._message_changed(message_id)
 
     async def _cloner(self, inbound) -> None:
@@ -1556,6 +1574,8 @@ class Cockpit:
     async def _channel_login(self, msg: commands_pb2.ChannelAccountLogin, call: _Call) -> str:
         """Anmeldeschritt (Befehl 39); der Wert geht nur an TDLib (V0 §6.1 Punkt 2)."""
         call.entity = f"channel:{msg.platform}"
+        if msg.platform == "instagram":
+            return "Instagram meldet sich über den Link „Mit Instagram anmelden“ an."
         if msg.platform != "telegram" or self.telegram is None:
             return f"{msg.platform or 'Kanal'}: Kontoanmeldung nicht eingerichtet."
         return await self.telegram.login_step(msg.step, msg.value)
@@ -1563,12 +1583,13 @@ class Cockpit:
     async def _channel_update(self, msg: commands_pb2.ChannelAccountUpdate, call: _Call) -> str:
         """Automatik freigeben/sperren oder abmelden (Befehl 40)."""
         call.entity = f"channel:{msg.platform}"
-        if msg.platform != "telegram" or self.telegram is None:
+        adapter = self._adapter(msg.platform)
+        if adapter is None:
             return f"{msg.platform or 'Kanal'}: Konto nicht eingerichtet."
         if msg.action == "logout":
-            return await self.telegram.logout()
+            return await adapter.logout()
         if msg.action in ("enable_automation", "disable_automation"):
-            return self.telegram.set_automation(msg.action == "enable_automation")
+            return adapter.set_automation(msg.action == "enable_automation")
         return "Unbekannte Aktion."
 
     async def _character_update(self, msg: commands_pb2.CharacterUpdate, call: _Call) -> str:
@@ -1649,6 +1670,10 @@ class Cockpit:
             if not self.telegram or not self.telegram.account:
                 raise pipeline.PipelineError("Claras Telegram-Konto ist noch nicht angemeldet.")
             return self.telegram.account
+        if platform == "instagram":
+            if not self.instagram or not self.instagram.account:
+                raise pipeline.PipelineError("Claras Instagram-Konto ist noch nicht angemeldet.")
+            return self.instagram.account
         raise pipeline.PipelineError(f"{platform} ist noch nicht eingerichtet.")
 
     async def _mark_read(self, msg: commands_pb2.MarkRead, call: _Call) -> str:
@@ -1672,9 +1697,12 @@ class Cockpit:
             return "Kanal passt nicht zu dieser Kundenakte."
         if ident["conversation_id"] != msg.conversation_id:
             return "Konversation passt nicht zu diesem Kanal."
-        adapter = self.telegram if msg.platform == "telegram" else None
+        adapter = self._adapter(msg.platform)
         if adapter is None or adapter.state != "READY":
             return f"{msg.platform} ist nicht verbunden."
+        partner = ident["platform_conversation_id"]
+        if reason := self._send_check(msg.platform, partner, human_agent=msg.human_agent):
+            return reason
         message_id = self.store.queue_outbound(
             msg.customer_id,
             msg.conversation_id,
@@ -1683,6 +1711,8 @@ class Cockpit:
             request_id=call.request_id,
         )
         call.entity = f"message:{message_id}"
+        if msg.human_agent and self.instagram and not self.instagram.window_open(partner):
+            self.instagram.mark_human_agent(message_id)
         adapter.wake.set()
         self._message_changed(message_id)
         return ""
@@ -2158,8 +2188,62 @@ GUARD_KEY = web.AppKey("guard", _Guard)
 @web.middleware
 async def _host_check(request: web.Request, handler):
     if request.host not in request.app[GUARD_KEY].hosts:
-        return web.Response(status=403, text="Unbekannter Host")
+        # über den Tunnel nur die drei öffentlichen Instagram-Pfade (je mit eigener Prüfung)
+        ig = request.app[COCKPIT_KEY].instagram
+        if not (
+            ig and ig.public_host and request.host == ig.public_host and ig.is_public(request.path)
+        ):
+            return web.Response(status=403, text="Unbekannter Host")
     return await handler(request)
+
+
+def _instagram(request: web.Request) -> InstagramAccount:
+    ig = request.app[COCKPIT_KEY].instagram
+    if ig is None:
+        raise web.HTTPNotFound()
+    return ig
+
+
+async def _ig_verify(request: web.Request) -> web.Response:
+    status, body = _instagram(request).verify(request.query)
+    return web.Response(status=status, text=body)
+
+
+async def _ig_webhook(request: web.Request) -> web.Response:
+    raw = await request.read()  # Signatur über die unveränderten Bytes
+    status = await _instagram(request).handle_webhook(
+        raw, request.headers.get("X-Hub-Signature-256", "")
+    )
+    return web.Response(status=status)
+
+
+async def _ig_oauth(request: web.Request) -> web.Response:
+    status, text = await _instagram(request).oauth_callback(request.query)
+    return web.Response(status=status, text=text, headers={"Cache-Control": "no-store"})
+
+
+async def _ig_media(request: web.Request) -> web.StreamResponse:
+    """Medienabruf durch Meta: nur mit kurzlebigem signiertem Token, nur Dateien unter local/."""
+    ig = _instagram(request)
+    rel = request.match_info["path"]
+    if not ig.check_media_token(rel, request.query.get("t", "")):
+        return web.Response(status=403)
+    local = request.app[COCKPIT_KEY].cfg.local.resolve()
+    path = (local / rel).resolve()
+    if not path.is_relative_to(local) or not path.is_file():
+        raise web.HTTPNotFound()
+    return web.FileResponse(path, headers={"Cache-Control": "no-store"})
+
+
+async def _ig_login(request: web.Request) -> web.Response:
+    """Anmeldung im Cockpit: Weiterleitung zur Instagram-Anmeldung (OAuth mit state)."""
+    if request.app[GUARD_KEY].csrf_of(request) is None:
+        return web.Response(status=401, text="Keine gültige Sitzung")
+    try:
+        url = _instagram(request).authorize_url()
+    except InstagramError as exc:
+        return web.Response(status=409, text=str(exc))
+    raise web.HTTPFound(url)
 
 
 # --------------------------------------------------------------------------- Routen
@@ -2428,6 +2512,20 @@ def _customer_summary(row: dict) -> channel_pb2.CustomerSummary:
     )
 
 
+def _window(ig: InstagramAccount | None, ident: dict) -> dict:
+    """Instagram-Antwortfenster einer Identität (Unix-ms bis wann offen)."""
+    if ig is None or ident["platform"] != "instagram" or not ident["platform_conversation_id"]:
+        return {}
+    now_ms = int(time.time() * 1000)
+    partner = ident["platform_conversation_id"]
+    left = ig.window_remaining_ms(partner)
+    human = ig.window_remaining_ms(partner, human_agent=True)
+    return {
+        "window_until_ms": now_ms + left if left else 0,
+        "human_until_ms": now_ms + human if human else 0,
+    }
+
+
 def _eur(cents: int) -> str:
     return f"{cents / 100:.2f} €".replace(".", ",")
 
@@ -2588,6 +2686,7 @@ async def _conversation_page(request: web.Request) -> web.Response:
             conversation_id=ident["conversation_id"] or 0,
             revision=ident["revision"] or 0,
             ai_notice=ident["ai_notice_status"] or "",
+            **_window(request.app[COCKPIT_KEY].instagram, ident),
         )
     if summary[0]["kind"] == "internal":
         d = store.default_contact()
@@ -2705,6 +2804,13 @@ def create_app(cfg: Config) -> web.Application:
     app.router.add_get("/api/v1/payment-page", _payment_page)
     app.router.add_get("/api/v1/wallet-qr/{key}", _wallet_qr)
     app.router.add_get("/api/v1/payment-export/{month}", _payment_export)
+    app.router.add_get("/api/v1/instagram/login", _ig_login)
+    if cfg.instagram:  # öffentlich über den Tunnel (Host-Prüfung lässt nur diese Pfade durch)
+        ig = cfg.instagram
+        app.router.add_get(ig.webhook_path, _ig_verify)
+        app.router.add_post(ig.webhook_path, _ig_webhook)
+        app.router.add_get(ig.oauth_path, _ig_oauth)
+        app.router.add_get(ig.media_path + "/{path:.+}", _ig_media)
     app.router.add_get("/api/v1/customer-page", _customer_page)
     app.router.add_get("/api/v1/conversation-page", _conversation_page)
 
@@ -2720,10 +2826,10 @@ def create_app(cfg: Config) -> web.Application:
         ]
         if cockpit.wallet:
             tasks.append(asyncio.create_task(cockpit.wallet.run()))
-        if cockpit.telegram:
+        for adapter in filter(None, (cockpit.telegram, cockpit.instagram)):
             tasks += [
-                asyncio.create_task(cockpit.telegram.run()),
-                asyncio.create_task(cockpit.telegram.outbox_worker()),
+                asyncio.create_task(adapter.run()),
+                asyncio.create_task(adapter.outbox_worker()),
             ]
         yield
         for task in tasks:
