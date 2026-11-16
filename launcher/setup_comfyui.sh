@@ -61,6 +61,7 @@ darkfluenzer:
   latent_upscale_models: latent_upscale_models
   model_patches: model_patches
   controlnet: controlnet
+  geometry_estimation: geometry_estimation
 EOF
 
 "$PY" - <<'EOF'

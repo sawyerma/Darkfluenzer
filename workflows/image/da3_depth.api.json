@@ -1,0 +1,53 @@
+{
+ "85": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "vorlage.png"
+  }
+ },
+ "86": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "filename_prefix": "darkfluenzer/da3_depth",
+   "images": [
+    "14:7",
+    0
+   ]
+  }
+ },
+ "14:7": {
+  "class_type": "DA3Render",
+  "inputs": {
+   "output": "depth",
+   "output.normalization": "v2_style",
+   "output.apply_sky_clip": false,
+   "da3_geometry": [
+    "14:5",
+    0
+   ]
+  }
+ },
+ "14:5": {
+  "class_type": "DA3Inference",
+  "inputs": {
+   "resolution": 504,
+   "resize_method": "upper_bound_resize",
+   "mode": "mono",
+   "da3_model": [
+    "14:82",
+    0
+   ],
+   "image": [
+    "85",
+    0
+   ]
+  }
+ },
+ "14:82": {
+  "class_type": "LoadDA3Model",
+  "inputs": {
+   "model_name": "depth_anything3/depth_anything_3_mono_large.safetensors",
+   "weight_dtype": "default"
+  }
+ }
+}

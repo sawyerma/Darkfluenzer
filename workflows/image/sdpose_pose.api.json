@@ -1,0 +1,71 @@
+{
+ "667": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "vorlage.png"
+  }
+ },
+ "669": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "filename_prefix": "darkfluenzer/sdpose_pose",
+   "images": [
+    "675:672",
+    0
+   ]
+  }
+ },
+ "675:671": {
+  "class_type": "SDPoseKeypointExtractor",
+  "inputs": {
+   "batch_size": 16,
+   "model": [
+    "675:673",
+    0
+   ],
+   "vae": [
+    "675:673",
+    2
+   ],
+   "image": [
+    "675:674",
+    0
+   ]
+  }
+ },
+ "675:674": {
+  "class_type": "ResizeImageMaskNode",
+  "inputs": {
+   "resize_type": "scale longer dimension",
+   "resize_type.longer_size": 1024,
+   "scale_method": "area",
+   "input": [
+    "667",
+    0
+   ]
+  }
+ },
+ "675:672": {
+  "class_type": "SDPoseDrawKeypoints",
+  "inputs": {
+   "draw_body": true,
+   "draw_hands": true,
+   "draw_face": true,
+   "draw_feet": true,
+   "stick_width": 4,
+   "face_point_size": 2,
+   "score_threshold": 0.5,
+   "draw_head": true,
+   "keypoints": [
+    "675:671",
+    0
+   ]
+  }
+ },
+ "675:673": {
+  "class_type": "CheckpointLoaderSimple",
+  "inputs": {
+   "ckpt_name": "sdpose/sdpose_wholebody_fp16.safetensors"
+  }
+ }
+}
