@@ -390,7 +390,9 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
                     raise ManifestError(f"Manifest: {w}.params.{name}.choices_from unbekannt.")
                 spec["choices"] = shared
             try:
-                also = tuple(tuple(str(x).split(":", 1)) for x in spec.pop("also", ()))
+                also = tuple(
+                    tuple(str(x).rsplit(":", 1)) for x in spec.pop("also", ())
+                )  # Untergraph-IDs: "398:341"
                 if any(len(a) != 2 for a in also):
                     raise TypeError('also: Einträge als "Node:Eingang"')
                 params[name] = Param(

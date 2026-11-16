@@ -214,21 +214,19 @@ usage = "evaluation"
 gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
 note = "v3.0 existiert nur als FP8; FP8-Tensoren sind auf MPS nicht nativ nutzbar (geprüft 14.11.2026). Autorvorgabe Lightning: 4+4 Schritte, CFG 1, euler/simple, Shift 8 (Workflow seit 15.11.2026); Negativ-Prompt bei CFG 1 ohne Wirkung."
 
-[engines.ltx25_fast]
-title = "LTX 2.5 22B distilliert (BF16) – Video-Ersatzpfad"
+[engines.ltx25]
+title = "LTX 2.5 22B Dev (BF16) + Distilled-LoRA"
 kind = "video"
 role = "video_alternative"
 arch = "ltx25"
 precision = "bf16"
 wave = 3
-files = ["ltx25_distilled_bf16", "gemma4_12b_ltx25_bf16", "ltx25_video_vae", "ltx25_audio_vae", "ltx25_spatial_upscaler"]
+files = ["ltx25_dev_bf16", "ltx25_distilled_lora", "gemma4_12b_ltx25_bf16", "ltx25_video_vae", "ltx25_audio_vae", "ltx25_spatial_upscaler"]
 license = "LTX-2.x Community License Agreement"
 usage = "evaluation"
 gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
-note = "'Fast' = distillierte Variante. Repo gated – Lizenz auf HF akzeptieren."
-
-# ------------------------------------------------------------------------------------ Dateien
-# Jede Datei genau einmal. size in Byte, sha256 = HF-LFS-Hash (beim Download geprüft).
+formats = { "16:9" = [1280, 704], "9:16" = [704, 1280], "1:1" = [1024, 1024], "3:4" = [960, 1280], "4:5" = [1024, 1280] }
+note = "Offizielle Vorlage video_ltx2_5_i2v: zwei Stufen (8 + 3 Schritte, CFG 1), Ton; Dev-Transformer mit Distilled-LoRA (laut Modellkarte für Dev-Workflows) statt Distilled-Transformer; ohne Prompt-Verbesserer."
 
 [files.flux3_klein_base_bf16]
 repo = "black-forest-labs/flux-3-image-klein-comfy"
@@ -441,13 +439,21 @@ target = "vae/wan/wan_2.1_vae.safetensors"
 size = 253815318
 sha256 = "2fc39d31359a4b0a64f55876d8ff7fa8d780956ae2cb13463b0223e15148976b"
 
-[files.ltx25_distilled_bf16]
+[files.ltx25_dev_bf16]
 repo = "Lightricks/LTX-2.5"
 revision = "49b093a39c19169a8a81721dcc541e07e945232f"
-source = "diffusion_models/ltx-2.5-22b-distilled-transformer-bf16.safetensors"
-target = "diffusion_models/ltx25/ltx-2.5-22b-distilled-transformer-bf16.safetensors"
+source = "diffusion_models/ltx-2.5-22b-dev-transformer-bf16.safetensors"
+target = "diffusion_models/ltx25/ltx-2.5-22b-dev-transformer-bf16.safetensors"
 size = 42018190584
-sha256 = "31eb3cad89b9e54e99dd3baf286f70825ac4f6c660a70d9184d895be76d7bff4"
+sha256 = "792a2bad501ca03262c0bc2ce7a2949e85b142ce18e30894aad5bc849c8e7584"
+
+[files.ltx25_distilled_lora]
+repo = "Lightricks/LTX-2.5"
+revision = "49b093a39c19169a8a81721dcc541e07e945232f"
+source = "loras/ltx-2.5-22b-distilled-lora-450-bf16.safetensors"
+target = "loras/ltx25/ltx-2.5-22b-distilled-lora-450-bf16.safetensors"
+size = 8899889568
+sha256 = "86370bbf79a9eb4edaa158907e2b48a5188fe4c5dc8ce30c7eb8f2f131a9bbf5"
 
 [files.gemma4_12b_ltx25_bf16]
 repo = "Lightricks/LTX-2.5"
@@ -691,6 +697,27 @@ frames_multiple = 4
 segment_frames_max = 81
 start_image = "image"
 decode = "13"
+
+[workflows.ltx25_i2v]
+engine = "ltx25"
+ui = "video/ltx25_i2v.ui.json"
+api = "video/ltx25_i2v.api.json"
+status = "OFFEN"
+title = "LTX 2.5 · Bild zu Video"
+content = "standard"
+
+[workflows.ltx25_i2v.params]
+image = { node = "395", input = "image", type = "str", required = true, upload = true }
+prompt = { node = "398:376", input = "value", type = "str", required = true }
+negative_prompt = { node = "398:373", input = "text", type = "str" }
+duration = { node = "398:362", input = "value", type = "int", min = 1, max = 20, expert = false, label = "Länge (s)" }
+width = { node = "398:372", input = "value", type = "int", min = 256, max = 1920, multiple_of = 64 }
+height = { node = "398:360", input = "value", type = "int", min = 256, max = 1920, multiple_of = 64 }
+seed = { node = "398:339", input = "noise_seed", type = "int", min = 0, max = 4294967295 }
+fps = { node = "398:361", input = "value", type = "int", choices = [16, 24], label = "Bildrate (fps)" }
+start_strength = { node = "398:357", input = "strength", type = "float", min = 0.3, max = 1.0, label = "Startbild-Stärke (Stufe 1)" }
+lora_strength = { node = "398:405", input = "strength_model", type = "float", min = 0.5, max = 1.0, label = "Distilled-LoRA-Stärke" }
+sampler = { node = "398:352", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, also = ["398:341:sampler_name"], label = "Sampler" }
 
 [workflows.wan22_remix_v30_i2v]
 engine = "wan22_remix_v30"

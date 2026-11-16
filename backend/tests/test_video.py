@@ -194,3 +194,23 @@ def test_long_video_segments_resume_after_failure_and_join(video_cfg):
     assert len(media) == 1 and media[0][0].startswith("evaluation/")  # nur das fertige Video
     assert not any(pipeline.WORK_PREFIX in p for (p,) in store.db.execute("SELECT path FROM media"))
     store.close()
+
+
+def test_ltx25_registration_binds_subgraph_nodes(video_cfg):
+    """LTX 2.5: Bindungen an Untergraph-Knoten (IDs mit Doppelpunkt), Dev + Distilled-LoRA."""
+    cfg, _ = video_cfg
+    man = models.load_manifest(cfg.root)
+    wf = man.workflows["ltx25_i2v"]
+    assert wf.params["sampler"].also == (("398:341", "sampler_name"),)
+    assert {"ltx25_dev_bf16", "ltx25_distilled_lora"} <= set(man.engines["ltx25"].files)
+    out = comfy.apply_params(
+        comfy.load_graph(man, wf), wf,
+        {"image": "x.png", "prompt": "p", "duration": 8, "fps": 16, "sampler": "euler"},
+    )  # fmt: skip
+    assert (
+        out["398:362"]["inputs"]["value"] == 8
+        and out["398:341"]["inputs"]["sampler_name"] == "euler"
+    )
+    assert out["398:388"]["inputs"]["model"] == ["398:405", 0] == out["398:391"]["inputs"]["model"]
+    with pytest.raises(comfy.ComfyError, match="nicht in"):
+        comfy.apply_params(comfy.load_graph(man, wf), wf, {"image": "x", "prompt": "p", "fps": 25})
