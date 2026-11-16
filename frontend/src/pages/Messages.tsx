@@ -62,7 +62,7 @@ const NOTICE: Record<string, string> = {
   unknown: "Versand unbekannt",
 };
 const LOGIN_STEP: Record<string, [string, string, string]> = {
-  phone: ["NICHT ANGEMELDET", "Telefonnummer", "tel"],
+  phone: ["NICHT ANGEMELDET", "Telefonnummer (+49…)", "tel"],
   code: ["CODE ERWARTET", "Code aus Telegram", "text"],
   password: ["PASSWORT ERWARTET", "Zwei-Faktor-Passwort", "password"],
 };

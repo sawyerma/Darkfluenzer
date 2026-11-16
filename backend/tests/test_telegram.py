@@ -39,6 +39,8 @@ class FakeTd:
     async def call(self, request, timeout):
         self.calls.append(request)
         kind = request["@type"]
+        if kind == "setAuthenticationPhoneNumber":
+            return {"@type": "ok"}
         if kind == "getChat":
             return {"type": {"@type": "chatTypePrivate"}}
         if kind == "getUser":
@@ -209,6 +211,18 @@ def test_login_value_never_in_journal(cfg):
         assert stored == blank  # Hash ohne den Code
 
     _run(cfg, scenario)
+
+
+def test_phone_without_country_code_never_reaches_tdlib(cfg, tmp_path):
+    """0174… lehnt Telegram mit PHONE_NUMBER_INVALID ab – vorher klarer Hinweis auf +49."""
+    store = Store(cfg.local)
+    acc, _, _ = _account(cfg, tmp_path, store)
+    acc.login = "phone"
+    assert "+49" in asyncio.run(acc.login_step("phone", "01746820537"))
+    assert acc._td.calls == []
+    assert asyncio.run(acc.login_step("phone", " +491746820537")) == ""
+    assert acc._td.calls[-1]["phone_number"] == "+491746820537"
+    store.close()
 
 
 def test_reconcile_after_restart_fetches_missed_messages(cfg, tmp_path):

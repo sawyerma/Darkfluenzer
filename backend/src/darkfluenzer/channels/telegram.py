@@ -243,6 +243,8 @@ class TelegramAccount:
             return self.missing or "Telegram ist nicht bereit."
         if step != self.login:
             return "Dieser Schritt ist gerade nicht dran."
+        if step == "phone" and not value.strip().startswith("+"):
+            return "Telefonnummer mit Ländervorwahl eingeben, z. B. +49 statt der führenden 0."
         try:
             await self._td.call({"@type": method[0], method[1]: value.strip()}, self._timeout)
         except TdError as exc:
