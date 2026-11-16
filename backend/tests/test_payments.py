@@ -100,3 +100,13 @@ def test_wallet_config_checks_addresses(tmp_path):
     )
     with pytest.raises(config.ConfigError, match="EIP-55"):
         config.load(tmp_path)
+
+
+def test_decimal_text_has_no_exponent():
+    from decimal import Decimal
+
+    from darkfluenzer.payments.chain import decimal_text
+
+    assert decimal_text(Decimal("10.000")) == "10"
+    assert decimal_text(Decimal("0.00012300")) == "0.000123"
+    assert decimal_text(Decimal(2427573233001881212) / Decimal(10) ** 18) == "2.427573233001881212"

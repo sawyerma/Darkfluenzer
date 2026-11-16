@@ -40,6 +40,11 @@ def bloom_has(bloom: bytes, item: bytes) -> bool:
     return True
 
 
+def decimal_text(value: Decimal) -> str:
+    """Dezimaltext ohne Exponent (Decimal.normalize() schreibt 10 als „1E+1“)."""
+    return format(value.normalize(), "f")
+
+
 def topic_of(address: str) -> bytes:
     return bytes(12) + bytes.fromhex(address.removeprefix("0x"))
 
@@ -251,7 +256,7 @@ class WalletWatcher:
             method=method,
             network=network,
             asset=asset,
-            amount=str(amount.normalize()),
+            amount=decimal_text(amount),
             txid=txid,
             position=position,
             block=block,
@@ -276,7 +281,7 @@ class WalletWatcher:
             checked_ms, checked_at = self.checked.get(key, (0, ""))
             prices = {"BTC": self.w.btc_price_id} | {t.symbol: t.price_id for t in self.w.tokens}
             balances = [
-                {"asset": a, "amount": str(v.normalize()), "eur": float(v) * self._rate(prices[a])}
+                {"asset": a, "amount": decimal_text(v), "eur": float(v) * self._rate(prices[a])}
                 for a, v in self.balances.get(key, {}).items()
             ]
             state = (
@@ -310,6 +315,12 @@ class WalletWatcher:
         return out
 
     def sources(self) -> list[dict]:
+        """Genutzte Datenquellen (ohne Adresse wird die jeweilige Kette nicht abgefragt)."""
+        used = (
+            ("price", "Kursquelle", self.w.price_api, True),
+            ("btc", "BTC-Schnittstelle", self.w.btc_api, bool(self.w.btc_address)),
+            ("bsc", "BSC-RPC", self.w.bsc_rpc, bool(self.w.bsc_address and self.w.tokens)),
+        )
         return [
             {
                 "name": name,
@@ -317,9 +328,6 @@ class WalletWatcher:
                 "ok_ms": self.source_ok.get(key, 0),
                 "error": self.errors.get(key, ""),
             }
-            for key, name, url in (
-                ("price", "Kursquelle", self.w.price_api),
-                ("btc", "BTC-Schnittstelle", self.w.btc_api),
-                ("bsc", "BSC-RPC", self.w.bsc_rpc),
-            )
+            for key, name, url, active in used
+            if active
         ]

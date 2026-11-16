@@ -909,10 +909,11 @@ class Cockpit:
         """STATE wallet: Konten mit Guthaben, Euro-Wert, Kurszeit, letzter Prüfung, Quellen."""
         msg = wallet_pb2.Wallet(version=self.store.domain_version("payments"))
         if self.wallet is None:
-            msg.accounts.add(
-                key="btc", title="Bitcoin", network="bitcoin", state="MISSING",
-                missing="Abschnitt [wallet] in config.toml",
-            )  # fmt: skip
+            for key, title, network in (("btc", "Bitcoin", "bitcoin"), ("bsc", "BSC", "bsc")):
+                msg.accounts.add(
+                    key=key, title=title, network=network, state="MISSING",
+                    missing="Abschnitt [wallet] in config.toml",
+                )  # fmt: skip
             return msg.SerializeToString()
         for acc in self.wallet.accounts():
             balances = acc.pop("balances")

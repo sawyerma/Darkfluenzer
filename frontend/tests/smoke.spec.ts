@@ -12,7 +12,7 @@ test("Cockpit am echten Backend: verbunden, vier Bereiche, ComfyUI nach F7.5, ke
   await expect(page.locator(".g-kpi", { hasText: "GPU-Warteschlange" }).locator("strong")).not.toHaveText("–");
 
   const nav = page.getByRole("navigation", { name: "Bereiche" });
-  await expect(nav.getByRole("link")).toHaveText(["Übersicht", "Nachrichten", "ComfyUI", "Dateien"]);
+  await expect(nav.getByRole("link")).toHaveText(["Übersicht", "Nachrichten", "ComfyUI", "Dateien", "Wallet"]);
   for (const name of ["Nachrichten", "ComfyUI", "Dateien", "Übersicht"]) {
     await nav.getByRole("link", { name }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);

@@ -12,6 +12,7 @@ import { CharactersSchema } from "./generated/darkfluenzer/v1/character_pb";
 import { OrdersActiveSchema, OrderUpdatedSchema } from "./generated/darkfluenzer/v1/order_pb";
 import { CommandReceiptSchema, type CommandReceipt } from "./generated/darkfluenzer/v1/commands_pb";
 import { MediaItemSchema, MediaRemovedSchema } from "./generated/darkfluenzer/v1/media_pb";
+import { PaymentUpdatedSchema, WalletSchema } from "./generated/darkfluenzer/v1/wallet_pb";
 import {
   Topic,
   TopicClass,
@@ -30,6 +31,7 @@ const TOPICS = {
   [Topic.CHARACTERS]: { cls: TopicClass.STATE, schema: CharactersSchema },
   [Topic.ORDERS_ACTIVE]: { cls: TopicClass.STATE, schema: OrdersActiveSchema },
   [Topic.CHANNELS]: { cls: TopicClass.STATE, schema: ChannelsSchema },
+  [Topic.WALLET]: { cls: TopicClass.STATE, schema: WalletSchema },
   [Topic.CUSTOMER_UPDATED]: { cls: TopicClass.EVENT, schema: CustomerUpdatedSchema },
   [Topic.CONVERSATION_EVENT]: { cls: TopicClass.EVENT, schema: ConversationEventSchema },
   [Topic.ORDER_UPDATED]: { cls: TopicClass.EVENT, schema: OrderUpdatedSchema },
@@ -37,6 +39,7 @@ const TOPICS = {
   [Topic.MEDIA_ADDED]: { cls: TopicClass.EVENT, schema: MediaItemSchema },
   [Topic.MEDIA_REMOVED]: { cls: TopicClass.EVENT, schema: MediaRemovedSchema },
   [Topic.COMMAND_RECEIPT]: { cls: TopicClass.EVENT, schema: CommandReceiptSchema },
+  [Topic.PAYMENT_UPDATED]: { cls: TopicClass.EVENT, schema: PaymentUpdatedSchema },
 } as const;
 
 type Topics = typeof TOPICS;

@@ -99,6 +99,10 @@
   --g-stream-max-h: 58vh;
   --g-attach-max-h: 260px;
   --g-compose-min-h: 78px;
+  --g-account-min-h: 132px;
+  --g-drawer-w: 520px;
+  --g-qr-size: 200px;
+  --g-pad-cell: 10px 12px;
   --g-caps-spacing: 1.5px;
   --g-gap-lg: 22px;
   --g-pad-input: 8px 10px;
@@ -124,6 +128,7 @@
   --g-fs-base: 14px;
   --g-lh-base: 1.45;
   --g-fs-h1: 20px;
+  --g-fs-value: 26px;
   --g-lh-h1: 1.25;
   --g-fs-h2: 15px;
   --g-fs-body: 13px;
@@ -469,6 +474,37 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
   letter-spacing: var(--g-caps-spacing); text-transform: uppercase;
 }
 
+/* Wallet (F7.8): Kontokarten mit großem Wert, Konto-Schublade rechts, Zahlungstabelle */
+.g-account { align-items: flex-start; min-height: var(--g-account-min-h); color: var(--g-text); font: inherit; text-align: left; }
+button.g-account { cursor: pointer; }
+button.g-account:hover { border-color: var(--g-brand); }
+.g-account small { color: var(--g-muted); font-size: var(--g-fs-small); }
+.g-account-head { display: flex; justify-content: space-between; width: 100%; font-weight: var(--g-fw-semibold); }
+.g-account-value {
+  display: block; margin: var(--g-gap-sm) 0 var(--g-gap-xs); color: var(--g-text-strong);
+  font-size: var(--g-fs-value); line-height: var(--g-lh-h1); font-weight: var(--g-fw-bold); overflow-wrap: anywhere;
+}
+.g-account[data-stale] .g-account-value, .g-account-value[data-stale] { opacity: var(--g-dim-stale); }
+.g-account-badges { display: flex; flex-wrap: wrap; gap: var(--g-gap-xs); margin-top: var(--g-gap-xs); }
+.g-drawer {
+  inset: 0 0 0 auto; width: min(var(--g-drawer-w), 100%); max-width: none; height: 100%; max-height: none; margin: 0;
+  padding: var(--g-pad-panel); overflow-y: auto; border: 0; border-left: 1px solid var(--g-line-panel);
+  background: var(--g-panel); color: var(--g-text); box-shadow: var(--g-shadow-panel);
+}
+.g-drawer::backdrop { background: var(--g-backdrop); }
+.g-drawer h2 { font-size: var(--g-fs-h2); }
+.g-drawer .g-actions small { color: var(--g-muted); font-size: var(--g-fs-small); align-self: center; }
+.g-qr { display: block; width: var(--g-qr-size); height: var(--g-qr-size); margin-top: var(--g-gap-md); border-radius: var(--g-r-row); }
+.g-table-wrap { overflow-x: auto; margin-top: var(--g-gap-md); }
+.g-table { width: 100%; border-collapse: collapse; font-size: var(--g-fs-body); font-variant-numeric: tabular-nums; }
+.g-table th {
+  padding: var(--g-pad-cell); border-bottom: 1px solid var(--g-line); text-align: left;
+  color: var(--g-muted); font-size: var(--g-fs-tiny); font-weight: var(--g-fw-semibold); white-space: nowrap;
+}
+.g-table td { padding: var(--g-pad-cell); border-bottom: 1px solid var(--g-line); vertical-align: middle; }
+.g-table .g-num { text-align: right; white-space: nowrap; }
+.g-table .g-row { width: auto; text-decoration: underline; text-underline-offset: 2px; }
+
 @media (max-width: 1100px) {
   .g-studio, .g-inbox { grid-template-columns: var(--g-col-list) minmax(0, 1fr); }
   .g-control { grid-column: 1 / -1; padding-left: 0; border-left: 0; }
@@ -480,6 +516,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 
 @media (max-width: 650px) {
   .g-nav { flex-wrap: wrap; }
+  .g-tabs { max-width: 100%; overflow-x: auto; } /* fünf Reiter: scrollen statt die Seite zu verbreitern */
   .g-main { padding: var(--g-gap-xs) 0; }
   .g-line { flex-wrap: wrap; }
 }
