@@ -105,7 +105,8 @@ def test_offer_matching_store(tmp_path):
         )  # fmt: skip
     pay = dict(network="bsc", asset="USDT", position=0, block=1, required=15, eur=22.99,
                rate=0.92, rate_ms=1)  # fmt: skip
-    store.upsert_payment(method="usdt", amount="24.99", txid="0xa", confirmations=20, **pay)
+    # falscher Betrag (nicht der eindeutige, aber höher): nicht automatisch, manuell zuordenbar
+    store.upsert_payment(method="usdt", amount="25.5", txid="0xa", confirmations=20, **pay)
     wrong = store.payment_page(0, 10, "unassigned")[0][0]
     assert store.order(order.order_no).status == "offered"  # falscher Betrag: nichts
     store.upsert_payment(method="usdt", amount="24.9901", txid="0xb", confirmations=3, **pay)
@@ -122,6 +123,10 @@ def test_offer_matching_store(tmp_path):
         first.customer.id, first.conversation_id, "Foto", False, 2299,
         "2099-01-01T00:00:00.000+00:00", {"usdt": ("24.9902", EVM, 0.92, 1)},
     )  # fmt: skip
+    store.upsert_payment(method="usdt", amount="24.99", txid="0xc", confirmations=20, **pay)
+    short = [p for p in store.payment_page(0, 10, "unassigned")[0] if p["txid"] == "0xc"][0]
+    with pytest.raises(StoreError, match="deckt"):  # Unterzahlung (bugs_v1 BUG-005)
+        store.assign_inflow(short["id"], second.order_no, "Betreiber")
     store.assign_inflow(wrong["id"], second.order_no, "Betreiber")
     assert store.order(second.order_no).status == "paid"
     with pytest.raises(StoreError, match="schon zugeordnet"):

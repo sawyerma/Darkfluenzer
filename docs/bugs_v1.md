@@ -47,7 +47,7 @@
 - **Eigene Gegenprüfung:** **CODE** – `store.py`, `assign_inflow` (um 1444–1463) ruft `record_payment(order_no, ..., order.price_amount, order.currency)` auf, ohne den Eingangswert in der jeweiligen Zahlungseinheit vorab gegen das Angebot zu verifizieren. `redeem_voucher` sucht ein Angebot mit `price_amount <= amount_cents`; bei manueller Zuordnung eines geringeren Gutscheins/Chain-Eingangs bleibt ein Unterzahlungsfall möglich.
 - **Prüfung:** Echter/syntaktisch gültiger Test-Chain-Eingang und eingelöster Testgutschein **unter** Angebotspreis; manuelle Zuordnung, auto Zuordnung, Teilzahlung und andere Währung jeweils getrennt. Prüfen, ob `payments.status=confirmed` und `orders.status=paid` fälschlich entstehen. Kein echter Geldfluss als Test simulieren.
 - **Soll:** Nur tatsächlich bestätigter ausreichender Zahlungseingang berechtigt die volle Zahlung; Umrechnung/Kurszeit/Betrag/Asset eindeutig; Differenzen bleiben offen/nicht zugeordnet oder explizit als Teilzahlung erfasst.
-- **Status:** OFFEN – Codebefund, Betrags-/Währungsregeln und Tests noch ausstehend.
+- **Status:** BESTÄTIGT und behoben (Protokoll §7, BUG-005); Teilzahlungen werden nicht verbucht, sondern bleiben sichtbar offen.
 
 ### BUG-006 – Fehlender Kundenauftragsbezug bei Generierungsjobs
 - **Meldung:** Medien eines Kundenauftrags könnten als normale Betreiberdateien erscheinen und durch Galerie-Löschen entfernt werden.
@@ -200,6 +200,24 @@ Regression: Kopiename = SHA-256-Präfix der Quelle + Name; Wiederverwendung nur,
   ist; erneuter Versand beider Bilder je richtig; Kloner-/BUG-003-Tests grün. (Kundenzustellung nutzt je
   Auftrag eine eigene Kopie im Auftragsordner – dort keine Kollision.)
 Mac-End-to-End: NICHT GELAUFEN (Telegram noch nicht angemeldet)
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
+ID: BUG-005
+Git-Commit / geprüfte Datei + Zeilen: cd0ff68 / backend/src/darkfluenzer/store.py, Store.assign_inflow
+Behauptung: BESTÄTIGT (manuelle Zuordnung); automatische Zuordnung und Gutschein-Automatik waren bereits
+  betragsgebunden (exakter Betrag bzw. Preis ≤ eingelöster Betrag)
+Nachweis: tests/test_bugs_v1.py::test_bug005_underpayment_never_books_the_full_price – 10 USDT (9 €) ließen
+  sich einem 25-€-Angebot (27,7801 USDT) zuordnen, Auftrag paid, Zahlung mit vollem Preis bestätigt (rot)
+Ursache: assign_inflow rief record_payment mit order.price_amount auf, ohne den Eingang gegen das Angebot zu
+  prüfen
+Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-005"
+Regression: gleicher Zahlungsweg wie im Angebot -> mindestens dessen exakter Betrag; anderer Weg -> Euro-Wert
+  beim Eingang ≥ Preis; Gutschein -> eingelöster Betrag ≥ Preis; sonst StoreError „deckt den Angebotspreis
+  nicht“, Eingang bleibt nicht zugeordnet, Auftrag unbezahlt; ausreichender Eingang wird zugeordnet;
+  test_customer_orders an die korrigierte Regel angepasst (dort war eine Unterzahlung manuell zugeordnet)
+Mac-End-to-End: NICHT GELAUFEN (keine echten Zahlungsadressen; kein echter Geldfluss simuliert)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 

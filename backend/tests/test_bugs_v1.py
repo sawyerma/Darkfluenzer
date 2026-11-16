@@ -199,3 +199,44 @@ def test_bug004_same_name_different_content_never_sends_the_wrong_copy(cfg):
                     assert im.convert("RGB").getpixel((0, 0)) == color, rel
 
     _run(cfg, scenario)
+
+
+def test_bug005_underpayment_never_books_the_full_price(tmp_path):
+    """BUG-005: manuelle Zuordnung (Befehl 41) und Gutschein nur bei ausreichendem Eingang;
+    eine Unterzahlung bleibt offen, der Auftrag unbezahlt."""
+    import pytest
+    from test_channels import _inbound
+
+    from darkfluenzer.store import Store, StoreError
+
+    store = Store(tmp_path / "local")
+    first = _inbound(store, "1", "42", "hallo", "10")
+    evm = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"
+    order = store.create_offer(
+        first.customer.id, first.conversation_id, "Foto", False, 2500,
+        "2099-01-01T00:00:00.000+00:00", {"usdt": ("27.7801", evm, 0.9, 1)},
+    )  # fmt: skip
+    pay = dict(network="bsc", asset="USDT", position=0, block=1, confirmations=15, required=15,
+               rate=0.9, rate_ms=1)  # fmt: skip
+    store.upsert_payment(method="usdt", amount="10.0", txid="0xklein", eur=9.0, **pay)
+    small = store.payment_page(0, 10, "unassigned")[0][0]
+    with pytest.raises(StoreError, match="deckt"):
+        store.assign_inflow(small["id"], order.order_no, "Betreiber")
+    assert store.order(order.order_no).status == "offered"
+    assert store.payment(small["id"])["status"] == "unassigned"
+    # Gutschein unter dem Preis: nicht automatisch, auch nicht manuell
+    store.record_inbound(
+        "telegram", "7000001", "2", sender_id="42", conversation_id="42", platform_message_id="11",
+        text="AB12-CD34EF-GH56", sent_at="2026-11-17T00:00:00+00:00",
+    )  # fmt: skip
+    (voucher,) = store.vouchers(10)
+    inflow = store.redeem_voucher(voucher["id"], 1000)
+    assert store.order(order.order_no).status == "offered"
+    with pytest.raises(StoreError, match="deckt"):
+        store.assign_inflow(inflow, order.order_no, "Betreiber")
+    # ausreichender Eingang (gleicher Weg, mindestens der Angebotsbetrag) wird zugeordnet
+    store.upsert_payment(method="usdt", amount="27.80", txid="0xvoll", eur=25.02, **pay)
+    full = [p for p in store.payment_page(0, 10, "unassigned")[0] if p["txid"] == "0xvoll"][0]
+    store.assign_inflow(full["id"], order.order_no, "Betreiber")
+    assert store.order(order.order_no).status == "paid"
+    store.close()

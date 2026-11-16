@@ -1452,6 +1452,10 @@ class Store:
             order = self.order(order_no)
             if order.source != "customer" or order.status not in ("offered", "accepted"):
                 raise StoreError(f"{order_no}: kein offenes Angebot ({order.status}).")
+            if reason := _uncovered(inflow, order.price_amount or 0, self.offer(order.id)):
+                raise StoreError(
+                    f"Eingang deckt den Angebotspreis nicht ({reason}) – bleibt nicht zugeordnet."
+                )
             if order.status == "offered":
                 self.transition(order_no, "accepted", by=by)
             self.record_payment(
@@ -2837,6 +2841,31 @@ class Store:
             (entity, entity_id),
         )
         return [dict(r) | {"data": json.loads(r["data"])} for r in rows]
+
+
+def _uncovered(inflow: dict, price_cents: int, offer: dict | None) -> str:
+    """Leer, wenn der Eingang den Angebotspreis deckt (bugs_v1 BUG-005), sonst der Grund: gleicher
+    Zahlungsweg wie im Angebot -> mindestens dessen exakter Betrag; sonst Euro-Wert beim Eingang
+    (Gutschein: eingelöster Betrag)."""
+    from decimal import Decimal, InvalidOperation
+
+    wanted = (offer or {}).get("amounts", {}).get(inflow["method"])
+    try:
+        if wanted is not None:
+            if Decimal(inflow["amount"]) >= Decimal(wanted):
+                return ""
+            return f"{inflow['amount']} {inflow['asset']} < {wanted} {inflow['asset']}"
+        if inflow["method"] == "amazon":
+            eur = Decimal(inflow["amount"])
+        elif inflow["eur"] is None:
+            return "Euro-Wert des Eingangs fehlt"
+        else:
+            eur = Decimal(str(inflow["eur"]))
+    except InvalidOperation:
+        return f"Betrag {inflow['amount']!r} nicht lesbar"
+    if eur * 100 >= price_cents:
+        return ""
+    return f"{eur:.2f} € < {price_cents / 100:.2f} €"
 
 
 def _statements(script: str) -> Iterator[str]:
