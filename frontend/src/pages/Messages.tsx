@@ -29,6 +29,7 @@ import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
 import { mediaUrl } from "../core/media";
 import { useStateTopic } from "../core/state";
 import { Candidates } from "./ComfyUI";
+import { InfluencerBlock } from "./InfluencerBlock";
 
 // Nachrichten (FRONT F4, F7.2–F7.4): links Kundenliste mit Kanalstatus, Mitte Register,
 // Unterregister und Verlauf, rechts die Kundensteuerung. „Gesamter Verlauf“ ist nur lesbar;
@@ -619,6 +620,8 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 /** Rechte Spalte für Kunden: nur Blöcke mit echten Daten (Identität); KI/Auftrag folgen mit C5. */
 function CustomerPanel({ customer, identities }: { customer: CustomerSummary; identities: readonly ChannelIdentity[] }) {
+  // Claras Konten gehören zu genau einer Figur; die Zuordnung je Kanalkonto folgt mit C5
+  const figure = useStateTopic(Topic.INFLUENCERS)?.value.influencers[0];
   const accounts = identities.filter((i, n) => identities.findIndex((x) => x.identityId === i.identityId) === n);
   const active = PLATFORMS.filter((p) => customer.platforms.includes(p)).map((p) => PLATFORM_LABEL[p]);
   return (
@@ -654,6 +657,17 @@ function CustomerPanel({ customer, identities }: { customer: CustomerSummary; id
           </div>
         ))}
       </div>
+      <div className="g-control-part">
+        <h3>KI-Steuerung</h3>
+        <dl className="g-params">
+          <Row label="Influencerin">{figure?.name ?? "nicht festgelegt"}</Row>
+        </dl>
+        {figure ? (
+          <InfluencerBlock key={`${figure.influencerId}-${figure.revision}`} influencer={figure} />
+        ) : (
+          <small>Influencerin im Default-Kontakt anlegen.</small>
+        )}
+      </div>
     </>
   );
 }
@@ -683,7 +697,7 @@ function DefaultForm({
   const [workflow, setWorkflow] = useState(contact.mediaWorkflow);
   const [video, setVideo] = useState(contact.videoWorkflow);
   const registry = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
-  const characters = useStateTopic(Topic.CHARACTERS)?.value.characters ?? [];
+  const influencers = useStateTopic(Topic.INFLUENCERS)?.value.influencers ?? [];
   const usable = registry.filter((w) => w.enabled && w.modelsReady && w.instance !== "ai" && !w.training);
   const media = usable.filter((w) => w.kind === "image");
   // animate: Foto -> Video, also ein Video-Workflow mit Eingangsbild
@@ -777,12 +791,14 @@ function DefaultForm({
           <label htmlFor="df-influencer">Influencerin</label>
           <select id="df-influencer" value={influencer} onChange={(e) => setInfluencer(e.target.value)}>
             <option value="">Nicht festgelegt</option>
-            {characters.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+            {influencers.map((i) => (
+              <option key={String(i.influencerId)} value={String(i.influencerId)}>
+                {i.name}
               </option>
             ))}
-            {influencer && !characters.some((c) => c.id === influencer) ? <option value={influencer}>{influencer} (unbekannt)</option> : null}
+            {influencer && !influencers.some((i) => String(i.influencerId) === influencer) ? (
+              <option value={influencer}>{influencer} (unbekannt)</option>
+            ) : null}
           </select>
         </div>
         {choice("df-workflow", "Medien-Workflow", workflow, setWorkflow, media)}
@@ -824,6 +840,10 @@ function DefaultPanel({
   live: boolean;
 }) {
   const cmd = useCommand();
+  const influencers = useStateTopic(Topic.INFLUENCERS)?.value.influencers ?? [];
+  const current = influencers.find((x) => String(x.influencerId) === contact?.influencer);
+  const workflows = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
+  const titles: Record<string, string> = Object.fromEntries(workflows.map((w) => [w.key, w.title]));
   return (
     <>
       <div className="g-line g-head">
@@ -831,8 +851,16 @@ function DefaultPanel({
         <span className="g-badge">INTERN</span>
       </div>
       {contact ? (
-        // neue Revision (eigene oder fremde Änderung): Formular zeigt den gespeicherten Stand
-        <DefaultForm key={String(contact.revision)} contact={contact} run={cmd.run} pending={cmd.pending} channels={channels} live={live} />
+        <>
+          {/* neue Revision (eigene oder fremde Änderung): Formular zeigt den gespeicherten Stand */}
+          <DefaultForm key={String(contact.revision)} contact={contact} run={cmd.run} pending={cmd.pending} channels={channels} live={live} />
+          <InfluencerBlock
+            key={`${current?.influencerId ?? "neu"}-${current?.revision ?? 0}`}
+            influencer={current}
+            mediaTitle={titles[contact.mediaWorkflow]}
+            videoTitle={titles[contact.videoWorkflow]}
+          />
+        </>
       ) : (
         <p className="g-note">{loaded ? "Keine Default-Einstellungen vom Backend." : "Lädt …"}</p>
       )}

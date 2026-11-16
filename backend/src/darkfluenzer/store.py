@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -546,6 +546,27 @@ CREATE TABLE payment_inflows (
     UNIQUE (method, txid, position)
 );
 CREATE INDEX payment_inflows_open ON payment_inflows(network, status) WHERE status = 'detected';
+""",
+    13: """
+-- Influencerin-Profile (C5, FRONT F4 V1.12 Punkt 12): Persona, KI-Hinweistext, Preisliste
+CREATE TABLE influencers (
+    id            INTEGER PRIMARY KEY,
+    name          TEXT    NOT NULL CHECK (length(trim(name)) > 0),
+    character_id  INTEGER REFERENCES characters(id),
+    persona       TEXT    NOT NULL DEFAULT '',
+    ai_notice     TEXT    NOT NULL DEFAULT '',
+    revision      INTEGER NOT NULL DEFAULT 0,
+    created_at    TEXT    NOT NULL,
+    updated_at    TEXT    NOT NULL
+);
+CREATE TABLE influencer_prices (
+    influencer_id      INTEGER NOT NULL REFERENCES influencers(id),
+    position           INTEGER NOT NULL,
+    product            TEXT    NOT NULL CHECK (length(trim(product)) > 0),
+    price_cents        INTEGER NOT NULL CHECK (price_cents > 0),
+    hd_surcharge_cents INTEGER NOT NULL DEFAULT 0 CHECK (hd_surcharge_cents >= 0),
+    PRIMARY KEY (influencer_id, position)
+);
 """,
 }
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
@@ -1328,6 +1349,65 @@ class Store:
         ).fetchall()
         recent = [dict(r) for r in rows[:limit]]
         return recent[::-1], len(rows) > limit
+
+    # ------------------------------------------------------------------ Influencerinnen (C5)
+
+    def influencers(self) -> list[dict]:
+        out = []
+        for row in self.db.execute("SELECT * FROM influencers ORDER BY id"):
+            prices = self.db.execute(
+                "SELECT product, price_cents, hd_surcharge_cents FROM influencer_prices"
+                " WHERE influencer_id = ? ORDER BY position",
+                (row["id"],),
+            )
+            out.append(dict(row) | {"prices": [dict(p) for p in prices]})
+        return out
+
+    def save_influencer(
+        self,
+        influencer_id: int,
+        revision: int,
+        name: str,
+        character_id: int | None,
+        persona: str,
+        ai_notice: str,
+        prices: list[dict],
+    ) -> int:
+        """Profil anlegen (``influencer_id`` 0) oder ändern (CAS auf die Revision); die Preisliste
+        wird in derselben Transaktion vollständig ersetzt. Liefert die Profil-ID."""
+        name = name.strip()
+        if not name:
+            raise StoreError("Name der Influencerin fehlt.")
+        with self.tx() as db:
+            ts = now()
+            if influencer_id == 0:
+                influencer_id = db.execute(
+                    "INSERT INTO influencers (name, character_id, persona, ai_notice, created_at,"
+                    " updated_at) VALUES (?,?,?,?,?,?)",
+                    (name, character_id, persona, ai_notice, ts, ts),
+                ).lastrowid
+            else:
+                n = db.execute(
+                    "UPDATE influencers SET name = ?, character_id = ?, persona = ?,"
+                    " ai_notice = ?, revision = revision + 1, updated_at = ?"
+                    " WHERE id = ? AND revision = ?",
+                    (name, character_id, persona, ai_notice, ts, influencer_id, revision),
+                ).rowcount
+                if n != 1:
+                    raise StoreError("Profil wurde inzwischen geändert – Ansicht ist aktuell.")
+                db.execute(
+                    "DELETE FROM influencer_prices WHERE influencer_id = ?", (influencer_id,)
+                )
+            for pos, item in enumerate(prices):
+                db.execute(
+                    "INSERT INTO influencer_prices (influencer_id, position, product, price_cents,"
+                    " hd_surcharge_cents) VALUES (?,?,?,?,?)",
+                    (influencer_id, pos, item["product"].strip(), item["price_cents"],
+                     item["hd_surcharge_cents"]),
+                )  # fmt: skip
+            self._event("influencer", influencer_id, "saved", name=name)
+            self.bump("influencers")
+            return influencer_id
 
     # ------------------------------------------------------------------ Charakterprofile
 

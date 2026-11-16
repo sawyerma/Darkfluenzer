@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package darkfluenzer.v1;
 
+import "darkfluenzer/v1/influencer.proto";
+
 // Benutzeraktionen: POST /api/v1/command, Content-Type application/x-protobuf,
 // Body CommandRequest, Antwort CommandResponse. Header X-CSRF-Token aus GET /api/v1/session.
 // ACCEPTED heißt nur "angenommen". Das Ergebnis ist eine persistierte CommandReceipt
@@ -147,6 +149,18 @@ message ChannelAccountUpdate {
   string action = 2;
 }
 
+// Influencerin-Profil anlegen (influencer_id 0) oder ändern – gilt für alle Kunden dieser Figur
+// (FRONT F4 V1.12 Punkt 12); CAS über die Profilrevision. Die Preisliste wird vollständig ersetzt.
+message InfluencerUpdate {
+  uint64 influencer_id = 1;
+  uint64 revision = 2;
+  string name = 3;
+  uint64 character_id = 4;
+  string persona = 5;
+  string ai_notice = 6;
+  repeated PriceItem prices = 7;
+}
+
 // Erkannten Kloner-Auftrag starten, der auf den Betreiberstart wartet (Systemkarte mit
 // awaiting_start). Läuft mit dem aktuellen Medien-Workflow des Default-Kontakts; genau einmal.
 message StartClonerOrder {
@@ -216,6 +230,7 @@ message CommandRequest {
     StartClonerOrder start_cloner_order = 38;
     ChannelAccountLogin channel_account_login = 39;
     ChannelAccountUpdate channel_account_update = 40;
+    InfluencerUpdate influencer_update = 35;
   }
 }
 

@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package darkfluenzer.v1;
+
+// Influencerin-Profile (PHASENPLAN_V0 C5, FRONT F4 V1.12 Punkt 12): gepflegt im Block
+// „Influencerin · <Name> · gilt für alle Kunden“ (Kundenakte und Default-Kontakt).
+
+message PriceItem {
+  string product = 1;
+  // Preis und HD-Aufschlag in Cent (Euro)
+  int64 price_cents = 2;
+  int64 hd_surcharge_cents = 3;
+}
+
+message Influencer {
+  uint64 influencer_id = 1;
+  string name = 2;
+  // visuelles Charakterprofil (STATE 5, im ComfyUI-Reiter gepflegt); 0 = keins
+  uint64 character_id = 3;
+  // Persona-/Charaktertext für die Text-KI
+  string persona = 4;
+  // KI-Hinweistext, den Clara beim ersten Kontakt je Kanalidentität einmal sendet (V0 Regel 12 b)
+  string ai_notice = 5;
+  repeated PriceItem prices = 6;
+  // Profilrevision (CAS für influencer_update)
+  uint64 revision = 7;
+}
+
+// STATE influencers
+message Influencers {
+  repeated Influencer influencers = 1;
+  // feste, nicht editierbare Ehrlichkeitsregel (V0 Regel 12 c)
+  string honesty_rule = 2;
+  uint64 version = 3;
+}

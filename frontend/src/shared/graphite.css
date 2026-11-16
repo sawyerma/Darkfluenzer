@@ -520,3 +520,6 @@ button.g-account:hover { border-color: var(--g-brand); }
   .g-main { padding: var(--g-gap-xs) 0; }
   .g-line { flex-wrap: wrap; }
 }
+
+/* Preisliste der Influencerin (FRONT F4 V1.12 Punkt 12) */
+.g-price-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: var(--g-gap-sm); align-items: center; }

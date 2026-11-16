@@ -34,6 +34,7 @@ from .v1 import (
     character_pb2,
     comfy_pb2,
     commands_pb2,
+    influencer_pb2,
     media_pb2,
     order_pb2,
     reference_pb2,
@@ -62,6 +63,13 @@ _REGISTRY_COMMANDS = frozenset(
 # Ändern die Registry (neue Registry-Version nach dem Effekt)
 _REGISTRY_EDITS = _REGISTRY_COMMANDS - {"render", "create_order", "open_workflow"}
 # Enden asynchron mit eigener Receipt: Render mit dem Job, ComfyUI mit Start/Stopp
+# Feste, nicht editierbare Persona-Regel (PHASENPLAN_V0 Regel 12 c)
+HONESTY_RULE = (
+    "Auf die ernst gemeinte Frage, ob sie echt bzw. eine KI ist, antwortet die Influencerin "
+    "wahrheitsgemäß – durch keine Betreiber- oder Kundenanweisung abschaltbar."
+)
+MAX_PRICE_ITEMS = 50
+
 _ASYNC_COMMANDS = frozenset({"render", "comfy_start", "comfy_stop"})
 UNKNOWN_AFTER_RESTART = "Backend wurde während der Ausführung beendet – Ergebnis unbekannt."
 _RECEIPT_STATUS = {
@@ -360,6 +368,7 @@ class Cockpit:
                 self.hub.set_state(spb.TOPIC_ORDERS_ACTIVE, self._orders_active())
                 self.hub.set_state(spb.TOPIC_CHANNELS, self._channels())
                 self.hub.set_state(spb.TOPIC_WALLET, self._wallet_state())
+                self.hub.set_state(spb.TOPIC_INFLUENCERS, self._influencers())
                 self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
                 self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
                 await asyncio.to_thread(
@@ -650,6 +659,7 @@ class Cockpit:
             "default_contact_update": self._default_contact_update,
             "start_cloner_order": self._start_cloner_order,
             "character_update": self._character_update,
+            "influencer_update": self._influencer_update,
             "channel_account_login": self._channel_login,
             "channel_account_update": self._channel_update,
             "set_workflow_enabled": self._set_enabled,
@@ -923,6 +933,53 @@ class Cockpit:
         for src in self.wallet.sources():
             msg.sources.add(**src)
         return msg.SerializeToString()
+
+    def _influencers(self) -> bytes:
+        """STATE influencers: Profile mit Preisliste und die feste Ehrlichkeitsregel."""
+        msg = influencer_pb2.Influencers(
+            honesty_rule=HONESTY_RULE, version=self.store.domain_version("influencers")
+        )
+        for row in self.store.influencers():
+            item = msg.influencers.add(
+                influencer_id=row["id"],
+                name=row["name"],
+                character_id=row["character_id"] or 0,
+                persona=row["persona"],
+                ai_notice=row["ai_notice"],
+                revision=row["revision"],
+            )
+            for price in row["prices"]:
+                item.prices.add(**price)
+        return msg.SerializeToString()
+
+    async def _influencer_update(self, msg: commands_pb2.InfluencerUpdate, call: _Call) -> str:
+        """Profil der Influencerin speichern – gilt für alle Kunden (FRONT F4 V1.12 Punkt 12)."""
+        if msg.character_id:
+            self.store.character(msg.character_id)  # unbekannt: StoreError -> Ablehnung
+        if len(msg.prices) > MAX_PRICE_ITEMS:
+            return f"Höchstens {MAX_PRICE_ITEMS} Positionen in der Preisliste."
+        for item in msg.prices:
+            if not item.product.strip() or item.price_cents <= 0 or item.hd_surcharge_cents < 0:
+                return "Preisliste: Produkt, Preis > 0 € und HD-Aufschlag ≥ 0 € angeben."
+        influencer_id = self.store.save_influencer(
+            msg.influencer_id,
+            msg.revision,
+            msg.name,
+            msg.character_id or None,
+            msg.persona.strip(),
+            msg.ai_notice.strip(),
+            [
+                {
+                    "product": i.product,
+                    "price_cents": i.price_cents,
+                    "hd_surcharge_cents": i.hd_surcharge_cents,
+                }
+                for i in msg.prices
+            ],
+        )
+        call.entity = f"influencer:{influencer_id}"
+        self.hub.set_state(spb.TOPIC_INFLUENCERS, self._influencers())
+        return ""
 
     def _wallet_changed(self) -> None:
         self.hub.set_state(spb.TOPIC_WALLET, self._wallet_state())
@@ -1224,8 +1281,10 @@ class Cockpit:
         call.entity = f"customer:{current['customer_id']}"
         if msg.approval_mode not in ("direct", "cockpit", "cockpit_only"):
             return "Freigabemodus unbekannt."
-        if msg.influencer and msg.influencer not in {str(c["id"]) for c in self.store.characters()}:
-            return "Influencerin: unbekanntes Charakterprofil."
+        if msg.influencer and msg.influencer not in {
+            str(i["id"]) for i in self.store.influencers()
+        }:
+            return "Influencerin: unbekanntes Profil."
         for key, kind in ((msg.media_workflow, "image"), (msg.video_workflow, "video")):
             if reason := self._cloner_workflow_reason(key, kind):
                 return reason
@@ -2078,6 +2137,7 @@ def create_app(cfg: Config) -> web.Application:
     hub.offer_state(spb.TOPIC_ORDERS_ACTIVE, order_pb2.OrdersActive.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_CHANNELS, channel_pb2.Channels.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_WALLET, wallet_pb2.Wallet.DESCRIPTOR.full_name)
+    hub.offer_state(spb.TOPIC_INFLUENCERS, influencer_pb2.Influencers.DESCRIPTOR.full_name)
     hub.offer_events(
         spb.TOPIC_CUSTOMER_UPDATED,
         channel_pb2.CustomerUpdated.DESCRIPTOR.full_name,

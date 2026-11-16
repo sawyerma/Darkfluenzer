@@ -16,7 +16,14 @@ from darkfluenzer import comfy, models, runtime, server
 from darkfluenzer.config import project_root
 from darkfluenzer.store import Store
 from darkfluenzer.stream import PROTOCOL_MAJOR
-from darkfluenzer.v1 import character_pb2, comfy_pb2, commands_pb2, media_pb2, order_pb2
+from darkfluenzer.v1 import (
+    character_pb2,
+    comfy_pb2,
+    commands_pb2,
+    influencer_pb2,
+    media_pb2,
+    order_pb2,
+)
 from darkfluenzer.v1 import stream_pb2 as pb
 
 
@@ -240,6 +247,7 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
             (pb.TOPIC_REFERENCE_ADDED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_PAYMENT_UPDATED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_WALLET, pb.TOPIC_CLASS_STATE),
+            (pb.TOPIC_INFLUENCERS, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_CUSTOMER_UPDATED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_CONVERSATION_EVENT, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_MEDIA_ADDED, pb.TOPIC_CLASS_EVENT),
@@ -517,15 +525,56 @@ def test_character_profiles_command(cfg):
         assert await send(character_update=upd) == ""
         assert store.character(2)["photos_dir"] == str(cfg.root)
         await app[server.COCKPIT_KEY].refresh_characters()
+
+    _run(cfg, scenario)
+
+
+def test_influencer_profile_for_all_customers(cfg):
+    """Befehl 35 (FRONT F4 V1.12 Punkt 12): Profil mit Charakterbezug und Preisliste, CAS,
+    Prüfung der Preise; der Default-Kontakt wählt ein Profil; STATE 9 mit fester Regel."""
+
+    async def scenario(client, app, origin):
+        csrf = await _csrf(client)
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+
+        async def send(**kw):
+            req = commands_pb2.CommandRequest(request_id=str(uuid.uuid4()), **kw)
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body).detail
+
+        def update(**kw):
+            base = {"name": "Clara", "character_id": 1, "persona": "warm, direkt"}
+            return commands_pb2.InfluencerUpdate(**(base | kw))
+
+        price = influencer_pb2.PriceItem
+        prices = [price(product="Foto", price_cents=2499, hd_surcharge_cents=500)]
+        assert await send(influencer_update=update(prices=prices)) == ""
+        (clara,) = store.influencers()
+        assert clara["prices"] == [
+            {"product": "Foto", "price_cents": 2499, "hd_surcharge_cents": 500}
+        ]
+        bad = [price(product="Foto", price_cents=0)]
+        assert "Preisliste" in await send(influencer_update=update(influencer_id=1, prices=bad))
+        stale = update(influencer_id=1, revision=7, ai_notice="Hi, ich bin KI-Creatorin")
+        assert "geändert" in await send(influencer_update=stale)  # CAS
+        ok = update(influencer_id=1, revision=0, ai_notice="Hi, ich bin KI-Creatorin")
+        assert await send(influencer_update=ok) == ""
+        (clara,) = store.influencers()
+        assert clara["revision"] == 1 and clara["prices"] == []  # Liste vollständig ersetzt
+        assert "unbekannt" in await send(influencer_update=update(character_id=99))
+        state = influencer_pb2.Influencers.FromString(cockpit._influencers())
+        assert state.honesty_rule and state.influencers[0].ai_notice.startswith("Hi")
         d = store.default_contact()
-        bad = commands_pb2.DefaultContactUpdate(
+        unknown = commands_pb2.DefaultContactUpdate(
             revision=d["revision"], approval_mode="cockpit", influencer="9"
         )
-        assert "unbekanntes Charakterprofil" in await send(default_contact_update=bad)
-        ok = commands_pb2.DefaultContactUpdate(
-            revision=d["revision"], approval_mode="cockpit", influencer="2"
+        assert "unbekanntes Profil" in await send(default_contact_update=unknown)
+        chosen = commands_pb2.DefaultContactUpdate(
+            revision=d["revision"], approval_mode="cockpit", influencer="1"
         )
-        assert await send(default_contact_update=ok) == ""
+        assert await send(default_contact_update=chosen) == ""
 
     _run(cfg, scenario)
 

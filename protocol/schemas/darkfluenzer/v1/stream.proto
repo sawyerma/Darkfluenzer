@@ -20,6 +20,7 @@ enum Topic {
   TOPIC_CHANNELS = 8; // STATE darkfluenzer.v1.Channels
   TOPIC_COMFY_INSTANCES = 6; // STATE darkfluenzer.v1.ComfyInstances
   TOPIC_RESOURCES = 7; // STATE darkfluenzer.v1.Resources
+  TOPIC_INFLUENCERS = 9; // STATE darkfluenzer.v1.Influencers
   TOPIC_WALLET = 10; // STATE darkfluenzer.v1.Wallet
   TOPIC_JOB_COMPLETED = 20; // EVENT darkfluenzer.v1.JobCompleted
   TOPIC_MEDIA_ADDED = 21; // EVENT darkfluenzer.v1.MediaItem
