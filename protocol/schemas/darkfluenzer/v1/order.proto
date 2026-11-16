@@ -102,6 +102,8 @@ message OrdersActive {
   // Kandidatenzahl: Standard und Obergrenze (Konfiguration)
   uint32 candidates_default = 3;
   uint32 candidates_max = 4;
+  // bezahlte Kundenaufträge, die auf die Produktion warten (Status paid, V0 §8.4 Punkt 5)
+  repeated ActiveOrder awaiting_production = 5;
 }
 
 // EVENT orders.updated: Auftrag angelegt, Statuswechsel, Stufenwechsel (Journal)

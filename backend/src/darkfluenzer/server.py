@@ -561,6 +561,7 @@ class Cockpit:
                 instance=eng.instance,
                 training=wf.training,
                 role=eng.role,
+                content=wf.content,
             )
             if {"width", "height"} <= set(wf.params):
                 for name, (width, height) in eng.formats.items():
@@ -1323,9 +1324,10 @@ class Cockpit:
         return ""
 
     def _card(self, order, text: str) -> None:
+        """Ereigniskarte im Verlauf des Angebots (die Auftragskarte selbst ist ANGEBOT)."""
         offer = self.store.offer(order.id)
         if offer is not None:
-            self.store.add_system_card(offer["conversation_id"], text, order_id=order.id)
+            self.store.add_system_card(offer["conversation_id"], text)
 
     def _wake(self, order) -> None:
         offer = self.store.offer(order.id)
@@ -1450,7 +1452,8 @@ class Cockpit:
                 continue
             attachments.append(
                 {"kind": "document", "path": copy.relative_to(self.cfg.local).as_posix(),
-                 "status": "saved", "sha256": sha256_file(copy)}
+                 "status": "saved", "sha256": sha256_file(copy), "size": copy.stat().st_size,
+                 "mime": mimetypes.guess_type(copy.name)[0] or ""}
             )  # fmt: skip
         message_id = self.store.queue_outbound(
             default["customer_id"],
@@ -1804,6 +1807,8 @@ class Cockpit:
         )
         for order in self.store.active_orders():
             _fill_order(msg.orders.add(), self.store, order)
+        for order in self.store.active_orders("paid"):
+            _fill_order(msg.awaiting_production.add(), self.store, order)
         return msg.SerializeToString()
 
     def read_orders(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:

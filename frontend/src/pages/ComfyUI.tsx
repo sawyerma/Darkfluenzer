@@ -9,7 +9,7 @@ import {
   type WorkflowParam,
 } from "../core/generated/darkfluenzer/v1/comfy_pb";
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
-import { takeRenderIntent, type RenderIntent } from "../core/intent";
+import { takeProductionIntent, takeRenderIntent, type RenderIntent } from "../core/intent";
 import { fetchReferences, mediaUrl } from "../core/media";
 import { type ReferenceItem } from "../core/generated/darkfluenzer/v1/reference_pb";
 import { useConnection } from "../core/realtime";
@@ -806,6 +806,7 @@ function Workbench({
   draft,
   start,
   startParam,
+  customerOrder,
   onLoad,
   canLoad,
 }: {
@@ -817,6 +818,7 @@ function Workbench({
   draft?: Record<string, string>;
   start?: MediaItem; // aus Dateien übernommenes Eingabebild (Weiterverarbeiten, Video erstellen)
   startParam?: string; // Eingang dafür (Standard „image“, „Als Vorlage“: Vorlagen-Parameter)
+  customerOrder?: string; // bezahlter Kundenauftrag aus der Auftragskarte (V0 §8.4 Punkt 5)
   onLoad: LoadDraft;
   canLoad: (key: string) => boolean;
 }) {
@@ -839,6 +841,10 @@ function Workbench({
   );
   const [count, setCount] = useState("");
   const [finish, setFinish] = useState("");
+  // Kundenauftrag: nur bezahlte (Status paid) und nur Workflows der Inhaltsstufe standard (Regel 13)
+  const awaiting = ordersState?.awaitingProduction ?? [];
+  const [chosenOrder, setChosenOrder] = useState(customerOrder ?? "");
+  const forOrder = wf.content === "standard" && awaiting.some((o) => o.orderNo === chosenOrder) ? chosenOrder : "";
   const candidates = count === "" ? (ordersState?.candidatesDefault ?? 1) : Number(count);
   const titles = Object.fromEntries(workflows.map((w) => [w.key, w.title]));
   const mine = (useStateTopic(Topic.JOBS_ACTIVE)?.value.jobs ?? []).filter((j) => j.workflow === wf.key);
@@ -909,14 +915,15 @@ function Workbench({
         }),
     );
     const parentMediaId = picked.image?.mediaId ?? 0n;
-    const asOrder = canCandidates && (candidates > 1 || finish !== "");
+    const asOrder = forOrder !== "" || (canCandidates && (candidates > 1 || finish !== ""));
+    const jobs = canCandidates ? candidates : 1;
     const done = asOrder
       ? await cmd.run(
           {
             case: "createOrder",
-            value: { workflow: wf.key, values, files: inputs, parentMediaId, candidates, finishWorkflow: finish },
+            value: { workflow: wf.key, values, files: inputs, parentMediaId, candidates: jobs, finishWorkflow: finish, customerOrderNo: forOrder },
           },
-          { version, done: `${candidates} Kandidaten eingereiht.` },
+          { version, done: forOrder ? `Kundenauftrag ${forOrder}: ${jobs} Kandidaten eingereiht.` : `${jobs} Kandidaten eingereiht.` },
         )
       : await cmd.run(
           {
@@ -1098,6 +1105,30 @@ function Workbench({
             </button>
           </div>
         </div>
+        {!wf.training && (awaiting.length > 0 || customerOrder) ? (
+          <div className="g-field">
+            <label htmlFor={`${wf.key}-customer`}>Für Kundenauftrag</label>
+            {wf.content === "standard" ? (
+              <select id={`${wf.key}-customer`} value={forOrder} onChange={(e) => setChosenOrder(e.target.value)}>
+                <option value="">– eigener Auftrag</option>
+                {awaiting.map((o) => (
+                  <option key={o.orderNo} value={o.orderNo}>
+                    {o.orderNo} · {o.customerNo} · {o.offer?.product ?? ""}
+                    {o.offer?.hd ? " + HD" : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <small>
+                {chosenOrder ? `Für ${chosenOrder} einen` : "Kundenaufträge nur mit einem"} Workflow der Inhaltsstufe standard wählen
+                (dieser: {wf.content || "explizit"}).
+              </small>
+            )}
+            {customerOrder && !awaiting.some((o) => o.orderNo === customerOrder) ? (
+              <small>{customerOrder} wartet nicht mehr auf die Produktion.</small>
+            ) : null}
+          </div>
+        ) : null}
         {wf.formats.length > 0 || canCandidates ? (
           <div className="g-form">
             {wf.formats.length > 0 ? (
@@ -1142,7 +1173,7 @@ function Workbench({
                 <label htmlFor={`${wf.key}-finish`}>Fertigstellen mit</label>
                 <select id={`${wf.key}-finish`} value={finish} onChange={(e) => setFinish(e.target.value)}>
                   <option value="">–</option>
-                  {finishers.map((w) => (
+                  {finishers.filter((w) => !forOrder || w.content === "standard").map((w) => (
                     <option key={w.key} value={w.key}>
                       {w.title}
                     </option>
@@ -1219,6 +1250,7 @@ export function ComfyUI() {
   const [selected, setSelected] = useState<Record<Kind, string>>({ image: "", video: "", ai: "" });
   const [draft, setDraft] = useState<{ key: string; params: Record<string, string>; n: number } | null>(null);
   const [intent] = useState<RenderIntent | null>(takeRenderIntent);
+  const [orderIntent] = useState(takeProductionIntent);
   const canLoad = (key: string) => workflows.some((w) => w.key === key);
 
   function loadDraft(key: string, params: Record<string, string>) {
@@ -1317,6 +1349,7 @@ export function ComfyUI() {
             draft={draft?.key === current.key ? draft.params : undefined}
             start={intent?.workflow === current.key ? intent.media : undefined}
             startParam={intent?.workflow === current.key ? intent.param : undefined}
+            customerOrder={orderIntent || undefined}
             onLoad={loadDraft}
             canLoad={canLoad}
           />

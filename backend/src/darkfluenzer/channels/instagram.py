@@ -243,6 +243,7 @@ class InstagramAccount:
         self.account = ""  # Instagram-Konto-ID (``/me`` user_id) nach der Anmeldung
         self.username = ""
         self.state = "OFF"
+        self.login_needed = False  # nur die Instagram-Anmeldung fehlt (OAuth-Link)
         self.error = ""
         self.missing = ""
         self.last_event_ms = 0
@@ -276,14 +277,19 @@ class InstagramAccount:
             "error": self.error,
             "last_event_ms": self.last_event_ms,
             "missing": self.missing,
-            "login_state": "ready" if self.state == "READY" else "",
+            # oauth: nur die Anmeldung fehlt -> Cockpit zeigt „Mit Instagram anmelden“
+            "login_state": "ready"
+            if self.state == "READY"
+            else "oauth"
+            if self.login_needed
+            else "",
             "automation": self.automation,
         }
 
-    def _set(self, state: str, *, error: str = "", missing: str = "") -> None:
-        new = (state, error, missing)
-        if new != (self.state, self.error, self.missing):
-            self.state, self.error, self.missing = new
+    def _set(self, state: str, *, error: str = "", missing: str = "", login: bool = False) -> None:
+        new = (state, error, missing, login)
+        if new != (self.state, self.error, self.missing, self.login_needed):
+            self.state, self.error, self.missing, self.login_needed = new
             self.on_change()
 
     def set_automation(self, enabled: bool) -> str:
@@ -359,10 +365,10 @@ class InstagramAccount:
         token = self._keys["token"]
         expiry = _int(self._keys["token_expiry"])
         if not token:
-            self._set("OFF", missing="Instagram-Anmeldung fehlt")
+            self._set("OFF", missing="Instagram-Anmeldung fehlt", login=True)
             return
         if expiry and expiry <= time.time():
-            self._set("OFF", missing="Instagram-Anmeldung abgelaufen – neu anmelden")
+            self._set("OFF", missing="Instagram-Anmeldung abgelaufen – neu anmelden", login=True)
             return
         if expiry and expiry - time.time() < self.ig.token_refresh_margin_s:
             await self._refresh(token)
@@ -375,7 +381,9 @@ class InstagramAccount:
                 await self._subscribe(token)
             except GraphError as exc:
                 if exc.code == 190:
-                    self._set("OFF", missing="Instagram-Anmeldung ungültig – neu anmelden")
+                    self._set(
+                        "OFF", missing="Instagram-Anmeldung ungültig – neu anmelden", login=True
+                    )
                 else:
                     self._set("ERROR", error=f"Instagram: {exc}")
                 return
@@ -515,7 +523,7 @@ class InstagramAccount:
         if not await asyncio.to_thread(self._save_token, "", 0):
             return "Abmelden fehlgeschlagen (Schlüsselbund)."
         self.account, self.username, self._subscribed = "", "", False
-        self._set("OFF", missing="Instagram-Anmeldung fehlt")
+        self._set("OFF", missing="Instagram-Anmeldung fehlt", login=True)
         return ""
 
     def _graph(self, path: str) -> str:

@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { openRegister, shortTime } from "../core/channels";
+import { useCommand } from "../core/commands";
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
-import type { Payment, WalletAccount, WalletSource } from "../core/generated/darkfluenzer/v1/wallet_pb";
+import type { OpenOffer, Payment, Voucher, WalletAccount, WalletSource } from "../core/generated/darkfluenzer/v1/wallet_pb";
 import { useStateTopic } from "../core/state";
 import { usePayments, type PaymentFilter, type PaymentsStatus } from "../core/wallet";
 import { clock } from "./ComfyUI";
 
 // Wallet (FRONT F7.8, V0 §8.5): Claras Konten werden nur beobachtet – Kontokarten mit Guthaben,
-// Schublade mit Adresse und QR, Zahlungseingänge mit Filter und Seiten, Datenquellen. Kein Seed,
-// kein Schlüssel, kein Senden; Zuordnen, Gutscheine und Monatsliste folgen mit ihren Endpunkten.
+// Schublade mit Adresse und QR, Zahlungseingänge mit Filter und Seiten (nicht zugeordnete einem
+// offenen Angebot zuordnen, Befehl 41), Amazon-Gutscheine zu prüfen (Befehl 42), Monatsliste als
+// Datei, Datenquellen. Kein Seed, kein Schlüssel, kein Senden.
 
 type Tone = "ok" | "warn" | "bad" | "neutral";
 
@@ -18,11 +20,13 @@ const ACCOUNT_STATE: Record<string, [string, Tone]> = {
   ERROR: ["FEHLER", "bad"],
   MISSING: ["NICHT EINGERICHTET", "neutral"],
 };
-// Wege ohne Backend-Anschluss: ehrlich als nicht eingerichtet, ohne Aktion.
-const NOT_CONNECTED: readonly [string, string, string][] = [
-  ["paypal", "PayPal", "Bestätigte Eingänge im Monat · nicht angeschlossen"],
-  ["amazon", "Amazon-Gutscheine", "Eingelöst im Monat · nicht angeschlossen"],
-];
+// Wege ohne Backend-Anschluss: ehrlich als nicht eingerichtet, ohne Aktion (PayPal braucht den Tunnel).
+const NOT_CONNECTED: readonly [string, string, string][] = [["paypal", "PayPal", "Bestätigte Eingänge im Monat · nicht angeschlossen"]];
+const VOUCHER_STATUS: Record<string, [string, Tone]> = {
+  pending: ["zu prüfen", "warn"],
+  redeemed: ["eingelöst", "ok"],
+  rejected: ["abgelehnt", "neutral"],
+};
 const NETWORK: Record<string, string> = { bitcoin: "Bitcoin", bsc: "BNB Smart Chain (BSC)", paypal: "PayPal", amazon: "Amazon" };
 const METHOD: Record<string, string> = {
   btc: "Bitcoin",
@@ -238,7 +242,36 @@ function PaymentStatus({ p }: { p: Payment }) {
   );
 }
 
-function PaymentRow({ p }: { p: Payment }) {
+/** Nicht zugeordneten Eingang einem offenen Angebot zuordnen (Befehl 41, protokolliert). */
+function Assign({ p, offers }: { p: Payment; offers: readonly OpenOffer[] }) {
+  const cmd = useCommand();
+  const [orderNo, setOrderNo] = useState("");
+  if (p.status !== "unassigned") return null;
+  if (offers.length === 0) return <small>kein offenes Angebot</small>;
+  return (
+    <span className="g-value">
+      <select className="g-input" aria-label="Offenes Angebot" value={orderNo} onChange={(e) => setOrderNo(e.target.value)}>
+        <option value="">Angebot wählen …</option>
+        {offers.map((o) => (
+          <option key={o.orderNo} value={o.orderNo}>
+            {o.orderNo} · {o.displayName || o.customerNo} · {o.product} · {EUR.format(o.priceCents / 100)} · {o.amounts.join(", ")}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="g-button"
+        disabled={!orderNo || cmd.pending}
+        onClick={() => void cmd.run({ case: "paymentAssign", value: { paymentId: p.paymentId, orderNo } }, { done: "Zugeordnet." })}
+      >
+        Zuordnen
+      </button>
+      {cmd.notice ? <small role="alert">{cmd.notice}</small> : null}
+    </span>
+  );
+}
+
+function PaymentRow({ p, offers }: { p: Payment; offers: readonly OpenOffer[] }) {
   const who = [p.customerNo, p.orderNo].filter(Boolean).join(" · ") || "–";
   return (
     <tr>
@@ -273,12 +306,15 @@ function PaymentRow({ p }: { p: Payment }) {
       <td>
         <PaymentStatus p={p} />
       </td>
+      <td>
+        <Assign p={p} offers={offers} />
+      </td>
     </tr>
   );
 }
 
 /** Zahlungseingänge: Filter, Tabelle, „Ältere laden“; neue und geänderte Eingänge per Push. */
-function Payments() {
+function Payments({ offers }: { offers: readonly OpenOffer[] }) {
   const [filter, setFilter] = useState<PaymentFilter>("all");
   const pay = usePayments(filter);
   const note = pay.status === "ready" ? EMPTY[filter] : pay.error ? "" : LOAD_NOTE[pay.status];
@@ -311,11 +347,12 @@ function Payments() {
                 <th>Kunde/Auftrag</th>
                 <th>Transaktion</th>
                 <th>Status</th>
+                <th>Aktion</th>
               </tr>
             </thead>
             <tbody>
               {pay.items.map((p) => (
-                <PaymentRow key={String(p.paymentId)} p={p} />
+                <PaymentRow key={String(p.paymentId)} p={p} offers={offers} />
               ))}
             </tbody>
           </table>
@@ -339,10 +376,146 @@ function Payments() {
   );
 }
 
+/** Ein Gutschein: Code nur hier (nie im Verlauf); bestätigt erst mit dem auf amazon.de tatsächlich
+ *  eingelösten Betrag (Befehl 42). Darkfluenzer meldet sich nie bei Amazon an. */
+function VoucherRow({ v }: { v: Voucher }) {
+  const cmd = useCommand();
+  const [euros, setEuros] = useState("");
+  const [reject, setReject] = useState(false);
+  const cents = Math.round(Number(euros.replace(",", ".")) * 100);
+  const valid = /^\d+([.,]\d{1,2})?$/.test(euros.trim()) && cents > 0;
+  const [label, tone] = VOUCHER_STATUS[v.status] ?? [v.status, "neutral" as Tone];
+  return (
+    <tr>
+      <td className="g-nowrap">{dateTime(v.atMs)}</td>
+      <td>
+        <button
+          type="button"
+          className="g-row"
+          title="Kundenakte öffnen"
+          onClick={() => {
+            openRegister(v.customerId);
+            window.location.hash = "#nachrichten";
+          }}
+        >
+          {v.displayName || v.customerNo}
+        </button>
+      </td>
+      <td className="g-mono">{v.code}</td>
+      <td>
+        <span className="g-badge" data-tone={tone}>
+          {label}
+        </span>
+        {v.status === "redeemed" ? ` ${EUR.format(v.amountCents / 100)}` : ""}
+        {v.decidedMs ? <small> · {dateTime(v.decidedMs)}</small> : null}
+      </td>
+      <td>
+        {v.status === "pending" ? (
+          <span className="g-value">
+            <input
+              className="g-input"
+              inputMode="decimal"
+              aria-label="Eingelöster Betrag in Euro"
+              placeholder="eingelöst €"
+              value={euros}
+              onChange={(e) => setEuros(e.target.value)}
+            />
+            <button
+              type="button"
+              className="g-button g-primary"
+              disabled={!valid || cmd.pending}
+              onClick={() => void cmd.run({ case: "giftCardConfirm", value: { voucherId: v.voucherId, amountCents: cents } }, { done: "Eingelöst." })}
+            >
+              Eingelöst
+            </button>
+            {reject ? (
+              <button
+                type="button"
+                className="g-button g-danger"
+                disabled={cmd.pending}
+                onClick={() => void cmd.run({ case: "giftCardConfirm", value: { voucherId: v.voucherId, reject: true } }, { done: "Abgelehnt." })}
+              >
+                Wirklich ablehnen
+              </button>
+            ) : (
+              <button type="button" className="g-button" onClick={() => setReject(true)}>
+                Ablehnen
+              </button>
+            )}
+          </span>
+        ) : null}
+        {cmd.notice ? <small role="alert">{cmd.notice}</small> : null}
+      </td>
+    </tr>
+  );
+}
+
+function Vouchers({ vouchers }: { vouchers: readonly Voucher[] }) {
+  const open = vouchers.filter((v) => v.status === "pending").length;
+  return (
+    <div className="g-section">
+      <div className="g-between">
+        <h2>Gutscheine zu prüfen</h2>
+        <span className="g-badge" data-tone={open ? "warn" : "neutral"}>
+          {open} OFFEN
+        </span>
+      </div>
+      <small>Auf amazon.de im Konto der Influencerin einlösen, dann den tatsächlich eingelösten Betrag eintragen.</small>
+      {vouchers.length > 0 ? (
+        <div className="g-table-wrap">
+          <table className="g-table">
+            <thead>
+              <tr>
+                <th>Erhalten</th>
+                <th>Kunde</th>
+                <th>Code</th>
+                <th>Status</th>
+                <th>Aktion</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vouchers.map((v) => (
+                <VoucherRow key={String(v.voucherId)} v={v} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="g-note">Keine Gutscheine.</p>
+      )}
+    </div>
+  );
+}
+
+/** Steuer-Monatsliste (V0 §8.5 Punkt 7): CSV mit Euro-Wert und Kurs je Eingang. */
+function MonthExport() {
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const valid = /^\d{4}-(0[1-9]|1[0-2])$/.test(month);
+  return (
+    <div className="g-section">
+      <h2>Monatsliste</h2>
+      <span className="g-actions">
+        <input className="g-input g-input-auto" type="month" aria-label="Monat" value={month} onChange={(e) => setMonth(e.target.value)} />
+        {valid ? (
+          <a className="g-button g-nowrap" href={`/api/v1/payment-export/${month}`} download>
+            Monatsliste herunterladen
+          </a>
+        ) : (
+          <small>Monat wählen</small>
+        )}
+      </span>
+      <small>Alle Eingänge des Monats (UTC) mit Euro-Wert, Kurs und Kurszeit beim Eingang.</small>
+    </div>
+  );
+}
+
 export function Wallet() {
   const wallet = useStateTopic(Topic.WALLET);
   const accounts = wallet?.value.accounts ?? [];
   const sources = wallet?.value.sources ?? [];
+  const vouchers = wallet?.value.vouchers ?? [];
+  const offers = wallet?.value.openOffers ?? [];
+  const pendingVouchers = vouchers.filter((v) => v.status === "pending").length;
   const stale = (wallet?.staleSince ?? null) !== null;
   const [openKey, setOpenKey] = useState<string | null>(null);
   const open = accounts.find((a) => a.key === openKey);
@@ -369,6 +542,16 @@ export function Wallet() {
         {accounts.map((a) => (
           <AccountCard key={a.key} a={a} stale={stale} onOpen={() => show(a.key)} />
         ))}
+        <div className="g-card g-account">
+          <span className="g-account-head">Amazon-Gutscheine</span>
+          <strong className="g-account-value">{pendingVouchers}</strong>
+          <small>zu prüfen · Einlösen manuell auf amazon.de</small>
+          <span className="g-account-badges">
+            <span className="g-badge" data-tone={pendingVouchers ? "warn" : "neutral"}>
+              MANUELL
+            </span>
+          </span>
+        </div>
         {NOT_CONNECTED.filter(([key]) => !accounts.some((a) => a.key === key)).map(([key, title, note]) => (
           <div key={key} className="g-card g-account">
             <span className="g-account-head">{title}</span>
@@ -382,7 +565,9 @@ export function Wallet() {
       </div>
       {wallet ? null : <p className="g-note">Keine Kontodaten.</p>}
 
-      <Payments />
+      <Payments offers={offers} />
+      <Vouchers vouchers={vouchers} />
+      <MonthExport />
 
       <div className="g-section">
         <details className="g-expert">

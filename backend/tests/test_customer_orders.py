@@ -248,6 +248,7 @@ def test_customer_order_chain(cfg):
         assert aimeta.is_marked(cfg.local / att["path"]) and b"geheim" in result.read_bytes()
         assert b"geheim" not in (cfg.local / att["path"]).read_bytes()
         assert cockpit._delivery_gate(item | {"delivery_id": d1["id"]}) == ""
+        assert (await client.get(f"/api/v1/media/{att['path']}")).status == 200  # Vorschau
         assert "nicht explizit" not in await send(approve_artifact=approve)  # nicht zweimal
 
         # endgültig fehlgeschlagen -> Karte, Wiederholung möglich; ungeklärt nie

@@ -21,3 +21,18 @@ export function takeRenderIntent(): RenderIntent | null {
   pending = null;
   return intent;
 }
+
+// Übergabe aus der Auftragskarte (Nachrichten) in den ComfyUI-Reiter: bezahlter Kundenauftrag, der
+// dort mit einem Workflow der Inhaltsstufe standard produziert wird (V0 §8.4 Punkt 5).
+let pendingOrder = "";
+
+export function setProductionIntent(orderNo: string): void {
+  pendingOrder = orderNo;
+  window.location.hash = "#comfyui";
+}
+
+export function takeProductionIntent(): string {
+  const orderNo = pendingOrder;
+  pendingOrder = "";
+  return orderNo;
+}

@@ -306,6 +306,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
   font: var(--g-fs-body) / var(--g-lh-base) var(--g-font);
 }
 .g-form textarea { resize: vertical; }
+/* Eingabe in Inhaltsbreite (z. B. Monatsauswahl neben einer Aktion) */
+.g-input.g-input-auto { width: auto; flex: 0 0 auto; }
 .g-form input[type="file"] { padding: var(--g-gap-xs); }
 .g-form :focus-visible, .g-input:focus-visible { outline: 2px solid var(--g-focus); outline-offset: 1px; }
 .g-form .g-actions small { color: var(--g-muted); font-size: var(--g-fs-small); }

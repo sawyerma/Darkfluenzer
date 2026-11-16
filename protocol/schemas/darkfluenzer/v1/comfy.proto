@@ -139,6 +139,9 @@ message WorkflowInfo {
   repeated OutputFormat formats = 15;
   // Rolle der Engine laut Manifest (master, edit, upscale, output, …)
   string role = 16;
+  // Inhaltsstufe der Ergebnisse (Regel 13): standard | explizit (ohne Manifest-Eintrag explizit);
+  // Kundenaufträge nur mit standard
+  string content = 17;
 }
 
 message OutputFormat {

@@ -1076,6 +1076,19 @@ class Store:
                     now(),
                 ),
             )
+            for att in attachments or []:  # gesendete Dateien: im Cockpit wie Eingänge abrufbar
+                if att.get("status") == "saved" and att.get("sha256") and att.get("size"):
+                    db.execute(
+                        "INSERT INTO message_files (path, message_id, sha256, size, mime)"
+                        " VALUES (?,?,?,?,?) ON CONFLICT (path) DO NOTHING",
+                        (
+                            att["path"],
+                            cur.lastrowid,
+                            att["sha256"],
+                            att["size"],
+                            att.get("mime", ""),
+                        ),
+                    )
             db.execute(
                 "UPDATE channel_conversations SET revision = revision + 1 WHERE id = ?",
                 (conversation_id,),
@@ -1448,10 +1461,9 @@ class Store:
                     if inflow["method"] == "amazon"
                     else f"{inflow['asset']} {inflow['amount']}"
                 )
+                # schlichte Ereigniskarte; die Auftragskarte ist die Karte ANGEBOT
                 self.add_system_card(
-                    offer["conversation_id"],
-                    f"ZAHLUNG BESTÄTIGT · {way} · {eur} € · {order_no}",
-                    order_id=order.id,
+                    offer["conversation_id"], f"ZAHLUNG BESTÄTIGT · {way} · {eur} € · {order_no}"
                 )
 
     def _match_offer(self, db, payment_id: int) -> None:
@@ -1514,7 +1526,12 @@ class Store:
                 (delivery_id,),
             ).rowcount
             if n:
+                order_id = db.execute(
+                    "SELECT order_id FROM deliveries WHERE id = ?", (delivery_id,)
+                ).fetchone()[0]
                 self._event("delivery", delivery_id, "failed", error=error)
+                # Auftragsereignis: die Auftragskarte im Verlauf zeigt den neuen Zustellstand
+                self._event("order", order_id, "delivery", status="failed", delivery=delivery_id)
                 self.bump("orders")
             return bool(n)
 
@@ -2127,9 +2144,12 @@ class Store:
         )
         return [dict(r) | {"seeds": json.loads(r["seeds"])} for r in rows]
 
-    def active_orders(self) -> list[Order]:
-        """Aufträge in Produktion (Stufen laufen oder warten auf den Betreiber)."""
-        rows = self.db.execute("SELECT order_no FROM orders WHERE status = 'producing' ORDER BY id")
+    def active_orders(self, status: str = "producing") -> list[Order]:
+        """Aufträge in Produktion (Stufen laufen oder warten auf den Betreiber); ``paid``: bezahlte
+        Kundenaufträge, die auf die Produktion warten."""
+        rows = self.db.execute(
+            "SELECT order_no FROM orders WHERE status = ? ORDER BY id", (status,)
+        )
         return [self.order(r[0]) for r in rows]
 
     def order_events(self, after: int, limit: int) -> tuple[list[dict], bool]:

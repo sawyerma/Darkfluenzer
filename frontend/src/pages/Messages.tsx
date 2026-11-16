@@ -17,6 +17,7 @@ import {
   type Platform,
 } from "../core/channels";
 import { useCommand } from "../core/commands";
+import { setProductionIntent } from "../core/intent";
 import type {
   ChannelIdentity,
   ChannelStatus,
@@ -27,6 +28,8 @@ import type {
 } from "../core/generated/darkfluenzer/v1/channel_pb";
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
 import { mediaUrl } from "../core/media";
+import type { Influencer } from "../core/generated/darkfluenzer/v1/influencer_pb";
+import type { ActiveOrder } from "../core/generated/darkfluenzer/v1/order_pb";
 import { useStateTopic } from "../core/state";
 import { Candidates } from "./ComfyUI";
 import { InfluencerBlock } from "./InfluencerBlock";
@@ -147,6 +150,13 @@ function AccountControls({ ch }: { ch: ChannelStatus }) {
 
   return (
     <>
+      {ch.platform === "instagram" && ch.loginState === "oauth" ? (
+        <div className="g-actions">
+          <a className="g-button g-primary" href="/api/v1/instagram/login" target="_blank" rel="noopener">
+            Mit Instagram anmelden
+          </a>
+        </div>
+      ) : null}
       {ch.state === "LOGIN" && step ? (
         <form className="g-actions" onSubmit={submit}>
           <input
@@ -407,12 +417,130 @@ function Attachment({ a }: { a: MessageAttachment }) {
 }
 
 const ORDER_STATUS: Record<string, string> = {
+  offered: "Angeboten · wartet auf Zahlung",
+  accepted: "Angenommen · wartet auf Zahlung",
+  paid: "Bezahlt · wartet auf Produktion",
   producing: "In Produktion",
   review: "Zur Prüfung",
   approved: "Freigegeben",
   delivered: "Ausgeliefert",
   cancelled: "Abgebrochen",
+  refunded: "Erstattet",
 };
+const DELIVERY_STATUS: Record<string, [string, Tone]> = {
+  pending: ["im Postausgang", "warn"],
+  sent: ["versendet", "ok"],
+  failed: ["fehlgeschlagen", "bad"],
+  unknown: ["Versand ungeklärt", "bad"],
+};
+const METHOD_LABEL: Record<string, string> = { btc: "Bitcoin", usdt: "USDT · BSC", usdc: "USDC · BSC" };
+const EUR = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
+
+/** Kundenauftrag in der Karte ANGEBOT (V0 §8.4): Angebot mit eindeutigen Beträgen, Zahlung,
+ *  Produktion im ComfyUI-Reiter, „Freigeben & senden“ hinter approval.py, Zustellungen. */
+function CustomerOrder({ order }: { order: ActiveOrder }) {
+  const cmd = useCommand();
+  const [notExplicit, setNotExplicit] = useState(false);
+  const offer = order.offer;
+  const expired = offer && Number(offer.expiresMs) < Date.now() && ["offered", "accepted"].includes(order.status);
+  const last = order.deliveries.at(-1);
+  const standard = order.resultTier === "standard";
+  return (
+    <>
+      {offer ? (
+        <dl className="g-params">
+          <Row label="Angebot">
+            {offer.product}
+            {offer.hd ? " + HD" : ""} · {EUR.format(offer.priceCents / 100)}
+          </Row>
+          <Row label="Gültig bis">{expired ? `abgelaufen (${shortTime(offer.expiresMs)})` : shortTime(offer.expiresMs)}</Row>
+          {offer.amounts.map((a) => (
+            <Row key={a.method} label={METHOD_LABEL[a.method] ?? a.method}>
+              <span className="g-mono">
+                {a.amount} {a.asset}
+              </span>
+              <small className="g-mono"> an {a.address}</small>
+            </Row>
+          ))}
+        </dl>
+      ) : null}
+      {order.status === "paid" ? (
+        <div className="g-actions">
+          <button type="button" className="g-button g-primary" onClick={() => setProductionIntent(order.orderNo)}>
+            In ComfyUI produzieren
+          </button>
+        </div>
+      ) : null}
+      {order.status === "review" && order.resultMediaId ? (
+        <div className="g-stack">
+          {order.resultPath ? (
+            <a className="g-attach" href={mediaUrl(order.resultPath)} target="_blank" rel="noreferrer">
+              <img src={mediaUrl(order.resultPath)} alt="Ergebnis zur Freigabe" loading="lazy" />
+            </a>
+          ) : null}
+          <small>Inhaltsstufe: {order.resultTier || "unbekannt (gilt als explizit)"}</small>
+          {standard ? (
+            <>
+              <label className="g-switch">
+                <input type="checkbox" checked={notExplicit} onChange={(e) => setNotExplicit(e.target.checked)} />
+                Ergebnis ist nicht explizit
+              </label>
+              <div className="g-actions">
+                <button
+                  type="button"
+                  className="g-button g-primary"
+                  disabled={!notExplicit || cmd.pending}
+                  onClick={() =>
+                    void cmd.run(
+                      { case: "approveArtifact", value: { orderNo: order.orderNo, mediaId: order.resultMediaId, notExplicit } },
+                      { done: "Freigegeben · Zustellung im Postausgang." },
+                    )
+                  }
+                >
+                  Freigeben &amp; senden
+                </button>
+              </div>
+            </>
+          ) : (
+            <small className="g-error">An Kunden nur Inhaltsstufe standard (Regel 13).</small>
+          )}
+        </div>
+      ) : null}
+      {order.deliveries.map((d) => {
+        const [label, tone] = DELIVERY_STATUS[d.status] ?? [d.status, "neutral" as Tone];
+        return (
+          <span key={String(d.deliveryId)} className="g-between">
+            <small>
+              Zustellung {shortTime(d.atMs)}
+              {d.error ? ` · ${d.error}` : ""}
+            </small>
+            <span className="g-badge" data-tone={tone}>
+              {label}
+            </span>
+          </span>
+        );
+      })}
+      {last?.status === "unknown" ? <small>Versand ungeklärt – im Kanal prüfen; kein automatischer Neuversuch.</small> : null}
+      {order.status === "approved" && last?.status === "failed" ? (
+        <div className="g-actions">
+          <button
+            type="button"
+            className="g-button"
+            disabled={cmd.pending}
+            onClick={() => void cmd.run({ case: "retryDelivery", value: { orderNo: order.orderNo } }, { done: "Erneut im Postausgang." })}
+          >
+            Erneut senden
+          </button>
+        </div>
+      ) : null}
+      {cmd.notice ? (
+        <p className="g-note" role="alert">
+          {cmd.notice}
+        </p>
+      ) : null}
+    </>
+  );
+}
 
 /** INTERNER AUFTRAG (F4/F7.4): Befehl, Wunsch, Stufe mit Kandidaten (Auswahl, Wiederholen) und
  *  Fehlern; solange der Auftrag läuft, live aus dem Auftragszustand. Wartet der erkannte Auftrag
@@ -429,8 +557,13 @@ function OrderCard({ item }: { item: ConversationItem }) {
       {detail.length ? <p>{detail.join(" ")}</p> : null}
       {order ? (
         <>
-          <small>{ORDER_STATUS[order.status] ?? order.status}</small>
-          <Candidates orders={[order]} titles={Object.fromEntries(workflows.map((w) => [w.key, w.title]))} heading={false} />
+          <small>
+            {order.orderNo} · {ORDER_STATUS[order.status] ?? order.status}
+          </small>
+          {order.source === "customer" ? <CustomerOrder order={order} /> : null}
+          {order.stages.length ? (
+            <Candidates orders={[order]} titles={Object.fromEntries(workflows.map((w) => [w.key, w.title]))} heading={false} />
+          ) : null}
         </>
       ) : null}
       {item.awaitingStart ? (
@@ -558,10 +691,28 @@ function Composer({
 }) {
   const key = `${customer.customerId}:${platform}`;
   const [text, setText] = useState(() => drafts.get(key) ?? "");
+  const [humanAgent, setHumanAgent] = useState(false);
   const cmd = useCommand();
   const label = PLATFORM_LABEL[platform] ?? platform;
   const target = loaded ? replyTarget(identities, platform) : "Lädt …";
-  const blocked = typeof target === "string" ? target : !live ? "Keine Verbindung" : channelNote(channel, platform);
+  // Instagram (FRONT F4 Punkt 10): 24-h-Fenster; danach nur manuell mit Human-Agent-Kennzeichnung
+  const now = Date.now();
+  const ig = platform === "instagram" && typeof target !== "string";
+  const windowOpen = ig && Number(target.windowUntilMs) > now;
+  const humanOpen = ig && !windowOpen && Number(target.humanUntilMs) > now;
+  const windowNote = !ig
+    ? ""
+    : windowOpen
+      ? `Antwortfenster offen bis ${shortTime(target.windowUntilMs)}`
+      : humanOpen
+        ? `Antwortfenster abgelaufen · Human-Agent möglich bis ${shortTime(target.humanUntilMs)}`
+        : "Instagram-Antwortfenster abgelaufen";
+  const blocked =
+    typeof target === "string"
+      ? target
+      : !live
+        ? "Keine Verbindung"
+        : channelNote(channel, platform) || (ig && !windowOpen && !(humanOpen && humanAgent) ? windowNote : "");
   const handle = typeof target === "string" ? "" : handleLabel(target.handle) || target.platformUserId;
 
   function edit(value: string) {
@@ -583,6 +734,7 @@ function Composer({
         platform,
         revision: target.revision,
         text: body,
+        humanAgent: humanOpen && humanAgent,
       },
     });
     if (done) {
@@ -612,6 +764,13 @@ function Composer({
           </button>
         </span>
       </div>
+      {windowNote && windowNote !== blocked ? <small>{windowNote}</small> : null}
+      {humanOpen ? (
+        <label className="g-switch">
+          <input type="checkbox" checked={humanAgent} onChange={(e) => setHumanAgent(e.target.checked)} />
+          Als manuelle Antwort mit Human-Agent-Kennzeichnung senden
+        </label>
+      ) : null}
       <small>KI antworten: {AI_MISSING}</small>
       {cmd.notice ? (
         <p className="g-note" role="alert">
@@ -631,7 +790,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** Rechte Spalte für Kunden: nur Blöcke mit echten Daten (Identität); KI/Auftrag folgen mit C5. */
+/** Rechte Spalte für Kunden: Identität mit Alter und KI-Hinweis je Kanal, Angebot, KI-Steuerung. */
 function CustomerPanel({ customer, identities }: { customer: CustomerSummary; identities: readonly ChannelIdentity[] }) {
   // Claras Konten gehören zu genau einer Figur; die Zuordnung je Kanalkonto folgt mit C5
   const figure = useStateTopic(Topic.INFLUENCERS)?.value.influencers[0];
@@ -672,6 +831,7 @@ function CustomerPanel({ customer, identities }: { customer: CustomerSummary; id
           </div>
         ))}
       </div>
+      <OfferForm customer={customer} identities={accounts} figure={figure} />
       <div className="g-control-part">
         <h3>KI-Steuerung</h3>
         <dl className="g-params">
@@ -684,6 +844,131 @@ function CustomerPanel({ customer, identities }: { customer: CustomerSummary; id
         )}
       </div>
     </>
+  );
+}
+
+/** Angebot aus der Preisliste (Befehl 46, V0 §8.4 Punkt 3): nur bei Angabe ≥ 18 und gesendetem
+ *  KI-Hinweis über den gewählten Kanal; Beträge und Zahlungswege setzt das Backend. */
+function OfferForm({
+  customer,
+  identities,
+  figure,
+}: {
+  customer: CustomerSummary;
+  identities: readonly ChannelIdentity[];
+  figure: Influencer | undefined;
+}) {
+  const cmd = useCommand();
+  const channels = identities.filter((i) => i.conversationId !== 0n);
+  const [identityId, setIdentityId] = useState(channels[0]?.identityId ?? 0n);
+  const [position, setPosition] = useState(0);
+  const [hd, setHd] = useState(false);
+  const [note, setNote] = useState("");
+  const ident = channels.find((i) => i.identityId === identityId) ?? channels[0];
+  const item = figure?.prices[position];
+  const total = item ? item.priceCents + (hd ? item.hdSurchargeCents : 0n) : 0n;
+  const reason = !figure
+    ? "Influencerin-Profil fehlt"
+    : figure.prices.length === 0
+      ? "Preisliste der Influencerin ist leer"
+      : customer.ageMark !== "self_declared_adult"
+        ? "Erst Altersangabe ≥ 18 (Selbstauskunft)"
+        : !ident
+          ? "Noch keine Konversation"
+          : ident.aiNotice !== "sent"
+            ? "Erst den KI-Hinweis über diesen Kanal senden"
+            : "";
+
+  async function send() {
+    if (reason || !ident || !figure) return;
+    const done = await cmd.run(
+      {
+        case: "createOffer",
+        value: {
+          customerId: customer.customerId,
+          identityId: ident.identityId,
+          conversationId: ident.conversationId,
+          revision: ident.revision,
+          influencerId: figure.influencerId,
+          position,
+          hd,
+          note: note.trim(),
+        },
+      },
+      { done: "Angebot gesendet." },
+    );
+    if (done) {
+      setNote("");
+      setHd(false);
+    }
+  }
+
+  return (
+    <div className="g-control-part">
+      <h3>Angebot</h3>
+      {channels.length > 1 ? (
+        <div className="g-field">
+          <label htmlFor={`offer-ch-${customer.customerId}`}>Kanal</label>
+          <select
+            id={`offer-ch-${customer.customerId}`}
+            className="g-input"
+            value={String(ident?.identityId ?? "")}
+            onChange={(e) => setIdentityId(BigInt(e.target.value))}
+          >
+            {channels.map((i) => (
+              <option key={String(i.identityId)} value={String(i.identityId)}>
+                {PLATFORM_LABEL[i.platform] ?? i.platform} · {handleLabel(i.handle) || i.platformUserId}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      {figure && figure.prices.length > 0 ? (
+        <>
+          <div className="g-field">
+            <label htmlFor={`offer-pos-${customer.customerId}`}>Preisliste</label>
+            <select
+              id={`offer-pos-${customer.customerId}`}
+              className="g-input"
+              value={position}
+              onChange={(e) => setPosition(Number(e.target.value))}
+            >
+              {figure.prices.map((p, n) => (
+                <option key={n} value={n}>
+                  {p.product} · {EUR.format(Number(p.priceCents) / 100)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <label className="g-switch">
+            <input type="checkbox" checked={hd} onChange={(e) => setHd(e.target.checked)} />
+            HD (+{EUR.format(Number(item?.hdSurchargeCents ?? 0n) / 100)})
+          </label>
+          <div className="g-field">
+            <label htmlFor={`offer-note-${customer.customerId}`}>Persönlicher Satz (optional)</label>
+            <textarea
+              id={`offer-note-${customer.customerId}`}
+              className="g-input"
+              rows={2}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
+        </>
+      ) : null}
+      <span className="g-between">
+        <strong>{total ? EUR.format(Number(total) / 100) : "–"}</strong>
+        <button type="button" className="g-button g-primary" disabled={Boolean(reason) || cmd.pending} onClick={() => void send()}>
+          Angebot senden
+        </button>
+      </span>
+      <small>{reason || "Beträge je Zahlungsweg eindeutig, Gültigkeit laut Konfiguration."}</small>
+      {cmd.notice ? (
+        <p className="g-note" role="alert">
+          {cmd.notice}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
