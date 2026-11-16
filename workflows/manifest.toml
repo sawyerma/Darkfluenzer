@@ -20,6 +20,20 @@ video_i2v = ""
 
 # ------------------------------------------------------------------------------------ Engines
 
+[engines.qwen_image_2512]
+title = "Qwen-Image 2512 (BF16) – Foto"
+kind = "image"
+role = "master"
+arch = "qwen_image"
+precision = "bf16"
+wave = 2
+files = ["qwen_image_2512_bf16", "qwen25vl_7b_bf16", "qwen_image_vae"]
+license = "Apache-2.0 laut Modellkarte (vor Nutzungsfreigabe prüfen)"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Vorlage image_qwen_Image_2512 (Untergraph): Standardweg 50 Schritte, CFG 4, euler/simple, Shift 3,1; Lightning-LoRA nicht vorhanden – im Graphen umgangen."
+formats = { "3:4" = [1104, 1472], "4:5" = [1088, 1360], "1:1" = [1328, 1328], "9:16" = [1088, 1936] }
+
 [engines.krea2_turbo]
 title = "Krea 2 Turbo (BF16) – Foto"
 kind = "image"
@@ -194,6 +208,22 @@ source = "ae.safetensors"
 target = "vae/flux2/flux2-vae.safetensors"
 size = 336211292
 sha256 = "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3"
+
+[files.qwen_image_2512_bf16]
+repo = "Comfy-Org/Qwen-Image_ComfyUI"
+revision = "1f12b17be14c89b026c51a91d67c32f84bb047bc"
+source = "split_files/diffusion_models/qwen_image_2512_bf16.safetensors"
+target = "diffusion_models/qwen-image/qwen_image_2512_bf16.safetensors"
+size = 40861031488
+sha256 = "cbf55390fff27dbc785046d7007b04e0c5dd7421e7ef128f2831eacb53a8e075"
+
+[files.qwen25vl_7b_bf16]
+repo = "Comfy-Org/Qwen-Image_ComfyUI"
+revision = "1f12b17be14c89b026c51a91d67c32f84bb047bc"
+source = "split_files/text_encoders/qwen_2.5_vl_7b.safetensors"
+target = "text_encoders/qwen2.5vl/qwen_2.5_vl_7b.safetensors"
+size = 16584415576
+sha256 = "cfafd739459bc86257397259f612a9aee88e5b98e85b5c0d0d1717e898b3463a"
 
 [files.krea2_turbo_bf16]
 repo = "Comfy-Org/Krea-2"
@@ -472,6 +502,22 @@ cfg = { node = "7", input = "cfg", type = "float", min = 1.0, max = 8.0 }
 width = { node = "44", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
 height = { node = "44", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
 reference_mp = { node = "17", input = "resolution.megapixels", type = "float", min = 0.25, max = 4.0, label = "Vorlagen-Auflösung (Megapixel)", expert = true }
+
+[workflows.qwen_image_2512_t2i]
+engine = "qwen_image_2512"
+ui = "image/qwen_image_2512_t2i.ui.json"
+api = "image/qwen_image_2512_t2i.api.json"
+status = "PASS"
+title = "Qwen-Image 2512 · Text zu Bild"
+
+[workflows.qwen_image_2512_t2i.params]
+prompt = { node = "238:227", input = "text", type = "str", required = true }
+negative_prompt = { node = "238:228", input = "text", type = "str" }
+seed = { node = "238:230", input = "seed", type = "int", min = 0, max = 4294967295 }
+steps = { node = "238:224", input = "value", type = "int", min = 16, max = 80 }
+cfg = { node = "238:223", input = "value", type = "float", min = 1.0, max = 8.0 }
+width = { node = "238:232", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
+height = { node = "238:232", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
 
 [workflows.wan22_i2v]
 engine = "wan22_i2v"

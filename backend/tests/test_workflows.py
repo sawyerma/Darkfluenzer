@@ -105,17 +105,27 @@ def test_ui_to_api_inverts_export_takes_edits_and_handles_bypass_and_mute():
 
 
 def test_registered_ui_exports_match_api_structure():
-    """Ohne laufende ComfyUI: jede UI-Datei hat dieselben Nodes, Typen und Links wie die API."""
+    """Ohne laufende ComfyUI: jede UI-Datei hat dieselben Nodes und Typen wie die API – bei
+    Untergraphen die aktiven inneren Nodes mit dem Präfix der Instanz (wie graphToPrompt),
+    umgangene/stumme Nodes entfallen; flache Graphen zusätzlich mit gleicher Link-Zahl."""
     man = models.load_manifest(ROOT)
     assert man.workflows, "mindestens ein registrierter Workflow erwartet"
     for wf in man.workflows.values():
         api = json.loads((ROOT / "workflows" / wf.api).read_text())
         ui = json.loads((ROOT / "workflows" / wf.ui).read_text())
-        assert {str(n["id"]): n["type"] for n in ui["nodes"]} == {
-            k: v["class_type"] for k, v in api.items()
-        }
-        api_links = sum(comfy._is_link(v) for n in api.values() for v in n["inputs"].values())
-        assert len(ui["links"]) == api_links
+        subgraphs = {g["id"]: g for g in (ui.get("definitions") or {}).get("subgraphs") or []}
+        expected = {}
+        for n in ui["nodes"]:
+            if n["type"] in subgraphs:
+                for inner in subgraphs[n["type"]]["nodes"]:
+                    if inner.get("mode", 0) == 0:
+                        expected[f"{n['id']}:{inner['id']}"] = inner["type"]
+            elif n.get("mode", 0) == 0:
+                expected[str(n["id"])] = n["type"]
+        assert expected == {k: v["class_type"] for k, v in api.items()}, wf.key
+        if not subgraphs:
+            api_links = sum(comfy._is_link(v) for n in api.values() for v in n["inputs"].values())
+            assert len(ui["links"]) == api_links, wf.key
 
 
 def test_unique_outputs_tags_every_save_node_only():
