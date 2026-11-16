@@ -497,10 +497,90 @@ Jede Phase: echte Umsetzung, gezielte Tests (Normalfall, wesentlicher Fehlerfall
 **B4 – Video** · Status: OFFEN
 - Ziel: freie Animation (Wan FP16 vs. Remix vs. LTX 2.5 Dev/Distilled in ComfyUI; LTX Desktop als Vergleich), Bewegungsübertragung (Wan Animate 2 vs. VACE vs. Fun Control), Langvideo-Regeln (Länge, Fenster, Übergänge, FPS, Ton), Video-Original ≥ 1K (Video-Upscaler aus der Nativauflösung), 2K/4K auf Wunsch (SeedVR2 Video vs. RelayVSR) + Interpolation (FILM), Reel-Profil 1080 × 1920, Identität über Frames.
 - Abhängigkeit: B2, B3. Abnahme: Rolle `video_i2v` und Bewegungsübertragung mit Zahlen besetzt; Video in Dateien mit vollständiger Provenienz.
+- **Teilnachweis 16.11.2026 – Langvideo und Einstellungen (7286802):** Gesamtlänge in Sekunden (Obergrenze `production.video_max_s`, Standard 120), automatische Zerlegung in Abschnitte von höchstens 81 Frames (Wan-Trainingslänge, 5 s bei 16 fps), jeder Folgeabschnitt startet mit dem gesicherten letzten Bild des vorigen, Zusammensetzen in ComfyUI (`LoadVideo` → `GetVideoComponents` → doppeltes Übergangsbild entfernt → `ImageBatch` → `CreateVideo`); Zwischenstände außerhalb der Galerie (`darkfluenzer_work`), Migration 16 `job_segments` (Fortsetzen nach Neustart, fertige Abschnitte gehen bei „Wiederholen“ in den neuen Job über). Alle wichtigen Workflow-Einstellungen im Cockpit: Manifest-Bindung an mehrere Knoten (`also`), Bedingung `below` (Wechsel High→Low < Schritte), gemeinsame Sampler-/Scheduler-Listen aus ComfyUI (45/9); Wan: Länge, Abschnittslänge, Bildrate, Schritte, Wechsel, CFG, Shift, Sampler, Scheduler; Bild: Sampler/Scheduler überall, CFG wo wirksam, SeedVR2-Kacheln. Tests gegen einen HTTP-Ersatz für ComfyUI; **ein echter Langvideo-Lauf (Frames, Übergänge, Neustart) steht aus (bugs_v1 QA-05).**
+- **Teilnachweis 16.11.2026 – LTX 2.5 Bild zu Video (fc22857, BUG-029):** Geladen ist der **Dev**-Transformer (die Registry verwies auf eine nicht vorhandene Distilled-Datei – korrigiert). Workflow `ltx25_i2v` aus der offiziellen Vorlage `video_ltx2_5_i2v` (zwei Stufen 8 + 3 Schritte, CFG 1, Ton, x2-Raumhochskalierer) mit Dev-Transformer + `ltx-2.5-22b-distilled-lora-450-bf16` (laut Modellkarte für Dev-Workflows) an beiden Stufen, Gemma-4-12B-Encoder BF16, ohne Prompt-Verbesserer (Gemma-4-E2B nicht vorhanden); Format über Breite/Höhe in Vielfachen von 64 (Stufe 1 = halbe Größe, durch 32 teilbar), Länge 1–20 s, Bildrate 16/24 (Frames = s × fps + 1 ≡ 1 mod 8). Im echten ComfyUI-Frontend gebaut, `graphToPrompt` gegen Konverter **0 Abweichungen**, Werte einzeln geprüft. Echter Renderlauf mit Messung folgt, sobald die LoRA (8,9 GB, SHA-geprüft) geladen ist.
+- **Offen in B4:** echter LTX-Lauf und Wan-Abnahme (FP16, Remix) mit Zahlen; Vergleich Wan ↔ LTX (Bildqualität, Identität, Tempo, Länge); FILM-Interpolation (Pfad in `extra_model_paths.yaml`, bugs_v1 BUG-036); Wan Animate 2 (Bewegungsübertragung, Modelle vorhanden); SeedVR2-Video und RelayVSR; Reel-Profil 1080 × 1920; LTX-Langvideo über Abschnitte (heute bis 20 s je Lauf). VACE und Fun Control nur, wenn der Betreiber deren Modelle freigibt.
 
 **B5 – KI-Modelle der KI-Instanz** · Status: OFFEN
+- **Verbindliche Betreiberentscheidung 16.11.2026:** einziges zunächst freigegebenes Chatmodell **Melody1437 v2.0 (Gemma 4 MoE) GGUF Q6_K** statt Kandidat Cydonia 24B; vollständiger Detailplan, Reihenfolge und Abnahmen unten in **„B5 – Detailplan Clara-Chat-KI“**. Abhängigkeit geändert: B5.1 beginnt nach den P0-Punkten aus `docs/bugs_v1.md`; B4 läuft parallel, soweit die Chat-Messungen nicht beeinträchtigt werden.
 - Ziel: Vision-/Prompt-Workflows (Bildbeschreibung → Prompt-Vorschlag) und Dialog-LLM (Kandidat Cydonia 24B) als registrierte, im echten ComfyUI-Editor bearbeitbare Workflows in KI-ComfyUI 2, aus dem Unterregister KI bedienbar; Nutzung für Kloner, Default-Nutzer und Kunden erst in Block C.
 - Abhängigkeit: A3, B4. Abnahme: echter Lauf je Workflow; Latenz p50/p95 und Speicher unter gleichzeitiger Medienlast gemessen; dabei die aus A3 offene Prüfung: KI-Workflow auf Instanz 2 und Entladen der ruhenden anderen Instanz durch die Zulassung.
+
+#### B5 – Detailplan Clara-Chat-KI (verbindliche Betreiberentscheidung 16.11.2026)
+
+Ersetzt die Auswahl von Cydonia 24B v4.1 als erstes Chatmodell. Anforderungen an Clara, KI-Studio (FRONT F7.9) und Architektur bleiben; dieser Plan ergänzt sie um Modell, Technik, Reihenfolge und Abnahmen.
+
+**1. Modell (einziger aktueller Download)**
+- **ReadyArt/Melody1437-26B-A4B-v2.0-GGUF**, Datei `Melody1437-26B-A4B-v2.0-Q6_K.gguf`, Revision `b22520a5c83db6ff0d12aef1fd461c932ba86fbf`, 22 638 399 456 Byte, SHA-256 `07a3b8b756a212926900b42927e51a3b116c105f878eb5c2b272d689a9a710dc` (vor dem Download von Hugging Face gelesen, nach dem Download geprüft); Ablage `local/models/llm/melody1437-26b-a4b-v2.0/`. Gemma 4 MoE, ca. 25,2 Mrd. Parameter, ca. 3,8 Mrd. aktiv; vollständig lokal, zunächst privater Test.
+- Keine weiteren Chatmodelle oder Quantisierungen ohne neue Betreiberfreigabe; Cydonia, Wicked Stuff, Gemory, Dark Scarlett und Euryale sind **keine** Downloadaufträge. Vorhandene Modelle werden nicht ohne Freigabe gelöscht. Melody1437 ist Erstkandidat, kein nachgewiesener Qualitätssieger. Die kommerzielle Lizenz ist für den privaten Test kein Auswahlkriterium.
+- Stand 16.11.2026, nachts: Eine zuvor gestartete Kette mit weiteren Chatmodellen wird direkt nach der LTX-LoRA beendet (nicht freigegebener angefangener Download entfernt); danach lädt ausschließlich Melody1437 Q6_K.
+
+**2. Die sieben unveränderlichen Anforderungen**
+1. **NSFW/ERP:** einvernehmliche explizite Erwachsenengespräche, natürliches Flirten, Eigeninitiative, Emotion, glaubwürdige Dialogführung; keine unnötigen Verweigerungen, Ausweichantworten oder Wechsel zu Standardfloskeln im ERP-Testsatz.
+2. **Latenz** (warmes Modell, kurze Antworten): erstes Token ≤ 2 s, vollständige kurze Antwort ≤ 5 s; erfasst werden p50/p95, Tokens/s und Gesamtzeit, auch nach langen Gesprächen und bei gleichzeitiger Medienproduktion. Qualitätsziele, real auf dem Mac gemessen.
+3. **Deutsch:** natürlich, ohne englische Einsprengsel oder Übersetzungsdeutsch, ohne stereotype Wiederholungen, konsistente Anrede/Grammatik, auch in expliziten Dialogen, variierende Satzlänge und Ausdrucksweise.
+4. **Dauerhaftes Gedächtnis** über Wochen und Monate (Fakten, Interessen, Wünsche, Vereinbarungen); ein großes Kontextfenster allein genügt nicht.
+5. **Stabile Persönlichkeit:** versioniertes Charakterprofil; Ausdruck, Hintergrund und frühere Aussagen konsistent über Sitzungen und Plattformen; führt Gespräche eigenständig weiter, ohne dieselben Fragen zu wiederholen.
+6. **Lokal in ComfyUI 2:** dauerhaft geladenes Modell (soweit Ressourcen erlauben), Metal, wiederverwendbarer Prompt-/KV-Cache, möglichst unmittelbares Token-Streaming ins Cockpit, keine externe Chat-Engine, gemeinsame Ressourcensteuerung beider Instanzen.
+7. **Später trainierbar und sprechfähig:** eigene Dialogdaten nach der Erstabnahme; lokale Spracherkennung und eine natürliche deutsche Clara-Stimme.
+
+**3. Architektur**
+- **ComfyUI 1** Medien (Foto, Video, Bearbeitung, Inpainting, Identität, Bild-LoRA, Hochskalierung). **ComfyUI 2** KI (Textdialog, Bildverständnis, Gedächtnis-Orchestrierung, später Text-LoRA-Steuerung, STT, TTS). **Python-Backend + SQLite** Gespräche, Kunden, Persona-Versionen, Gedächtnis, Aufträge, Preise, Zahlungen, Freigaben, Prüfregeln.
+- Zwei eigenständige ComfyUI-Prozesse mit getrennten Warteschlangen, gemeinsamer Unified Memory; **Chat-Anfragen haben Ressourcenpriorität**. KI-Inferenz über editierbare ComfyUI-2-Workflows; kein Ollama, Docker, externer LLM-Server oder Cloud-LLM. SQLite bleibt die einzige maßgebliche Datenbank. Dasselbe Clara-Modell im Testchat und später auf Telegram/Instagram – keine zweite Implementierung.
+
+**4. Technische Umsetzung B5.1 (ergänzt)**
+1. **ComfyUI-LLM-Session** (kantan-kanto) in der KI-Instanz (`127.0.0.1:8189`) installieren, Commit gepinnt im Einrichtungsskript; `llama-cpp-python` mit Metal gebaut. Vorher prüfen: Gemma-4-MoE-Unterstützung der llama.cpp-Version, Metal-Offloading aller Schichten, Modellpersistenz zwischen Läufen, Cache-Treffer (`runtime_cache`), Streaming-Ereignisse. Der eingebaute `TextGenerate` gilt nur dann als Alternative, wenn er dieselben Anforderungen nachweislich erfüllt.
+2. Modellordner der Erweiterung auf `local/models/llm/` (gleiche Modellablage wie ComfyUI 1, über die Modellpfade); die **eigene Verlaufsspeicherung der Erweiterung (JSON) bleibt aus** – Verlauf, Persona und Gedächtnis liefert das Backend je Anfrage aus SQLite; der gleichbleibende Anfang (Persona + Regeln + Gedächtnisblock) wird als Cache-Präfix wiederverwendet.
+3. Workflow `clara_chat_melody` (UI- und API-Graph) im echten ComfyUI-2-Editor bauen, Abgleich `graphToPrompt` = Konverter mit 0 Abweichungen, im Manifest als Engine der Art `text` auf Instanz `ai` registriert (Datei mit Revision, Größe, SHA-256). Einstellungen nur, soweit vom Knoten unterstützt, mit Typ/Grenzen/Standard aus der Registry: Temperature, Top-P, Top-K, Min-P, Repeat Penalty, DRY, Seed, maximale Antworttokens, Kontextfenster, Cache.
+4. Backend: KI-Bahn der Instanz 2; das Modell bleibt geladen; die gemeinsame Zulassung startet keinen Medienjob, wenn dadurch der Speicher für das geladene Chatmodell fehlen würde; je Antwort werden TTFT, Tokens/s, Gesamtzeit, Antworttokens, Cache-Treffer, Modell-, Workflow- und Persona-Revision in SQLite festgehalten.
+5. Streaming über die Fortschritts-/Textereignisse der Instanz 2, soweit die Erweiterung sie liefert, sonst Gesamtantwort; Streaming nur im Testchat – an Kanäle geht ausschließlich die vollständige, geprüfte Antwort.
+6. **Messprotokoll B5.1:** 20 zusammenhängende deutsche Nachrichten im KI-Studio, kalt und warm, jeweils ohne und mit gleichzeitigem Medienrender in ComfyUI 1; TTFT und Gesamtzeit p50/p95, Tokens/s, Cache-Nutzung, RAM, Swap; Ergebnis mit Datum/Commit hier nachgetragen.
+
+**5. KI-Studio (B5.2)** – ausschließlich unter **ComfyUI → KI**, Gestaltung nach FRONT F7.9 und dem freigegebenen HTML-Klickprototyp (`docs/design/Darkfluenzer_KI_Studio_Klickprototyp.html`, vom Betreiber bereitzustellen; Abgleich vor dem Deploy). Links registrierte KI-Workflows mit echten Zuständen; Mitte **Chat-Test · Persona · Gedächtnis · Vergleich**; rechts Modell und Influencerin (**Modellname aus der Registry**, nicht fest verdrahtet), Temperature, Top-P, Top-K, Min-P, Repeat Penalty, DRY, Seed, maximale Antworttokens, Kontextfenster und Cache, Gesprächsmodus und Antwortlänge, KI-Warteschlange, ComfyUI-2-Status und Ressourcen. Alle Einstellungen werden tatsächlich unterstützt, gespeichert und versioniert. Chat-Test ohne Telegram; Messwerte, Fehler und Modellversionen aus dem echten Backend. **Persona und Regeln serverseitig:** Charakterprofil + Beispieldialoge versioniert; verbotene Wörter/Themen, Grenzen und Verhalten bei Beleidigung als Profilregeln, geprüft vor jedem Versand; unabschaltbare Basissperren (Minderjährige, Ehrlichkeitsregel 12 c); Eskalationsstufen → Ereigniskarte, Admin-Hinweis, KI für die Akte angehalten; Entwurfsmodus. „Vergleich“ (Modell B) bleibt gesperrt bis zu einer neuen Modellfreigabe.
+
+**6. Langzeitgedächtnis (B5.3) – vier Ebenen**
+
+| Ebene | Inhalt |
+|---|---|
+| 1. Kurzzeitgedächtnis | jüngste Nachrichten und aktiver Gesprächsverlauf |
+| 2. Kundengedächtnis | verifizierte persönliche Fakten, Interessen, Vorlieben |
+| 3. Gesprächsmemos | Zusammenfassungen älterer Gespräche, Themen, Zusammenhänge |
+| 4. Langzeitereignisse | Bestellungen, Zusagen, frühere Wünsche, offene Vorgänge |
+
+- Speicherung in SQLite, Abruf über **FTS5**, Kunden strikt getrennt (Test-Sitzungen getrennt von Kundenakten); jede Erinnerung mit Quelle (Nachrichten-ID), Zeit und Version; neue oder widersprechende Informationen werden eingeordnet (neuere Aussage ersetzt mit Verlauf), keine unbelegten Erinnerungen als Tatsache; manuelles Korrigieren und Löschen mit Protokoll; Kontextinspektor im KI-Studio; Gesprächsmemos werden auch in langen offenen Sitzungen im Hintergrund aktualisiert, ohne die Antwort zu verzögern; das Gedächtnis übersteht Neustarts.
+- **Gegen Wiederholungen:** jede neue Antwort wird gegen Claras letzte Antworten und gestellte Fragen geprüft (Ähnlichkeit); bei Treffer wird neu erzeugt; zusätzlich Sampler-Einstellungen (Repeat Penalty/DRY). Claras eigene Aussagen über sich selbst werden als eigene Erinnerungen geführt, damit sie sich nicht widerspricht.
+- **Abnahme:** 100–200 Gesprächsschritte mit Themenwechseln, persönlichen Rückbezügen, Korrekturen, Widersprüchen, Kundentrennung und anschließendem Neustart.
+
+**7. Gesprächslogik und Bestellungen (B5.4)**
+1. Kunde schreibt mit Clara. 2. Clara berücksichtigt Persona, Gedächtnis und Verlauf. 3. Melody1437 erkennt einen Bild- oder Videowunsch. 4. Ein strukturierter Produktionswunsch entsteht (Art, Anzahl, Motiv, Outfit, Ort, Pose, Stimmung, Format, HD). 5. Das Backend wählt eine gültige Position der Preisliste. 6. Angebot und Zahlungsprüfung über die vorhandene Auftragslogik (Befehle 46/41/42). 7. Nach bestätigter Zahlung Dank und Lieferzeit aus gemessenen Laufzeiten; ComfyUI 1 erzeugt das Medium aus einem Prompt, den die KI aus Wunsch, Charakterprofil und einem Workflow der Inhaltsstufe `standard` baut (Kundenauftrag `customer_order_no`). 8. Betreiberfreigabe und kanalgebundene Zustellung (Befehl 34). Das LLM erfindet nie Zahlungsbestätigungen, Preise oder Freigaben.
+
+**8. Privater Sofatest (B5.5):** Telegram im Testbetrieb mit der verifizierten Testidentität des Betreibers; das Schlüsselwort **`Cash`** löst ausschließlich im isolierten Testbetrieb eine dokumentierte Testfreigabe aus (eigene Testkennzeichnung, nie in echten Zahlungsdaten, Monatsliste oder Kundenakten); das Bild wird tatsächlich erzeugt, freigegeben und an die Testidentität zurückgesendet. Voraussetzung: bestätigte Kanal- und Zahlungs-P0/P1 aus `docs/bugs_v1.md` erledigt, Telegram `api_id`/`api_hash` und Test-Chat-ID vom Betreiber.
+
+**9. Späteres Training (B5.7)** – erst nach erfolgreicher Erstabnahme und ausdrücklicher Freigabe: Charakterprofil und Beispielgespräche im KI-Studio optimieren → eigene deutsche Clara-Dialoge sammeln und kuratieren (Kundenchats nie, Regel 12 e) → Trainings- und Testdaten getrennt → Qualität und Dubletten prüfen → LoRA lokal auf dem M4 Max → trainierte gegen ursprüngliche Version vergleichen → nur bei nachgewiesenem Gewinn aktivieren. Dafür sind trainierbare Gewichte nötig (die GGUF-Datei ist keine Trainingsbasis); die MLX-Unterstützung für Melody1437/Gemma-4-MoE wird vorher geprüft.
+
+**10. Spätere Sprache (B5.8):** Spracheingabe → lokale Spracherkennung (Whisper oder Parakeet) → **dasselbe** Melody1437-Dialogmodell mit Persona und Gedächtnis → lokale Sprachsynthese (Qwen3-TTS); natürliche deutsche weibliche Stimme, passende Emotion, geringe Latenz; im KI-Studio Mikrofon, Transkript, Stimmeinstellungen, Audioausgabe und Laufzeitmessung. Vorher werden keine Sprachmodelle geladen.
+
+**11. Abnahmen**
+- **B5.1 technisch:** mindestens 20 zusammenhängende echte deutsche Nachrichten im lokalen KI-Studio; TTFT p50/p95, Gesamtzeit p50/p95, Tokens/s, Cache-Nutzung, RAM, Swap; ohne und mit gleichzeitiger Medienlast.
+- **Qualität:** mindestens 50 strukturierte deutsche Testszenarien, darunter einvernehmliche NSFW-/ERP-Gespräche, Langdialoge mit mehr als 30 Runden, Charakterkonsistenz, Sprachqualität, Verweigerungen, Wiederholungen, Gesprächsabbruch („Stopp“).
+- **Gedächtnis:** 100–200 Gesprächsschritte, Widerspruchs-, Kundentrennungs- und Neustarttests.
+- Keine bestandene Abnahme ohne echte Testergebnisse.
+
+**12. Reihenfolge**
+
+| Phase | Aufgabe |
+|---|---|
+| P0 | Sicherheits- und Funktionsfehler aus `docs/bugs_v1.md` (BUG-001…006) prüfen und beheben, danach die relevanten P1 |
+| B5.1 | Melody1437 v2.0 Q6_K in ComfyUI 2 installieren, integrieren, messen |
+| B5.2 | KI-Studio mit Testchat, Persona, Einstellungen, Vergleich |
+| B5.3 | vollständiges Langzeitgedächtnis |
+| B5.4 | Medienwunsch, Angebot, Prompt, Produktionsanbindung |
+| B5.5 | privater Telegram-End-to-End-Test mit echtem Bild |
+| B5.6 | Bildverständnis/VLM (später) |
+| B5.7 | eigenes Clara-LoRA-Training (später, eigene Freigabe) |
+| B5.8 | lokale Sprachverarbeitung STT/TTS (später, eigene Freigabe) |
+
+Unabhängige P1-Arbeiten und B4-Medienentwicklung (zuerst der LTX-Rendertest) laufen parallel, soweit sie die Chat-Messungen nicht beeinträchtigen; Kanal- und Zahlungsfehler sind vor dem Telegram-End-to-End-Test abgeschlossen. **Grundsatz:** ein Modell zuerst vollständig qualifizieren; keine weiteren Chatmodelle ohne neue ausdrückliche Entscheidung. Für alle Phasen: NO MOCK, NO LEGACY, NO HARDCODING, FREE ONLY, NO DOCKER, native macOS-Ausführung, `main` only, höchstens zwei Agenten, echte Tests, danach Commit/Push.
 
 **Abnahme Block B:** die vollständige Kette aus dem Cockpit – Training → Foto → Bearbeitung → 1K-Original → Hochskalieren → Video → Dateien – mit allen ausgewählten Modellen real auf dem Mac.
 

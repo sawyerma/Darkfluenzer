@@ -44,6 +44,8 @@
 | 10 | Wan Animate 2 (Bewegungsübertragung) | BF16 32,79 · CLIP Vision H 1,26 · VAE BF16 0,25 · lightx2v-LoRA BF16 0,74 | [Comfy-Org/Wan-Animate-2](https://huggingface.co/Comfy-Org/Wan-Animate-2) | `diffusion_models/wan22/`, `clip_vision/wan/`, `vae/wan/`, `loras/wan/` | Darkfluenzer |
 | 11 | LTX 2.5 Dev | 22B Dev BF16 · Gemma-4-12B-Encoder BF16 26,26 · Video-/Audio-VAE · Raum-/Zeit-Upscaler x2 (zusammen ≈ 72) | [Lightricks/LTX-2.5](https://huggingface.co/Lightricks/LTX-2.5) | `diffusion_models/ltx25/`, `text_encoders/gemma4/`, `vae/ltx25/`, `latent_upscale_models/ltx25/` | **Betreiber nimmt die Lizenz auf HF an**, danach Darkfluenzer (Repo für dein Konto noch gesperrt) |
 | 12 | FILM (Bildinterpolation) | FP16 0,07 | [Comfy-Org/Frame-Interpolation](https://huggingface.co/Comfy-Org/Frame-Interpolation) | `frame_interpolation/film/` | Darkfluenzer |
+| 13 | LTX 2.5 Distilled-LoRA (für den Dev-Transformer, B4) | BF16 8,90 (`ltx-2.5-22b-distilled-lora-450-bf16.safetensors`, SHA-256 86370bbf…) | [Lightricks/LTX-2.5](https://huggingface.co/Lightricks/LTX-2.5) @49b093a3 | `loras/ltx25/` | Darkfluenzer, 16.11.2026 |
+| 14 | Melody1437 v2.0 Q6_K (einziges freigegebenes Chatmodell, B5) | GGUF Q6_K 22,64 (`Melody1437-26B-A4B-v2.0-Q6_K.gguf`, SHA-256 07a3b8b7…) | [ReadyArt/Melody1437-26B-A4B-v2.0-GGUF](https://huggingface.co/ReadyArt/Melody1437-26B-A4B-v2.0-GGUF) @b22520a5 | `llm/melody1437-26b-a4b-v2.0/` | Darkfluenzer, 16.11.2026 |
 
 **Krea 2:** Raw ist laut Modellkarte **nicht für die Inferenz gedacht**, sondern Basis für Finetuning und LoRA-Training (Einstellungen dort: 52 Schritte, CFG 3,5, 1024 × 1024). Generiert wird mit **Turbo**, der destillierten Fassung (Vorlage: 8 Schritte, CFG 1). Mit der Turbo-LoRA läuft eine auf Raw trainierte Charakter-LoRA im Turbo-Tempo.
 
@@ -68,5 +70,5 @@
 
 | Modell | Präzision | Größe GB | Hinweis | Phase |
 |---|---|---|---|---|
-| Cydonia 24B v4.1 (Dialog-LLM) | GGUF Q8_0 (höchste Stufe im GGUF-Repo) | 25,05 | Ob Q8_0 reicht oder das BF16-Original nötig ist, zeigt der Vergleich in B5 | B5 |
+| Cydonia 24B v4.1 (Dialog-LLM) | GGUF Q8_0 | 25,05 | **kein Downloadauftrag** (Betreiberentscheidung 16.11.2026: erstes Chatmodell ist Melody1437 v2.0 Q6_K, Gruppe 14); weitere Chatmodelle nur nach neuer Freigabe | – |
 | RelayVSR (Video-Upscaler, Vergleich) | nur INT8 (Decoder FP32) | 5,3 | keine BF16-Fassung, daher nur Vergleichskandidat | B4 |
