@@ -44,6 +44,8 @@ message MediaItem {
   uint64 job_id = 11;
   string order_no = 12;
   string customer_no = 13;
+  // Inhaltsstufe (Regel 13): standard | explizit; leer = unbekannt (gilt als explizit)
+  string content_tier = 14;
 }
 
 // Vom Betreiber gelöschter Galerie-Eintrag (Datei samt gleicher Kopien entfernt).

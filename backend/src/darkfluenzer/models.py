@@ -144,10 +144,21 @@ class Workflow:
     # beide setzt das Backend, nicht der Betreiber.
     train_dataset: str = ""
     train_lora: str = ""
+    # Inhaltsstufe der Ergebnisse (PHASENPLAN_V0 Regel 13): fail-closed – ohne Eintrag „explizit“;
+    # „standard“ nur, wenn ausdrücklich so im Manifest markiert
+    content: str = "explizit"
 
     @property
     def training(self) -> bool:
         return bool(self.train_dataset)
+
+
+CONTENT_TIERS = ("standard", "explizit")
+
+
+def higher_tier(*tiers: str | None) -> str:
+    """Höhere Inhaltsstufe; unbekannt (None) zählt als „explizit“ (fail-closed)."""
+    return "explizit" if any(t != "standard" for t in tiers) else "standard"
 
 
 @dataclass(frozen=True)
@@ -354,7 +365,10 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             mask_output=str(t.get("mask_output", "")),
             train_dataset=str((t.get("training") or {}).get("dataset", "")),
             train_lora=str((t.get("training") or {}).get("lora", "")),
+            content=str(t.get("content", "explizit")),
         )
+        if wf.content not in CONTENT_TIERS:
+            raise ManifestError(f"Manifest: {w}.content muss {CONTENT_TIERS} sein.")
         if bool(wf.train_dataset) != bool(wf.train_lora):
             raise ManifestError(f"Manifest: {w}.training braucht dataset und lora.")
         if wf.training and not {"steps", "rank", "learning_rate"} <= set(params):

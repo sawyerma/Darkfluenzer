@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/commands.proto.
  */
 export const file_darkfluenzer_v1_commands: GenFile = /*@__PURE__*/
-  fileDesc("Ch5kYXJrZmx1ZW56ZXIvdjEvY29tbWFuZHMucHJvdG8SD2RhcmtmbHVlbnplci52MSIeCgpDb21meVN0YXJ0EhAKCGluc3RhbmNlGAEgASgJIh0KCUNvbWZ5U3RvcBIQCghpbnN0YW5jZRgBIAEoCSJYCgpQYXJhbVZhbHVlEgwKBG5hbWUYASABKAkSDgoEdGV4dBgCIAEoCUgAEhEKB2ludGVnZXIYAyABKANIABIQCgZudW1iZXIYBCABKAFIAEIHCgV2YWx1ZSJiCglJbnB1dEZpbGUSDQoFcGFyYW0YASABKAkSEAoIZmlsZW5hbWUYAiABKAkSDAoEZGF0YRgDIAEoDBIQCghtZWRpYV9pZBgEIAEoBBIUCgxyZWZlcmVuY2VfaWQYBSABKAQiuAEKBlJlbmRlchIQCgh3b3JrZmxvdxgBIAEoCRIrCgZ2YWx1ZXMYAiADKAsyGy5kYXJrZmx1ZW56ZXIudjEuUGFyYW1WYWx1ZRIpCgVmaWxlcxgDIAMoCzIaLmRhcmtmbHVlbnplci52MS5JbnB1dEZpbGUSFwoPcGFyZW50X21lZGlhX2lkGAQgASgEEhUKDXJlcGVhdF9qb2JfaWQYBSABKAQSFAoMY2hhcmFjdGVyX2lkGAYgASgEIjcKElNldFdvcmtmbG93RW5hYmxlZBIQCgh3b3JrZmxvdxgBIAEoCRIPCgdlbmFibGVkGAIgASgIIiAKDE9wZW5Xb3JrZmxvdxIQCgh3b3JrZmxvdxgBIAEoCSIhCg1BZG9wdFdvcmtmbG93EhAKCHdvcmtmbG93GAEgASgJIiIKDkRlbGV0ZVdvcmtmbG93EhAKCHdvcmtmbG93GAEgASgJIi8KDkNyZWF0ZVdvcmtmbG93Eg4KBnNvdXJjZRgBIAEoCRINCgV0aXRsZRgCIAEoCSIbCglDYW5jZWxKb2ISDgoGam9iX2lkGAEgASgEIi4KClBhdXNlUXVldWUSDgoGcGF1c2VkGAEgASgIEhAKCGluc3RhbmNlGAIgASgJIiAKC0RlbGV0ZU1lZGlhEhEKCW1lZGlhX2lkcxgBIAMoBCK9AQoLQ3JlYXRlT3JkZXISEAoId29ya2Zsb3cYASABKAkSKwoGdmFsdWVzGAIgAygLMhsuZGFya2ZsdWVuemVyLnYxLlBhcmFtVmFsdWUSKQoFZmlsZXMYAyADKAsyGi5kYXJrZmx1ZW56ZXIudjEuSW5wdXRGaWxlEhIKCmNhbmRpZGF0ZXMYBCABKA0SFwoPZmluaXNoX3dvcmtmbG93GAUgASgJEhcKD3BhcmVudF9tZWRpYV9pZBgGIAEoBCI1Cg9TZWxlY3RDYW5kaWRhdGUSEAoIb3JkZXJfbm8YASABKAkSEAoIbWVkaWFfaWQYAiABKAQiKwoKUmV0cnlTdGFnZRIQCghvcmRlcl9ubxgBIAEoCRILCgNzZXEYAiABKA0iWwoPQ2hhcmFjdGVyVXBkYXRlEhQKDGNoYXJhY3Rlcl9pZBgBIAEoBBIQCghyZXZpc2lvbhgCIAEoBBIMCgRuYW1lGAMgASgJEhIKCnBob3Rvc19kaXIYBCABKAkiRAoTQ2hhbm5lbEFjY291bnRMb2dpbhIQCghwbGF0Zm9ybRgBIAEoCRIMCgRzdGVwGAIgASgJEg0KBXZhbHVlGAMgASgJIjgKFENoYW5uZWxBY2NvdW50VXBkYXRlEhAKCHBsYXRmb3JtGAEgASgJEg4KBmFjdGlvbhgCIAEoCSKvAQoQSW5mbHVlbmNlclVwZGF0ZRIVCg1pbmZsdWVuY2VyX2lkGAEgASgEEhAKCHJldmlzaW9uGAIgASgEEgwKBG5hbWUYAyABKAkSFAoMY2hhcmFjdGVyX2lkGAQgASgEEg8KB3BlcnNvbmEYBSABKAkSEQoJYWlfbm90aWNlGAYgASgJEioKBnByaWNlcxgHIAMoCzIaLmRhcmtmbHVlbnplci52MS5QcmljZUl0ZW0iIwoQU3RhcnRDbG9uZXJPcmRlchIPCgdpdGVtX2lkGAEgASgEIjMKCE1hcmtSZWFkEhMKC2N1c3RvbWVyX2lkGAEgASgEEhIKCnVwX3RvX2l0ZW0YAiABKAQigAEKCVNlbmRSZXBseRITCgtjdXN0b21lcl9pZBgBIAEoBBITCgtpZGVudGl0eV9pZBgCIAEoBBIXCg9jb252ZXJzYXRpb25faWQYAyABKAQSEAoIcGxhdGZvcm0YBCABKAkSEAoIcmV2aXNpb24YBSABKAQSDAoEdGV4dBgGIAEoCSLrAQoURGVmYXVsdENvbnRhY3RVcGRhdGUSEAoIcmV2aXNpb24YASABKAQSGgoSdGVsZWdyYW1fc2VuZGVyX2lkGAIgASgJEhsKE2luc3RhZ3JhbV9zZW5kZXJfaWQYAyABKAkSGAoQcHJvY2Vzc19jb21tYW5kcxgEIAEoCBITCgthdXRvX29yZGVycxgFIAEoCBIVCg1hcHByb3ZhbF9tb2RlGAYgASgJEhIKCmluZmx1ZW5jZXIYByABKAkSFgoObWVkaWFfd29ya2Zsb3cYCCABKAkSFgoOdmlkZW9fd29ya2Zsb3cYCSABKAkixwoKDkNvbW1hbmRSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSGAoQZXhwZWN0ZWRfdmVyc2lvbhgCIAEoBBIyCgtjb21meV9zdGFydBgKIAEoCzIbLmRhcmtmbHVlbnplci52MS5Db21meVN0YXJ0SAASMAoKY29tZnlfc3RvcBgLIAEoCzIaLmRhcmtmbHVlbnplci52MS5Db21meVN0b3BIABIpCgZyZW5kZXIYDCABKAsyFy5kYXJrZmx1ZW56ZXIudjEuUmVuZGVySAASQwoUc2V0X3dvcmtmbG93X2VuYWJsZWQYDSABKAsyIy5kYXJrZmx1ZW56ZXIudjEuU2V0V29ya2Zsb3dFbmFibGVkSAASNgoNb3Blbl93b3JrZmxvdxgOIAEoCzIdLmRhcmtmbHVlbnplci52MS5PcGVuV29ya2Zsb3dIABI4Cg5hZG9wdF93b3JrZmxvdxgPIAEoCzIeLmRhcmtmbHVlbnplci52MS5BZG9wdFdvcmtmbG93SAASOgoPZGVsZXRlX3dvcmtmbG93GBAgASgLMh8uZGFya2ZsdWVuemVyLnYxLkRlbGV0ZVdvcmtmbG93SAASOgoPY3JlYXRlX3dvcmtmbG93GBEgASgLMh8uZGFya2ZsdWVuemVyLnYxLkNyZWF0ZVdvcmtmbG93SAASMAoKY2FuY2VsX2pvYhgSIAEoCzIaLmRhcmtmbHVlbnplci52MS5DYW5jZWxKb2JIABIyCgtwYXVzZV9xdWV1ZRgTIAEoCzIbLmRhcmtmbHVlbnplci52MS5QYXVzZVF1ZXVlSAASNAoMZGVsZXRlX21lZGlhGBQgASgLMhwuZGFya2ZsdWVuemVyLnYxLkRlbGV0ZU1lZGlhSAASNAoMY3JlYXRlX29yZGVyGBUgASgLMhwuZGFya2ZsdWVuemVyLnYxLkNyZWF0ZU9yZGVySAASPAoQc2VsZWN0X2NhbmRpZGF0ZRgWIAEoCzIgLmRhcmtmbHVlbnplci52MS5TZWxlY3RDYW5kaWRhdGVIABIyCgtyZXRyeV9zdGFnZRgYIAEoCzIbLmRhcmtmbHVlbnplci52MS5SZXRyeVN0YWdlSAASLgoJbWFya19yZWFkGB0gASgLMhkuZGFya2ZsdWVuemVyLnYxLk1hcmtSZWFkSAASMAoKc2VuZF9yZXBseRgeIAEoCzIaLmRhcmtmbHVlbnplci52MS5TZW5kUmVwbHlIABJHChZkZWZhdWx0X2NvbnRhY3RfdXBkYXRlGCUgASgLMiUuZGFya2ZsdWVuemVyLnYxLkRlZmF1bHRDb250YWN0VXBkYXRlSAASPAoQY2hhcmFjdGVyX3VwZGF0ZRgZIAEoCzIgLmRhcmtmbHVlbnplci52MS5DaGFyYWN0ZXJVcGRhdGVIABI/ChJzdGFydF9jbG9uZXJfb3JkZXIYJiABKAsyIS5kYXJrZmx1ZW56ZXIudjEuU3RhcnRDbG9uZXJPcmRlckgAEkUKFWNoYW5uZWxfYWNjb3VudF9sb2dpbhgnIAEoCzIkLmRhcmtmbHVlbnplci52MS5DaGFubmVsQWNjb3VudExvZ2luSAASRwoWY2hhbm5lbF9hY2NvdW50X3VwZGF0ZRgoIAEoCzIlLmRhcmtmbHVlbnplci52MS5DaGFubmVsQWNjb3VudFVwZGF0ZUgAEj4KEWluZmx1ZW5jZXJfdXBkYXRlGCMgASgLMiEuZGFya2ZsdWVuemVyLnYxLkluZmx1ZW5jZXJVcGRhdGVIAEIJCgdjb21tYW5kInUKD0NvbW1hbmRSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEi4KBnN0YXR1cxgCIAEoDjIeLmRhcmtmbHVlbnplci52MS5Db21tYW5kU3RhdHVzEg4KBmRldGFpbBgDIAEoCRIOCgZlbnRpdHkYBCABKAkilgEKDkNvbW1hbmRSZWNlaXB0EhIKCnJlcXVlc3RfaWQYASABKAkSLgoGc3RhdHVzGAIgASgOMh4uZGFya2ZsdWVuemVyLnYxLkNvbW1hbmRTdGF0dXMSDwoHY29tbWFuZBgDIAEoCRIOCgZlbnRpdHkYBCABKAkSDgoGZGV0YWlsGAUgASgJEg8KB3ZlcnNpb24YBiABKAQq3AEKDUNvbW1hbmRTdGF0dXMSHgoaQ09NTUFORF9TVEFUVVNfVU5TUEVDSUZJRUQQABIbChdDT01NQU5EX1NUQVRVU19BQ0NFUFRFRBABEhsKF0NPTU1BTkRfU1RBVFVTX1JFSkVDVEVEEAISHAoYQ09NTUFORF9TVEFUVVNfQ09NUExFVEVEEAMSGQoVQ09NTUFORF9TVEFUVVNfRkFJTEVEEAQSGgoWQ09NTUFORF9TVEFUVVNfVU5LTk9XThAFEhwKGENPTU1BTkRfU1RBVFVTX0NBTkNFTExFRBAGYgZwcm90bzM", [file_darkfluenzer_v1_influencer]);
+  fileDesc("Ch5kYXJrZmx1ZW56ZXIvdjEvY29tbWFuZHMucHJvdG8SD2RhcmtmbHVlbnplci52MSIeCgpDb21meVN0YXJ0EhAKCGluc3RhbmNlGAEgASgJIh0KCUNvbWZ5U3RvcBIQCghpbnN0YW5jZRgBIAEoCSJYCgpQYXJhbVZhbHVlEgwKBG5hbWUYASABKAkSDgoEdGV4dBgCIAEoCUgAEhEKB2ludGVnZXIYAyABKANIABIQCgZudW1iZXIYBCABKAFIAEIHCgV2YWx1ZSJiCglJbnB1dEZpbGUSDQoFcGFyYW0YASABKAkSEAoIZmlsZW5hbWUYAiABKAkSDAoEZGF0YRgDIAEoDBIQCghtZWRpYV9pZBgEIAEoBBIUCgxyZWZlcmVuY2VfaWQYBSABKAQiuAEKBlJlbmRlchIQCgh3b3JrZmxvdxgBIAEoCRIrCgZ2YWx1ZXMYAiADKAsyGy5kYXJrZmx1ZW56ZXIudjEuUGFyYW1WYWx1ZRIpCgVmaWxlcxgDIAMoCzIaLmRhcmtmbHVlbnplci52MS5JbnB1dEZpbGUSFwoPcGFyZW50X21lZGlhX2lkGAQgASgEEhUKDXJlcGVhdF9qb2JfaWQYBSABKAQSFAoMY2hhcmFjdGVyX2lkGAYgASgEIjcKElNldFdvcmtmbG93RW5hYmxlZBIQCgh3b3JrZmxvdxgBIAEoCRIPCgdlbmFibGVkGAIgASgIIiAKDE9wZW5Xb3JrZmxvdxIQCgh3b3JrZmxvdxgBIAEoCSIhCg1BZG9wdFdvcmtmbG93EhAKCHdvcmtmbG93GAEgASgJIiIKDkRlbGV0ZVdvcmtmbG93EhAKCHdvcmtmbG93GAEgASgJIi8KDkNyZWF0ZVdvcmtmbG93Eg4KBnNvdXJjZRgBIAEoCRINCgV0aXRsZRgCIAEoCSIbCglDYW5jZWxKb2ISDgoGam9iX2lkGAEgASgEIi4KClBhdXNlUXVldWUSDgoGcGF1c2VkGAEgASgIEhAKCGluc3RhbmNlGAIgASgJIiAKC0RlbGV0ZU1lZGlhEhEKCW1lZGlhX2lkcxgBIAMoBCK9AQoLQ3JlYXRlT3JkZXISEAoId29ya2Zsb3cYASABKAkSKwoGdmFsdWVzGAIgAygLMhsuZGFya2ZsdWVuemVyLnYxLlBhcmFtVmFsdWUSKQoFZmlsZXMYAyADKAsyGi5kYXJrZmx1ZW56ZXIudjEuSW5wdXRGaWxlEhIKCmNhbmRpZGF0ZXMYBCABKA0SFwoPZmluaXNoX3dvcmtmbG93GAUgASgJEhcKD3BhcmVudF9tZWRpYV9pZBgGIAEoBCI1Cg9TZWxlY3RDYW5kaWRhdGUSEAoIb3JkZXJfbm8YASABKAkSEAoIbWVkaWFfaWQYAiABKAQiKwoKUmV0cnlTdGFnZRIQCghvcmRlcl9ubxgBIAEoCRILCgNzZXEYAiABKA0iWwoPQ2hhcmFjdGVyVXBkYXRlEhQKDGNoYXJhY3Rlcl9pZBgBIAEoBBIQCghyZXZpc2lvbhgCIAEoBBIMCgRuYW1lGAMgASgJEhIKCnBob3Rvc19kaXIYBCABKAkiRAoTQ2hhbm5lbEFjY291bnRMb2dpbhIQCghwbGF0Zm9ybRgBIAEoCRIMCgRzdGVwGAIgASgJEg0KBXZhbHVlGAMgASgJIjgKFENoYW5uZWxBY2NvdW50VXBkYXRlEhAKCHBsYXRmb3JtGAEgASgJEg4KBmFjdGlvbhgCIAEoCSKvAQoQSW5mbHVlbmNlclVwZGF0ZRIVCg1pbmZsdWVuY2VyX2lkGAEgASgEEhAKCHJldmlzaW9uGAIgASgEEgwKBG5hbWUYAyABKAkSFAoMY2hhcmFjdGVyX2lkGAQgASgEEg8KB3BlcnNvbmEYBSABKAkSEQoJYWlfbm90aWNlGAYgASgJEioKBnByaWNlcxgHIAMoCzIaLmRhcmtmbHVlbnplci52MS5QcmljZUl0ZW0iJAoQTWVkaWFDb250ZW50VGllchIQCghtZWRpYV9pZBgBIAEoBCI0Cg9DdXN0b21lckFnZU1hcmsSEwoLY3VzdG9tZXJfaWQYASABKAQSDAoEbWFyaxgCIAEoCSI4CgxTZW5kQWlOb3RpY2USEwoLY3VzdG9tZXJfaWQYASABKAQSEwoLaWRlbnRpdHlfaWQYAiABKAQiIwoQU3RhcnRDbG9uZXJPcmRlchIPCgdpdGVtX2lkGAEgASgEIjMKCE1hcmtSZWFkEhMKC2N1c3RvbWVyX2lkGAEgASgEEhIKCnVwX3RvX2l0ZW0YAiABKAQigAEKCVNlbmRSZXBseRITCgtjdXN0b21lcl9pZBgBIAEoBBITCgtpZGVudGl0eV9pZBgCIAEoBBIXCg9jb252ZXJzYXRpb25faWQYAyABKAQSEAoIcGxhdGZvcm0YBCABKAkSEAoIcmV2aXNpb24YBSABKAQSDAoEdGV4dBgGIAEoCSLrAQoURGVmYXVsdENvbnRhY3RVcGRhdGUSEAoIcmV2aXNpb24YASABKAQSGgoSdGVsZWdyYW1fc2VuZGVyX2lkGAIgASgJEhsKE2luc3RhZ3JhbV9zZW5kZXJfaWQYAyABKAkSGAoQcHJvY2Vzc19jb21tYW5kcxgEIAEoCBITCgthdXRvX29yZGVycxgFIAEoCBIVCg1hcHByb3ZhbF9tb2RlGAYgASgJEhIKCmluZmx1ZW5jZXIYByABKAkSFgoObWVkaWFfd29ya2Zsb3cYCCABKAkSFgoOdmlkZW9fd29ya2Zsb3cYCSABKAkigAwKDkNvbW1hbmRSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSGAoQZXhwZWN0ZWRfdmVyc2lvbhgCIAEoBBIyCgtjb21meV9zdGFydBgKIAEoCzIbLmRhcmtmbHVlbnplci52MS5Db21meVN0YXJ0SAASMAoKY29tZnlfc3RvcBgLIAEoCzIaLmRhcmtmbHVlbnplci52MS5Db21meVN0b3BIABIpCgZyZW5kZXIYDCABKAsyFy5kYXJrZmx1ZW56ZXIudjEuUmVuZGVySAASQwoUc2V0X3dvcmtmbG93X2VuYWJsZWQYDSABKAsyIy5kYXJrZmx1ZW56ZXIudjEuU2V0V29ya2Zsb3dFbmFibGVkSAASNgoNb3Blbl93b3JrZmxvdxgOIAEoCzIdLmRhcmtmbHVlbnplci52MS5PcGVuV29ya2Zsb3dIABI4Cg5hZG9wdF93b3JrZmxvdxgPIAEoCzIeLmRhcmtmbHVlbnplci52MS5BZG9wdFdvcmtmbG93SAASOgoPZGVsZXRlX3dvcmtmbG93GBAgASgLMh8uZGFya2ZsdWVuemVyLnYxLkRlbGV0ZVdvcmtmbG93SAASOgoPY3JlYXRlX3dvcmtmbG93GBEgASgLMh8uZGFya2ZsdWVuemVyLnYxLkNyZWF0ZVdvcmtmbG93SAASMAoKY2FuY2VsX2pvYhgSIAEoCzIaLmRhcmtmbHVlbnplci52MS5DYW5jZWxKb2JIABIyCgtwYXVzZV9xdWV1ZRgTIAEoCzIbLmRhcmtmbHVlbnplci52MS5QYXVzZVF1ZXVlSAASNAoMZGVsZXRlX21lZGlhGBQgASgLMhwuZGFya2ZsdWVuemVyLnYxLkRlbGV0ZU1lZGlhSAASNAoMY3JlYXRlX29yZGVyGBUgASgLMhwuZGFya2ZsdWVuemVyLnYxLkNyZWF0ZU9yZGVySAASPAoQc2VsZWN0X2NhbmRpZGF0ZRgWIAEoCzIgLmRhcmtmbHVlbnplci52MS5TZWxlY3RDYW5kaWRhdGVIABIyCgtyZXRyeV9zdGFnZRgYIAEoCzIbLmRhcmtmbHVlbnplci52MS5SZXRyeVN0YWdlSAASLgoJbWFya19yZWFkGB0gASgLMhkuZGFya2ZsdWVuemVyLnYxLk1hcmtSZWFkSAASMAoKc2VuZF9yZXBseRgeIAEoCzIaLmRhcmtmbHVlbnplci52MS5TZW5kUmVwbHlIABJHChZkZWZhdWx0X2NvbnRhY3RfdXBkYXRlGCUgASgLMiUuZGFya2ZsdWVuemVyLnYxLkRlZmF1bHRDb250YWN0VXBkYXRlSAASPAoQY2hhcmFjdGVyX3VwZGF0ZRgZIAEoCzIgLmRhcmtmbHVlbnplci52MS5DaGFyYWN0ZXJVcGRhdGVIABI/ChJzdGFydF9jbG9uZXJfb3JkZXIYJiABKAsyIS5kYXJrZmx1ZW56ZXIudjEuU3RhcnRDbG9uZXJPcmRlckgAEkUKFWNoYW5uZWxfYWNjb3VudF9sb2dpbhgnIAEoCzIkLmRhcmtmbHVlbnplci52MS5DaGFubmVsQWNjb3VudExvZ2luSAASRwoWY2hhbm5lbF9hY2NvdW50X3VwZGF0ZRgoIAEoCzIlLmRhcmtmbHVlbnplci52MS5DaGFubmVsQWNjb3VudFVwZGF0ZUgAEj4KEWluZmx1ZW5jZXJfdXBkYXRlGCMgASgLMiEuZGFya2ZsdWVuemVyLnYxLkluZmx1ZW5jZXJVcGRhdGVIABI/ChJtZWRpYV9jb250ZW50X3RpZXIYKyABKAsyIS5kYXJrZmx1ZW56ZXIudjEuTWVkaWFDb250ZW50VGllckgAEj0KEWN1c3RvbWVyX2FnZV9tYXJrGCwgASgLMiAuZGFya2ZsdWVuemVyLnYxLkN1c3RvbWVyQWdlTWFya0gAEjcKDnNlbmRfYWlfbm90aWNlGC0gASgLMh0uZGFya2ZsdWVuemVyLnYxLlNlbmRBaU5vdGljZUgAQgkKB2NvbW1hbmQidQoPQ29tbWFuZFJlc3BvbnNlEhIKCnJlcXVlc3RfaWQYASABKAkSLgoGc3RhdHVzGAIgASgOMh4uZGFya2ZsdWVuemVyLnYxLkNvbW1hbmRTdGF0dXMSDgoGZGV0YWlsGAMgASgJEg4KBmVudGl0eRgEIAEoCSKWAQoOQ29tbWFuZFJlY2VpcHQSEgoKcmVxdWVzdF9pZBgBIAEoCRIuCgZzdGF0dXMYAiABKA4yHi5kYXJrZmx1ZW56ZXIudjEuQ29tbWFuZFN0YXR1cxIPCgdjb21tYW5kGAMgASgJEg4KBmVudGl0eRgEIAEoCRIOCgZkZXRhaWwYBSABKAkSDwoHdmVyc2lvbhgGIAEoBCrcAQoNQ29tbWFuZFN0YXR1cxIeChpDT01NQU5EX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF0NPTU1BTkRfU1RBVFVTX0FDQ0VQVEVEEAESGwoXQ09NTUFORF9TVEFUVVNfUkVKRUNURUQQAhIcChhDT01NQU5EX1NUQVRVU19DT01QTEVURUQQAxIZChVDT01NQU5EX1NUQVRVU19GQUlMRUQQBBIaChZDT01NQU5EX1NUQVRVU19VTktOT1dOEAUSHAoYQ09NTUFORF9TVEFUVVNfQ0FOQ0VMTEVEEAZiBnByb3RvMw", [file_darkfluenzer_v1_influencer]);
 
 /**
  * Instanz: media | ai (leer = media)
@@ -590,6 +590,75 @@ export const InfluencerUpdateSchema: GenMessage<InfluencerUpdate> = /*@__PURE__*
   messageDesc(file_darkfluenzer_v1_commands, 19);
 
 /**
+ * Inhaltsstufe eines Mediums auf „explizit“ anheben – nie absenken (Regel 13).
+ *
+ * @generated from message darkfluenzer.v1.MediaContentTier
+ */
+export type MediaContentTier = Message<"darkfluenzer.v1.MediaContentTier"> & {
+  /**
+   * @generated from field: uint64 media_id = 1;
+   */
+  mediaId: bigint;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.MediaContentTier.
+ * Use `create(MediaContentTierSchema)` to create a new message.
+ */
+export const MediaContentTierSchema: GenMessage<MediaContentTier> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 20);
+
+/**
+ * Altersangabe einer Kundenakte setzen (nur Betreiber; Regel 13):
+ * unclear | under_18 | self_declared_adult (Angabe ≥ 18, Selbstauskunft – keine Verifikation).
+ *
+ * @generated from message darkfluenzer.v1.CustomerAgeMark
+ */
+export type CustomerAgeMark = Message<"darkfluenzer.v1.CustomerAgeMark"> & {
+  /**
+   * @generated from field: uint64 customer_id = 1;
+   */
+  customerId: bigint;
+
+  /**
+   * @generated from field: string mark = 2;
+   */
+  mark: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.CustomerAgeMark.
+ * Use `create(CustomerAgeMarkSchema)` to create a new message.
+ */
+export const CustomerAgeMarkSchema: GenMessage<CustomerAgeMark> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 21);
+
+/**
+ * KI-Hinweistext der Influencerin genau einmal je Kanalidentität über den Postausgang senden
+ * (Regel 12 b); die Karte KI-HINWEIS GESENDET entsteht beim tatsächlichen Versand.
+ *
+ * @generated from message darkfluenzer.v1.SendAiNotice
+ */
+export type SendAiNotice = Message<"darkfluenzer.v1.SendAiNotice"> & {
+  /**
+   * @generated from field: uint64 customer_id = 1;
+   */
+  customerId: bigint;
+
+  /**
+   * @generated from field: uint64 identity_id = 2;
+   */
+  identityId: bigint;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.SendAiNotice.
+ * Use `create(SendAiNoticeSchema)` to create a new message.
+ */
+export const SendAiNoticeSchema: GenMessage<SendAiNotice> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_commands, 22);
+
+/**
  * Erkannten Kloner-Auftrag starten, der auf den Betreiberstart wartet (Systemkarte mit
  * awaiting_start). Läuft mit dem aktuellen Medien-Workflow des Default-Kontakts; genau einmal.
  *
@@ -607,7 +676,7 @@ export type StartClonerOrder = Message<"darkfluenzer.v1.StartClonerOrder"> & {
  * Use `create(StartClonerOrderSchema)` to create a new message.
  */
 export const StartClonerOrderSchema: GenMessage<StartClonerOrder> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 20);
+  messageDesc(file_darkfluenzer_v1_commands, 23);
 
 /**
  * Ungelesene Nachrichten einer Kundenakte bis einschließlich item_id als gelesen markieren.
@@ -631,7 +700,7 @@ export type MarkRead = Message<"darkfluenzer.v1.MarkRead"> & {
  * Use `create(MarkReadSchema)` to create a new message.
  */
 export const MarkReadSchema: GenMessage<MarkRead> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 21);
+  messageDesc(file_darkfluenzer_v1_commands, 24);
 
 /**
  * Manuelle Textantwort des Betreibers (F4): nur an die gewählte, verifizierte Konversation dieses
@@ -678,7 +747,7 @@ export type SendReply = Message<"darkfluenzer.v1.SendReply"> & {
  * Use `create(SendReplySchema)` to create a new message.
  */
 export const SendReplySchema: GenMessage<SendReply> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 22);
+  messageDesc(file_darkfluenzer_v1_commands, 25);
 
 /**
  * Operator-Felder des Default-Kontakts (F7.4) speichern; CAS über DefaultContact.revision.
@@ -739,7 +808,7 @@ export type DefaultContactUpdate = Message<"darkfluenzer.v1.DefaultContactUpdate
  * Use `create(DefaultContactUpdateSchema)` to create a new message.
  */
 export const DefaultContactUpdateSchema: GenMessage<DefaultContactUpdate> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 23);
+  messageDesc(file_darkfluenzer_v1_commands, 26);
 
 /**
  * @generated from message darkfluenzer.v1.CommandRequest
@@ -898,6 +967,24 @@ export type CommandRequest = Message<"darkfluenzer.v1.CommandRequest"> & {
      */
     value: InfluencerUpdate;
     case: "influencerUpdate";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.MediaContentTier media_content_tier = 43;
+     */
+    value: MediaContentTier;
+    case: "mediaContentTier";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.CustomerAgeMark customer_age_mark = 44;
+     */
+    value: CustomerAgeMark;
+    case: "customerAgeMark";
+  } | {
+    /**
+     * @generated from field: darkfluenzer.v1.SendAiNotice send_ai_notice = 45;
+     */
+    value: SendAiNotice;
+    case: "sendAiNotice";
   } | { case: undefined; value?: undefined };
 };
 
@@ -906,7 +993,7 @@ export type CommandRequest = Message<"darkfluenzer.v1.CommandRequest"> & {
  * Use `create(CommandRequestSchema)` to create a new message.
  */
 export const CommandRequestSchema: GenMessage<CommandRequest> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 24);
+  messageDesc(file_darkfluenzer_v1_commands, 27);
 
 /**
  * Sofortige Antwort: ACCEPTED oder REJECTED, nie ein terminales Ergebnis.
@@ -944,7 +1031,7 @@ export type CommandResponse = Message<"darkfluenzer.v1.CommandResponse"> & {
  * Use `create(CommandResponseSchema)` to create a new message.
  */
 export const CommandResponseSchema: GenMessage<CommandResponse> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 25);
+  messageDesc(file_darkfluenzer_v1_commands, 28);
 
 /**
  * EVENT command.receipt: persistierter Lebenszyklus eines Befehls (je Statuswechsel ein Eintrag).
@@ -992,7 +1079,7 @@ export type CommandReceipt = Message<"darkfluenzer.v1.CommandReceipt"> & {
  * Use `create(CommandReceiptSchema)` to create a new message.
  */
 export const CommandReceiptSchema: GenMessage<CommandReceipt> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_commands, 26);
+  messageDesc(file_darkfluenzer_v1_commands, 29);
 
 /**
  * @generated from enum darkfluenzer.v1.CommandStatus

@@ -182,6 +182,9 @@ function MediaDetail({
             local/{item.path} · {(Number(item.size) / 1e6).toFixed(1)} MB
           </Row>
           <Row label="SHA-256">{short(item.sha256)}</Row>
+          <Row label="Inhaltsstufe">
+            {item.contentTier === "standard" ? "standard" : item.contentTier === "explizit" ? "explizit" : "unbekannt – gilt als explizit"}
+          </Row>
           {prov?.jobId ? (
             <>
               <Row label="Auftrag">
@@ -292,6 +295,16 @@ function MediaDetail({
           {toVideo ? (
             <button type="button" className="g-button" onClick={() => setRenderIntent({ workflow: toVideo.key, media: item })}>
               Video erstellen
+            </button>
+          ) : null}
+          {item.contentTier !== "explizit" ? (
+            <button
+              type="button"
+              className="g-button"
+              disabled={cmd.pending}
+              onClick={() => void cmd.run({ case: "mediaContentTier", value: { mediaId: item.mediaId } }, { done: "Als explizit markiert." })}
+            >
+              Als explizit markieren
             </button>
           ) : null}
           <a className="g-button" href={mediaUrl(item.path)} target="_blank" rel="noreferrer">

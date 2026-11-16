@@ -36,6 +36,11 @@ def _paid_order_in_review(store: Store, user: int = 100, candidates: int = 3):
         f = work / f"candidate_{i:02d}.png"
         f.write_bytes(f"png-{order.id}-{i}".encode())
         arts.append(store.add_artifact(order.order_no, "candidate", f))
+    # Kandidaten eines als „standard“ markierten Workflows (Regel 13; ohne Job sonst unbekannt)
+    store.db.execute(
+        f"UPDATE media SET content_tier = 'standard' WHERE artifact_id IN"
+        f" ({','.join(str(a.id) for a in arts)})"
+    )
     store.transition(order.order_no, "review")
     return customer, store.order(order.order_no), arts
 
@@ -351,3 +356,21 @@ def test_comfy_output_of_a_running_job_is_indexed_with_the_job(cfg):
         assert [(rel, job_id) for _, rel, _, _, job_id in found] == [(out["path"], job)]
     finally:
         s.close()
+
+
+def test_explicit_or_unknown_tier_never_reaches_customers(store):
+    """Regel 13: nur „standard“ an Kunden; anheben ja, absenken nie (auch nicht per SQL)."""
+    import sqlite3
+
+    customer, order, arts = _paid_order_in_review(store)
+    store.record_approval(order.order_no, arts[1].id, "approved", "betreiber")
+    (media_id,) = store.db.execute(
+        "SELECT id FROM media WHERE artifact_id = ?", (arts[1].id,)
+    ).fetchone()
+    store.raise_content_tier(media_id)
+    gate = approval.check_gate(store, order.order_no, arts[1].id, customer.customer_no)
+    assert not gate.ok and any(r.startswith("CONTENT_TIER") for r in gate.reasons)
+    with pytest.raises(sqlite3.IntegrityError, match="nur anhebbar"):
+        store.db.execute("UPDATE media SET content_tier = 'standard' WHERE id = ?", (media_id,))
+    with pytest.raises(StoreError, match="bereits explizit"):
+        store.raise_content_tier(media_id)

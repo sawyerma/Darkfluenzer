@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -568,6 +568,24 @@ CREATE TABLE influencer_prices (
     PRIMARY KEY (influencer_id, position)
 );
 """,
+    14: """
+-- Inhaltsstufe je Job und Medium (Regel 13; NULL = unbekannt = explizit), Altersangabe je Akte
+-- (Regel 13; Standard unklar, setzt nur der Betreiber), KI-Hinweis je Kanalidentität (Regel 12 b)
+ALTER TABLE jobs ADD COLUMN content_tier TEXT CHECK (content_tier IN ('standard', 'explizit'));
+ALTER TABLE media ADD COLUMN content_tier TEXT CHECK (content_tier IN ('standard', 'explizit'));
+ALTER TABLE customers ADD COLUMN age_mark TEXT NOT NULL DEFAULT 'unclear'
+    CHECK (age_mark IN ('unclear', 'under_18', 'self_declared_adult'));
+ALTER TABLE channel_identities ADD COLUMN ai_notice_message_id INTEGER
+    REFERENCES channel_messages(id);
+-- Medien bleiben unveränderlich bis auf die Inhaltsstufe, und die nur anhebbar
+DROP TRIGGER media_no_update;
+CREATE TRIGGER media_no_update BEFORE UPDATE OF id, sha256, path, kind, size, job_id, artifact_id,
+    order_id, number, created_at ON media
+BEGIN SELECT RAISE(ABORT, 'media: unveränderlich'); END;
+CREATE TRIGGER media_tier_raise_only BEFORE UPDATE OF content_tier ON media
+    WHEN OLD.content_tier = 'explizit' AND NEW.content_tier IS NOT 'explizit'
+BEGIN SELECT RAISE(ABORT, 'media: Inhaltsstufe nur anhebbar'); END;
+""",
 }
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
 REBUILDS = {5, 6, 7}
@@ -1038,6 +1056,14 @@ class Store:
             )
             self._event("message", message_id, "status", status=status, error=error)
             self.bump("conversations")
+            if status == "sent":  # KI-Hinweis wirklich gesendet: Ereigniskarte (Regel 12 b)
+                notice = db.execute(
+                    "SELECT c.id FROM channel_identities i JOIN channel_conversations c"
+                    " ON c.identity_id = i.id WHERE i.ai_notice_message_id = ?",
+                    (message_id,),
+                ).fetchone()
+                if notice:
+                    self.add_system_card(notice[0], "KI-HINWEIS GESENDET")
 
     def outbox(self, platform: str, account: str) -> list[dict]:
         """Wartende ausgehende Nachrichten eines Kanals in Eingangsreihenfolge."""
@@ -1135,8 +1161,10 @@ class Store:
 
     def identities(self, customer_id: int) -> list[dict]:
         rows = self.db.execute(
-            "SELECT i.*, c.id AS conversation_id, c.platform_conversation_id, c.revision"
-            " FROM channel_identities i LEFT JOIN channel_conversations c ON c.identity_id = i.id"
+            "SELECT i.*, c.id AS conversation_id, c.platform_conversation_id, c.revision,"
+            " n.status AS ai_notice_status FROM channel_identities i"
+            " LEFT JOIN channel_conversations c ON c.identity_id = i.id"
+            " LEFT JOIN channel_messages n ON n.id = i.ai_notice_message_id"
             " WHERE i.customer_id = ? ORDER BY i.id",
             (customer_id,),
         )
@@ -1193,6 +1221,80 @@ class Store:
         ).fetchall()
         recent = [dict(r) for r in rows[:limit]]
         return recent[::-1], len(rows) > limit
+
+    # ------------------------------------------------------------------ Inhaltsstufe (Regel 13)
+
+    def media_tier(self, media_id: int) -> str | None:
+        row = self.db.execute("SELECT content_tier FROM media WHERE id = ?", (media_id,)).fetchone()
+        if row is None:
+            raise StoreError(f"Medium {media_id} unbekannt.")
+        return row[0]
+
+    def raise_content_tier(self, media_id: int) -> None:
+        """Inhaltsstufe eines Mediums auf „explizit“ anheben – nie absenken (Regel 13)."""
+        with self.tx() as db:
+            if self.media_tier(media_id) == "explizit":
+                raise StoreError("Medium ist bereits explizit.")
+            db.execute("UPDATE media SET content_tier = 'explizit' WHERE id = ?", (media_id,))
+            self._event("media", media_id, "tier", content_tier="explizit")
+            self.bump("media")
+
+    def backfill_content_tiers(self, workflow_tiers: dict[str, str]) -> int:
+        """Erstzuordnung für Jobs/Medien vor Migration 14: Stufe des Workflows (unbekannter
+        Workflow = explizit) und höhere Stufe des Ausgangsmediums; Medien erben vom Job."""
+        from .models import higher_tier
+
+        with self.tx() as db:
+            rows = db.execute(
+                "SELECT j.id, j.workflow, m.content_tier AS parent_tier, j.parent_media_id"
+                " FROM jobs j LEFT JOIN media m ON m.id = j.parent_media_id"
+                " WHERE j.content_tier IS NULL ORDER BY j.id"
+            ).fetchall()
+            for r in rows:
+                parent = r["parent_tier"] if r["parent_media_id"] else "standard"
+                tier = higher_tier(workflow_tiers.get(r["workflow"]), parent)
+                db.execute("UPDATE jobs SET content_tier = ? WHERE id = ?", (tier, r["id"]))
+            n = db.execute(
+                "UPDATE media SET content_tier = (SELECT content_tier FROM jobs j"
+                " WHERE j.id = media.job_id) WHERE content_tier IS NULL AND job_id IS NOT NULL"
+            ).rowcount
+            return len(rows) + n
+
+    # ------------------------------------------------------------------ Alter und KI-Hinweis
+
+    AGE_MARKS = ("unclear", "under_18", "self_declared_adult")
+
+    def set_age_mark(self, customer_id: int, mark: str) -> None:
+        """Altersangabe der Akte (nur Betreiber; Regel 13): unklar | unter 18 | Angabe ≥ 18."""
+        if mark not in self.AGE_MARKS:
+            raise StoreError(f"Alter: {mark} unbekannt.")
+        self.customer_by_id(customer_id)
+        with self.tx() as db:
+            db.execute("UPDATE customers SET age_mark = ? WHERE id = ?", (mark, customer_id))
+            self._event("customer", customer_id, "age", age_mark=mark)
+            self.bump("customers")
+
+    def queue_ai_notice(self, customer_id: int, identity_id: int, text: str) -> int:
+        """KI-Hinweis genau einmal je Kanalidentität in den Postausgang (Regel 12 b)."""
+        with self.tx() as db:
+            ident = db.execute(
+                "SELECT i.ai_notice_message_id, c.id AS conversation_id, c.revision"
+                " FROM channel_identities i JOIN channel_conversations c ON c.identity_id = i.id"
+                " WHERE i.id = ? AND i.customer_id = ?",
+                (identity_id, customer_id),
+            ).fetchone()
+            if ident is None:
+                raise StoreError("Kanalidentität gehört nicht zu dieser Kundenakte.")
+            if ident["ai_notice_message_id"]:
+                raise StoreError("KI-Hinweis für diese Kanalidentität bereits ausgelöst.")
+            message_id = self.queue_outbound(
+                customer_id, ident["conversation_id"], text, revision=ident["revision"]
+            )
+            db.execute(
+                "UPDATE channel_identities SET ai_notice_message_id = ? WHERE id = ?",
+                (message_id, identity_id),
+            )
+            return message_id
 
     # ------------------------------------------------------------------ Zahlungen (C5a)
 
@@ -1692,7 +1794,8 @@ class Store:
     def stage_jobs(self, stage_id: int) -> list[dict]:
         """Jobs einer Stufe mit ihrem ersten Galerie-Medium (Kandidat)."""
         rows = self.db.execute(
-            "SELECT j.id, j.status, j.error, j.seeds, m.id AS media_id, m.path FROM jobs j"
+            "SELECT j.id, j.status, j.error, j.seeds, m.id AS media_id, m.path, m.content_tier"
+            " FROM jobs j"
             " LEFT JOIN media m ON m.id = (SELECT min(id) FROM media WHERE job_id = j.id)"
             " WHERE j.stage_id = ? ORDER BY j.id",
             (stage_id,),
@@ -1808,6 +1911,7 @@ class Store:
         parent_media_id: int | None = None,
         command: dict | None = None,
         stage_id: int | None = None,
+        content_tier: str | None = None,
     ) -> int:
         """Job anlegen; ``order_no=None`` für Renderungen ohne Kundenbezug (Evaluation).
         ``command``: auslösender Befehl (``record_command``-Argumente) – Job und Befehlsjournal
@@ -1817,8 +1921,8 @@ class Store:
             ts = now()
             cur = db.execute(
                 "INSERT INTO jobs (order_id, engine, workflow, prompt, params, seeds, created_at,"
-                " updated_at, parent_media_id, request_id, stage_id)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                " updated_at, parent_media_id, request_id, stage_id, content_tier)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     order_id,
                     engine,
@@ -1831,6 +1935,7 @@ class Store:
                     parent_media_id,
                     command["request_id"] if command else None,
                     stage_id,
+                    content_tier,
                 ),
             )
             job_id = cur.lastrowid
@@ -2109,12 +2214,20 @@ class Store:
             ).fetchone():
                 return None
             order_id = None
+            tier_job = job_id
             if artifact_id is not None:
-                order_id = self.artifact(artifact_id).order_id
+                art = self.artifact(artifact_id)
+                order_id, tier_job = art.order_id, art.job_id
             elif job_id is not None:
                 order_id = db.execute(
                     "SELECT order_id FROM jobs WHERE id = ?", (job_id,)
                 ).fetchone()[0]
+            tier_row = (
+                db.execute("SELECT content_tier FROM jobs WHERE id = ?", (tier_job,)).fetchone()
+                if tier_job is not None
+                else None
+            )
+            content_tier = tier_row[0] if tier_row else None
             # IDs und Nummern gelöschter Einträge werden nie wieder vergeben: das Journal kennt
             # jede jemals vergebene ID ('added') und jede gelöschte Nummer ('removed').
             media_id = db.execute(
@@ -2129,7 +2242,7 @@ class Store:
                 ).fetchone()[0]
             db.execute(
                 "INSERT INTO media (id, sha256, path, kind, size, job_id, artifact_id, order_id,"
-                " number, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                " number, created_at, content_tier) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     media_id,
                     sha,
@@ -2141,6 +2254,7 @@ class Store:
                     order_id,
                     number,
                     created_at or now(),
+                    content_tier,
                 ),
             )
             self._event("media", media_id, "added", path=rel)
@@ -2189,7 +2303,7 @@ class Store:
         rows = self.db.execute(
             "SELECT e.id AS cursor, e.created_at AS committed_at, x.* FROM events e JOIN ("
             + self._MEDIA_SELECT
-            + ") x ON x.id = e.entity_id WHERE e.entity = 'media' AND e.event = 'added'"
+            + ") x ON x.id = e.entity_id WHERE e.entity = 'media' AND e.event IN ('added', 'tier')"
             " AND e.id > ? ORDER BY e.id DESC LIMIT ?",
             (after, limit + 1),
         ).fetchall()

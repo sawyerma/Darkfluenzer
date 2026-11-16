@@ -161,6 +161,25 @@ message InfluencerUpdate {
   repeated PriceItem prices = 7;
 }
 
+// Inhaltsstufe eines Mediums auf „explizit“ anheben – nie absenken (Regel 13).
+message MediaContentTier {
+  uint64 media_id = 1;
+}
+
+// Altersangabe einer Kundenakte setzen (nur Betreiber; Regel 13):
+// unclear | under_18 | self_declared_adult (Angabe ≥ 18, Selbstauskunft – keine Verifikation).
+message CustomerAgeMark {
+  uint64 customer_id = 1;
+  string mark = 2;
+}
+
+// KI-Hinweistext der Influencerin genau einmal je Kanalidentität über den Postausgang senden
+// (Regel 12 b); die Karte KI-HINWEIS GESENDET entsteht beim tatsächlichen Versand.
+message SendAiNotice {
+  uint64 customer_id = 1;
+  uint64 identity_id = 2;
+}
+
 // Erkannten Kloner-Auftrag starten, der auf den Betreiberstart wartet (Systemkarte mit
 // awaiting_start). Läuft mit dem aktuellen Medien-Workflow des Default-Kontakts; genau einmal.
 message StartClonerOrder {
@@ -231,6 +250,9 @@ message CommandRequest {
     ChannelAccountLogin channel_account_login = 39;
     ChannelAccountUpdate channel_account_update = 40;
     InfluencerUpdate influencer_update = 35;
+    MediaContentTier media_content_tier = 43;
+    CustomerAgeMark customer_age_mark = 44;
+    SendAiNotice send_ai_notice = 45;
   }
 }
 

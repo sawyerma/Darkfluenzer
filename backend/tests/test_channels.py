@@ -375,3 +375,85 @@ def test_reference_library_from_files_and_cloner(cloner_cfg):
         assert sources[0] == f"telegram:{first.message_id}" and len(sources) == 2
 
     _run(cfg, scenario)
+
+
+def test_content_tier_age_mark_and_ai_notice(cloner_cfg):
+    """Regel 13: Stufe aus Workflow und Ausgangsmedium (fail-closed), Anheben per Befehl 43;
+    Befehl 44 Altersangabe; Regel 12 b: KI-Hinweis genau einmal, Karte erst beim Versand."""
+    import hashlib
+
+    from darkfluenzer import pipeline
+
+    cfg = cloner_cfg
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+        man = cockpit.manifest
+        csrf = await _csrf(client)
+
+        async def send(**kw):
+            req = commands_pb2.CommandRequest(request_id=str(uuid.uuid4()), **kw)
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body).detail
+
+        assert man.workflows["lustify_sdxl_t2i"].content == "explizit"  # ohne Eintrag
+        assert man.workflows["output_instagram"].content == "standard"
+        out = cfg.local / "evaluation" / "x.png"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(b"png-lustify")
+        job = pipeline.create_render(store, man, "lustify_sdxl_t2i", {"prompt": "p"}, {})
+        media = store.add_media(
+            "evaluation/x.png", hashlib.sha256(b"png-lustify").hexdigest(), 11, job_id=job
+        )
+        assert store.media_tier(media) == "explizit"
+        # abgeleitet über einen „standard“-Workflow: höhere Stufe des Ausgangsmediums bleibt
+        inp = pipeline.store_input(cfg, _png(), "a.png")
+        child = pipeline.create_render(
+            store, man, "output_instagram", {}, {"image": inp}, parent_media_id=media
+        )
+        row = store.db.execute("SELECT content_tier FROM jobs WHERE id = ?", (child,)).fetchone()
+        assert row[0] == "explizit"
+        assert "bereits explizit" in await send(
+            media_content_tier=commands_pb2.MediaContentTier(media_id=media)
+        )
+
+        first = _inbound(store, "1", "42", "hallo", "10")
+        assert first.customer.kind == "customer"
+        assert store.customers_overview(first.customer.id)[0]["age_mark"] == "unclear"
+        mark = commands_pb2.CustomerAgeMark(customer_id=first.customer.id, mark="volljährig")
+        assert "unbekannt" in await send(customer_age_mark=mark)
+        mark = commands_pb2.CustomerAgeMark(
+            customer_id=first.customer.id, mark="self_declared_adult"
+        )
+        assert await send(customer_age_mark=mark) == ""
+        (summary,) = store.customers_overview(first.customer.id)
+        assert summary["age_mark"] == "self_declared_adult"
+
+        (ident,) = store.identities(first.customer.id)
+        notice = commands_pb2.SendAiNotice(customer_id=first.customer.id, identity_id=ident["id"])
+        assert "Hinweistext" in await send(send_ai_notice=notice)  # kein Profil
+        store.save_influencer(0, 0, "Clara", None, "", "Ich bin eine KI-Creatorin.", [])
+        assert "nicht verbunden" in await send(send_ai_notice=notice)  # Testprojekt ohne Konto
+        msg_id = store.queue_ai_notice(first.customer.id, ident["id"], "Ich bin eine KI.")
+        with pytest.raises(StoreError, match="bereits"):
+            store.queue_ai_notice(first.customer.id, ident["id"], "nochmal")
+        texts = [i["text"] for i in store.conversation_items(first.customer.id, 0, 20)[0]]
+        assert "KI-HINWEIS GESENDET" not in texts  # erst beim tatsächlichen Versand
+        store.set_message_status(msg_id, "sent", platform_message_id="99")
+        texts = [i["text"] for i in store.conversation_items(first.customer.id, 0, 20)[0]]
+        assert texts[-1] == "KI-HINWEIS GESENDET"
+        assert store.identities(first.customer.id)[0]["ai_notice_status"] == "sent"
+
+    _run(cfg, scenario)
+
+
+def _png() -> bytes:
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (8, 8), (1, 2, 3)).save(buf, "PNG")
+    return buf.getvalue()

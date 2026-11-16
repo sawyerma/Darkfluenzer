@@ -17,6 +17,8 @@ message StageJob {
   // Pfad relativ zu local/
   string path = 5;
   string error = 6;
+  // Inhaltsstufe des Kandidaten (Regel 13): standard | explizit; leer = unbekannt
+  string content_tier = 7;
 }
 
 message OrderStage {

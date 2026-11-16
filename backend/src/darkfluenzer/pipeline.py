@@ -157,6 +157,9 @@ def create_render(
         raise PipelineError(f"{workflow_key}: Datensatz nur und immer für Trainingsworkflows.")
     seeds = [values["seed"]] if "seed" in values else []
     prompt = str(values.get("prompt", ""))
+    # Inhaltsstufe (Regel 13): höhere Stufe aus Workflow und Ausgangsmedium, fail-closed
+    parent_tier = store.media_tier(parent_media_id) if parent_media_id is not None else "standard"
+    content_tier = models.higher_tier(wf.content, parent_tier)
     return store.create_job(
         None,
         wf.engine,
@@ -167,6 +170,7 @@ def create_render(
         parent_media_id=parent_media_id,
         command=command,
         stage_id=stage_id,
+        content_tier=content_tier,
     )
 
 

@@ -746,7 +746,10 @@ export function Candidates({
                           </div>
                         )}
                         <div className="g-line">
-                          <small>Seed {String(j.seed)}</small>
+                          <small>
+                            Seed {String(j.seed)}
+                            {j.mediaId ? ` · ${j.contentTier === "standard" ? "standard" : "explizit"}` : ""}
+                          </small>
                           {stage.status === "waiting" && j.mediaId ? (
                             <button
                               type="button"

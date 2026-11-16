@@ -45,6 +45,19 @@ const CHANNEL_STATE: Record<string, [string, Tone]> = {
   ERROR: ["FEHLER", "bad"],
 };
 // Kontoanmeldung (Telegram über TDLib, FRONT F4 V1.12 Punkt 1): Schritt -> Anzeige, Feld
+// Altersangabe (Regel 13): nur Betreiber; keine Verifikation – „Angabe ≥ 18“ ist Selbstauskunft
+const AGE_MARK: [string, string][] = [
+  ["unclear", "Alter unklar"],
+  ["under_18", "Unter 18"],
+  ["self_declared_adult", "Angabe ≥ 18 (Selbstauskunft)"],
+];
+const NOTICE: Record<string, string> = {
+  queued: "wartet auf Versand",
+  sending: "wird gesendet",
+  sent: "gesendet",
+  failed: "fehlgeschlagen",
+  unknown: "Versand unbekannt",
+};
 const LOGIN_STEP: Record<string, [string, string, string]> = {
   phone: ["NICHT ANGEMELDET", "Telefonnummer", "tel"],
   code: ["CODE ERWARTET", "Code aus Telegram", "text"],
@@ -637,6 +650,7 @@ function CustomerPanel({ customer, identities }: { customer: CustomerSummary; id
           <Row label="Kundennummer">{customer.customerNo}</Row>
           <Row label="Aktive Kanäle">{active.join(" / ") || "–"}</Row>
         </dl>
+        <AgeMark customer={customer} />
         {accounts.map((i) => (
           <div key={String(i.identityId)} className="g-stack">
             <span className="g-between">
@@ -654,6 +668,7 @@ function CustomerPanel({ customer, identities }: { customer: CustomerSummary; id
               ID {i.platformUserId}
               {i.account ? ` · Konto ${i.account}` : ""}
             </small>
+            <AiNotice customer={customer} identity={i} />
           </div>
         ))}
       </div>
@@ -669,6 +684,66 @@ function CustomerPanel({ customer, identities }: { customer: CustomerSummary; id
         )}
       </div>
     </>
+  );
+}
+
+/** Altersangabe der Akte (Befehl 44): Standard „Alter unklar“, sperrt Angebote bis „Angabe ≥ 18“. */
+function AgeMark({ customer }: { customer: CustomerSummary }) {
+  const cmd = useCommand();
+  const [mark, setMark] = useState(customer.ageMark || "unclear");
+  return (
+    <div className="g-field">
+      <label htmlFor={`age-${customer.customerId}`}>Alter</label>
+      <span className="g-between">
+        <select id={`age-${customer.customerId}`} className="g-input" value={mark} onChange={(e) => setMark(e.target.value)}>
+          {AGE_MARK.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="g-button"
+          disabled={cmd.pending || mark === (customer.ageMark || "unclear")}
+          onClick={() => void cmd.run({ case: "customerAgeMark", value: { customerId: customer.customerId, mark } }, { done: "Alter übernommen." })}
+        >
+          Übernehmen
+        </button>
+      </span>
+      {mark !== "self_declared_adult" ? <small>Keine Angebote, nur neutrale Unterhaltung.</small> : null}
+      {cmd.notice ? (
+        <p className="g-note" role="alert">
+          {cmd.notice}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** KI-Hinweis je Kanalidentität (Befehl 45, Regel 12 b): genau einmal; Status aus der Nachricht. */
+function AiNotice({ customer, identity }: { customer: CustomerSummary; identity: ChannelIdentity }) {
+  const cmd = useCommand();
+  return (
+    <span className="g-between">
+      <small>KI-Hinweis: {identity.aiNotice ? (NOTICE[identity.aiNotice] ?? identity.aiNotice) : "noch nicht gesendet"}</small>
+      {identity.aiNotice ? null : (
+        <button
+          type="button"
+          className="g-button"
+          disabled={cmd.pending}
+          onClick={() =>
+            void cmd.run(
+              { case: "sendAiNotice", value: { customerId: customer.customerId, identityId: identity.identityId } },
+              { done: "KI-Hinweis eingereiht." },
+            )
+          }
+        >
+          KI-Hinweis senden
+        </button>
+      )}
+      {cmd.notice ? <small role="alert">{cmd.notice}</small> : null}
+    </span>
   );
 }
 

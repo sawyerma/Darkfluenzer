@@ -1,4 +1,5 @@
-"""Liefer-Gate: PAYMENT_CONFIRMED && OPERATOR_APPROVED && ARTIFACT_HASH_MATCH && CUSTOMER_MATCH.
+"""Liefer-Gate: PAYMENT_CONFIRMED && OPERATOR_APPROVED && ARTIFACT_HASH_MATCH && CUSTOMER_MATCH
+&& CONTENT_TIER standard (PHASENPLAN_V0 Regel 13).
 
 Wird im Backend erzwungen (hier) und zusätzlich durch SQLite-Trigger (store.py). Weder LLM noch
 Frontend können das Gate umgehen. Diese Stufe bereitet Lieferungen nur vor und markiert sie –
@@ -51,6 +52,12 @@ def check_gate(store: Store, order_no: str, artifact_id: int, customer_no: str) 
 
     if art.order_id != order.id:
         reasons.append("ARTIFACT_ORDER_MISMATCH")
+    # Regel 13: an Kunden nur Inhaltsstufe „standard“ (unbekannt zählt als explizit)
+    tier = store.db.execute(
+        "SELECT content_tier FROM media WHERE artifact_id = ?", (art.id,)
+    ).fetchone()
+    if tier is None or tier[0] != "standard":
+        reasons.append("CONTENT_TIER: nur Inhaltsstufe standard an Kunden")
     path = store.local / art.path
     try:
         disk_sha = sha256_file(path)

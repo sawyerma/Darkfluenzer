@@ -136,6 +136,8 @@ class Cockpit:
         self.store = store
         # Einzige Registry; Änderungen aus dem Cockpit ersetzen dieses Objekt nach dem Speichern.
         self.manifest = models.load_manifest(cfg.root)
+        # Inhaltsstufe für Jobs/Medien vor Migration 14 (Regel 13, fail-closed)
+        store.backfill_content_tiers({k: w.content for k, w in self.manifest.workflows.items()})
         self.lanes = {inst.name: _Lane(inst) for inst in cfg.instances}
         self._memory: dict = {}  # letzte Messung: ram_total, ram_free (Bytes), swap (MB)
         self._cancelled: set[int] = set()  # laufende Jobs mit Abbruchwunsch des Betreibers
@@ -660,6 +662,9 @@ class Cockpit:
             "start_cloner_order": self._start_cloner_order,
             "character_update": self._character_update,
             "influencer_update": self._influencer_update,
+            "media_content_tier": self._media_content_tier,
+            "customer_age_mark": self._customer_age_mark,
+            "send_ai_notice": self._send_ai_notice,
             "channel_account_login": self._channel_login,
             "channel_account_update": self._channel_update,
             "set_workflow_enabled": self._set_enabled,
@@ -951,6 +956,43 @@ class Cockpit:
             for price in row["prices"]:
                 item.prices.add(**price)
         return msg.SerializeToString()
+
+    async def _media_content_tier(self, msg: commands_pb2.MediaContentTier, call: _Call) -> str:
+        """Inhaltsstufe anheben (Befehl 43, Regel 13: nur anhebbar)."""
+        call.entity = f"media:{msg.media_id}"
+        self.store.raise_content_tier(msg.media_id)
+        self.hub.push_events(spb.TOPIC_MEDIA_ADDED)  # geänderter Eintrag per Push
+        return ""
+
+    async def _customer_age_mark(self, msg: commands_pb2.CustomerAgeMark, call: _Call) -> str:
+        """Altersangabe der Akte (Befehl 44; nur Betreiber, nie das LLM)."""
+        call.entity = f"customer:{msg.customer_id}"
+        self.store.set_age_mark(msg.customer_id, msg.mark)
+        self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)
+        return ""
+
+    async def _send_ai_notice(self, msg: commands_pb2.SendAiNotice, call: _Call) -> str:
+        """KI-Hinweis der Influencerin einmal je Kanalidentität (Befehl 45, Regel 12 b)."""
+        call.entity = f"customer:{msg.customer_id}"
+        figure = next(iter(self.store.influencers()), None)
+        if figure is None or not figure["ai_notice"].strip():
+            return "KI-Hinweistext im Influencerin-Profil fehlt."
+        ident = next(
+            (i for i in self.store.identities(msg.customer_id) if i["id"] == msg.identity_id),
+            None,
+        )
+        if ident is None:
+            return "Kanalidentität gehört nicht zu dieser Kundenakte."
+        adapter = self.telegram if ident["platform"] == "telegram" else None
+        if adapter is None or adapter.state != "READY":
+            return f"{ident['platform']} ist nicht verbunden."
+        message_id = self.store.queue_ai_notice(
+            msg.customer_id, msg.identity_id, figure["ai_notice"].strip()
+        )
+        call.entity = f"message:{message_id}"
+        adapter.wake.set()
+        self._message_changed(message_id)
+        return ""
 
     async def _influencer_update(self, msg: commands_pb2.InfluencerUpdate, call: _Call) -> str:
         """Profil der Influencerin speichern – gilt für alle Kunden (FRONT F4 V1.12 Punkt 12)."""
@@ -1618,6 +1660,7 @@ def _media_item(row: dict) -> media_pb2.MediaItem:
         job_id=row["job_id"] or 0,
         order_no=row["order_no"] or "",
         customer_no=row["customer_no"] or "",
+        content_tier=row["content_tier"] or "",
     )
     item.params.update({k: str(v) for k, v in row["params"].items()})
     return item
@@ -1970,6 +2013,7 @@ def _customer_summary(row: dict) -> channel_pb2.CustomerSummary:
         last_platform=row["last_platform"] or "",
         last_ms=_unix_ms(row["last_at"]) if row["last_at"] else 0,
         unread=row["unread"] or 0,
+        age_mark=row["age_mark"],
         handles=sorted(
             {v for pair in (row["handles"] or "").split("\x1e") for v in pair.split("\x1f") if v}
         ),
@@ -2000,6 +2044,7 @@ def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
                 media_id=j["media_id"] or 0,
                 path=j["path"] or "",
                 error=j["error"] or "",
+                content_tier=j["content_tier"] or "",
             )
 
 
@@ -2078,6 +2123,7 @@ async def _conversation_page(request: web.Request) -> web.Response:
             verified=bool(ident["verified"]),
             conversation_id=ident["conversation_id"] or 0,
             revision=ident["revision"] or 0,
+            ai_notice=ident["ai_notice_status"] or "",
         )
     if summary[0]["kind"] == "internal":
         d = store.default_contact()

@@ -555,6 +555,7 @@ ui = "image/flux3_klein_base_t2i.ui.json"
 api = "image/flux3_klein_base_t2i.api.json"
 status = "PASS"
 title = "FLUX 3 Klein · Text zu Bild"
+content = "standard"
 
 [workflows.flux3_klein_base_t2i.params]
 prompt = { node = "4", input = "text", type = "str", required = true }
@@ -570,6 +571,7 @@ ui = "image/flux3_klein_reference.ui.json"
 api = "image/flux3_klein_reference.api.json"
 status = "PASS"
 title = "FLUX 3 Klein · Foto nach Vorlage"
+content = "standard"
 # Offizielle Vorlage image_flux3_klein_image_edit (ReferenceMultiLatent) ohne Prompt-Erweiterer und
 # Layout-Prompt; Ausgabe im Zielformat (EmptyFlux2LatentImage) statt in der Größe der Vorlage
 
@@ -589,6 +591,7 @@ ui = "image/qwen_image_2512_t2i.ui.json"
 api = "image/qwen_image_2512_t2i.api.json"
 status = "PASS"
 title = "Qwen-Image 2512 · Text zu Bild"
+content = "standard"
 
 [workflows.qwen_image_2512_t2i.params]
 prompt = { node = "238:227", input = "text", type = "str", required = true }
@@ -605,6 +608,7 @@ ui = "image/qwen_image_21_t2i.ui.json"
 api = "image/qwen_image_21_t2i.api.json"
 status = "PASS"
 title = "Qwen-Image 2.1 · Text zu Bild"
+content = "standard"
 
 [workflows.qwen_image_21_t2i.params]
 prompt = { node = "459:452", input = "prompt", type = "str", required = true }
@@ -621,6 +625,7 @@ ui = "image/sdpose_pose.ui.json"
 api = "image/sdpose_pose.api.json"
 status = "PASS"
 title = "Vorlage analysieren · Pose (SDPose)"
+content = "standard"
 
 [workflows.sdpose_pose.params]
 reference = { node = "667", input = "image", type = "str", required = true, upload = true, reference = true }
@@ -631,6 +636,7 @@ ui = "image/da3_depth.ui.json"
 api = "image/da3_depth.api.json"
 status = "PASS"
 title = "Vorlage analysieren · Tiefe (Depth Anything 3)"
+content = "standard"
 
 [workflows.da3_depth.params]
 reference = { node = "85", input = "image", type = "str", required = true, upload = true, reference = true }
@@ -641,6 +647,7 @@ ui = "video/wan22_i2v.ui.json"
 api = "video/wan22_i2v.api.json"
 status = "OFFEN"
 title = "Wan 2.2 · Bild zu Video"
+content = "standard"
 
 [workflows.wan22_i2v.params]
 image = { node = "1", input = "image", type = "str", required = true, upload = true }
@@ -706,6 +713,7 @@ ui = "image/krea2_turbo_t2i.ui.json"
 api = "image/krea2_turbo_t2i.api.json"
 status = "PASS"
 title = "Krea 2 Turbo · Text zu Bild"
+content = "standard"
 
 [workflows.krea2_turbo_t2i.params]
 prompt = { node = "4", input = "text", type = "str", required = true }
@@ -734,6 +742,7 @@ ui = "image/output_instagram.ui.json"
 api = "image/output_instagram.api.json"
 status = "OFFEN"
 title = "Ausgabe · Instagram-Format"
+content = "standard"
 
 [workflows.output_instagram.params]
 image = { node = "1", input = "image", type = "str", required = true, upload = true }
@@ -745,6 +754,7 @@ ui = "image/seedvr2_upscale_image.ui.json"
 api = "image/seedvr2_upscale_image.api.json"
 status = "PASS"
 title = "SeedVR2 · Hochskalieren"
+content = "standard"
 
 [workflows.seedvr2_upscale_image.params]
 image = { node = "1", input = "image", type = "str", required = true, upload = true }
@@ -774,6 +784,7 @@ ui = "image/krea2_raw_turbo_lora_t2i.ui.json"
 api = "image/krea2_raw_turbo_lora_t2i.api.json"
 status = "PASS"
 title = "Krea 2 Raw + Turbo-LoRA · Text zu Bild"
+content = "standard"
 
 [workflows.krea2_raw_turbo_lora_t2i.params]
 prompt = { node = "5", input = "text", type = "str", required = true }
