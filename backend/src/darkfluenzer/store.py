@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -519,6 +519,33 @@ CREATE TABLE reference_files (
                 CHECK (analysis IN ('none', 'pending', 'done', 'failed')),
     created_at  TEXT    NOT NULL
 );
+""",
+    12: """
+-- Zahlungseingänge (V0 §8.5, C5a): beobachtete Eingänge genau einmal je Ausgang/Log, Euro-Wert und
+-- Kurs beim Eingang; erst die Zuordnung zu einem Auftrag erzeugt eine Zeile in payments (Gate)
+CREATE TABLE payment_inflows (
+    id            INTEGER PRIMARY KEY,
+    method        TEXT    NOT NULL CHECK (method IN ('btc', 'usdt', 'usdc', 'paypal', 'amazon')),
+    network       TEXT    NOT NULL,
+    asset         TEXT    NOT NULL,
+    amount        TEXT    NOT NULL,
+    txid          TEXT    NOT NULL,
+    position      INTEGER NOT NULL DEFAULT 0,
+    block         INTEGER,
+    confirmations INTEGER NOT NULL DEFAULT 0,
+    required      INTEGER NOT NULL DEFAULT 0,
+    status        TEXT    NOT NULL CHECK (status IN
+                  ('detected', 'confirmed', 'assigned', 'unassigned', 'expired')),
+    eur           REAL,
+    rate          REAL,
+    rate_ms       INTEGER,
+    order_id      INTEGER REFERENCES orders(id),
+    customer_id   INTEGER REFERENCES customers(id),
+    detected_at   TEXT    NOT NULL,
+    updated_at    TEXT    NOT NULL,
+    UNIQUE (method, txid, position)
+);
+CREATE INDEX payment_inflows_open ON payment_inflows(network, status) WHERE status = 'detected';
 """,
 }
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
@@ -1141,6 +1168,119 @@ class Store:
         rows = self.db.execute(
             "SELECT e.id AS cursor, e.created_at AS committed_at, e.entity_id AS customer_id"
             " FROM events e WHERE e.entity = 'customer' AND e.id > ? ORDER BY e.id DESC LIMIT ?",
+            (after, limit + 1),
+        ).fetchall()
+        recent = [dict(r) for r in rows[:limit]]
+        return recent[::-1], len(rows) > limit
+
+    # ------------------------------------------------------------------ Zahlungen (C5a)
+
+    def upsert_payment(
+        self,
+        *,
+        method: str,
+        network: str,
+        asset: str,
+        amount: str,
+        txid: str,
+        position: int,
+        block: int | None,
+        confirmations: int,
+        required: int,
+        eur: float | None,
+        rate: float | None,
+        rate_ms: int | None,
+    ) -> bool:
+        """Eingang genau einmal anlegen bzw. Block/Bestätigungen fortschreiben; liefert True bei
+        einer Änderung. Ausreichend bestätigt ohne passendes Angebot = nicht zugeordnet."""
+        with self.tx() as db:
+            row = db.execute(
+                "SELECT id, block, confirmations, status FROM payment_inflows"
+                " WHERE method = ? AND txid = ? AND position = ?",
+                (method, txid, position),
+            ).fetchone()
+            ts = now()
+            if row is None:
+                status = "unassigned" if confirmations >= required else "detected"
+                cur = db.execute(
+                    "INSERT INTO payment_inflows (method, network, asset, amount, txid, position,"
+                    " block, confirmations, required, status, eur, rate, rate_ms, detected_at,"
+                    " updated_at)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (method, network, asset, amount, txid, position, block, confirmations,
+                     required, status, eur, rate, rate_ms, ts, ts),
+                )  # fmt: skip
+                self._event("payment", cur.lastrowid, "detected", status=status)
+                self.bump("payments")
+                return True
+            if row["status"] != "detected":
+                return False  # bestätigt: unveränderlich (Reorg-Schutz über die Bestätigungszahl)
+            return self._advance(db, row["id"], block, confirmations, required)
+
+    def _advance(self, db, payment_id: int, block, confirmations: int, required: int) -> bool:
+        row = db.execute(
+            "SELECT block, confirmations, status FROM payment_inflows WHERE id = ?", (payment_id,)
+        ).fetchone()
+        if row["status"] != "detected":
+            return False  # bestätigt: unveränderlich (keine Ereignisse je Runde)
+        status = "unassigned" if confirmations >= required else "detected"
+        if (row["block"], row["confirmations"], status) == (block, confirmations, "detected"):
+            return False
+        db.execute(
+            "UPDATE payment_inflows SET block = coalesce(?, block), confirmations = ?, status = ?,"
+            " updated_at = ? WHERE id = ?",
+            (block, confirmations, status, now(), payment_id),
+        )
+        self._event("payment", payment_id, "status", status=status, confirmations=confirmations)
+        self.bump("payments")
+        return True
+
+    def unconfirmed_payments(self, network: str) -> list[dict]:
+        rows = self.db.execute(
+            "SELECT * FROM payment_inflows WHERE network = ? AND status = 'detected'"
+            " AND block IS NOT NULL",
+            (network,),
+        )
+        return [dict(r) for r in rows]
+
+    def update_confirmations(self, payment_id: int, confirmations: int, required: int) -> bool:
+        with self.tx() as db:
+            return self._advance(db, payment_id, None, confirmations, required)
+
+    def payment(self, payment_id: int) -> dict:
+        row = self.db.execute(
+            "SELECT p.*, o.order_no, c.customer_no FROM payment_inflows p"
+            " LEFT JOIN orders o ON o.id = p.order_id LEFT JOIN customers c ON c.id = p.customer_id"
+            " WHERE p.id = ?",
+            (payment_id,),
+        ).fetchone()
+        if row is None:
+            raise StoreError(f"Zahlung {payment_id} unbekannt.")
+        return dict(row)
+
+    _PAYMENT_FILTER = {
+        "all": "1",
+        "open": "p.status = 'detected'",
+        "confirmed": "p.status IN ('confirmed', 'assigned')",
+        "unassigned": "p.status = 'unassigned'",
+    }
+
+    def payment_page(self, before: int, limit: int, kind: str) -> tuple[list[dict], bool]:
+        where = self._PAYMENT_FILTER.get(kind)
+        if where is None:
+            raise StoreError(f"Filter {kind} unbekannt.")
+        rows = self.db.execute(
+            "SELECT p.*, o.order_no, c.customer_no FROM payment_inflows p"
+            " LEFT JOIN orders o ON o.id = p.order_id LEFT JOIN customers c ON c.id = p.customer_id"
+            f" WHERE {where} AND (? = 0 OR p.id < ?) ORDER BY p.id DESC LIMIT ?",
+            (before, before, limit + 1),
+        ).fetchall()
+        return [dict(r) for r in rows[:limit]], len(rows) > limit
+
+    def payment_events(self, after: int, limit: int) -> tuple[list[dict], bool]:
+        rows = self.db.execute(
+            "SELECT e.id AS cursor, e.created_at AS committed_at, e.entity_id AS payment_id"
+            " FROM events e WHERE e.entity = 'payment' AND e.id > ? ORDER BY e.id DESC LIMIT ?",
             (after, limit + 1),
         ).fetchall()
         recent = [dict(r) for r in rows[:limit]]

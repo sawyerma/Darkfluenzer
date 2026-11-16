@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package darkfluenzer.v1;
+
+// Zahlungseingang und Wallet (PHASENPLAN_V0 §8.5, FRONT F7.8, C5a). Darkfluenzer beobachtet nur
+// Claras öffentliche Adressen – kein Senden, kein Signieren, keine Schlüssel.
+
+// Guthaben eines Assets auf einem Konto. Beträge als Dezimaltext (keine Gleitkomma-Rundung).
+message WalletBalance {
+  // BTC | USDT | USDC
+  string asset = 1;
+  string amount = 2;
+  // Euro-Wert zum Kurs von rate_ms (0, solange kein Kurs vorliegt)
+  double eur = 3;
+}
+
+message WalletAccount {
+  // btc | bsc | paypal | amazon
+  string key = 1;
+  string title = 2;
+  // bitcoin | bsc | paypal | amazon
+  string network = 3;
+  // vollständige öffentliche Adresse (leer bei PayPal/Amazon)
+  string address = 4;
+  repeated WalletBalance balances = 5;
+  double eur_total = 6;
+  // Zeit des verwendeten Kurses (Unix-ms)
+  int64 rate_ms = 7;
+  // letzte erfolgreiche Prüfung (Unix-ms) und geprüfter Stand („Block 912345“)
+  int64 checked_ms = 8;
+  string checked_at = 9;
+  // Datenquelle (Host)
+  string source = 10;
+  // OK | STALE (keine frischen Daten) | ERROR | MISSING (nicht eingerichtet)
+  string state = 11;
+  string error = 12;
+  // was zur Einrichtung fehlt
+  string missing = 13;
+}
+
+// Datenquelle (technische Details)
+message WalletSource {
+  string name = 1;
+  string url = 2;
+  int64 ok_ms = 3;
+  string error = 4;
+}
+
+// STATE wallet
+message Wallet {
+  repeated WalletAccount accounts = 1;
+  repeated WalletSource sources = 2;
+  uint64 version = 3;
+}
+
+// Ein Zahlungseingang (Chain-Eingang, PayPal oder Gutschein).
+message Payment {
+  uint64 payment_id = 1;
+  // btc | usdt | usdc | paypal | amazon
+  string method = 2;
+  string asset = 3;
+  // Betrag als Dezimaltext
+  string amount = 4;
+  // Euro-Wert und Kurs beim Eingang
+  double eur = 5;
+  double rate = 6;
+  int64 rate_ms = 7;
+  string txid = 8;
+  uint32 confirmations = 9;
+  uint32 required_confirmations = 10;
+  // detected | confirmed | assigned | unassigned | expired
+  string status = 11;
+  string order_no = 12;
+  uint64 customer_id = 13;
+  string customer_no = 14;
+  int64 at_ms = 15;
+  // Netz (bitcoin | bsc | paypal | amazon)
+  string network = 16;
+}
+
+// EVENT payments.updated: Eingang neu oder Statuswechsel
+message PaymentUpdated {
+  Payment payment = 1;
+}
+
+// HTTP GET /api/v1/payment-page[?before=ID&limit=N&filter=all|open|confirmed|unassigned]
+message PaymentPage {
+  repeated Payment items = 1;
+  bool more = 2;
+  uint64 version = 3;
+}

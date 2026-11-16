@@ -112,6 +112,36 @@ class TelegramConfig:
 
 
 @dataclass(frozen=True)
+class TokenConfig:
+    """BEP-20-Token auf BSC, das als Zahlungseingang beobachtet wird."""
+
+    symbol: str
+    contract: str  # EIP-55
+    decimals: int
+    price_id: str  # Kennung der Kursquelle
+
+
+@dataclass(frozen=True)
+class WalletConfig:
+    """Claras öffentliche Adressen und die kostenlosen Datenquellen (V0 §8.5, C5a). Ungültige
+    Adressen bleiben leer und erscheinen mit Grund im Reiter Wallet (``*_error``)."""
+
+    btc_address: str
+    btc_error: str
+    bsc_address: str
+    bsc_error: str
+    btc_api: str
+    bsc_rpc: str
+    price_api: str
+    btc_price_id: str
+    tokens: tuple[TokenConfig, ...]
+    btc_confirmations: int
+    bsc_confirmations: int
+    poll_s: float
+    bsc_header_batch: int
+
+
+@dataclass(frozen=True)
 class ProductionConfig:
     """Aufträge mit Stufen (V0 §4.3): Kandidatenzahl und Wiederholungen je Stufe."""
 
@@ -137,6 +167,7 @@ class Config:
     identity: IdentityConfig
     production: ProductionConfig
     telegram: TelegramConfig | None  # None: Abschnitt fehlt (Kanal nicht eingerichtet)
+    wallet: WalletConfig | None  # None: Abschnitt fehlt (Zahlungseingang nicht eingerichtet)
 
     @property
     def instances(self) -> tuple[ComfyConfig, ...]:
@@ -294,6 +325,51 @@ def _parse_telegram(tg: object, root: Path, path: Path) -> TelegramConfig | None
     )
 
 
+def _parse_wallet(t: object, path: Path) -> WalletConfig | None:
+    """[wallet]; Adressen werden auf Format und Prüfsumme geprüft (V0 §8.5 Punkt 1)."""
+    from .payments.addresses import btc_address_error, evm_address_error
+
+    if t is None:
+        return None
+    w = "wallet"
+    if not isinstance(t, dict):
+        raise ConfigError(f"Konfiguration {path}: [{w}] muss ein Abschnitt sein.")
+    btc = str(t.get("btc_address", "")).strip()
+    bsc = str(t.get("bsc_address", "")).strip()
+    btc_err = btc_address_error(btc) if btc else ""
+    bsc_err = evm_address_error(bsc) if bsc else ""
+    tokens = []
+    for symbol, spec in (t.get("tokens") or {}).items():
+        if not isinstance(spec, dict):
+            raise ConfigError(f"Konfiguration: {w}.tokens.{symbol} muss eine Tabelle sein.")
+        contract = str(spec.get("contract", ""))
+        if err := evm_address_error(contract):
+            raise ConfigError(f"Konfiguration: {w}.tokens.{symbol}.contract: {err}.")
+        tokens.append(
+            TokenConfig(
+                symbol=symbol,
+                contract=contract,
+                decimals=int(_positive(spec, "decimals", 18, f"{w}.tokens.{symbol}")),
+                price_id=str(spec.get("price_id", "")),
+            )
+        )
+    return WalletConfig(
+        btc_address="" if btc_err else btc,
+        btc_error=btc_err,
+        bsc_address="" if bsc_err else bsc,
+        bsc_error=bsc_err,
+        btc_api=str(t.get("btc_api", "https://mempool.space/api")).rstrip("/"),
+        bsc_rpc=str(t.get("bsc_rpc", "https://bsc-dataseed.bnbchain.org")),
+        price_api=str(t.get("price_api", "https://api.coingecko.com/api/v3/simple/price")),
+        btc_price_id=str(t.get("btc_price_id", "bitcoin")),
+        tokens=tuple(tokens),
+        btc_confirmations=int(_positive(t, "btc_confirmations", 2, w)),
+        bsc_confirmations=int(_positive(t, "bsc_confirmations", 15, w)),
+        poll_s=_positive(t, "poll_s", 60, w),
+        bsc_header_batch=int(_positive(t, "bsc_header_batch", 100, w)),
+    )
+
+
 def _parse_server(t: dict) -> ServerConfig:
     w = "server"
     host = _require(t, "host", str, w)
@@ -362,12 +438,14 @@ def load(root: Path | None = None) -> Config:
     if production.candidates_default > production.candidates_max:
         raise ConfigError("Konfiguration: production.candidates_default > candidates_max.")
     telegram = _parse_telegram(data.get("telegram_account"), root, path)
+    wallet = _parse_wallet(data.get("wallet"), path)
     return Config(
         root=root,
         comfyui=media,
         comfyui_ai=ai,
         server=_parse_server(data["server"]),
         telegram=telegram,
+        wallet=wallet,
         identity=IdentityConfig(
             min_face_px=int(_positive(ident, "min_face_px", 64, "identity")), min_score=score
         ),

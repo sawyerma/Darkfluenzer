@@ -26,6 +26,7 @@ from google.protobuf.message import DecodeError
 from . import cloner, comfy, models, pipeline, runtime, training
 from .channels.telegram import TelegramAccount
 from .config import ComfyConfig, Config
+from .payments.chain import WalletWatcher
 from .store import Store, StoreError
 from .stream import Hub, schema_id
 from .v1 import (
@@ -36,6 +37,7 @@ from .v1 import (
     media_pb2,
     order_pb2,
     reference_pb2,
+    wallet_pb2,
 )
 from .v1 import stream_pb2 as spb
 
@@ -142,6 +144,11 @@ class Cockpit:
         self._settle_open_commands()
         store.settle_sending()  # vor dem Neustart begonnener Versand: Ergebnis unbekannt
         store.default_contact()  # interner Kontakt Default existiert genau einmal
+        self.wallet = (
+            WalletWatcher(cfg, store, self._wallet_changed, self._payments_changed)
+            if cfg.wallet
+            else None
+        )
         self.telegram = (
             TelegramAccount(cfg, store, self._on_inbound, self._channels_changed)
             if cfg.telegram
@@ -352,6 +359,7 @@ class Cockpit:
                 await self.refresh_characters()
                 self.hub.set_state(spb.TOPIC_ORDERS_ACTIVE, self._orders_active())
                 self.hub.set_state(spb.TOPIC_CHANNELS, self._channels())
+                self.hub.set_state(spb.TOPIC_WALLET, self._wallet_state())
                 self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
                 self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
                 await asyncio.to_thread(
@@ -894,6 +902,45 @@ class Cockpit:
         msg.channels.add(platform="instagram", state="OFF", missing="Meta-App und Tunnel")
         msg.channels.add(platform="whatsapp", state="OFF", missing="WhatsApp folgt später (C7)")
         return msg.SerializeToString()
+
+    # ------------------------------------------------------------ Wallet (C5a)
+
+    def _wallet_state(self) -> bytes:
+        """STATE wallet: Konten mit Guthaben, Euro-Wert, Kurszeit, letzter Prüfung, Quellen."""
+        msg = wallet_pb2.Wallet(version=self.store.domain_version("payments"))
+        if self.wallet is None:
+            msg.accounts.add(
+                key="btc", title="Bitcoin", network="bitcoin", state="MISSING",
+                missing="Abschnitt [wallet] in config.toml",
+            )  # fmt: skip
+            return msg.SerializeToString()
+        for acc in self.wallet.accounts():
+            balances = acc.pop("balances")
+            item = msg.accounts.add(**acc)
+            for b in balances:
+                item.balances.add(**b)
+        for src in self.wallet.sources():
+            msg.sources.add(**src)
+        return msg.SerializeToString()
+
+    def _wallet_changed(self) -> None:
+        self.hub.set_state(spb.TOPIC_WALLET, self._wallet_state())
+
+    def _payments_changed(self) -> None:
+        self.hub.push_events(spb.TOPIC_PAYMENT_UPDATED)
+
+    def read_payments(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
+        rows, gap = self.store.payment_events(after, limit)
+        return [
+            (
+                r["cursor"],
+                _unix_ms(r["committed_at"]),
+                wallet_pb2.PaymentUpdated(
+                    payment=_payment(self.store.payment(r["payment_id"]))
+                ).SerializeToString(),
+            )
+            for r in rows
+        ], gap
 
     def _channels_changed(self) -> None:
         self.hub.set_state(spb.TOPIC_CHANNELS, self._channels())
@@ -1747,6 +1794,65 @@ async def _media_page(request: web.Request) -> web.Response:
     return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
 
 
+def _payment(row: dict) -> wallet_pb2.Payment:
+    return wallet_pb2.Payment(
+        payment_id=row["id"],
+        method=row["method"],
+        asset=row["asset"],
+        amount=row["amount"],
+        eur=row["eur"] or 0.0,
+        rate=row["rate"] or 0.0,
+        rate_ms=row["rate_ms"] or 0,
+        txid=row["txid"],
+        confirmations=row["confirmations"],
+        required_confirmations=row["required"],
+        status=row["status"],
+        order_no=row["order_no"] or "",
+        customer_id=row["customer_id"] or 0,
+        customer_no=row["customer_no"] or "",
+        at_ms=_unix_ms(row["detected_at"]),
+        network=row["network"],
+    )
+
+
+async def _payment_page(request: web.Request) -> web.Response:
+    """Zahlungseingänge seitenweise (neueste zuerst) mit Filter, Protobuf (FRONT F7.8)."""
+    if request.app[GUARD_KEY].csrf_of(request) is None:
+        return web.Response(status=401, text="Keine gültige Sitzung")
+    try:
+        before = int(request.query.get("before", "0"))
+        limit = min(max(int(request.query.get("limit", "50")), 1), 200)
+    except ValueError:
+        return web.Response(status=400, text="before/limit müssen Zahlen sein")
+    store = request.app[COCKPIT_KEY].store
+    try:
+        rows, more = store.payment_page(before, limit, request.query.get("filter", "all"))
+    except StoreError as exc:
+        return web.Response(status=400, text=str(exc))
+    page = wallet_pb2.PaymentPage(
+        items=[_payment(r) for r in rows], more=more, version=store.domain_version("payments")
+    )
+    return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
+
+
+async def _wallet_qr(request: web.Request) -> web.Response:
+    """QR-Code der öffentlichen Adresse eines Kontos als SVG (Schublade, FRONT F7.8)."""
+    import segno
+
+    if request.app[GUARD_KEY].csrf_of(request) is None:
+        return web.Response(status=401, text="Keine gültige Sitzung")
+    wallet = request.app[COCKPIT_KEY].cfg.wallet
+    address = (
+        {"btc": wallet.btc_address, "bsc": wallet.bsc_address}.get(request.match_info["key"], "")
+        if wallet
+        else ""
+    )
+    if not address:
+        raise web.HTTPNotFound()
+    svg = segno.make(address, error="m").svg_inline(scale=4, dark="#000", light="#fff")
+    return web.Response(text=svg, content_type="image/svg+xml")
+
+
 def _reference_item(row: dict) -> reference_pb2.ReferenceItem:
     return reference_pb2.ReferenceItem(
         reference_id=row["id"],
@@ -1970,6 +2076,7 @@ def create_app(cfg: Config) -> web.Application:
     hub.offer_state(spb.TOPIC_CHARACTERS, character_pb2.Characters.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_ORDERS_ACTIVE, order_pb2.OrdersActive.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_CHANNELS, channel_pb2.Channels.DESCRIPTOR.full_name)
+    hub.offer_state(spb.TOPIC_WALLET, wallet_pb2.Wallet.DESCRIPTOR.full_name)
     hub.offer_events(
         spb.TOPIC_CUSTOMER_UPDATED,
         channel_pb2.CustomerUpdated.DESCRIPTOR.full_name,
@@ -1991,6 +2098,11 @@ def create_app(cfg: Config) -> web.Application:
     )
     hub.offer_events(
         spb.TOPIC_ORDER_UPDATED, order_pb2.OrderUpdated.DESCRIPTOR.full_name, cockpit.read_orders
+    )
+    hub.offer_events(
+        spb.TOPIC_PAYMENT_UPDATED,
+        wallet_pb2.PaymentUpdated.DESCRIPTOR.full_name,
+        cockpit.read_payments,
     )
     hub.offer_events(
         spb.TOPIC_REFERENCE_ADDED,
@@ -2019,6 +2131,8 @@ def create_app(cfg: Config) -> web.Application:
     app.router.add_get("/api/v1/media-page", _media_page)
     app.router.add_get("/api/v1/provenance/{media_id}", _provenance_route)
     app.router.add_get("/api/v1/reference-page", _reference_page)
+    app.router.add_get("/api/v1/payment-page", _payment_page)
+    app.router.add_get("/api/v1/wallet-qr/{key}", _wallet_qr)
     app.router.add_get("/api/v1/customer-page", _customer_page)
     app.router.add_get("/api/v1/conversation-page", _conversation_page)
 
@@ -2032,6 +2146,8 @@ def create_app(cfg: Config) -> web.Application:
                 for lane in cockpit.lanes.values()
             ),
         ]
+        if cockpit.wallet:
+            tasks.append(asyncio.create_task(cockpit.wallet.run()))
         if cockpit.telegram:
             tasks += [
                 asyncio.create_task(cockpit.telegram.run()),

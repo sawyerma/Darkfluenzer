@@ -20,6 +20,7 @@ enum Topic {
   TOPIC_CHANNELS = 8; // STATE darkfluenzer.v1.Channels
   TOPIC_COMFY_INSTANCES = 6; // STATE darkfluenzer.v1.ComfyInstances
   TOPIC_RESOURCES = 7; // STATE darkfluenzer.v1.Resources
+  TOPIC_WALLET = 10; // STATE darkfluenzer.v1.Wallet
   TOPIC_JOB_COMPLETED = 20; // EVENT darkfluenzer.v1.JobCompleted
   TOPIC_MEDIA_ADDED = 21; // EVENT darkfluenzer.v1.MediaItem
   TOPIC_MEDIA_REMOVED = 22; // EVENT darkfluenzer.v1.MediaRemoved
@@ -28,6 +29,7 @@ enum Topic {
   TOPIC_CUSTOMER_UPDATED = 26; // EVENT darkfluenzer.v1.CustomerUpdated
   TOPIC_CONVERSATION_EVENT = 27; // EVENT darkfluenzer.v1.ConversationEvent
   TOPIC_COMMAND_RECEIPT = 29; // EVENT darkfluenzer.v1.CommandReceipt
+  TOPIC_PAYMENT_UPDATED = 30; // EVENT darkfluenzer.v1.PaymentUpdated
 }
 
 enum TopicClass {
