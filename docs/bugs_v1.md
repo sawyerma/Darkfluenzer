@@ -19,7 +19,7 @@
 - **Eigene Gegenprüfung:** **CODE** – `backend/src/darkfluenzer/server.py`, `_media` (um Zeilen 2344–2361): `web.FileResponse` für `message_file_known` und Galerie-Dateien; `Content-Disposition: attachment` nur bei `?download=1`. Der hier geprüfte Handler setzt kein `X-Content-Type-Options: nosniff`. Die tatsächliche Ausführbarkeit/CSRF-Kette ist **noch nicht per Browser getestet**.
 - **Prüfung:** Gesicherten HTML-/SVG-Testanhang als nicht vertrauenswürdigen Upload laden, mit angemeldeter Sitzung öffnen, tatsächlichen Content-Type/Disposition/CSP und Skriptausführung prüfen; Angriff auf geschützten Testbefehl muss scheitern. Gleiches für Bilder/Videos und legitime Downloads.
 - **Soll:** Fremde aktive Anhänge niemals unter derselben vertrauenswürdigen Cockpit-Origin als ausführbares Dokument ausliefern; serverseitig MIME-/Typbindung, `nosniff`, geeignete Sandbox/Download-Trennung. Normaler Medienzugriff bleibt funktionsfähig.
-- **Status:** OFFEN – statischer Befund, reproduzierbarer Sicherheitstest ausstehend.
+- **Status:** BESTÄTIGT und behoben (Protokoll §7, BUG-001); Browser-Nachweis am laufenden Cockpit nach dem nächsten Deploy.
 
 ### BUG-002 – Tunnel könnte lokalen Cockpit-Host-Check umgehen
 - **Meldung:** Tunnel verändert Host-Header zu `127.0.0.1:8190`, dadurch könnten statt nur Instagram-/PayPal-Pfaden alle Cockpit-Endpunkte erreichbar werden.
@@ -132,3 +132,23 @@ Bearbeiter/Datum:
 **Abschluss je Befund:** reproduzierbarer Beleg oder widerlegter Sachverhalt, keine offene Gegenprüfung, Änderung auf `main` gepusht (falls erforderlich), Tests auf echtem Mac bestanden und belegbar. **Nicht gefixte/noch nicht geprüfte Punkte bleiben ausdrücklich OFFEN.**
 
 **Priorität gegenüber dem KI-Studio:** Die tatsächlich bestätigten P0-/relevanten P1-Fehler sollen vor dem Telegram-Kundentest gezielt korrigiert werden; die vereinbarte Produktreihenfolge **Cydonia → KI-Studio → Gedächtnis → Testauftrag → Telegram-Rückversand** bleibt danach unverändert. Keine ungefragten neuen Modellvergleiche oder Infrastrukturpakete.
+
+## 7. Prüfprotokoll
+
+```text
+ID: BUG-001
+Git-Commit / geprüfte Datei + Zeilen: ab1d9cf / backend/src/darkfluenzer/server.py, _media (Medien-Route)
+Behauptung: BESTÄTIGT
+Nachweis: tests/test_bugs_v1.py::test_bug001_active_attachments_never_render_in_cockpit_origin – gesicherter
+  Kundenanhang evil.html kam mit angemeldeter Sitzung als "text/html" ohne nosniff/CSP/Download zurück
+  (rot vor der Korrektur), evil.svg ebenso als aktives Dokument möglich
+Ursache: web.FileResponse leitet den Typ aus der Dateiendung ab; Anhänge aus message_files wurden ohne
+  Typbindung inline ausgeliefert
+Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-001"
+Regression: Normalfall (PNG bleibt inline als image/png), Fehlerfall (HTML/SVG/Unbekanntes nur als Download
+  application/octet-stream), jede Antwort nosniff + CSP sandbox; tests/test_server.py und
+  test_customer_orders.py (Vorschau der Zustellkopie) grün
+Mac-End-to-End: NICHT GELAUFEN (Deploy nach dem laufenden LTX-Job 63, dann Browserprüfung)
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+

@@ -2341,6 +2341,17 @@ def _response(request_id: str, reason: str, entity: str = "") -> commands_pb2.Co
     )
 
 
+# Nur passive Medien werden im Cockpit angezeigt; HTML, SVG, PDF und alles Unbekannte (z. B.
+# Kundenanhänge) gehen als Download mit neutralem Typ hinaus (bugs_v1 BUG-001)
+INLINE_TYPES = {
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
+    ".gif": "image/gif", ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
+    ".m4v": "video/mp4", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".ogg": "audio/ogg",
+    ".oga": "audio/ogg", ".opus": "audio/ogg", ".wav": "audio/wav",
+}  # fmt: skip
+MEDIA_CSP = "default-src 'none'; img-src 'self'; media-src 'self'; sandbox"
+
+
 def _media(local: Path):
     """Erzeugte Bilder/Videos – nur Dateien des Galerie-Index, nur mit gültiger Sitzung.
     Pfade relativ zu local/; Dateien werden nie überschrieben. ``?download=1`` lädt herunter."""
@@ -2355,9 +2366,16 @@ def _media(local: Path):
         path = (local / rel).resolve()
         if not path.is_relative_to(local.resolve()) or not path.is_file():
             raise web.HTTPNotFound()
-        headers = {"Cache-Control": "private, max-age=31536000, immutable"}
-        if request.query.get("download") == "1":
+        headers = {
+            "Cache-Control": "private, max-age=31536000, immutable",
+            # bugs_v1 BUG-001: nie als aktives Dokument unter der Cockpit-Origin
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": MEDIA_CSP,
+        }
+        inline = INLINE_TYPES.get(path.suffix.lower())
+        if inline is None or request.query.get("download") == "1":
             headers["Content-Disposition"] = f'attachment; filename="{path.name}"'
+        headers["Content-Type"] = inline or "application/octet-stream"
         return web.FileResponse(path, headers=headers)
 
     return media
