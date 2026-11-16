@@ -2210,15 +2210,22 @@ COCKPIT_KEY = web.AppKey("cockpit", Cockpit)
 GUARD_KEY = web.AppKey("guard", _Guard)
 
 
+# Tunnel und Reverse-Proxys setzen diese Header; das Cockpit ist nie über einen Tunnel erreichbar,
+# auch wenn ein Tunnel den Host auf 127.0.0.1 umschreibt (bugs_v1 BUG-002). Öffentliche Pfade
+# gibt es nur in der eigenen App auf server.public_port.
+FORWARD_HEADERS = (
+    "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "Forwarded", "X-Real-IP",
+    "CF-Connecting-IP", "CF-Ray", "Tailscale-Funnel-Request", "Tailscale-User-Login",
+    "True-Client-IP", "Via",
+)  # fmt: skip
+
+
 @web.middleware
 async def _host_check(request: web.Request, handler):
+    if any(h in request.headers for h in FORWARD_HEADERS):
+        return web.Response(status=403, text="Das Cockpit ist über einen Tunnel nicht erreichbar")
     if request.host not in request.app[GUARD_KEY].hosts:
-        # über den Tunnel nur die drei öffentlichen Instagram-Pfade (je mit eigener Prüfung)
-        ig = request.app[COCKPIT_KEY].instagram
-        if not (
-            ig and ig.public_host and request.host == ig.public_host and ig.is_public(request.path)
-        ):
-            return web.Response(status=403, text="Unbekannter Host")
+        return web.Response(status=403, text="Unbekannter Host")
     return await handler(request)
 
 
@@ -2857,12 +2864,6 @@ def create_app(cfg: Config) -> web.Application:
     app.router.add_get("/api/v1/wallet-qr/{key}", _wallet_qr)
     app.router.add_get("/api/v1/payment-export/{month}", _payment_export)
     app.router.add_get("/api/v1/instagram/login", _ig_login)
-    if cfg.instagram:  # öffentlich über den Tunnel (Host-Prüfung lässt nur diese Pfade durch)
-        ig = cfg.instagram
-        app.router.add_get(ig.webhook_path, _ig_verify)
-        app.router.add_post(ig.webhook_path, _ig_webhook)
-        app.router.add_get(ig.oauth_path, _ig_oauth)
-        app.router.add_get(ig.media_path + "/{path:.+}", _ig_media)
     app.router.add_get("/api/v1/customer-page", _customer_page)
     app.router.add_get("/api/v1/conversation-page", _conversation_page)
 
@@ -2896,9 +2897,39 @@ def create_app(cfg: Config) -> web.Application:
     return app
 
 
+def create_public_app(cockpit: Cockpit) -> web.Application:
+    """Öffentlicher Eingang (einziges Tunnel-Ziel, bugs_v1 BUG-002): ausschließlich Webhook,
+    OAuth-Rückruf und signierte Medien – jeweils mit eigener Prüfung; sonst existiert nichts."""
+    cfg = cockpit.cfg
+    app = web.Application(client_max_size=int(cfg.server.max_upload_mb * 1024 * 1024))
+    app[COCKPIT_KEY] = cockpit
+    if cfg.instagram:
+        ig = cfg.instagram
+        app.router.add_get(ig.webhook_path, _ig_verify)
+        app.router.add_post(ig.webhook_path, _ig_webhook)
+        app.router.add_get(ig.oauth_path, _ig_oauth)
+        app.router.add_get(ig.media_path + "/{path:.+}", _ig_media)
+    return app
+
+
 def serve(cfg: Config) -> None:
-    """Blockierend bis zum Beenden (Strg+C / SIGTERM)."""
+    """Blockierend bis zum Beenden (Strg+C / SIGTERM). Mit Tunnel-Adresse zusätzlich der
+    öffentliche Eingang auf 127.0.0.1:server.public_port (nur dieser Port ist Tunnel-Ziel)."""
     log.info("Cockpit auf %s", cfg.server.url)
-    web.run_app(
-        create_app(cfg), host=cfg.server.host, port=cfg.server.port, print=None, access_log=None
-    )
+    app = create_app(cfg)
+    if cfg.instagram and cfg.instagram.public_base_url:
+        runner = web.AppRunner(create_public_app(app[COCKPIT_KEY]), access_log=None)
+
+        async def start_public(_: web.Application) -> None:
+            await runner.setup()
+            await web.TCPSite(runner, "127.0.0.1", cfg.server.public_port).start()
+            log.info(
+                "Öffentlicher Eingang (nur Tunnel-Pfade) auf 127.0.0.1:%d", cfg.server.public_port
+            )
+
+        async def stop_public(_: web.Application) -> None:
+            await runner.cleanup()
+
+        app.on_startup.append(start_public)
+        app.on_cleanup.append(stop_public)
+    web.run_app(app, host=cfg.server.host, port=cfg.server.port, print=None, access_log=None)

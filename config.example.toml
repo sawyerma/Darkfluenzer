@@ -111,6 +111,8 @@ max_messages_per_minute = 6
 # Zugangstoken (ca. 60 Tage, rechtzeitig erneuert) und Medienschlüssel legt Darkfluenzer selbst an.
 # Öffentlich über den Tunnel (§10 Punkt 1) nur diese drei Pfade, je mit eigener Prüfung:
 # webhook_path (Meta-Signatur), oauth_path (OAuth-state), media_path (kurzlebiges signiertes Token).
+# Tunnel-Ziel ist ausschließlich der öffentliche Eingang http://127.0.0.1:<server.public_port>
+# (Standard: Cockpit-Port + 1), NIE der Cockpit-Port selbst (bugs_v1 BUG-002).
 # In der Meta-App eintragen: Webhook = public_base_url + webhook_path,
 # OAuth-Weiterleitung = public_base_url + oauth_path. Ohne public_base_url bleibt Instagram aus.
 [instagram]

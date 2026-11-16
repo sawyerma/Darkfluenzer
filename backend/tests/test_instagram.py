@@ -438,8 +438,8 @@ def test_config_instagram_section(project, tmp_path):
 
 
 def test_server_routes_only_public_paths_through_tunnel(cfg, vault, monkeypatch):
-    """Über den Tunnel-Host nur Webhook, OAuth und signierte Medien; alles andere 403. Anmeldelink
-    nur mit Sitzung; Webhook nur mit Meta-Signatur."""
+    """Über den Tunnel nur Webhook, OAuth und signierte Medien – auf dem eigenen öffentlichen
+    Eingang; das Cockpit selbst nie. Anmeldelink nur mit Sitzung; Webhook nur mit Signatur."""
     from test_server import _csrf, _run
 
     from darkfluenzer import server
@@ -453,17 +453,23 @@ def test_server_routes_only_public_paths_through_tunnel(cfg, vault, monkeypatch)
     public = {"Host": urlsplit(BASE).netloc}
 
     async def scenario(client, app, origin):
+        from aiohttp.test_utils import TestClient, TestServer
+
+        # Cockpit: fremder Host 403, öffentliche Pfade gibt es hier nicht (bugs_v1 BUG-002)
         assert (await client.get("/api/v1/session", headers=public)).status == 403
         assert (await client.get("/", headers=public)).status == 403
-        query = {"hub.mode": "subscribe", "hub.verify_token": VERIFY, "hub.challenge": "c-1"}
-        resp = await client.get(ig.webhook_path, params=query, headers=public)
-        assert resp.status == 200 and await resp.text() == "c-1"
-        query["hub.verify_token"] = "falsch"
-        assert (await client.get(ig.webhook_path, params=query, headers=public)).status == 403
-        body = _hook(_msg("m-1"))
-        bad = public | {"X-Hub-Signature-256": "sha256=00"}
-        assert (await client.post(ig.webhook_path, data=body, headers=bad)).status == 403
-        assert (await client.get(ig.media_path + "/x.png?t=1.abc", headers=public)).status == 403
+        # öffentlicher Eingang (eigener Port, einziges Tunnel-Ziel): nur die drei Pfade
+        async with TestClient(TestServer(server.create_public_app(app[server.COCKPIT_KEY]))) as pub:
+            assert (await pub.get("/api/v1/session", headers=public)).status == 404
+            query = {"hub.mode": "subscribe", "hub.verify_token": VERIFY, "hub.challenge": "c-1"}
+            resp = await pub.get(ig.webhook_path, params=query, headers=public)
+            assert resp.status == 200 and await resp.text() == "c-1"
+            query["hub.verify_token"] = "falsch"
+            assert (await pub.get(ig.webhook_path, params=query, headers=public)).status == 403
+            body = _hook(_msg("m-1"))
+            bad = public | {"X-Hub-Signature-256": "sha256=00"}
+            assert (await pub.post(ig.webhook_path, data=body, headers=bad)).status == 403
+            assert (await pub.get(ig.media_path + "/x.png?t=1.abc", headers=public)).status == 403
         assert (await client.get("/api/v1/instagram/login", allow_redirects=False)).status == 401
         await _csrf(client)
         resp = await client.get("/api/v1/instagram/login", allow_redirects=False)

@@ -26,7 +26,7 @@
 - **Eigene Gegenprüfung:** **HYPOTHESE** – `server.py`, `_host_check` (um 2214): Jeder Request mit Host aus `guard.hosts` wird zunächst durchgelassen, für abweichende Hosts greift die Instagram-Pfadsperre. Ob die Tunnel-Proxykonfiguration den originalen Host erhält, wurde nicht geprüft.
 - **Prüfung:** Reale gewählte Tunnelkonfiguration inspizieren; von einem externen Testclient unerlaubte Cockpit-, Medien-, Health-/Login- und Protobuf-URLs anfragen, Host-/Forwarded-Header-Varianten und tatsächliche Bindung beobachten. Erfolgreiche Zugriffe auf nicht freigegebene Pfade sind P0.
 - **Soll:** Öffentliche Freigabeliste der exakt benötigten Webhook-/OAuth-/Medienpfade; keine Abhängigkeit allein von einem manipulier-/umgeschriebenen Host-Header.
-- **Status:** OFFEN – keine bestätigte öffentliche Ausnutzbarkeit behaupten.
+- **Status:** BESTÄTIGT (für umgeschriebenen Host) und behoben (Protokoll §7, BUG-002); Prüfung mit der echten Tunnelkonfiguration folgt, sobald der Tunnel eingerichtet ist.
 
 ### BUG-003 – Interner Default-Rückversand ohne plattformspezifische Inhaltsstufenprüfung
 - **Meldung:** Explizite Default-Ergebnisse könnten auf Instagram versandt werden, obwohl Regel 13 sie ausschließlich für Default über Telegram zulässt.
@@ -149,6 +149,25 @@ Regression: Normalfall (PNG bleibt inline als image/png), Fehlerfall (HTML/SVG/U
   application/octet-stream), jede Antwort nosniff + CSP sandbox; tests/test_server.py und
   test_customer_orders.py (Vorschau der Zustellkopie) grün
 Mac-End-to-End: NICHT GELAUFEN (Deploy nach dem laufenden LTX-Job 63, dann Browserprüfung)
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
+ID: BUG-002
+Git-Commit / geprüfte Datei + Zeilen: abf4be8 / backend/src/darkfluenzer/server.py, _host_check, create_app
+Behauptung: BESTÄTIGT (Fall „Tunnel schreibt Host auf 127.0.0.1 um“); öffentliche Ausnutzbarkeit mit der
+  realen Tunnelkonfiguration NICHT GEPRÜFT (kein Tunnel eingerichtet)
+Nachweis: tests/test_bugs_v1.py::test_bug002_tunnel_never_reaches_cockpit_even_with_rewritten_host – mit
+  Host 127.0.0.1 und X-Forwarded-For gab /api/v1/session eine Cockpit-Sitzung samt CSRF-Token heraus (204,
+  rot vor der Korrektur)
+Ursache: Die Trennung öffentlich/lokal hing allein am Host-Header; die öffentlichen Pfade lagen in
+  derselben App wie das Cockpit
+Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-002"
+Regression: Cockpit lehnt jede Anfrage mit Weiterleitungs-Headern ab (X-Forwarded-*, Forwarded, X-Real-IP,
+  CF-*, Tailscale-*, True-Client-IP, Via) und kennt keine öffentlichen Pfade mehr; eigener öffentlicher
+  Eingang create_public_app nur mit Webhook/OAuth/signierten Medien auf 127.0.0.1:server.public_port
+  (Standard Cockpit-Port + 1, einziges Tunnel-Ziel); Instagram-Tests angepasst, 119 Tests grün
+Mac-End-to-End: NICHT GELAUFEN (Deploy nach Job 63; echter Tunneltest nach Einrichtung des Tunnels)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 

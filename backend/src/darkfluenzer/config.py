@@ -86,6 +86,8 @@ class ServerConfig:
     media_settle_s: float
     client_queue_max: int
     memory_reserve_gb: float
+    # Öffentlicher Eingang (nur Webhook/OAuth/signierte Medien) auf 127.0.0.1 – einziges Tunnel-Ziel
+    public_port: int
 
     @property
     def url(self) -> str:
@@ -532,6 +534,11 @@ def _parse_server(t: dict) -> ServerConfig:
     port = _require(t, "port", int, w)
     if not 1 <= port <= 65535:
         raise ConfigError(f"Konfiguration: server.port={port} ist ungültig.")
+    public_port = t.get("public_port", port + 1)
+    if isinstance(public_port, bool) or not isinstance(public_port, int):
+        raise ConfigError("Konfiguration: server.public_port muss eine Zahl sein.")
+    if not 1 <= public_port <= 65535 or public_port == port:
+        raise ConfigError(f"Konfiguration: server.public_port={public_port} ist ungültig.")
     return ServerConfig(
         host=host,
         port=port,
@@ -543,6 +550,7 @@ def _parse_server(t: dict) -> ServerConfig:
         media_settle_s=_positive(t, "media_settle_s", 10, w),
         client_queue_max=int(_positive(t, "client_queue_max", 2000, w)),
         memory_reserve_gb=_positive(t, "memory_reserve_gb", 16, w),
+        public_port=public_port,
     )
 
 
