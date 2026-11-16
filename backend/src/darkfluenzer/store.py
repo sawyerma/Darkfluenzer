@@ -20,7 +20,7 @@ from pathlib import Path
 
 from .payments.vouchers import extract as extract_vouchers
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -622,6 +622,21 @@ CREATE TABLE vouchers (
     created_at   TEXT    NOT NULL
 );
 ALTER TABLE channel_messages ADD COLUMN delivery_id INTEGER REFERENCES deliveries(id);
+""",
+    16: """
+-- Abschnitte eines langen Videos (V0 §10): je Job und Abschnitt der eingereichte Auftrag, das
+-- Video, das letzte Bild (Startbild des nächsten Abschnitts) und die Dauer; Index = Anzahl
+-- Abschnitte ist das Zusammensetzen. Nach einem Neustart wird nur der unfertige fortgesetzt.
+CREATE TABLE job_segments (
+    job_id     INTEGER NOT NULL REFERENCES jobs(id),
+    idx        INTEGER NOT NULL CHECK (idx >= 0),
+    prompt_id  TEXT,
+    video      TEXT,
+    last_frame TEXT,
+    duration_s REAL,
+    done_at    TEXT,
+    PRIMARY KEY (job_id, idx)
+);
 """,
 }
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
@@ -2316,6 +2331,44 @@ class Store:
                         else "failed"
                     )
                     self.finish_command(rid[0], final, detail=error or "")
+
+    def job_segments(self, job_id: int) -> dict[int, dict]:
+        rows = self.db.execute("SELECT * FROM job_segments WHERE job_id = ?", (job_id,))
+        return {r["idx"]: dict(r) for r in rows}
+
+    def copy_segments(self, source_job: int, target_job: int) -> int:
+        """Fertige Abschnitte eines gescheiterten Jobs in seinen Wiederholungs-Job übernehmen
+        (gleiche Parameter: dieselbe Fortsetzung, kein erneutes Rendern). Liefert die Anzahl."""
+        with self.tx() as db:
+            return db.execute(
+                "INSERT INTO job_segments (job_id, idx, video, last_frame, duration_s, done_at)"
+                " SELECT ?, idx, video, last_frame, duration_s, done_at FROM job_segments"
+                " WHERE job_id = ? AND done_at IS NOT NULL AND idx < ("
+                "   SELECT coalesce(min(idx), 1000000) FROM job_segments"
+                "   WHERE job_id = ? AND done_at IS NULL)",
+                (target_job, source_job, source_job),
+            ).rowcount
+
+    def segment_submitted(self, job_id: int, idx: int, prompt_id: str) -> None:
+        with self.tx() as db:
+            db.execute(
+                "INSERT INTO job_segments (job_id, idx, prompt_id) VALUES (?,?,?)"
+                " ON CONFLICT (job_id, idx) DO UPDATE SET prompt_id = excluded.prompt_id",
+                (job_id, idx, prompt_id),
+            )
+
+    def segment_done(
+        self, job_id: int, idx: int, video: str, last_frame: str, duration_s: float
+    ) -> None:
+        with self.tx() as db:
+            db.execute(
+                "INSERT INTO job_segments (job_id, idx, video, last_frame, duration_s, done_at)"
+                " VALUES (?,?,?,?,?,?) ON CONFLICT (job_id, idx) DO UPDATE SET"
+                " video = excluded.video, last_frame = excluded.last_frame,"
+                " duration_s = excluded.duration_s, done_at = excluded.done_at",
+                (job_id, idx, video, last_frame, duration_s, now()),
+            )
+            self._event("job", job_id, "segment", idx=idx)
 
     def set_job_submitted(
         self, job_id: int, prompt_id: str, graph: dict, workflow_sha: str

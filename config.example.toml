@@ -78,6 +78,7 @@ min_score = 0.8
 candidates_default = 3
 candidates_max = 6
 stage_attempts_max = 3
+video_max_s = 120   # Obergrenze der Videolänge in Sekunden (Abschnitte à höchstens 5 s werden aneinandergereiht)
 
 # Claras Telegram-Konto (PHASENPLAN_V0 §6.1, C2d): Darkfluenzer meldet sich über TDLib als normales
 # Nutzerkonto an (kein Bot). TDLib bauen: launcher/setup_tdlib.sh. api_id/api_hash von

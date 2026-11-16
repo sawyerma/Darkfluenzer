@@ -44,6 +44,7 @@ function tabOf(w: WorkflowInfo): Kind {
   return w.instance === "ai" ? "ai" : (w.kind as Kind);
 }
 const LABEL: Record<string, string> = {
+  video: "Abschnitte",
   negative_prompt: "Negativ-Prompt",
   seed: "Seed",
   steps: "Schritte",

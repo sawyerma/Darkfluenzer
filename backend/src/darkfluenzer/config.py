@@ -196,6 +196,8 @@ class ProductionConfig:
     candidates_default: int
     candidates_max: int
     stage_attempts_max: int
+    # Obergrenze der Gesamtlänge eines Videos in Sekunden (Abschnitte werden aneinandergereiht)
+    video_max_s: float
 
 
 @dataclass(frozen=True)
@@ -586,6 +588,7 @@ def load(root: Path | None = None) -> Config:
         candidates_default=int(_positive(prod, "candidates_default", 3, "production")),
         candidates_max=int(_positive(prod, "candidates_max", 6, "production")),
         stage_attempts_max=int(_positive(prod, "stage_attempts_max", 3, "production")),
+        video_max_s=float(_positive(prod, "video_max_s", 120, "production")),
     )
     if production.candidates_default > production.candidates_max:
         raise ConfigError("Konfiguration: production.candidates_default > candidates_max.")

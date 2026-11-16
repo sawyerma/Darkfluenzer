@@ -526,7 +526,7 @@ class Cockpit:
                 progress_max=maximum,
                 instance=lane.inst.name,
             )
-            job.params.update({k: str(v) for k, v in params.items()})
+            job.params.update({k: _param_text(k, v) for k, v in params.items()})
 
         for lane in self.lanes.values():
             for job_id, running, prompt_id in lane.queue:
@@ -567,6 +567,22 @@ class Cockpit:
                 for name, (width, height) in eng.formats.items():
                     info.formats.add(name=name, width=width, height=height)
             graph = comfy.load_graph(self.manifest, wf)
+            if wf.video:  # Länge in Sekunden: Gesamtlänge (Grund) und Abschnittslänge (Experte)
+                v = wf.video
+                fps_p = wf.params[v.fps]
+                fps = float(graph[fps_p.node]["inputs"][fps_p.input])
+                frames = int(graph[v.length_node]["inputs"][v.length_input])
+                segment = (v.segment_frames_max - 1) / fps
+                for name, label, high, value, expert in (
+                    ("duration_s", "Gesamtlänge (s)", self.cfg.production.video_max_s,
+                     (frames - 1) / fps, False),
+                    ("segment_s", f"Abschnittslänge (s, höchstens {v.segment_frames_max} Frames)",
+                     segment, segment, True),
+                ):  # fmt: skip
+                    info.params.add(
+                        name=name, type="float", min=0.25, max=high, label=label, expert=expert,
+                        number=round(value, 2),
+                    )  # fmt: skip
             for name, p in wf.params.items():
                 param = info.params.add(
                     name=name,
@@ -776,7 +792,7 @@ class Cockpit:
             for name, value in origin["params"].items():
                 if name in wf.params and wf.params[name].upload:
                     inputs[name] = value
-                elif name in wf.params:
+                elif name in wf.params or name in pipeline.VIDEO_KEYS:
                     values.setdefault(name, value)
         inputs.update(await self._inputs(wf, msg.files))
         dataset = None
@@ -792,6 +808,7 @@ class Cockpit:
             wf.key,
             values,
             inputs,
+            video_max_s=self.cfg.production.video_max_s,
             dataset=dataset,
             parent_media_id=msg.parent_media_id or None,
             command={
@@ -891,6 +908,7 @@ class Cockpit:
             parent_media_id=msg.parent_media_id or None,
             command=self._journal_entry(call),
             customer_order_no=msg.customer_order_no,
+            video_max_s=self.cfg.production.video_max_s,
         )
         call.entity, call.recorded = f"order:{order_no}", True
         log.info("Auftrag %s: %d Kandidaten von %s eingereiht", order_no, len(jobs), wf.key)
@@ -927,6 +945,7 @@ class Cockpit:
             msg.seq,
             self.cfg.production.stage_attempts_max,
             self._journal_entry(call),
+            video_max_s=self.cfg.production.video_max_s,
         )
         call.recorded = True
         log.info("Auftrag %s: Stufe %s wiederholt (%d Jobs)", msg.order_no, msg.seq, len(jobs))
@@ -1565,6 +1584,7 @@ class Cockpit:
             count=self.cfg.production.candidates_default,
             source="cloner",
             origin=msg["id"],
+            video_max_s=self.cfg.production.video_max_s,
         )
         self.store.link_order(msg["id"], self.store.order(order_no).id)
         log.info(
@@ -2529,6 +2549,15 @@ def _window(ig: InstagramAccount | None, ident: dict) -> dict:
         "window_until_ms": now_ms + left if left else 0,
         "human_until_ms": now_ms + human if human else 0,
     }
+
+
+def _param_text(name: str, value: object) -> str:
+    """Job-Parameter für die Anzeige; der Abschnittsplan eines Langvideos als eine Zeile."""
+    if name == "video" and isinstance(value, dict):
+        frames = value.get("frames") or []
+        joined = " + ".join(map(str, frames))
+        return f"{len(frames)} Abschnitt(e) · Frames {joined} · {value.get('fps', 0):g} fps"
+    return str(value)
 
 
 def _eur(cents: int) -> str:

@@ -30,6 +30,13 @@ from .store import MEDIA_KINDS, Store, sha256_file
 
 log = logging.getLogger("darkfluenzer.pipeline")
 
+# Langvideo (V0 §10): Zwischenstände der Abschnitte in eigenem Ordner (ComfyUI-Ausgabe und local/),
+# den die Galerie nicht aufnimmt; Länge und Abschnittslänge in Sekunden (keine Graph-Eingänge)
+WORK_PREFIX = "darkfluenzer_work"
+VIDEO_KEYS = ("duration_s", "segment_s")
+VIDEO_SUFFIXES = {".mp4", ".webm", ".mov", ".mkv"}
+LAST_FRAME, LAST_SAVE = "df_last_frame", "df_last_save"  # zusätzliche Nodes je Abschnitt
+
 
 class PipelineError(Exception):
     """Ergebnis verletzt eine Pipeline-Garantie (z. B. Pixel außerhalb der Maske verändert)."""
@@ -122,6 +129,41 @@ def input_from_media(cfg: Config, media_id: int) -> str:
     return store_input(cfg, data, Path(row["path"]).name)
 
 
+def video_plan(wf: Workflow, graph: dict, values: dict, max_s: float | None) -> dict | None:
+    """Gesamtlänge und Abschnittslänge (Sekunden) in Abschnitte zerlegen; entfernt beide Werte aus
+    ``values``. Jeder Abschnitt hat n·m+1 Frames (höchstens die Trainingslänge), Folgeabschnitte
+    beginnen mit dem letzten Bild des vorigen – deren erstes Bild zählt nicht neu."""
+    video = {k: values.pop(k) for k in VIDEO_KEYS if k in values}
+    spec = wf.video
+    if spec is None:
+        if video:
+            raise PipelineError(f"{wf.title}: Videolänge gibt es nur bei Video-Workflows.")
+        return None
+    if max_s is None:
+        raise PipelineError("Obergrenze der Videolänge fehlt (production.video_max_s).")
+    fps_param = wf.params[spec.fps]
+    fps = float(values.get(spec.fps, graph[fps_param.node]["inputs"][fps_param.input]))
+    m = spec.frames_multiple
+    segment_max = (spec.segment_frames_max - 1) / fps
+    default_frames = int(graph[spec.length_node]["inputs"][spec.length_input])
+    duration = float(video.get("duration_s", (default_frames - 1) / fps))
+    segment = float(video.get("segment_s", segment_max))
+    if not 0 < duration <= max_s:
+        raise PipelineError(f"Gesamtlänge {duration:g} s: erlaubt über 0 bis {max_s:g} s.")
+    if not 0 < segment <= segment_max + 1e-9:
+        raise PipelineError(
+            f"Abschnitt höchstens {segment_max:.2f} s bei {fps:g} fps "
+            f"({spec.segment_frames_max} Frames, Trainingslänge des Modells)."
+        )
+    step = max(m, round(segment * fps / m) * m)  # neue Frames je vollem Abschnitt
+    left = max(m, round(duration * fps / m) * m)  # neue Frames insgesamt (ohne Startbild)
+    frames = []
+    while left > 0:
+        frames.append(min(step, left) + 1)
+        left -= min(step, left)
+    return {"fps": fps, "duration_s": duration, "segment_s": segment, "frames": frames}
+
+
 def create_render(
     store: Store,
     man: Manifest,
@@ -133,6 +175,7 @@ def create_render(
     command: dict | None = None,
     dataset: str | None = None,
     stage_id: int | None = None,
+    video_max_s: float | None = None,
 ) -> int:
     """Prüft einen Renderauftrag gegen die Registry und legt ihn als Job (Status queued) an.
     ``dataset``: Datensatzversion eines Trainingsworkflows (beim Anlegen festgelegt).
@@ -149,8 +192,11 @@ def create_render(
     as_text = [n for n in values if n in wf.params and wf.params[n].upload]
     if as_text:
         raise PipelineError(f"{', '.join(as_text)}: Datei erwartet.")
+    values = dict(values)
+    graph = comfy.load_graph(man, wf)
+    plan = video_plan(wf, graph, values, video_max_s)
     # Typen, Grenzen, Pflichtangaben und unbekannte Namen prüft die Registry-Bindung.
-    comfy.apply_params(comfy.load_graph(man, wf), wf, {**values, **inputs})
+    comfy.apply_params(graph, wf, {**values, **inputs})
     if parent_media_id is not None and store.media_by_id(parent_media_id) is None:
         raise PipelineError(f"Ausgangsmedium {parent_media_id} ist nicht in der Galerie.")
     if wf.training != bool(dataset):
@@ -165,7 +211,16 @@ def create_render(
         wf.engine,
         workflow_key,
         prompt,
-        {**values, **inputs, **({"dataset": dataset} if dataset else {})},
+        {
+            **values,
+            **inputs,
+            **({"dataset": dataset} if dataset else {}),
+            **(
+                {"duration_s": plan["duration_s"], "segment_s": plan["segment_s"], "video": plan}
+                if plan
+                else {}
+            ),
+        },
         seeds,
         parent_media_id=parent_media_id,
         command=command,
@@ -198,6 +253,7 @@ def create_order(
     source: str = "operator",
     origin: int | None = None,
     customer_order_no: str = "",
+    video_max_s: float | None = None,
 ) -> tuple[str, list[int]]:
     """Auftrag des Betreibers: Stufe 1 rendert ``count`` Kandidaten mit fortlaufenden Seeds und
     wartet dann auf die Auswahl; optional wird der ausgewählte Kandidat mit ``finish_workflow``
@@ -253,6 +309,7 @@ def create_order(
                 inputs,
                 parent_media_id=parent_media_id,
                 stage_id=stage.id,
+                video_max_s=video_max_s,
             )
             for i in range(count)
         ]
@@ -319,7 +376,13 @@ def select_candidate(
 
 
 def retry_stage(
-    store: Store, man: Manifest, order_no: str, seq: int, max_attempts: int, command: dict
+    store: Store,
+    man: Manifest,
+    order_no: str,
+    seq: int,
+    max_attempts: int,
+    command: dict,
+    video_max_s: float | None = None,
 ) -> list[int]:
     """Fehlgeschlagene Jobs einer Stufe mit denselben Parametern erneut anlegen."""
     order = store.order(order_no)
@@ -345,12 +408,18 @@ def retry_stage(
                     store,
                     man,
                     stage.workflow,
-                    {n: v for n, v in old["params"].items() if n in wf.params and n not in uploads},
+                    {
+                        n: v
+                        for n, v in old["params"].items()
+                        if (n in wf.params or n in VIDEO_KEYS) and n not in uploads
+                    },
                     {n: v for n, v in old["params"].items() if n in uploads},
                     parent_media_id=old["parent_media_id"],
                     stage_id=stage.id,
+                    video_max_s=video_max_s,
                 )
             )
+            store.copy_segments(j["id"], jobs[-1])  # Langvideo: fertige Abschnitte behalten
         _journal(store, command, f"order:{order_no}")
     return jobs
 
@@ -392,20 +461,31 @@ def run_render(
                     job_id, prompt_id, graph, hashlib.sha256(api.read_bytes()).hexdigest()
                 )
 
-            result, outputs = _render(
-                cfg,
-                man,
-                wf,
-                job_id,
-                values,
-                uploads,
-                timeout_s,
-                client_id,
-                resume=job["prompt_id"],
-                on_submit=submitted,
-                unload_first=unload_first,
-                dataset=params.get("dataset"),
-            )
+            plan = params.get("video") if wf.video else None
+            if plan and len(plan["frames"]) > 1:  # Langvideo: Abschnitte, dann zusammensetzen
+                result, outputs = _render_video(
+                    cfg, man, wf, job_id, values, uploads, timeout_s, client_id, store=store,
+                    plan=plan, on_submit=submitted, unload_first=unload_first,
+                    is_cancelled=is_cancelled,
+                )  # fmt: skip
+            else:
+                result, outputs = _render(
+                    cfg,
+                    man,
+                    wf,
+                    job_id,
+                    values,
+                    uploads,
+                    timeout_s,
+                    client_id,
+                    resume=job["prompt_id"],
+                    on_submit=submitted,
+                    unload_first=unload_first,
+                    dataset=params.get("dataset"),
+                    overrides={(wf.video.length_node, wf.video.length_input): plan["frames"][0]}
+                    if plan and wf.video
+                    else None,
+                )
         except BaseException as exc:
             if is_cancelled():
                 store.set_job_status(
@@ -442,7 +522,9 @@ def render_evaluation(
     inputs = {n: store_input(cfg, p.read_bytes(), p.name) for n, p in (uploads or {}).items()}
     store = Store(cfg.local)
     try:
-        job_id = create_render(store, man, workflow_key, values, inputs)
+        job_id = create_render(
+            store, man, workflow_key, values, inputs, video_max_s=cfg.production.video_max_s
+        )
     finally:
         store.close()
     return run_render(cfg, man, job_id, timeout_s)
@@ -462,6 +544,7 @@ def _render(
     on_submit: Callable[[str, dict], None] | None = None,
     unload_first: bool = False,
     dataset: str | None = None,
+    overrides: dict[tuple[str, str], object] | None = None,
 ) -> tuple[comfy.RenderResult, list[dict]]:
     workflow_key = wf.key
     from . import runtime
@@ -470,11 +553,11 @@ def _render(
     runtime.start(cfg, inst.name)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     dest = evaluation_dir(cfg, wf.engine)
-    overrides: dict[tuple[str, str], object] = {}
+    overrides = dict(overrides or {})
     lora_prefix = f"loras/darkfluenzer/job{job_id}"  # SaveLoRA-Ziel unter ComfyUIs Ausgabe
     if wf.training:  # Datensatz in den ComfyUI-Eingang, Ziel der LoRA festlegen
         folder = training.stage_dataset(cfg.local / str(dataset), inst.folder("input"))
-        overrides = {(wf.train_dataset, "folder"): folder, (wf.train_lora, "prefix"): lora_prefix}
+        overrides |= {(wf.train_dataset, "folder"): folder, (wf.train_lora, "prefix"): lora_prefix}
     if resume:  # vor einem Neustart eingereicht: nur abholen, nie ein zweites Mal rendern
         if comfy.prompt_state(inst, resume) == "unknown":
             raise PipelineError(
@@ -556,6 +639,174 @@ def _render(
     return result, record["outputs"]
 
 
+def _render_video(
+    cfg: Config,
+    man: Manifest,
+    wf: Workflow,
+    job_id: int,
+    values: dict,
+    uploads: dict[str, Path],
+    timeout_s: float,
+    client_id: str | None,
+    *,
+    store: Store,
+    plan: dict,
+    on_submit: Callable[[str, dict], None],
+    unload_first: bool,
+    is_cancelled: Callable[[], bool],
+) -> tuple[comfy.RenderResult, list[dict]]:
+    """Langvideo (V0 §10): Abschnitte nacheinander, jeder Folgeabschnitt startet mit dem letzten
+    Bild des vorigen; danach in ComfyUI zusammengesetzt (doppeltes Übergangsbild entfernt). Fertige
+    Abschnitte überstehen einen Neustart; fortgesetzt wird nur der unfertige."""
+    from . import runtime
+
+    spec = wf.video
+    assert spec is not None
+    inst = comfy.instance_of(cfg, man, wf)
+    runtime.start(cfg, inst.name)
+    client = comfy.ComfyClient(inst.url, client_id=client_id)
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    work = cfg.local / WORK_PREFIX / f"job{job_id}"
+    graph = comfy.load_graph(man, wf)
+    create = next(k for k, n in graph.items() if n["class_type"] == "CreateVideo")
+    save = next(k for k, n in graph.items() if n["class_type"] == "SaveVideo")
+    frames = plan["frames"]
+    start = uploads[spec.start_image]
+
+    def submitted(idx: int) -> Callable[[str, dict], None]:
+        def note(prompt_id: str, g: dict) -> None:
+            store.segment_submitted(job_id, idx, prompt_id)
+            on_submit(prompt_id, g)
+
+        return note
+
+    def pending(idx: int) -> str | None:
+        row = store.job_segments(job_id).get(idx)
+        known = row and row["prompt_id"] and comfy.prompt_state(inst, row["prompt_id"]) != "unknown"
+        return row["prompt_id"] if known else None
+
+    for idx, count in enumerate(frames):
+        row = store.job_segments(job_id).get(idx)
+        if row and row["done_at"]:
+            start = cfg.local / row["last_frame"]
+            continue
+        if is_cancelled():
+            raise PipelineError("Vom Betreiber abgebrochen.")
+        log.info("Job %s: Abschnitt %d/%d (%d Frames)", job_id, idx + 1, len(frames), count)
+        stem = f"s{idx + 1}_{stamp}"
+        result = None
+        if prompt_id := pending(idx):  # vor einem Neustart eingereicht: abholen
+            try:
+                result = comfy.collect_workflow(
+                    cfg, man, wf.key, values, prompt_id, work, stem=stem, timeout_s=timeout_s
+                )
+            except comfy.ComfyError as exc:  # dort gescheitert: Abschnitt neu einreichen
+                log.warning("Job %s: Abschnitt %d neu (%s)", job_id, idx + 1, exc)
+        if result is None:
+            vals = dict(values)
+            for name, path in uploads.items():
+                vals[name] = client.upload_image(start if name == spec.start_image else path)
+            result = comfy.run_workflow(
+                cfg, man, wf.key, vals, work, stem=stem, timeout_s=timeout_s, job_id=job_id,
+                client_id=client_id, on_submit=submitted(idx),
+                unload_first=unload_first and idx == 0,
+                overrides={
+                    (spec.length_node, spec.length_input): count,
+                    (save, "filename_prefix"): f"{WORK_PREFIX}/{wf.key}_s{idx + 1}",
+                },
+                extra={
+                    LAST_FRAME: {"class_type": "ImageFromBatch", "inputs": {
+                        "image": [spec.decode, 0], "batch_index": count - 1, "length": 1}},
+                    LAST_SAVE: {"class_type": "SaveImage", "inputs": {
+                        "images": [LAST_FRAME, 0],
+                        "filename_prefix": f"{WORK_PREFIX}/{wf.key}_last"}},
+                },
+            )  # fmt: skip
+        video = next((o for o in result.outputs if o.path.suffix.lower() in VIDEO_SUFFIXES), None)
+        last = next((o for o in result.outputs if o.node == LAST_SAVE), None)
+        if video is None or last is None:
+            raise PipelineError(f"Abschnitt {idx + 1}: Video oder letztes Bild fehlt.")
+        rel = lambda p: p.relative_to(cfg.local).as_posix()  # noqa: E731
+        store.segment_done(job_id, idx, rel(video.path), rel(last.path), result.duration_s)
+        start = last.path
+
+    segments = store.job_segments(job_id)
+    joined: dict = {}
+    prev: list | None = None
+    for idx, count in enumerate(frames):
+        name = client.upload_image(cfg.local / segments[idx]["video"])
+        joined[f"v{idx}"] = {"class_type": "LoadVideo", "inputs": {"file": name}}
+        joined[f"c{idx}"] = {
+            "class_type": "GetVideoComponents",
+            "inputs": {"video": [f"v{idx}", 0]},
+        }
+        image: list = [f"c{idx}", 0]
+        if prev is not None:  # erstes Bild = letztes des vorigen Abschnitts: nicht doppelt
+            joined[f"t{idx}"] = {
+                "class_type": "ImageFromBatch",
+                "inputs": {"image": image, "batch_index": 1, "length": count - 1},
+            }
+            joined[f"b{idx}"] = {
+                "class_type": "ImageBatch",
+                "inputs": {"image1": prev, "image2": [f"t{idx}", 0]},
+            }
+            image = [f"b{idx}", 0]
+        prev = image
+    plain = lambda node: {k: v for k, v in graph[node]["inputs"].items() if not isinstance(v, list)}  # noqa: E731
+    joined["create"] = {
+        "class_type": "CreateVideo",
+        "inputs": {**plain(create), "images": prev, "fps": plan["fps"]},
+    }
+    joined["save"] = {"class_type": "SaveVideo", "inputs": {**plain(save), "video": ["create", 0]}}
+    joined = comfy.unique_outputs(joined, f"job{job_id}")
+    dest = evaluation_dir(cfg, wf.engine)
+    base = comfy.RenderResult(
+        prompt_id="", workflow=wf.key, engine=wf.engine, params=values,
+        provenance={**comfy.provenance(man, wf, values), "video": plan},
+    )  # fmt: skip
+    stem = f"{wf.key}_{stamp}"
+    result = None
+    if prompt_id := pending(len(frames)):
+        base.prompt_id = prompt_id
+        try:
+            result = comfy.collect_graph(
+                inst, prompt_id, dest, stem=stem, timeout_s=timeout_s, base=base
+            )
+        except comfy.ComfyError as exc:
+            log.warning("Job %s: Zusammensetzen neu (%s)", job_id, exc)
+    if result is None:
+        result = comfy.run_graph(
+            inst, joined, dest, stem=stem, timeout_s=timeout_s, base=base, job_id=job_id,
+            client_id=client_id, on_submit=submitted(len(frames)),
+        )  # fmt: skip
+    result.duration_s = round(
+        result.duration_s
+        + sum(r["duration_s"] or 0 for i, r in segments.items() if i < len(frames)),
+        1,
+    )
+    record = {
+        "created_at": stamp,
+        "prompt_id": result.prompt_id,
+        "duration_s": result.duration_s,
+        "video": plan,
+        "segments": [segments[i]["video"] for i in range(len(frames))],
+        "outputs": [
+            {**asdict(o), "path": o.path.relative_to(cfg.local).as_posix()} for o in result.outputs
+        ],
+        "inputs": {
+            k: {"file": str(p), "sha256": hashlib.sha256(p.read_bytes()).hexdigest()}
+            for k, p in uploads.items()
+        },
+        "memory": result.memory,
+        "provenance": result.provenance,
+    }
+    sidecar = dest / f"{stem}.json"
+    sidecar.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    log.info("Langvideo %s: %d Abschnitte, %s (%.1f s)", wf.key, len(frames), sidecar.name,
+             result.duration_s)  # fmt: skip
+    return result, record["outputs"]
+
+
 def _adopt_lora(
     cfg: Config,
     man: Manifest,
@@ -627,7 +878,7 @@ def _gallery_files(cfg: Config) -> Iterator[tuple[int, Path, str]]:
     local = cfg.local.resolve()
     for prio, root, skip in (
         (1, cfg.local / "evaluation", "inputs"),
-        (2, cfg.comfyui.path / "output", None),
+        (2, cfg.comfyui.path / "output", WORK_PREFIX),  # Zwischenstände der Videoabschnitte
     ):
         if not root.is_dir() or not root.resolve().is_relative_to(local):
             continue

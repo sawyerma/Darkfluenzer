@@ -100,6 +100,9 @@ class Param:
     label: str = ""  # Feldname im Cockpit (leer: Standardbezeichnung des Parameternamens)
     expert: bool | None = None  # None: Zahlen sind Experte, Texte und Dateien Grundeinstellung
     reference: bool = False  # Vorlage (Bild aus Dateien/Kloner-Eingang), nur mit upload
+    # weitere Ziele (Node, Eingang) mit demselben Wert, z. B. Schritte beider Wan-Sampler
+    also: tuple[tuple[str, str], ...] = ()
+    below: str = ""  # Wert muss kleiner sein als der dieses Parameters (Wechsel < Schritte)
 
     @property
     def is_expert(self) -> bool:
@@ -127,6 +130,21 @@ class Param:
 
 
 @dataclass(frozen=True)
+class VideoSpec:
+    """Videolänge in Sekunden (V0 §10 Langvideo): Darkfluenzer teilt die Gesamtlänge in Abschnitte
+    höchstens ``segment_frames_max`` Frames (Trainingslänge des Modells), jeder Folgeabschnitt
+    startet mit dem letzten Bild des vorigen; danach werden die Abschnitte zusammengesetzt."""
+
+    length_node: str  # Node/Eingang mit der Framezahl eines Abschnitts
+    length_input: str
+    fps: str  # Parameter mit der Bildrate
+    frames_multiple: int  # Framezahl = n · frames_multiple + 1 (Wan: 4)
+    segment_frames_max: int
+    start_image: str  # Upload-Parameter des Startbilds
+    decode: str  # Node, dessen Bilder das Video ergeben (letztes Bild je Abschnitt)
+
+
+@dataclass(frozen=True)
 class Workflow:
     key: str
     title: str
@@ -147,6 +165,7 @@ class Workflow:
     # Inhaltsstufe der Ergebnisse (PHASENPLAN_V0 Regel 13): fail-closed – ohne Eintrag „explizit“;
     # „standard“ nur, wenn ausdrücklich so im Manifest markiert
     content: str = "explizit"
+    video: VideoSpec | None = None
 
     @property
     def training(self) -> bool:
@@ -205,6 +224,32 @@ def _str(table: dict, key: str, where: str) -> str:
     if not isinstance(value, str):
         raise ManifestError(f"Manifest: {where}.{key} fehlt oder ist kein Text.")
     return value
+
+
+def _video(t: object, params: dict[str, Param], w: str) -> VideoSpec | None:
+    if t is None:
+        return None
+    if not isinstance(t, dict):
+        raise ManifestError(f"Manifest: {w}.video muss eine Tabelle sein.")
+    try:
+        spec = VideoSpec(
+            length_node=str(t["length_node"]),
+            length_input=str(t["length_input"]),
+            fps=str(t["fps"]),
+            frames_multiple=int(t["frames_multiple"]),
+            segment_frames_max=int(t["segment_frames_max"]),
+            start_image=str(t["start_image"]),
+            decode=str(t["decode"]),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ManifestError(f"Manifest: {w}.video: {exc}") from exc
+    if spec.fps not in params or spec.start_image not in params:
+        raise ManifestError(f"Manifest: {w}.video: fps und start_image müssen Parameter sein.")
+    if not params[spec.start_image].upload or spec.frames_multiple < 1:
+        raise ManifestError(f"Manifest: {w}.video: start_image muss ein Upload sein.")
+    if (spec.segment_frames_max - 1) % spec.frames_multiple:
+        raise ManifestError(f"Manifest: {w}.video.segment_frames_max passt nicht zum Raster.")
+    return spec
 
 
 def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = None) -> Manifest:
@@ -338,8 +383,19 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
         w = f"workflows.{key}"
         params = {}
         for name, spec in (t.get("params") or {}).items():
+            spec = dict(spec)
+            if "choices_from" in spec:  # gemeinsame Auswahlliste ([choices], z. B. Sampler)
+                shared = (data.get("choices") or {}).get(spec.pop("choices_from"))
+                if not isinstance(shared, list):
+                    raise ManifestError(f"Manifest: {w}.params.{name}.choices_from unbekannt.")
+                spec["choices"] = shared
             try:
-                params[name] = Param(**{**spec, "choices": tuple(spec.get("choices", ()))})
+                also = tuple(tuple(str(x).split(":", 1)) for x in spec.pop("also", ()))
+                if any(len(a) != 2 for a in also):
+                    raise TypeError('also: Einträge als "Node:Eingang"')
+                params[name] = Param(
+                    **{**spec, "choices": tuple(spec.get("choices", ())), "also": also}
+                )
             except TypeError as exc:
                 raise ManifestError(f"Manifest: {w}.params.{name}: {exc}") from exc
             if params[name].reference and not params[name].upload:
@@ -366,7 +422,11 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             train_dataset=str((t.get("training") or {}).get("dataset", "")),
             train_lora=str((t.get("training") or {}).get("lora", "")),
             content=str(t.get("content", "explizit")),
+            video=_video(t.get("video"), params, w),
         )
+        for name, prm in params.items():
+            if prm.below and prm.below not in params:
+                raise ManifestError(f"Manifest: {w}.params.{name}.below: {prm.below} unbekannt.")
         if wf.content not in CONTENT_TIERS:
             raise ManifestError(f"Manifest: {w}.content muss {CONTENT_TIERS} sein.")
         if bool(wf.train_dataset) != bool(wf.train_lora):
@@ -412,10 +472,17 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
     """Registry-Vertrag eines API-Graphen: alle Parameter-Bindungen vorhanden, nur Modelldateien
     der eigenen Engine. Gilt für das Laden wie für das Übernehmen eines bearbeiteten Graphen."""
     problems = [
-        f"params.{name} -> {p.node}.{p.input} fehlt im API-Graph."
+        f"params.{name} -> {node}.{key} fehlt im API-Graph."
         for name, p in wf.params.items()
-        if p.input not in (graph.get(p.node) or {}).get("inputs", {})
+        for node, key in ((p.node, p.input), *p.also)
+        if key not in (graph.get(node) or {}).get("inputs", {})
     ]
+    if wf.video:
+        v = wf.video
+        if v.length_input not in (graph.get(v.length_node) or {}).get("inputs", {}):
+            problems.append(f"video.length -> {v.length_node}.{v.length_input} fehlt im API-Graph.")
+        if v.decode not in graph:
+            problems.append(f"video.decode -> {v.decode} fehlt im API-Graph.")
     if wf.mask_output and (graph.get(wf.mask_output) or {}).get("class_type") != "SaveImage":
         problems.append(f"mask_output -> {wf.mask_output} ist kein SaveImage-Node im API-Graph.")
     for role, node, name in (

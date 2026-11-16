@@ -292,9 +292,18 @@ def apply_params(graph: dict, wf: Workflow, values: dict) -> dict:
     for name, value in values.items():
         spec = wf.params[name]
         try:
-            out[spec.node]["inputs"][spec.input] = spec.coerce(name, value)
+            coerced = spec.coerce(name, value)
         except ValueError as exc:
             raise ComfyError(str(exc)) from exc
+        for node, key in ((spec.node, spec.input), *spec.also):
+            out[node]["inputs"][key] = coerced
+    for name, spec in wf.params.items():  # Bedingung zwischen Parametern (z. B. Wechsel < Schritte)
+        if spec.below:
+            low, high = wf.params[name], wf.params[spec.below]
+            a = out[low.node]["inputs"][low.input]
+            b = out[high.node]["inputs"][high.input]
+            if not a < b:
+                raise ComfyError(f"Parameter {name}={a} muss kleiner sein als {spec.below}={b}.")
     return out
 
 
@@ -363,9 +372,11 @@ def run_workflow(
     on_submit: Callable[[str, dict], None] | None = None,
     unload_first: bool = False,
     overrides: dict[tuple[str, str], object] | None = None,
+    extra: dict | None = None,
 ) -> RenderResult:
     """Server sicherstellen, Workflow ausführen, alle Ausgabedateien unter ``dest`` sichern.
     ``overrides``: (Node, Eingang) -> Wert, die das Backend selbst setzt (z. B. Trainingsdaten).
+    ``extra``: zusätzliche Nodes des Backends (z. B. letztes Bild eines Videoabschnitts).
 
     ``on_submit(prompt_id, graph)`` hält den exakt eingereichten Graphen fest, bevor gewartet wird
     (Wiederanlauf nach einem Backend-Neustart: ``collect_workflow``). Ausgaben werden niemals
@@ -380,6 +391,7 @@ def run_workflow(
     graph = apply_params(load_graph(man, wf), wf, values)
     for (node, name), value in (overrides or {}).items():
         graph[node]["inputs"][name] = value
+    graph.update(extra or {})
     graph = unique_outputs(graph, tag)
     inst = instance_of(cfg, man, wf)
     runtime.start(cfg, inst.name)  # einzige Startlogik; idempotent
@@ -412,20 +424,66 @@ def collect_workflow(
     """Auf einen eingereichten Auftrag warten und seine Ausgaben unter ``dest`` sichern – auch für
     einen vor einem Backend-Neustart eingereichten (dann ist ``t0`` unbekannt)."""
     wf = man.workflows[workflow_key]
-    client = ComfyClient(instance_of(cfg, man, wf).url)
+    return collect_graph(
+        instance_of(cfg, man, wf),
+        prompt_id,
+        dest,
+        stem=stem,
+        timeout_s=timeout_s,
+        t0=t0,
+        base=RenderResult(
+            prompt_id=prompt_id,
+            workflow=workflow_key,
+            engine=wf.engine,
+            params=values,
+            provenance=provenance(man, wf, values),
+        ),
+        allow_empty=wf.training,  # Training liefert die LoRA-Datei (SaveLoRA)
+    )
+
+
+def run_graph(
+    inst: ComfyConfig,
+    graph: dict,
+    dest: Path,
+    *,
+    stem: str,
+    timeout_s: float,
+    base: RenderResult,
+    job_id: int | None = None,
+    client_id: str | None = None,
+    on_submit: Callable[[str, dict], None] | None = None,
+) -> RenderResult:
+    """Vom Backend gebauten Graphen ausführen (z. B. Abschnitte eines Videos zusammensetzen)."""
+    client = ComfyClient(inst.url, client_id=client_id)
+    t0 = time.monotonic()
+    prompt_id = client.submit(graph, job_id)
+    if on_submit is not None:
+        on_submit(prompt_id, graph)
+    base.prompt_id = prompt_id
+    return collect_graph(inst, prompt_id, dest, stem=stem, timeout_s=timeout_s, t0=t0, base=base)
+
+
+def collect_graph(
+    inst: ComfyConfig,
+    prompt_id: str,
+    dest: Path,
+    *,
+    stem: str,
+    timeout_s: float,
+    base: RenderResult,
+    t0: float | None = None,
+    allow_empty: bool = False,
+) -> RenderResult:
+    """Auf einen eingereichten Graphen warten und seine Ausgaben unter ``dest`` sichern."""
+    client = ComfyClient(inst.url)
     start = time.monotonic() if t0 is None else t0
     trace = MemoryTrace(client)
     entry = client.wait(prompt_id, timeout_s, on_poll=trace.sample)
     trace.sample()
     dest.mkdir(parents=True, exist_ok=True)
-    result = RenderResult(
-        prompt_id=prompt_id,
-        workflow=workflow_key,
-        engine=wf.engine,
-        params=values,
-        provenance=provenance(man, wf, values),
-        memory=trace.summary(),
-    )
+    result = base
+    result.memory = trace.summary()
     index = 0
     for node_id, out in (entry.get("outputs") or {}).items():
         for item in out.get("images", []) + out.get("gifs", []) + out.get("videos", []):
@@ -443,7 +501,7 @@ def collect_workflow(
                     size=len(data),
                 )
             )
-    if not result.outputs and not wf.training:  # Training liefert die LoRA-Datei (SaveLoRA)
+    if not result.outputs and not allow_empty:
         raise ComfyError(f"Auftrag {prompt_id} lieferte keine Ausgabedatei.", prompt_id=prompt_id)
     result.duration_s = round(time.monotonic() - start, 1)
     log.info(

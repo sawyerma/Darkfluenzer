@@ -12,6 +12,11 @@
 schema = 1
 reserve_gb = 30   # Downloads verweigern, wenn danach weniger frei bliebe
 
+# Gemeinsame Auswahllisten (ComfyUI 0.45.3, /object_info KSampler)
+[choices]
+samplers = ["euler", "euler_cfg_pp", "euler_ancestral", "euler_ancestral_cfg_pp", "heun", "heunpp2", "exp_heun_2_x0", "exp_heun_2_x0_sde", "dpm_2", "dpm_2_ancestral", "lms", "dpm_fast", "dpm_adaptive", "dpmpp_2s_ancestral", "dpmpp_2s_ancestral_cfg_pp", "dpmpp_sde", "dpmpp_sde_gpu", "dpmpp_2m", "dpmpp_2m_cfg_pp", "dpmpp_2m_sde", "dpmpp_2m_sde_gpu", "dpmpp_2m_sde_heun", "dpmpp_2m_sde_heun_gpu", "dpmpp_3m_sde", "dpmpp_3m_sde_gpu", "ddpm", "lcm", "ipndm", "ipndm_v", "deis", "cfgpp_ud10_ab", "res_multistep", "res_multistep_cfg_pp", "res_multistep_ancestral", "res_multistep_ancestral_cfg_pp", "gradient_estimation", "gradient_estimation_cfg_pp", "er_sde", "seeds_2", "seeds_3", "sa_solver", "sa_solver_pece", "ddim", "uni_pc", "uni_pc_bh2"]
+schedulers = ["simple", "sgm_uniform", "karras", "exponential", "ddim_uniform", "beta", "normal", "linear_quadratic", "kl_optimal"]
+
 [roles]
 # Produktive Rollen werden erst nach A/B-Vergleich und LICENSE_PASS gesetzt.
 image_master = ""
@@ -531,6 +536,8 @@ steps = { node = "5", input = "steps", type = "int", min = 8, max = 80 }
 cfg = { node = "5", input = "cfg", type = "float", min = 1.0, max = 12.0 }
 width = { node = "4", input = "width", type = "int", min = 512, max = 2048, multiple_of = 64 }
 height = { node = "4", input = "height", type = "int", min = 512, max = 2048, multiple_of = 64 }
+sampler = { node = "5", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
+scheduler = { node = "5", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
 
 [workflows.lustify_sdxl_inpaint]
 engine = "lustify_sdxl"
@@ -548,6 +555,9 @@ seed = { node = "9", input = "seed", type = "int", min = 0, max = 4294967295 }
 steps = { node = "9", input = "steps", type = "int", min = 8, max = 80 }
 denoise = { node = "9", input = "denoise", type = "float", min = 0.2, max = 1.0 }
 mask_grow = { node = "4", input = "expand", type = "int", min = 0, max = 64 }
+cfg = { node = "9", input = "cfg", type = "float", min = 1.0, max = 12.0, label = "CFG" }
+sampler = { node = "9", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
+scheduler = { node = "9", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
 
 [workflows.flux3_klein_base_t2i]
 engine = "flux3_klein_base"
@@ -564,6 +574,8 @@ steps = { node = "7", input = "steps", type = "int", min = 16, max = 80 }
 cfg = { node = "7", input = "cfg", type = "float", min = 1.0, max = 8.0 }
 width = { node = "6", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
 height = { node = "6", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
+sampler = { node = "7", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
+scheduler = { node = "7", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
 
 [workflows.flux3_klein_reference]
 engine = "flux3_klein_base"
@@ -584,6 +596,8 @@ cfg = { node = "7", input = "cfg", type = "float", min = 1.0, max = 8.0 }
 width = { node = "44", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
 height = { node = "44", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
 reference_mp = { node = "17", input = "resolution.megapixels", type = "float", min = 0.25, max = 4.0, label = "Vorlagen-Auflösung (Megapixel)", expert = true }
+sampler = { node = "7", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
+scheduler = { node = "7", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
 
 [workflows.qwen_image_2512_t2i]
 engine = "qwen_image_2512"
@@ -601,6 +615,9 @@ steps = { node = "238:224", input = "value", type = "int", min = 16, max = 80 }
 cfg = { node = "238:223", input = "value", type = "float", min = 1.0, max = 8.0 }
 width = { node = "238:232", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
 height = { node = "238:232", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
+sampler = { node = "238:230", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
+scheduler = { node = "238:230", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
+shift = { node = "238:222", input = "shift", type = "float", min = 1.0, max = 10.0, label = "Shift" }
 
 [workflows.qwen_image_21_t2i]
 engine = "qwen_image_21"
@@ -618,6 +635,8 @@ steps = { node = "459:458", input = "steps", type = "int", min = 8, max = 80 }
 cfg = { node = "459:458", input = "cfg", type = "float", min = 1.0, max = 8.0 }
 width = { node = "459:456", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
 height = { node = "459:456", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
+sampler = { node = "459:458", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
+scheduler = { node = "459:458", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
 
 [workflows.sdpose_pose]
 engine = "sdpose"
@@ -656,6 +675,22 @@ negative_prompt = { node = "6", input = "text", type = "str" }
 seed = { node = "11", input = "noise_seed", type = "int", min = 0, max = 4294967295 }
 width = { node = "8", input = "width", type = "int", min = 320, max = 1280, multiple_of = 16 }
 height = { node = "8", input = "height", type = "int", min = 320, max = 1280, multiple_of = 16 }
+steps = { node = "11", input = "steps", type = "int", min = 4, max = 60, also = ["12:steps", "12:end_at_step"], label = "Schritte" }
+switch_step = { node = "11", input = "end_at_step", type = "int", min = 1, max = 59, also = ["12:start_at_step"], below = "steps", label = "Wechsel High→Low (Schritt)" }
+cfg = { node = "11", input = "cfg", type = "float", min = 1.0, max = 10.0, also = ["12:cfg"], label = "CFG" }
+shift = { node = "10", input = "shift", type = "float", min = 1.0, max = 20.0, also = ["3:shift"], label = "Shift" }
+sampler = { node = "11", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, also = ["12:sampler_name"], label = "Sampler" }
+scheduler = { node = "11", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, also = ["12:scheduler"], label = "Scheduler" }
+fps = { node = "14", input = "fps", type = "float", min = 8.0, max = 30.0, label = "Bildrate (fps)" }
+
+[workflows.wan22_i2v.video]
+length_node = "8"
+length_input = "length"
+fps = "fps"
+frames_multiple = 4
+segment_frames_max = 81
+start_image = "image"
+decode = "13"
 
 [workflows.wan22_remix_v30_i2v]
 engine = "wan22_remix_v30"
@@ -670,6 +705,22 @@ prompt = { node = "5", input = "text", type = "str", required = true }
 seed = { node = "11", input = "noise_seed", type = "int", min = 0, max = 4294967295 }
 width = { node = "8", input = "width", type = "int", min = 320, max = 1280, multiple_of = 16 }
 height = { node = "8", input = "height", type = "int", min = 320, max = 1280, multiple_of = 16 }
+steps = { node = "11", input = "steps", type = "int", min = 4, max = 60, also = ["12:steps", "12:end_at_step"], label = "Schritte" }
+switch_step = { node = "11", input = "end_at_step", type = "int", min = 1, max = 59, also = ["12:start_at_step"], below = "steps", label = "Wechsel High→Low (Schritt)" }
+cfg = { node = "11", input = "cfg", type = "float", min = 1.0, max = 10.0, also = ["12:cfg"], label = "CFG" }
+shift = { node = "10", input = "shift", type = "float", min = 1.0, max = 20.0, also = ["3:shift"], label = "Shift" }
+sampler = { node = "11", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, also = ["12:sampler_name"], label = "Sampler" }
+scheduler = { node = "11", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, also = ["12:scheduler"], label = "Scheduler" }
+fps = { node = "14", input = "fps", type = "float", min = 8.0, max = 30.0, label = "Bildrate (fps)" }
+
+[workflows.wan22_remix_v30_i2v.video]
+length_node = "8"
+length_input = "length"
+fps = "fps"
+frames_multiple = 4
+segment_frames_max = 81
+start_image = "image"
+decode = "13"
 
 [workflows.lustify_sdxl_refine]
 engine = "lustify_sdxl"
@@ -686,6 +737,9 @@ seed = { node = "6", input = "seed", type = "int", min = 0, max = 4294967295 }
 steps = { node = "6", input = "steps", type = "int", min = 8, max = 80 }
 denoise = { node = "6", input = "denoise", type = "float", min = 0.05, max = 0.6 }
 short_side = { node = "9", input = "resize_type.shorter_size", type = "int", min = 512, max = 4096, label = "Kurze Seite des Ergebnisses (px)" }
+cfg = { node = "6", input = "cfg", type = "float", min = 1.0, max = 12.0, label = "CFG" }
+sampler = { node = "6", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
+scheduler = { node = "6", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
 
 [workflows.lustify_sam31_edit]
 engine = "lustify_sam31_edit"
@@ -706,6 +760,9 @@ steps = { node = "14", input = "steps", type = "int", min = 8, max = 80 }
 denoise = { node = "14", input = "denoise", type = "float", min = 0.3, max = 1.0 }
 mask_grow = { node = "7", input = "expand", type = "int", min = 0, max = 64 }
 threshold = { node = "4", input = "threshold", type = "float", min = 0.05, max = 0.95, label = "Erkennungsschwelle" }
+cfg = { node = "14", input = "cfg", type = "float", min = 1.0, max = 12.0, label = "CFG" }
+sampler = { node = "14", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
+scheduler = { node = "14", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
 
 [workflows.krea2_turbo_t2i]
 engine = "krea2_turbo"
@@ -721,6 +778,8 @@ seed = { node = "7", input = "seed", type = "int", min = 0, max = 4294967295 }
 steps = { node = "7", input = "steps", type = "int", min = 4, max = 50 }
 width = { node = "6", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
 height = { node = "6", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
+sampler = { node = "7", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
+scheduler = { node = "7", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
 
 [workflows.lustify_sdxl_lora_train]
 engine = "lustify_sdxl"
@@ -762,6 +821,8 @@ factor = { node = "3", input = "resize_type.multiplier", type = "float", min = 1
 model = { node = "6", input = "unet_name", type = "str", choices = ["seedvr2/seedvr2_7b_fp16.safetensors", "seedvr2/seedvr2_3b_fp16.safetensors"], label = "Modell (7B Qualität · 3B schnell)", expert = true }
 color = { node = "11", input = "color_correction_method", type = "str", choices = ["lab", "wavelet", "adain", "none"], label = "Farbabgleich", expert = true }
 seed = { node = "9", input = "seed", type = "int", min = 0, max = 4294967295 }
+tile_size = { node = "7", input = "tile_size", type = "int", min = 256, max = 2048, multiple_of = 64, also = ["10:tile_size"], label = "Kachelgröße (px)" }
+tile_overlap = { node = "7", input = "overlap", type = "int", min = 0, max = 512, multiple_of = 16, also = ["10:overlap"], label = "Kachelüberlappung (px)" }
 
 [workflows.krea2_raw_lora_train]
 engine = "krea2_raw"
@@ -793,6 +854,8 @@ steps = { node = "8", input = "steps", type = "int", min = 4, max = 50 }
 turbo_strength = { node = "2", input = "strength_model", type = "float", min = 0.0, max = 1.5, label = "Turbo-LoRA-Stärke" }
 width = { node = "7", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
 height = { node = "7", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
+sampler = { node = "8", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
+scheduler = { node = "8", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
 
 [workflows.lustify_v10_krea_t2i]
 engine = "lustify_v10_krea"
@@ -810,3 +873,5 @@ cfg = { node = "8", input = "cfg", type = "float", min = 1.0, max = 8.0 }
 turbo_strength = { node = "2", input = "strength_model", type = "float", min = 0.0, max = 1.5, label = "Turbo-LoRA-Stärke (0 = Raw)" }
 width = { node = "7", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
 height = { node = "7", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
+sampler = { node = "8", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
+scheduler = { node = "8", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
