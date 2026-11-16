@@ -1459,9 +1459,16 @@ class Cockpit:
     def _reply_internal(self, conversation_id: int, text: str, files: list[str] = ()) -> None:
         """Rückfrage bzw. Ergebnis an den Default-Nutzer in denselben Chat (Postausgang)."""
         default = self.store.default_contact()
-        attachments = []
+        platform = self.store.conversation_platform(conversation_id)
+        attachments, blocked = [], []
         for rel in files:
             src = self.cfg.local / rel
+            # Regel 13 (bugs_v1 BUG-003): `explizit` (auch unbekannt) nur an Default über Telegram
+            media = self.store.media_by_path(rel)
+            if platform != "telegram" and (media or {}).get("content_tier") != "standard":
+                blocked.append(src.name)
+                text += f"\n{src.name}: nicht gesendet (Inhaltsstufe explizit)"
+                continue
             copy = self.cfg.local / "channels" / "sent" / f"{src.stem}_ki{src.suffix.lower()}"
             try:
                 if not copy.exists():
@@ -1474,6 +1481,13 @@ class Cockpit:
                  "status": "saved", "sha256": sha256_file(copy), "size": copy.stat().st_size,
                  "mime": mimetypes.guess_type(copy.name)[0] or ""}
             )  # fmt: skip
+        if blocked:
+            label = {"instagram": "Instagram", "whatsapp": "WhatsApp"}.get(platform, platform)
+            self.store.add_system_card(
+                conversation_id,
+                f"RÜCKVERSAND GESPERRT · {', '.join(blocked)} · Inhaltsstufe explizit – über "
+                f"{label} nie (Regel 13); explizite Ergebnisse nur an Default über Telegram",
+            )
         message_id = self.store.queue_outbound(
             default["customer_id"],
             conversation_id,
@@ -1481,7 +1495,7 @@ class Cockpit:
             revision=self.store.conversation_revision(conversation_id),
             attachments=attachments,
         )
-        adapter = self._adapter(self.store.conversation_platform(conversation_id))
+        adapter = self._adapter(platform)
         if adapter is not None:
             adapter.wake.set()
         self._message_changed(message_id)

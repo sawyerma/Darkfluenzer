@@ -33,7 +33,7 @@
 - **Eigene Gegenprüfung:** **CODE** – `server.py`, `_reply_internal` (um 1459): Ziel wird über `conversation_platform(conversation_id)` dynamisch bestimmt, es fehlt vor dem Dateiversand die Prüfung „`explizit` nur Default-Telegram“. Das Kunden-Gate in `approval.py` reicht für diesen internen Sonderpfad nicht aus.
 - **Prüfung:** Interner Default-Auftrag mit Testartefakten der Stufen `standard` und `explizit` einmal aus Instagram und einmal aus Telegram; Server/Adapter direkt testen, nicht nur Frontend. Cross-Channel-Daten und echte Ziel-IDs prüfen.
 - **Soll:** `explizit` niemals über Instagram, auch nicht für Default. Default-Vollauflösung nur an verifizierte Telegram-ID; gesperrte Sendung sichtbar dokumentieren.
-- **Status:** OFFEN – statischer Fehlerpfad vorhanden, End-to-End ausstehend.
+- **Status:** BESTÄTIGT und behoben (Protokoll §7, BUG-003); Kanal-End-to-End mit echtem Telegram/Instagram ausstehend.
 
 ### BUG-004 – Kollision der internen KI-Zustellkopien
 - **Meldung:** Gleichnamige Quellbilder können eine ältere, falsche Datei erneut versenden.
@@ -168,6 +168,22 @@ Regression: Cockpit lehnt jede Anfrage mit Weiterleitungs-Headern ab (X-Forwarde
   Eingang create_public_app nur mit Webhook/OAuth/signierten Medien auf 127.0.0.1:server.public_port
   (Standard Cockpit-Port + 1, einziges Tunnel-Ziel); Instagram-Tests angepasst, 119 Tests grün
 Mac-End-to-End: NICHT GELAUFEN (Deploy nach Job 63; echter Tunneltest nach Einrichtung des Tunnels)
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
+ID: BUG-003
+Git-Commit / geprüfte Datei + Zeilen: 4f79bfd / backend/src/darkfluenzer/server.py, Cockpit._reply_internal
+Behauptung: BESTÄTIGT
+Nachweis: tests/test_bugs_v1.py::test_bug003_explicit_default_return_never_over_instagram – Default mit
+  Telegram- und Instagram-Identität; ein Medium der Stufe explizit wurde über die Instagram-Konversation als
+  Zustellkopie eingereiht (rot vor der Korrektur)
+Ursache: Der interne Rückversand bestimmte das Ziel dynamisch und prüfte die Inhaltsstufe nicht je Plattform;
+  das Kunden-Gate (approval.py) gilt für diesen Sonderpfad nicht
+Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-003"
+Regression: explizit/unbekannt über Instagram gesperrt mit Karte „RÜCKVERSAND GESPERRT … (Regel 13)“ und Hinweis
+  im Text; standard über Instagram erlaubt; Default über Telegram erhält explizit weiterhin; Kloner-Tests grün
+Mac-End-to-End: NICHT GELAUFEN (Telegram/Instagram noch nicht angemeldet)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 

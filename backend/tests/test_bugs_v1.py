@@ -95,3 +95,64 @@ def test_bug002_tunnel_never_reaches_cockpit_even_with_rewritten_host(cfg, monke
             assert resp.status == 403  # Signatur falsch, aber der Pfad existiert
 
     _run(cfg, scenario)
+
+
+def test_bug003_explicit_default_return_never_over_instagram(cfg):
+    """BUG-003: Default-Rückversand – `explizit` nur über Telegram; über Instagram nie, mit
+    sichtbarer Sperrkarte. `standard` geht über beide Kanäle."""
+    import io
+
+    from PIL import Image
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+        default = store.default_contact()
+        store.update_default_contact(
+            default["revision"], {}, {("telegram", BOT): "99", ("instagram", "1784"): "77"}
+        )
+        tg = store.record_inbound(
+            "telegram", BOT, "t1", sender_id="99", conversation_id="99", platform_message_id="1",
+            text="hi", sent_at="2026-11-17T00:00:00+00:00",
+        )  # fmt: skip
+        ig = store.record_inbound(
+            "instagram", "1784", "i1", sender_id="77", conversation_id="77",
+            platform_message_id="m1", text="hi", sent_at="2026-11-17T00:00:00+00:00",
+        )  # fmt: skip
+        assert tg.customer.kind == ig.customer.kind == "internal"
+        paths = {}
+        for tier, color in (("explizit", (200, 0, 0)), ("standard", (0, 200, 0))):
+            buf = io.BytesIO()
+            Image.new("RGB", (8, 8), color).save(buf, "PNG")
+            rel = f"evaluation/x/{tier}.png"
+            (cfg.local / rel).parent.mkdir(parents=True, exist_ok=True)
+            (cfg.local / rel).write_bytes(buf.getvalue())
+            media = store.add_media(
+                rel, hashlib.sha256(buf.getvalue()).hexdigest(), len(buf.getvalue())
+            )
+            if tier == "standard":
+                store.db.execute(
+                    "UPDATE media SET content_tier = 'standard' WHERE id = ?", (media,)
+                )
+            paths[tier] = rel
+
+        def sent(conv):
+            rows = store.db.execute(
+                "SELECT attachments FROM channel_messages WHERE conversation_id = ?"
+                " AND direction = 'out' ORDER BY id DESC LIMIT 1",
+                (conv,),
+            ).fetchone()
+            return rows[0] if rows else ""
+
+        cockpit._reply_internal(ig.conversation_id, "Ergebnis", [paths["explizit"]])
+        assert "explizit_ki" not in sent(ig.conversation_id)  # nie über Instagram
+        cards = [r[0] for r in store.db.execute(
+            "SELECT text FROM channel_messages WHERE conversation_id = ? AND direction = 'system'",
+            (ig.conversation_id,))]  # fmt: skip
+        assert any("explizit" in c and "Instagram" in c for c in cards)
+        cockpit._reply_internal(ig.conversation_id, "Ergebnis", [paths["standard"]])
+        assert "standard_ki" in sent(ig.conversation_id)
+        cockpit._reply_internal(tg.conversation_id, "Ergebnis", [paths["explizit"]])
+        assert "explizit_ki" in sent(tg.conversation_id)  # Default über Telegram: erlaubt
+
+    _run(cfg, scenario)
