@@ -442,6 +442,8 @@ Der äußerste rechte Rand enthält **reale Bedienelemente und reale Akteninform
 
 ### F7.5 ComfyUI — jedes Feld und die beiden Instanzen
 
+**Ergänzung mit Vorrang für die KI-Ansicht (Betreiberfreigabe 16.11.2026):** Die konkrete Anordnung und Interaktion des KI-Studios ist in **F7.9** verbindlich. Sie erweitert F7.5 innerhalb von **ComfyUI → KI**, ohne das bestehende Drei-Spalten-Layout, die Medienfunktionen, das Graphite-Design oder die fünf Hauptreiter zu verändern. Der vom Betreiber am 16.11.2026 ausdrücklich freigegebene klickbare HTML-Prototyp `Darkfluenzer_KI_Studio_Klickprototyp.html` ist die exakte visuelle und interaktive Designreferenz; F7.9 fixiert dessen bedienbare Elemente, Zustände und den produktiven End-to-End-Vertrag. **DEMO-Daten sind niemals produktive Daten.**
+
 | Element | Exakte Funktion / Einschränkung |
 |---|---|
 | **Fotos / Videos** | Unterregister der Medieninstanz, Liste ausschließlich nach \`kind\` der registrierten Workflows. **KI** als ergänzender Zugang zu ComfyUI 2 erst bei implementierter KI-Instanz; keine Behauptung, diese sei bereits online. |
@@ -490,3 +492,69 @@ Die freigegebene **Übersicht** und **Nachrichtenansicht** sind im Betreiber-Cha
 | **Technische Details** (Schublade) | Datenquellen (Kursquelle, BTC-Schnittstelle, BSC-RPC, PayPal), letzte erfolgreiche Abfrage, Fehler. |
 
 **Abnahme:** echte Adressen aus `config.toml` mit QR; eine echte kleine BTC- und USDT-Zahlung erscheint live per Push und wechselt nach den Bestätigungen auf *Bestätigt* mit Kundenzuordnung; ein falscher Betrag steht unter *Nicht zugeordnet* → Zuordnen mit Receipt; ein Gutschein wird erst nach Betragseintrag bestätigt; Reconnect ohne Dubletten; kein Sende-Element im DOM; Build- und Stylesheet-Wächter grün.
+
+
+---
+
+### F7.9 KI-Studio – verbindliche klickbare ComfyUI-2-Referenz (Betreiberfreigabe 16.11.2026)
+
+**Verbindliche Betreiberentscheidung:** Der am 16.11.2026 im Chat freigegebene klickbare **Darkfluenzer-KI-Studio-HTML-Prototyp** ist die maßgebliche Gestaltung und Interaktion für die KI-Seite in **ComfyUI**. Die im Prototyp sichtbaren Register, Formularanordnungen, Button-Texte, Spalten und Arbeitsabläufe sind umzusetzen; echte Zustände und Modellantworten dürfen nicht durch Beispielwerte ersetzt werden. Die HTML-Vorschau selbst ist ausschließlich eine **offline lauffähige Designreferenz**: ihre simulierten Antworten, Modellnamen, Werte und sechs geplanten Workflows beweisen keine installierte KI. **Bei Konflikt mit einer älteren generischen ComfyUI-Anweisung gilt für den KI-Reiter dieses F7.9; für Fotos/Videos F7.5.**
+
+**1. Einbettung und visuelle Übereinstimmung**
+
+- **Keine neue App, kein weiterer Hauptreiter, kein neues Design.** Kopfzeile mit pinkem **C** links, genau **Übersicht · Nachrichten · ComfyUI · Dateien · Wallet**; **ComfyUI** aktiv. Darunter die Unterregister **Fotos · Videos · KI**, jeweils mit einer **real aus Registry/Backend ermittelten** Workflow-Anzahl. Der Vorschau-Zähler \`KI 6*\` bedeutet sechs **vorgesehene** Workflowtypen, **nicht sechs fertige** Workflows; im Produkt nie als sechs bereit anzeigen, wenn nicht registriert.
+- **Graphite** aus dem freigegebenen F7-Stil: dunkelgraue Hauptflächen (Referenz \`#1c1c1f\`), dunklere Sidebar, feine graue Grenzen (Referenz \`#414149\`), helle Schrift, zurückhaltende pinke Selektion/Aktion (Referenz \`#ed2287\`). **Nur bestehendes Stylesheet \`shared/graphite.css\`** im React-Produkt; kein eigenständiges Designsystem.
+- **Drei feste Desktop-Spalten:** **links ausschließlich Workflowliste**, **Mitte Arbeits-/Ergebnisbereich**, **rechts äußerster Rand Steuerung**. Die KI-Seite ersetzt in der Mitte je nach Workflow Testchat, Persona, Memos, Bildanalyse, Training oder Audio; **sie baut kein zweites Chat-Cockpit** unter Nachrichten auf. Bei schmalen Ansichten darf die rechte Steuerung untergeordnet werden, nicht die fachliche Zuordnung ändern.
+- Links Überschrift **KI-Workflows**, darunter **ComfyUI-Instanz 2** und eine Liste aktivierbarer **registrierter** Workflows. Jede Zeile zeigt Workflowname, Funktion sowie tatsächlichen Zustand **bereit / offen / Fehler**, selektiert pink. Es gibt **keine** alternative linke Job-/Projekt-/Kundenliste.
+- Rechts **Steuerung** mit Gruppen für die **konkrete** Workflowauswahl, danach persistente **KI-Warteschlange** und **ComfyUI-2-Instanzstatus**. Erweiterte Parametergruppen sind **anfangs geschlossen**. Keine Anzeigen \`Verbunden\`, \`PASS\` oder Leistungswerte ohne reale Backendnachweise.
+
+**2. Sechs verbindliche Workflowklassen in ComfyUI-Instanz 2**
+
+| KI-Workflow im linken Bereich | Zentrale Arbeitsfläche | Umsetzungsphase |
+|---|---|---|
+| **Textdialog · Cydonia 24B** | Direkter mehrteiliger Chat-Test mit Clara, gleicher Workflow wie im Kundenbetrieb | **B5 sofort** |
+| **Bildverständnis · VLM** | Referenzbild → Bildbeschreibung, Kamera/Licht/Pose/Kleidung/Szene → strukturierter Prompt-Vorschlag | B5, nach Chat-End-to-End |
+| **Gesprächsmemos** | Erinnerungen, Quellen, Korrekturen, Abrufvorschau und Verwaltung | B5/C5 sofort für Textchat |
+| **Text-LoRA · Training** | Eigene Beispiele, Import, Datensatzprüfung, Training und A/B-Abnahme | **Später; keine Vorabdownloads** |
+| **Sprache → Text** | Audiodatei/Mikrofon → lokale Transkription, Fehler und Laufzeit | **Später; ASR** |
+| **Text → Sprache** | Testtext → Clara-Stimme, Ton/Sprechgeschwindigkeit → Audio-Wiedergabe und Latenz | **Später; TTS** |
+
+Alle **wirklich ausführbaren** KI-Stufen laufen als versionierte, im echten **ComfyUI-2-Editor** öffnungs-/bearbeitbare Graphen mit korrektem UI-/API-Graph, Registry-Bindings und Rückübernahme. **Kein Ollama, keine dritte KI-Engine, kein externer LLM-Server.** Das Python-Backend orchestriert Kontext/Identität/Regeln, speichert Daten dauerhaft in derselben SQLite und ruft für KI-Arbeit **ComfyUI 2** auf. Text-LoRA-Training darf intern native Trainingsbibliotheken benötigen; Steuerung, Workflowregistrierung, Status und Ergebnisse bleiben über ComfyUI 2 und das bestehende Cockpit angebunden. Der bloße Titel \`Gesprächsmemos\` bedeutet **nicht**, dass SQLite-Operationen fälschlich innerhalb der GPU-Engine ausgeführt werden.
+
+**3. Textdialog → Chat-Test: exakter Bedienweg**
+
+- In der **Mitte** Kopf **Textdialog · Cydonia 24B v4.1**, Untertitel *Direkt im Cockpit testen · dieselbe KI wie später auf Telegram und Instagram*.
+- Direkt darunter die vier **inneren** Ansichten **Chat-Test · Persona · Gedächtnis · Vergleich**; sie ändern **nur die Mitte**, die linke Workflowauswahl und die rechte Steuerung bleiben an derselben Position.
+- **Chat-Test:** scrollbarer echter Gesprächsverlauf, links eingehende/botseitige und rechts operatorseitige Nachrichtenblasen; Textfeld **„Nachricht an Clara …“** mit Enter=Senden, Shift+Enter=Zeilenumbruch, **Neue Sitzung** und **Testantwort**. Beispiel-Prompts (*Hallo Clara!*, *Was hast du heute gemacht?*, *Ich hätte gern ein Strandfoto von dir.*) sind anklickbare **Testeingaben**, keine automatischen Behauptungen über eine Modellantwort. Für jeden Test eine eindeutige Test-Sitzung; **keine Telegram-Verbindung erforderlich** und keine Kundenakte, kein Kundenversand.
+- Nach jeder **echten** Inferenz: vollständige Antwort und technische Messwerte **Erstes Token (TTFT), Tokens/s, Gesamtzeit**, ergänzt um Modellversion, Persona-Revision, Workflowversion, Antworttokens, Context-/Cache-Metriken und Fehlerstatus. **Keine fingierten Messwerte**. Streaming im lokalen Testchat zulässig, an externe Kanäle erst nach abgeschlossener Antwortprüfung.
+- **Persona** (mittig): editierbares Feld **Charakterprofil und Gesprächsregeln**, zweites Feld **Beispieldialoge · gewünschter Schreibstil**, Button **Persona übernehmen**. Speichern **versioniert per Protobuf**, beeinflusst unmittelbar nach Wahl derselben Version die nächste Testantwort; vorherige Tests verweisen weiterhin auf ihre Originalrevision. Enthält Hintergrund/Alter (erwachsen), Gesprächsstil, Antwortlänge, Eigenheiten, Flirtstil, verbotene Wörter/Themen, Eskalation und Admin-Warnung. Hard-Fails und Freigaben bleiben **serverseitig**, nicht bloß als LLM-Prompt.
+- **Gedächtnis** (mittig): *Gedächtnis · Sitzung*, **Notiz manuell hinzufügen**, Liste gespeicherter Memos mit Quellen/Nachrichten-IDs, Zeit, Status, **Korrektur/Löschen** (mit fachlichem Audit), sichtbarer **Kontextinspektor**: welche Memos werden für die nächste Antwort abgerufen und warum. Getrennte Kunden-/Test-Sitzungen; kein Überspringen der Identity-Grenze. Betriebskonzept: letzte Nachrichten + relevante Langzeitmemos, SQLite/FTS5-Retrieval; neues oder widersprochenes Wissen wird mit Herkunft behandelt; Zusammenfassungen nachrangig zur Chatlatenz.
+- **Vergleich** (mittig): nebeneinander **A: Cydonia Q8** und **B: BF16/LoRA/Alternative**, **dieselbe** Testeingabe, Persona und relevanter Kontext, getrennte Antwort, Latenz, qualitative Prüfergebnisse; B ist gesperrt, solange Gewichte/Workflow fehlen. Vergleichsergebnisse mit Versions-/Parameterbezug. **Keine Modelle nur wegen der Vorschau laden.**
+
+**4. Rechte Steuerung bei Textdialog**
+
+- Gruppe **MODELL & FIGUR**: verifiziertes Charakter-/Influencerin-Profil **Clara**, **qualifizierte** Textmodellvariante, Gesprächsstil; keine Fake-Optionen im produktiven Selector.
+- Gruppe **TEXTGENERIERUNG**: echte exponierte Workflow-Parameter als Zahlen-/Slider-Eingaben, **Temperature, Top-P, Repeat Penalty, Max. Antwort-Tokens**. Unter **Erweiterte Workflow-Einstellungen** bei Unterstützung weitere Parameter wie **Top-K, Min-P, DRY, Seed, Kontextfenster, KV-/Prompt-Cache, Modell-/Graphrevision**. **Nur tatsächlich vom Workflow unterstützte Parameter**, mit Typ/Grenzen/Schritt/Default aus Registry statt festen Platzhalter-Slidern; serverseitige Validierung.
+- Gruppe **GESPRÄCHSLOGIK**: **Langzeitgedächtnis verwenden**, **Antworten gegen Regeln prüfen**, gesonderte administrativ unabschaltbare Basissperren beachten, **Einstellungen übernehmen**; Settings gelten nur nach erfolgreichem Backend-Receipt, Session-/Profil-/Modellrevision werden im Ergebnis erfasst. Test kann zwischen Persona-/Parameterprofilen umschalten; **keine Änderung an laufenden Kundenakten ohne freigegebene explizite Betreiberaktion**.
+- Unterhalb **KI-WARTESCHLANGE**, zuletzt **INSTANZ** mit realem Status der zweiten ComfyUI-Instanz (Default \`127.0.0.1:8189\`), Queue, Fehler, Ressourcenbelegung und belegter Erreichbarkeit. Gemeinsame Zulassung der beiden ComfyUI-Prozesse aus V0 §4.2; Chat-Latenz priorisiert. Alle Buttons führen über typisierte Protobuf-Befehle zum Python-Backend, Rückmeldungen per Receipt + STATE/EVENT statt Browserpolling.
+
+**5. Übrige KI-Arbeitsflächen**
+
+- **Bildverständnis:** Dateiauswahl über echte Referenz-/Dateien-ID oder lokalen Upload, Anweisungsfeld, \`Analyse starten\` **nur bei qualifiziertem Modell**, reale Ausgabe mit Beschreibung, Pose, Kamera, Licht, Szene, identitätsrelevanten Angaben und Promptentwurf, vor Weitergabe bearbeitbar, versionsgebunden. Der Vision-Workflow darf NICHT als Textchat-LLM ausgegeben werden.
+- **Gesprächsmemos:** eigenes linkes Workflowziel kann dieselbe Gedächtnisverwaltung aus dem Testdialog öffnen; serverseitige Faktenablage und Kontexterstellung, kein zweiter Speicher. Status und Audit (Quelle, Korrektur, Ablauf/Retention).
+- **Text-LoRA:** eigener Trainingsdialog mit Import von selbst geschriebenen/kurierten Beispieldialogen, Validierung, Dubletten-/Herkunftskontrolle, Trainings-/Prüfsatz, trainierbaren Modellgewichten/Adapter, Start/Fortschritt/Abbruch, Rückfall und A/B-Vergleich. **Erst nach abgenommenem ungefinetuntem Cydonia-Test freischalten**. Eine quantisierte GGUF-Q8-Datei ist kein automatisch trainierbares Basischeckpoint.
+- **Sprache → Text:** lokale Audioaufnahme/Datei, reale Transkription mit Wiedergabe/Status, Sprache, gemessene Latenz; erst später an Telegram-/Instagram-Sprachnachrichten anschließen.
+- **Text → Sprache:** editierbarer Testtext, Stimme, Sprache/Tempo/Stil nur soweit vom TTS-Graphen unterstützt, **echter** lokaler Audioplayer und Zeitmessung; Antworten aus **demselben** Clara-Dialog/Persona/Gedächtnis. Kein zweites getrenntes Dialogmodell für Stimme.
+- Ist der Workflow nicht installiert oder noch nicht abgenommen, zeigt die Mittelspalte **„Workflow noch nicht eingerichtet“** bzw. konkreten Backendfehler; **Generieren, Training oder Transkribieren bleiben deaktiviert**, statt ein angeblich reales Ergebnis zu simulieren.
+
+**6. Abnahme (bindender, realer End-to-End-Vertrag)**
+
+1. Aus **ComfyUI → KI → Textdialog → Chat-Test** mindestens 20 zusammenhängende deutsche Nachrichten mit Cydonia v4.1 (zunächst Q8) **real auf dem M4 Max** erzeugen, ohne Telegram oder weiteren LLM-Server; Antworttexte, TTFT p50/p95, Gesamtzeit p50/p95, Tokens/s und Speicherverhalten belegbar.
+2. Persona/Beispieldialoge/Generierungsparameter im Cockpit ändern, **Receipt und neue Revision** nachweisen, danach echten Modellantwort-Unterschied messen; erneuter Start übernimmt gespeicherte Version. Die Wahl eines unqualifizierten Modells führt zu klarer Sperre.
+3. Gedächtnis: Fakten über mehr als das aktive Kontextfenster konsistent wieder abrufen, widersprochene Fakten korrigieren, Wiederholungen detektieren, mindestens einen Backend-Neustart überstehen; **Testidentitäten und fremde Kunden strikt getrennt**.
+4. Antwortprüfung: harte Regelverletzung **vor externem Versand** abgefangen, Entwurf/Manuell möglich, Admin-Eskalation als echte Ereigniskarte; Anweisungen aus Kundentext ersetzen keine serverseitigen Fakten-, Zahlungs- oder Freigabestatus.
+5. Gleicher registrierter Dialog-Workflow wird nach bestandener Studioabnahme in **Nachrichten/Telegram** für Claras Persona verwendet, nicht parallel neu implementiert. Kundentext → Wunsch → Preis aus Preisliste → vorbereiteter Prompt → echte Zahlung oder isolierter Testbetrieb → echter ComfyUI-1-Bildauftrag → Freigabe → Datei-Rückversand, keine fiktiven Bild- oder Zahlungsnachweise.
+6. Trainings-/ASR-/TTS-Bereiche werden erst dann als **bereit** gezählt, wenn Modell, Graph, Backend, Frontend, wirklicher Job, Ergebnis und M4-Abnahme vorhanden sind; bis dahin sichtbar **OFFEN**, nicht ein irreführendes \`KI 6\`.
+7. Vor dem produktiven Deploy: Vergleich mit dem **freigegebenen KI-Studio-Klickprototyp vom 16.11.2026** auf Desktopbreite, Werkzeuge/Panelpositionen, kompakten Abstand, Graphite-Farben, Texte, Start-/Leer-/Fehlerzustände und Interaktionen; Abweichungen begründen, nicht stillschweigend neu gestalten.
+
+**Reihenfolge:** **B5.1 Cydonia direkt testbar → B5.2 Chat-/Persona-/Parameter-Studio → B5.3 Langzeitgedächtnis → B5.4 Wunsch/Angebot/Prompt → B5.5 isolierter Telegram-Sofatest mit realem Bild**. Bildverständnis danach; Text-LoRA und ASR/TTS nur nach gesonderter späterer Freigabe. Dieser UX-Vertrag ergänzt die technischen Abhängigkeiten von V0 B5/C5, ohne deren Zahlungs-, Absender- und Sicherheitsgates für Live-Kunden aufzuheben.
