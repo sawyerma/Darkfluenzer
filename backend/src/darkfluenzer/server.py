@@ -1469,9 +1469,12 @@ class Cockpit:
                 blocked.append(src.name)
                 text += f"\n{src.name}: nicht gesendet (Inhaltsstufe explizit)"
                 continue
-            copy = self.cfg.local / "channels" / "sent" / f"{src.stem}_ki{src.suffix.lower()}"
             try:
-                if not copy.exists():
+                # inhaltsadressiert (bugs_v1 BUG-004): gleicher Name, anderer Inhalt -> andere Kopie
+                digest = sha256_file(src)
+                name = f"{digest[:16]}_{src.stem}_ki{src.suffix.lower()}"
+                copy = self.cfg.local / "channels" / "sent" / name
+                if not (copy.is_file() and aimeta.is_marked(copy)):
                     aimeta.mark(src, copy)
             except (aimeta.AiMetaError, OSError) as exc:
                 text += f"\n{src.name}: nicht gesendet ({exc})"

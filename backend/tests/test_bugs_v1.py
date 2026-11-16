@@ -156,3 +156,46 @@ def test_bug003_explicit_default_return_never_over_instagram(cfg):
         assert "explizit_ki" in sent(tg.conversation_id)  # Default über Telegram: erlaubt
 
     _run(cfg, scenario)
+
+
+def test_bug004_same_name_different_content_never_sends_the_wrong_copy(cfg):
+    """BUG-004: zwei Ergebnisse mit gleichem Dateinamen, aber anderem Inhalt – jede Zustellkopie
+    gehört zu genau ihrer Quelle (inhaltsadressiert), auch nach erneutem Versand."""
+    import io
+    import json
+
+    from PIL import Image
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+        default = store.default_contact()
+        store.update_default_contact(default["revision"], {}, {("telegram", BOT): "99"})
+        tg = store.record_inbound(
+            "telegram", BOT, "t1", sender_id="99", conversation_id="99", platform_message_id="1",
+            text="hi", sent_at="2026-11-17T00:00:00+00:00",
+        )  # fmt: skip
+        sources = {}
+        for folder, color in (("a", (255, 0, 0)), ("b", (0, 0, 255))):
+            buf = io.BytesIO()
+            Image.new("RGB", (8, 8), color).save(buf, "PNG")
+            rel = f"evaluation/{folder}/bild_01.png"
+            (cfg.local / rel).parent.mkdir(parents=True, exist_ok=True)
+            (cfg.local / rel).write_bytes(buf.getvalue())
+            sources[rel] = color
+
+        def last_copy():
+            row = store.db.execute(
+                "SELECT attachments FROM channel_messages WHERE conversation_id = ?"
+                " AND direction = 'out' ORDER BY id DESC LIMIT 1",
+                (tg.conversation_id,),
+            ).fetchone()
+            return cfg.local / json.loads(row[0])[0]["path"]
+
+        for _ in range(2):  # auch beim erneuten Versand die richtige Datei
+            for rel, color in sources.items():
+                cockpit._reply_internal(tg.conversation_id, "Ergebnis", [rel])
+                with Image.open(last_copy()) as im:
+                    assert im.convert("RGB").getpixel((0, 0)) == color, rel
+
+    _run(cfg, scenario)

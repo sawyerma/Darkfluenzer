@@ -40,7 +40,7 @@
 - **Eigene Gegenprüfung:** **CODE** – `_reply_internal` bildet den Zielpfad aus `src.stem + "_ki" + suffix`, prüft `if not copy.exists()` und markiert eine bestehende Datei nicht neu. Derselbe Name aus unterschiedlicher Herkunft kann kollidieren.
 - **Prüfung:** Zwei Dateien mit identischem Basenamen, aber unterschiedlichen Bytes/Hashes nacheinander als Default-Ergebnis zustellen; Hash und tatsächlich empfangene Datei abgleichen, Neustart/Deduplikation mitprüfen.
 - **Soll:** Inhaltsadressierte/unveränderliche Zustellkopien je eindeutiger Artefakt-ID/Hash, Herkunft, geprüfter SHA-256; kein falscher Rückversand.
-- **Status:** OFFEN – Codebefund.
+- **Status:** BESTÄTIGT und behoben (Protokoll §7, BUG-004).
 
 ### BUG-005 – Manuell zugeordnete Unterzahlung kann als voller Auftragspreis gebucht werden
 - **Meldung:** Befehl 41 sowie Amazon-Gutscheine tragen den Preis des Auftrags als bestätigt ein, unabhängig vom tatsächlich eingegangenen Betrag.
@@ -184,6 +184,22 @@ Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-003"
 Regression: explizit/unbekannt über Instagram gesperrt mit Karte „RÜCKVERSAND GESPERRT … (Regel 13)“ und Hinweis
   im Text; standard über Instagram erlaubt; Default über Telegram erhält explizit weiterhin; Kloner-Tests grün
 Mac-End-to-End: NICHT GELAUFEN (Telegram/Instagram noch nicht angemeldet)
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
+ID: BUG-004
+Git-Commit / geprüfte Datei + Zeilen: 018f462 / backend/src/darkfluenzer/server.py, Cockpit._reply_internal
+Behauptung: BESTÄTIGT
+Nachweis: tests/test_bugs_v1.py::test_bug004_same_name_different_content_never_sends_the_wrong_copy – zwei
+  Ergebnisse evaluation/a/bild_01.png (rot) und evaluation/b/bild_01.png (blau): für das blaue wurde die rote
+  Zustellkopie bild_01_ki.png erneut versendet (rot vor der Korrektur)
+Ursache: Kopiename nur aus dem Dateinamen, vorhandene Kopie ohne Prüfung wiederverwendet
+Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-004"
+Regression: Kopiename = SHA-256-Präfix der Quelle + Name; Wiederverwendung nur, wenn die Kopie gekennzeichnet
+  ist; erneuter Versand beider Bilder je richtig; Kloner-/BUG-003-Tests grün. (Kundenzustellung nutzt je
+  Auftrag eine eigene Kopie im Auftragsordner – dort keine Kollision.)
+Mac-End-to-End: NICHT GELAUFEN (Telegram noch nicht angemeldet)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
