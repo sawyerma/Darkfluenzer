@@ -148,7 +148,8 @@ Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-001"
 Regression: Normalfall (PNG bleibt inline als image/png), Fehlerfall (HTML/SVG/Unbekanntes nur als Download
   application/octet-stream), jede Antwort nosniff + CSP sandbox; tests/test_server.py und
   test_customer_orders.py (Vorschau der Zustellkopie) grün
-Mac-End-to-End: NICHT GELAUFEN (Deploy nach dem laufenden LTX-Job 63, dann Browserprüfung)
+Mac-End-to-End: Deploy 17.11.2026 00:23; Browserprüfung mit einem echten Kundenanhang, sobald ein Kanal
+  angemeldet ist (keine künstlichen Anhänge in der echten Datenbank)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
@@ -167,7 +168,9 @@ Regression: Cockpit lehnt jede Anfrage mit Weiterleitungs-Headern ab (X-Forwarde
   CF-*, Tailscale-*, True-Client-IP, Via) und kennt keine öffentlichen Pfade mehr; eigener öffentlicher
   Eingang create_public_app nur mit Webhook/OAuth/signierten Medien auf 127.0.0.1:server.public_port
   (Standard Cockpit-Port + 1, einziges Tunnel-Ziel); Instagram-Tests angepasst, 119 Tests grün
-Mac-End-to-End: NICHT GELAUFEN (Deploy nach Job 63; echter Tunneltest nach Einrichtung des Tunnels)
+Mac-End-to-End: TEILWEISE PASS 17.11.2026 00:23 – laufendes Cockpit nach Deploy: /api/v1/session normal 204,
+  mit X-Forwarded-For bzw. Tailscale-Funnel-Request 403, /instagram/webhook im Cockpit 404; echter Tunneltest
+  nach Einrichtung des Tunnels
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
