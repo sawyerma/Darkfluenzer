@@ -6,9 +6,11 @@ import ipaddress
 import logging
 import logging.handlers
 import os
+import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 log = logging.getLogger("darkfluenzer.config")
 
@@ -112,6 +114,50 @@ class TelegramConfig:
 
 
 @dataclass(frozen=True)
+class InstagramConfig:
+    """Claras Instagram-Creator-Konto über die Instagram-API mit Instagram-Login (V0 §6, §6.1):
+    App-ID, App-Geheimnis, Verify-Token, Zugangstoken und Medienschlüssel nur im Schlüsselbund;
+    über den Tunnel öffentlich sind nur Webhook, OAuth-Rückruf und Medienabruf (§10 Punkt 1)."""
+
+    public_base_url: str  # feste Tunnel-Adresse (https://…); leer = Tunnel nicht eingerichtet
+    webhook_path: str
+    oauth_path: str
+    media_path: str
+    graph_url: str
+    graph_version: str
+    oauth_authorize_url: str
+    oauth_token_url: str
+    scopes: tuple[str, ...]
+    subscribed_fields: tuple[str, ...]
+    app_id_service: str
+    app_secret_service: str
+    verify_token_service: str
+    token_service: str
+    token_expiry_service: str
+    media_key_service: str
+    max_download_mb: float
+    max_image_mb: float
+    max_video_mb: float
+    max_audio_mb: float
+    max_text_bytes: int
+    media_url_ttl_s: float
+    oauth_state_ttl_s: float
+    token_refresh_margin_s: float
+    token_refresh_retry_s: float
+    check_s: float
+    download_timeout_s: float
+    profile_timeout_s: float
+    reply_window_h: float
+    human_agent_window_h: float
+    max_messages_per_minute: int
+
+    @property
+    def redirect_uri(self) -> str:
+        """OAuth-Rückruf; muss exakt so in der Meta-App eingetragen sein."""
+        return self.public_base_url + self.oauth_path
+
+
+@dataclass(frozen=True)
 class TokenConfig:
     """BEP-20-Token auf BSC, das als Zahlungseingang beobachtet wird."""
 
@@ -139,6 +185,8 @@ class WalletConfig:
     bsc_confirmations: int
     poll_s: float
     bsc_header_batch: int
+    # Gültigkeit eines Angebots (eindeutiger Betrag) in Minuten (V0 §8.5 Punkt 2)
+    offer_valid_min: int
 
 
 @dataclass(frozen=True)
@@ -167,6 +215,7 @@ class Config:
     identity: IdentityConfig
     production: ProductionConfig
     telegram: TelegramConfig | None  # None: Abschnitt fehlt (Kanal nicht eingerichtet)
+    instagram: InstagramConfig | None  # None: Abschnitt fehlt (Kanal nicht eingerichtet)
     wallet: WalletConfig | None  # None: Abschnitt fehlt (Zahlungseingang nicht eingerichtet)
 
     @property
@@ -325,6 +374,108 @@ def _parse_telegram(tg: object, root: Path, path: Path) -> TelegramConfig | None
     )
 
 
+# Erste Pfadsegmente des lokalen Cockpits; öffentliche Instagram-Pfade dürfen sie nie überdecken
+_LOCAL_SEGMENTS = {"", "api", "ws", "assets", "healthz"}
+
+
+def _https(t: dict, key: str, default: str, where: str) -> str:
+    val = t.get(key, default)
+    if not isinstance(val, str) or (val and not val.startswith("https://")):
+        raise ConfigError(f"Konfiguration: {where}.{key} muss eine https://-Adresse sein.")
+    return val.rstrip("/")
+
+
+def _texts(t: dict, key: str, default: list[str], where: str) -> tuple[str, ...]:
+    val = t.get(key, default)
+    if not (isinstance(val, list) and val and all(isinstance(v, str) and v for v in val)):
+        raise ConfigError(f"Konfiguration: {where}.{key} muss eine Liste von Texten sein.")
+    return tuple(val)
+
+
+def _parse_instagram(t: object, path: Path) -> InstagramConfig | None:
+    """[instagram]; fehlt der Abschnitt, ist der Kanal nicht eingerichtet."""
+    if t is None:
+        return None
+    w = "instagram"
+    if not isinstance(t, dict):
+        raise ConfigError(f"Konfiguration {path}: [{w}] muss ein Abschnitt sein.")
+    paths = {}
+    for key, default in (
+        ("webhook_path", "/instagram/webhook"),
+        ("oauth_path", "/instagram/oauth"),
+        ("media_path", "/instagram/media"),
+    ):
+        val = t.get(key, default)
+        if (
+            not isinstance(val, str)
+            or not val.startswith("/")
+            or val.endswith("/")
+            or val.split("/")[1] in _LOCAL_SEGMENTS
+        ):
+            raise ConfigError(
+                f"Konfiguration: {w}.{key} muss ein eigener Pfad sein (z. B. '{default}')."
+            )
+        paths[key] = val
+    if len(set(paths.values())) != len(paths):
+        raise ConfigError(f"Konfiguration: {w}.webhook_path/oauth_path/media_path gleich.")
+    version = t.get("graph_version", "v24.0")
+    if not isinstance(version, str) or not re.fullmatch(r"v\d+\.\d+", version):
+        raise ConfigError(f"Konfiguration: {w}.graph_version muss z. B. 'v24.0' sein.")
+    window = _positive(t, "reply_window_h", 24, w)
+    human = _positive(t, "human_agent_window_h", 168, w)
+    if human < window:
+        raise ConfigError(f"Konfiguration: {w}.human_agent_window_h < reply_window_h.")
+    graph = _https(t, "graph_url", "https://graph.instagram.com", w)
+    authorize = _https(t, "oauth_authorize_url", "https://www.instagram.com/oauth/authorize", w)
+    token_url = _https(t, "oauth_token_url", "https://api.instagram.com/oauth/access_token", w)
+    if not (graph and authorize and token_url):
+        raise ConfigError(f"Konfiguration: {w}: Meta-Adressen dürfen nicht leer sein.")
+    base = _https(t, "public_base_url", "", w)
+    if base and (urlsplit(base).path or urlsplit(base).query):
+        raise ConfigError(f"Konfiguration: {w}.public_base_url nur mit Host, ohne Pfad.")
+    return InstagramConfig(
+        public_base_url=base,
+        webhook_path=paths["webhook_path"],
+        oauth_path=paths["oauth_path"],
+        media_path=paths["media_path"],
+        graph_url=graph,
+        graph_version=version,
+        oauth_authorize_url=authorize,
+        oauth_token_url=token_url,
+        scopes=_texts(
+            t, "scopes", ["instagram_business_basic", "instagram_business_manage_messages"], w
+        ),
+        subscribed_fields=_texts(
+            t, "subscribed_fields", ["messages", "messaging_seen", "messaging_postbacks"], w
+        ),
+        app_id_service=str(t.get("app_id_service", "darkfluenzer.instagram.app_id")),
+        app_secret_service=str(t.get("app_secret_service", "darkfluenzer.instagram.app_secret")),
+        verify_token_service=str(
+            t.get("verify_token_service", "darkfluenzer.instagram.verify_token")
+        ),
+        token_service=str(t.get("token_service", "darkfluenzer.instagram.token")),
+        token_expiry_service=str(
+            t.get("token_expiry_service", "darkfluenzer.instagram.token_expiry")
+        ),
+        media_key_service=str(t.get("media_key_service", "darkfluenzer.instagram.media_key")),
+        max_download_mb=_positive(t, "max_download_mb", 100, w),
+        max_image_mb=_positive(t, "max_image_mb", 8, w),
+        max_video_mb=_positive(t, "max_video_mb", 25, w),
+        max_audio_mb=_positive(t, "max_audio_mb", 25, w),
+        max_text_bytes=int(_positive(t, "max_text_bytes", 1000, w)),
+        media_url_ttl_s=_positive(t, "media_url_ttl_s", 900, w),
+        oauth_state_ttl_s=_positive(t, "oauth_state_ttl_s", 600, w),
+        token_refresh_margin_s=_positive(t, "token_refresh_margin_s", 10 * 86400, w),
+        token_refresh_retry_s=_positive(t, "token_refresh_retry_s", 3600, w),
+        check_s=_positive(t, "check_s", 60, w),
+        download_timeout_s=_positive(t, "download_timeout_s", 300, w),
+        profile_timeout_s=_positive(t, "profile_timeout_s", 5, w),
+        reply_window_h=window,
+        human_agent_window_h=human,
+        max_messages_per_minute=int(_positive(t, "max_messages_per_minute", 30, w)),
+    )
+
+
 def _parse_wallet(t: object, path: Path) -> WalletConfig | None:
     """[wallet]; Adressen werden auf Format und Prüfsumme geprüft (V0 §8.5 Punkt 1)."""
     from .payments.addresses import btc_address_error, evm_address_error
@@ -367,6 +518,7 @@ def _parse_wallet(t: object, path: Path) -> WalletConfig | None:
         bsc_confirmations=int(_positive(t, "bsc_confirmations", 15, w)),
         poll_s=_positive(t, "poll_s", 60, w),
         bsc_header_batch=int(_positive(t, "bsc_header_batch", 100, w)),
+        offer_valid_min=int(_positive(t, "offer_valid_min", 60, w)),
     )
 
 
@@ -438,6 +590,7 @@ def load(root: Path | None = None) -> Config:
     if production.candidates_default > production.candidates_max:
         raise ConfigError("Konfiguration: production.candidates_default > candidates_max.")
     telegram = _parse_telegram(data.get("telegram_account"), root, path)
+    instagram = _parse_instagram(data.get("instagram"), path)
     wallet = _parse_wallet(data.get("wallet"), path)
     return Config(
         root=root,
@@ -445,6 +598,7 @@ def load(root: Path | None = None) -> Config:
         comfyui_ai=ai,
         server=_parse_server(data["server"]),
         telegram=telegram,
+        instagram=instagram,
         wallet=wallet,
         identity=IdentityConfig(
             min_face_px=int(_positive(ident, "min_face_px", 64, "identity")), min_score=score

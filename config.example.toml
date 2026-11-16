@@ -100,6 +100,47 @@ reply_delay_max_s = 20
 typing_chars_per_s = 6
 max_messages_per_minute = 6
 
+# Claras Instagram-Creator-Konto (PHASENPLAN_V0 §6, §6.1): offizielle Instagram-API mit
+# Instagram-Login; Darkfluenzer veröffentlicht nichts. Meta-App (kostenlos) mit Instagram-Login und
+# Nachrichtenberechtigung; Instagram-App-ID, Instagram-App-Geheimnis und ein selbst gewähltes
+# Verify-Token (gleicher Wert im Webhook-Dialog der Meta-App) nur im Schlüsselbund:
+#   security add-generic-password -U -a darkfluenzer -s darkfluenzer.instagram.app_id -w
+#   security add-generic-password -U -a darkfluenzer -s darkfluenzer.instagram.app_secret -w
+#   security add-generic-password -U -a darkfluenzer -s darkfluenzer.instagram.verify_token -w
+# Zugangstoken (ca. 60 Tage, rechtzeitig erneuert) und Medienschlüssel legt Darkfluenzer selbst an.
+# Öffentlich über den Tunnel (§10 Punkt 1) nur diese drei Pfade, je mit eigener Prüfung:
+# webhook_path (Meta-Signatur), oauth_path (OAuth-state), media_path (kurzlebiges signiertes Token).
+# In der Meta-App eintragen: Webhook = public_base_url + webhook_path,
+# OAuth-Weiterleitung = public_base_url + oauth_path. Ohne public_base_url bleibt Instagram aus.
+[instagram]
+public_base_url = ""   # feste Tunnel-Adresse, z. B. "https://<mac>.<tailnet>.ts.net"
+webhook_path = "/instagram/webhook"
+oauth_path = "/instagram/oauth"
+media_path = "/instagram/media"
+graph_url = "https://graph.instagram.com"
+graph_version = "v24.0"
+oauth_authorize_url = "https://www.instagram.com/oauth/authorize"
+oauth_token_url = "https://api.instagram.com/oauth/access_token"
+scopes = ["instagram_business_basic", "instagram_business_manage_messages"]
+subscribed_fields = ["messages", "messaging_seen", "messaging_postbacks"]
+# Empfang: Medien sofort sichern (CDN-Adressen laufen ab); Versand: Meta-Grenzen je Medienart
+max_download_mb = 100
+max_image_mb = 8
+max_video_mb = 25
+max_audio_mb = 25
+max_text_bytes = 1000
+media_url_ttl_s = 900            # Gültigkeit der signierten Medien-URL für den Abruf durch Meta
+oauth_state_ttl_s = 600
+token_refresh_margin_s = 864000  # Token so lange vor Ablauf erneuern (10 Tage)
+token_refresh_retry_s = 3600
+check_s = 60                     # Schlüsselbund, Token und Konto prüfen
+download_timeout_s = 300
+profile_timeout_s = 5
+# Antwortfenster: 24 h nach der letzten Kundennachricht; danach nur manuell mit Human-Agent-Tag
+reply_window_h = 24
+human_agent_window_h = 168
+max_messages_per_minute = 30
+
 
 # Zahlungseingang (PHASENPLAN_V0 §8.5, C5a): Darkfluenzer beobachtet nur Claras ÖFFENTLICHE Adressen
 # aus MetaMask – nie Seed oder Schlüssel, kein Senden. Ungültige Adressen (Format/Prüfsumme) erscheinen
@@ -116,6 +157,7 @@ btc_confirmations = 2
 bsc_confirmations = 15
 poll_s = 60
 bsc_header_batch = 100
+offer_valid_min = 60   # Gültigkeit eines Angebots (eindeutiger Betrag) in Minuten, V0 §8.5 Punkt 2
 
 [wallet.tokens.USDT]
 contract = "0x55d398326f99059fF775485246999027B3197955"
