@@ -18,7 +18,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 14
+from .payments.vouchers import extract as extract_vouchers
+
+SCHEMA_VERSION = 15
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -586,6 +588,41 @@ CREATE TRIGGER media_tier_raise_only BEFORE UPDATE OF content_tier ON media
     WHEN OLD.content_tier = 'explizit' AND NEW.content_tier IS NOT 'explizit'
 BEGIN SELECT RAISE(ABORT, 'media: Inhaltsstufe nur anhebbar'); END;
 """,
+    15: """
+-- Kundenauftrag (V0 §8.4/§8.5, C5/C5a): Angebot aus der Preisliste mit eindeutigem Betrag je
+-- Zahlungsweg, Gutscheine (Code nur im Reiter Wallet), Zustellnachricht je Lieferung
+CREATE TABLE offers (
+    order_id        INTEGER PRIMARY KEY REFERENCES orders(id),
+    conversation_id INTEGER NOT NULL REFERENCES channel_conversations(id),
+    product         TEXT    NOT NULL,
+    hd              INTEGER NOT NULL DEFAULT 0 CHECK (hd IN (0, 1)),
+    price_cents     INTEGER NOT NULL CHECK (price_cents > 0),
+    expires_at      TEXT    NOT NULL,
+    created_at      TEXT    NOT NULL
+);
+CREATE TABLE offer_amounts (
+    order_id  INTEGER NOT NULL REFERENCES offers(order_id),
+    method    TEXT    NOT NULL CHECK (method IN ('btc', 'usdt', 'usdc')),
+    amount    TEXT    NOT NULL,
+    address   TEXT    NOT NULL,
+    rate      REAL    NOT NULL,
+    rate_ms   INTEGER NOT NULL,
+    PRIMARY KEY (order_id, method),
+    UNIQUE (method, amount)
+);
+CREATE TABLE vouchers (
+    id           INTEGER PRIMARY KEY,
+    customer_id  INTEGER NOT NULL REFERENCES customers(id),
+    message_id   INTEGER REFERENCES channel_messages(id),
+    code         TEXT    NOT NULL UNIQUE,
+    status       TEXT    NOT NULL DEFAULT 'pending'
+                 CHECK (status IN ('pending', 'redeemed', 'rejected')),
+    amount_cents INTEGER CHECK (amount_cents IS NULL OR amount_cents > 0),
+    decided_at   TEXT,
+    created_at   TEXT    NOT NULL
+);
+ALTER TABLE channel_messages ADD COLUMN delivery_id INTEGER REFERENCES deliveries(id);
+""",
 }
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
 REBUILDS = {5, 6, 7}
@@ -849,6 +886,9 @@ class Store:
             ).rowcount
             if not fresh:
                 return Inbound(customer, identity, conv, None, created)
+            codes: list[str] = []
+            if customer.kind != "internal":  # Code nie im Verlauf und nie im KI-Kontext
+                text, codes = extract_vouchers(text)
             cur = db.execute(
                 "INSERT INTO channel_messages (customer_id, conversation_id, direction,"
                 " platform_message_id, reply_to_platform_id, text, attachments, status, sent_at,"
@@ -872,7 +912,10 @@ class Store:
             )
             self._event("message", cur.lastrowid, "added", customer_id=customer.id)
             self.bump("conversations")
-            return Inbound(customer, identity, conv, cur.lastrowid, created)
+            message_id = cur.lastrowid
+            if any([self.add_voucher(customer.id, message_id, code) for code in codes]):
+                self.add_system_card(conv, "GUTSCHEIN ERHALTEN · im Reiter Wallet prüfen")
+            return Inbound(customer, identity, conv, message_id, created)
 
     def record_external_outgoing(
         self,
@@ -1000,6 +1043,7 @@ class Store:
         request_id: str | None = None,
         attachments: list[dict] | None = None,
         reply_to: str | None = None,
+        delivery_id: int | None = None,
     ) -> int:
         """Ausgehende Nachricht in den Postausgang (Status queued). Nur an eine Konversation
         dieses Kunden und nur auf der gesehenen Gesprächsrevision (CAS gegen überholte
@@ -1018,8 +1062,8 @@ class Store:
                 )
             cur = db.execute(
                 "INSERT INTO channel_messages (customer_id, conversation_id, direction, text,"
-                " attachments, status, reply_to_platform_id, request_id, sent_at, created_at)"
-                " VALUES (?,?,'out',?,?,'queued',?,?,?,?)",
+                " attachments, status, reply_to_platform_id, request_id, delivery_id, sent_at,"
+                " created_at) VALUES (?,?,'out',?,?,'queued',?,?,?,?,?)",
                 (
                     customer_id,
                     conversation_id,
@@ -1027,6 +1071,7 @@ class Store:
                     json.dumps(attachments or [], ensure_ascii=False),
                     reply_to,
                     request_id,
+                    delivery_id,
                     now(),
                     now(),
                 ),
@@ -1296,6 +1341,272 @@ class Store:
             )
             return message_id
 
+    # ------------------------------------------------------------------ Angebote (C5/C5a)
+
+    def create_offer(
+        self,
+        customer_id: int,
+        conversation_id: int,
+        product: str,
+        hd: bool,
+        price_cents: int,
+        expires_at: str,
+        amounts: dict[str, tuple[str, str, float, int]],
+    ) -> Order:
+        """Kundenauftrag mit Angebot (Status offered) und eindeutigen Beträgen je Zahlungsweg
+        (method -> (Dezimaltext, genannte Adresse, Kurs, Kurszeit)). Alles in einer Transaktion."""
+        with self.tx() as db:
+            label = f"{product} + HD" if hd else product
+            order = self.create_order(customer_id, "image", label)
+            self.set_offer(order.order_no, label, price_cents, "EUR")
+            db.execute(
+                "INSERT INTO offers (order_id, conversation_id, product, hd, price_cents,"
+                " expires_at, created_at) VALUES (?,?,?,?,?,?,?)",
+                (order.id, conversation_id, product, int(hd), price_cents, expires_at, now()),
+            )
+            for method, (amount, address, rate, rate_ms) in amounts.items():
+                db.execute(
+                    "INSERT INTO offer_amounts (order_id, method, amount, address, rate, rate_ms)"
+                    " VALUES (?,?,?,?,?,?)",
+                    (order.id, method, amount, address, rate, rate_ms),
+                )
+            return self.order(order.order_no)
+
+    def amount_taken(self, method: str, amount: str) -> bool:
+        return bool(
+            self.db.execute(
+                "SELECT 1 FROM offer_amounts WHERE method = ? AND amount = ?", (method, amount)
+            ).fetchone()
+        )
+
+    def offer(self, order_id: int) -> dict | None:
+        row = self.db.execute("SELECT * FROM offers WHERE order_id = ?", (order_id,)).fetchone()
+        if row is None:
+            return None
+        amounts = self.db.execute(
+            "SELECT method, amount FROM offer_amounts WHERE order_id = ? ORDER BY method",
+            (order_id,),
+        )
+        return dict(row) | {"amounts": {r["method"]: r["amount"] for r in amounts}}
+
+    def offer_amount_rows(self, order_id: int) -> list[dict]:
+        rows = self.db.execute(
+            "SELECT * FROM offer_amounts WHERE order_id = ? ORDER BY method", (order_id,)
+        )
+        return [dict(r) for r in rows]
+
+    def conversation_platform(self, conversation_id: int) -> str:
+        row = self.db.execute(
+            "SELECT i.platform FROM channel_conversations c JOIN channel_identities i"
+            " ON i.id = c.identity_id WHERE c.id = ?",
+            (conversation_id,),
+        ).fetchone()
+        if row is None:
+            raise StoreError(f"Konversation {conversation_id} unbekannt.")
+        return row[0]
+
+    def customer_orders(self, customer_id: int) -> list[dict]:
+        rows = self.db.execute(
+            "SELECT o.*, f.product, f.hd, f.price_cents, f.expires_at, f.conversation_id"
+            " FROM orders o LEFT JOIN offers f ON f.order_id = o.id"
+            " WHERE o.customer_id = ? ORDER BY o.id DESC",
+            (customer_id,),
+        )
+        return [dict(r) for r in rows]
+
+    def assign_inflow(self, payment_id: int, order_no: str, by: str) -> None:
+        """Eingang einem Kundenauftrag zuordnen (automatisch bei passendem Angebot oder per
+        Betreiber, Befehl 41): Zahlung im Gate (payments) erfassen, Auftrag auf paid, Karte."""
+        with self.tx() as db:
+            inflow = self.payment(payment_id)
+            if inflow["status"] != "unassigned":
+                raise StoreError("Eingang ist noch nicht bestätigt oder schon zugeordnet.")
+            order = self.order(order_no)
+            if order.source != "customer" or order.status not in ("offered", "accepted"):
+                raise StoreError(f"{order_no}: kein offenes Angebot ({order.status}).")
+            if order.status == "offered":
+                self.transition(order_no, "accepted", by=by)
+            self.record_payment(
+                order_no,
+                inflow["method"],
+                f"{inflow['txid']}:{inflow['position']}",
+                order.price_amount,
+                order.currency,
+            )  # setzt den Auftrag auf paid
+            db.execute(
+                "UPDATE payment_inflows SET status = 'assigned', order_id = ?, customer_id = ?,"
+                " updated_at = ? WHERE id = ?",
+                (order.id, order.customer_id, now(), payment_id),
+            )
+            self._event("payment", payment_id, "assigned", order_no=order_no, by=by)
+            self.bump("payments")
+            offer = self.offer(order.id)
+            if offer:
+                eur = f"{order.price_amount / 100:.2f}".replace(".", ",")
+                way = (
+                    "Amazon-Gutschein"
+                    if inflow["method"] == "amazon"
+                    else f"{inflow['asset']} {inflow['amount']}"
+                )
+                self.add_system_card(
+                    offer["conversation_id"],
+                    f"ZAHLUNG BESTÄTIGT · {way} · {eur} € · {order_no}",
+                    order_id=order.id,
+                )
+
+    def _match_offer(self, db, payment_id: int) -> None:
+        """Bestätigter Chain-Eingang: genau passender Betrag eines noch gültigen Angebots."""
+        inflow = db.execute("SELECT * FROM payment_inflows WHERE id = ?", (payment_id,)).fetchone()
+        hit = db.execute(
+            "SELECT o.order_no FROM offer_amounts a JOIN offers f ON f.order_id = a.order_id"
+            " JOIN orders o ON o.id = a.order_id WHERE a.method = ? AND a.amount = ?"
+            " AND f.created_at <= ? AND f.expires_at >= ? AND o.status IN ('offered', 'accepted')",
+            (inflow["method"], inflow["amount"], inflow["detected_at"], inflow["detected_at"]),
+        ).fetchone()
+        if hit:
+            self.assign_inflow(payment_id, hit["order_no"], "automatisch")
+
+    def open_offers(self) -> list[dict]:
+        """Angebote, die noch auf Zahlung warten (Ziele für Befehl 41), neueste zuerst."""
+        rows = self.db.execute(
+            "SELECT o.id, o.order_no, o.customer_id, c.customer_no, c.display_name, f.product,"
+            " f.hd, f.price_cents, f.expires_at FROM orders o JOIN offers f ON f.order_id = o.id"
+            " JOIN customers c ON c.id = o.customer_id WHERE o.status IN ('offered', 'accepted')"
+            " ORDER BY o.id DESC"
+        ).fetchall()
+        return [dict(r) | {"amounts": self.offer(r["id"])["amounts"]} for r in rows]
+
+    # ------------------------------------------------------------------ Zustellung (C5)
+
+    def deliveries(self, order_id: int) -> list[dict]:
+        rows = self.db.execute(
+            "SELECT d.*, m.id AS message_id, m.status AS message_status, m.error AS message_error,"
+            " m.attachments FROM deliveries d"
+            " LEFT JOIN channel_messages m ON m.delivery_id = d.id WHERE d.order_id = ?"
+            " ORDER BY d.id",
+            (order_id,),
+        )
+        return [dict(r) for r in rows]
+
+    def delivery(self, delivery_id: int) -> dict | None:
+        row = self.db.execute(
+            "SELECT d.*, o.order_no, c.customer_no FROM deliveries d"
+            " JOIN orders o ON o.id = d.order_id JOIN customers c ON c.id = d.customer_id"
+            " WHERE d.id = ?",
+            (delivery_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def delivery_by_message(self, message_id: int) -> dict | None:
+        row = self.db.execute(
+            "SELECT d.* FROM deliveries d JOIN channel_messages m ON m.delivery_id = d.id"
+            " WHERE m.id = ?",
+            (message_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def fail_delivery(self, delivery_id: int, error: str) -> bool:
+        """Endgültig fehlgeschlagene Zustellung (Plattform hat abgelehnt) – danach ist Befehl 47
+        möglich. Eine ungeklärte (unknown) bleibt offen."""
+        with self.tx() as db:
+            n = db.execute(
+                "UPDATE deliveries SET status = 'failed' WHERE id = ? AND status = 'pending'",
+                (delivery_id,),
+            ).rowcount
+            if n:
+                self._event("delivery", delivery_id, "failed", error=error)
+                self.bump("orders")
+            return bool(n)
+
+    def pending_sent_deliveries(self) -> list[tuple[int, str]]:
+        """Abgleich nach Neustart: Nachricht gesendet, Zustellung noch offen."""
+        rows = self.db.execute(
+            "SELECT d.id, m.platform_message_id FROM deliveries d JOIN channel_messages m"
+            " ON m.delivery_id = d.id WHERE d.status = 'pending' AND m.status = 'sent'"
+        )
+        return [(r[0], r[1] or "") for r in rows]
+
+    def set_order_kind(self, order_no: str, kind: str) -> None:
+        if kind not in ORDER_KINDS:
+            raise StoreError(f"Auftragstyp {kind!r} unbekannt.")
+        with self.tx() as db:
+            db.execute("UPDATE orders SET kind = ? WHERE order_no = ?", (kind, order_no))
+
+    # ------------------------------------------------------------------ Gutscheine (C5a)
+
+    def add_voucher(self, customer_id: int, message_id: int | None, code: str) -> int | None:
+        with self.tx() as db:
+            cur = db.execute(
+                "INSERT INTO vouchers (customer_id, message_id, code, created_at)"
+                " VALUES (?,?,?,?) ON CONFLICT (code) DO NOTHING",
+                (customer_id, message_id, code, now()),
+            )
+            if not cur.rowcount:
+                return None
+            self._event("voucher", cur.lastrowid, "received", customer_id=customer_id)
+            self.bump("payments")
+            return cur.lastrowid
+
+    def vouchers(self, decided_limit: int) -> list[dict]:
+        """Offene Gutscheine und die zuletzt entschiedenen (Reiter Wallet)."""
+        rows = self.db.execute(
+            "SELECT * FROM (SELECT v.*, c.customer_no, c.display_name FROM vouchers v"
+            " JOIN customers c ON c.id = v.customer_id WHERE v.status = 'pending'"
+            " UNION ALL SELECT * FROM (SELECT v.*, c.customer_no, c.display_name FROM vouchers v"
+            " JOIN customers c ON c.id = v.customer_id WHERE v.status != 'pending'"
+            " ORDER BY v.id DESC LIMIT ?)) ORDER BY id DESC",
+            (decided_limit,),
+        )
+        return [dict(r) for r in rows]
+
+    def reject_voucher(self, voucher_id: int) -> None:
+        with self.tx() as db:
+            n = db.execute(
+                "UPDATE vouchers SET status = 'rejected', decided_at = ? WHERE id = ?"
+                " AND status = 'pending'",
+                (now(), voucher_id),
+            ).rowcount
+            if not n:
+                raise StoreError("Gutschein unbekannt oder schon entschieden.")
+            self._event("voucher", voucher_id, "rejected")
+            self.bump("payments")
+
+    def redeem_voucher(self, voucher_id: int, amount_cents: int) -> int:
+        """Betreiber hat den Gutschein bei Amazon eingelöst und trägt den Betrag ein (Befehl 42):
+        erst dann ein bestätigter Eingang; passt ein offenes Angebot der Akte, wird zugeordnet."""
+        if amount_cents <= 0:
+            raise StoreError("Eingelöster Betrag muss positiv sein.")
+        with self.tx() as db:
+            v = db.execute("SELECT * FROM vouchers WHERE id = ?", (voucher_id,)).fetchone()
+            if v is None or v["status"] != "pending":
+                raise StoreError("Gutschein unbekannt oder schon entschieden.")
+            ts = now()
+            db.execute(
+                "UPDATE vouchers SET status = 'redeemed', amount_cents = ?, decided_at = ?"
+                " WHERE id = ?",
+                (amount_cents, ts, voucher_id),
+            )
+            amount = f"{amount_cents / 100:.2f}"
+            cur = db.execute(
+                "INSERT INTO payment_inflows (method, network, asset, amount, txid, position,"
+                " confirmations, required, status, eur, rate, rate_ms, customer_id, detected_at,"
+                " updated_at) VALUES ('amazon','amazon','EUR',?,?,0,1,1,'unassigned',?,1,?,?,?,?)",
+                (amount, f"voucher:{voucher_id}", amount_cents / 100,
+                 int(datetime.now(UTC).timestamp() * 1000), v["customer_id"], ts, ts),
+            )  # fmt: skip
+            payment_id = cur.lastrowid
+            self._event("payment", payment_id, "detected", status="unassigned")
+            self._event("voucher", voucher_id, "redeemed", amount_cents=amount_cents)
+            self.bump("payments")
+            open_order = db.execute(
+                "SELECT order_no FROM orders WHERE customer_id = ? AND source = 'customer'"
+                " AND status IN ('offered', 'accepted') AND price_amount <= ? ORDER BY id DESC",
+                (v["customer_id"], amount_cents),
+            ).fetchone()
+            if open_order:
+                self.assign_inflow(payment_id, open_order["order_no"], "Gutschein")
+            return payment_id
+
     # ------------------------------------------------------------------ Zahlungen (C5a)
 
     def upsert_payment(
@@ -1335,6 +1646,8 @@ class Store:
                 )  # fmt: skip
                 self._event("payment", cur.lastrowid, "detected", status=status)
                 self.bump("payments")
+                if status == "unassigned":
+                    self._match_offer(db, cur.lastrowid)
                 return True
             if row["status"] != "detected":
                 return False  # bestätigt: unveränderlich (Reorg-Schutz über die Bestätigungszahl)
@@ -1356,6 +1669,8 @@ class Store:
         )
         self._event("payment", payment_id, "status", status=status, confirmations=confirmations)
         self.bump("payments")
+        if status == "unassigned":
+            self._match_offer(db, payment_id)
         return True
 
     def unconfirmed_payments(self, network: str) -> list[dict]:
@@ -1399,6 +1714,16 @@ class Store:
             (before, before, limit + 1),
         ).fetchall()
         return [dict(r) for r in rows[:limit]], len(rows) > limit
+
+    def payments_of_month(self, month: str) -> list[dict]:
+        """Steuer-Monatsliste (V0 §8.5 Punkt 7): alle Eingänge eines Monats (UTC), aufsteigend."""
+        rows = self.db.execute(
+            "SELECT p.*, o.order_no, c.customer_no FROM payment_inflows p"
+            " LEFT JOIN orders o ON o.id = p.order_id LEFT JOIN customers c ON c.id = p.customer_id"
+            " WHERE substr(p.detected_at, 1, 7) = ? ORDER BY p.id",
+            (month,),
+        )
+        return [dict(r) for r in rows]
 
     def payment_events(self, after: int, limit: int) -> tuple[list[dict], bool]:
         rows = self.db.execute(
@@ -1877,7 +2202,10 @@ class Store:
                 "status, confirmed_at) VALUES (?,?,?,?,?,'confirmed',?)",
                 (order.id, provider, provider_tx_id, amount, currency, now()),
             )
-            self._event("payment", cur.lastrowid, "confirmed", order_no=order_no, amount=amount)
+            # eigene Ereignisart: "payment" sind die Eingänge im Reiter Wallet (payment_events)
+            self._event(
+                "gate_payment", cur.lastrowid, "confirmed", order_no=order_no, amount=amount
+            )
             self.transition(order_no, "paid", payment_id=cur.lastrowid)
             return cur.lastrowid
 
@@ -1894,7 +2222,7 @@ class Store:
                 "UPDATE payments SET status = 'refunded', refunded_at = ? WHERE id = ?",
                 (now(), row["id"]),
             )
-            self._event("payment", row["id"], "refunded")
+            self._event("gate_payment", row["id"], "refunded")
             self.transition(row["order_no"], "refunded", payment_id=row["id"])
 
     # ------------------------------------------------------------------ Jobs & Artefakte

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/order.proto.
  */
 export const file_darkfluenzer_v1_order: GenFile = /*@__PURE__*/
-  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvb3JkZXIucHJvdG8SD2RhcmtmbHVlbnplci52MSJ9CghTdGFnZUpvYhIOCgZqb2JfaWQYASABKAQSDAoEc2VlZBgCIAEoAxIOCgZzdGF0dXMYAyABKAkSEAoIbWVkaWFfaWQYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVlcnJvchgGIAEoCRIUCgxjb250ZW50X3RpZXIYByABKAki1gEKCk9yZGVyU3RhZ2USCwoDc2VxGAEgASgNEgwKBGtpbmQYAiABKAkSDgoGc3RhdHVzGAMgASgJEhAKCHdvcmtmbG93GAQgASgJEg0KBWNvdW50GAUgASgNEhkKEXNlbGVjdGVkX21lZGlhX2lkGAYgASgEEicKBGpvYnMYByADKAsyGS5kYXJrZmx1ZW56ZXIudjEuU3RhZ2VKb2ISDQoFZXJyb3IYCCABKAkSFwoPZmluaXNoX3dvcmtmbG93GAkgASgJEhAKCGF0dGVtcHRzGAogASgNIp8BCgtBY3RpdmVPcmRlchIQCghvcmRlcl9ubxgBIAEoCRIOCgZzb3VyY2UYAiABKAkSDAoEa2luZBgDIAEoCRIPCgdyZXF1ZXN0GAQgASgJEg4KBnN0YXR1cxgFIAEoCRIrCgZzdGFnZXMYBiADKAsyGy5kYXJrZmx1ZW56ZXIudjEuT3JkZXJTdGFnZRISCgpjcmVhdGVkX2F0GAcgASgJIoEBCgxPcmRlcnNBY3RpdmUSLAoGb3JkZXJzGAEgAygLMhwuZGFya2ZsdWVuemVyLnYxLkFjdGl2ZU9yZGVyEg8KB3ZlcnNpb24YAiABKAQSGgoSY2FuZGlkYXRlc19kZWZhdWx0GAMgASgNEhYKDmNhbmRpZGF0ZXNfbWF4GAQgASgNImoKDE9yZGVyVXBkYXRlZBIQCghvcmRlcl9ubxgBIAEoCRINCgVldmVudBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSCwoDc2VxGAQgASgNEgwKBGtpbmQYBSABKAkSDgoGZGV0YWlsGAYgASgJYgZwcm90bzM");
+  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvb3JkZXIucHJvdG8SD2RhcmtmbHVlbnplci52MSJ9CghTdGFnZUpvYhIOCgZqb2JfaWQYASABKAQSDAoEc2VlZBgCIAEoAxIOCgZzdGF0dXMYAyABKAkSEAoIbWVkaWFfaWQYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVlcnJvchgGIAEoCRIUCgxjb250ZW50X3RpZXIYByABKAki1gEKCk9yZGVyU3RhZ2USCwoDc2VxGAEgASgNEgwKBGtpbmQYAiABKAkSDgoGc3RhdHVzGAMgASgJEhAKCHdvcmtmbG93GAQgASgJEg0KBWNvdW50GAUgASgNEhkKEXNlbGVjdGVkX21lZGlhX2lkGAYgASgEEicKBGpvYnMYByADKAsyGS5kYXJrZmx1ZW56ZXIudjEuU3RhZ2VKb2ISDQoFZXJyb3IYCCABKAkSFwoPZmluaXNoX3dvcmtmbG93GAkgASgJEhAKCGF0dGVtcHRzGAogASgNIn0KC09mZmVyQW1vdW50Eg4KBm1ldGhvZBgBIAEoCRINCgVhc3NldBgCIAEoCRIOCgZhbW91bnQYAyABKAkSDwoHYWRkcmVzcxgEIAEoCRIPCgduZXR3b3JrGAUgASgJEgwKBHJhdGUYBiABKAESDwoHcmF0ZV9tcxgHIAEoAyKdAQoNQ3VzdG9tZXJPZmZlchIPCgdwcm9kdWN0GAEgASgJEgoKAmhkGAIgASgIEhMKC3ByaWNlX2NlbnRzGAMgASgNEhIKCmV4cGlyZXNfbXMYBCABKAMSLQoHYW1vdW50cxgFIAMoCzIcLmRhcmtmbHVlbnplci52MS5PZmZlckFtb3VudBIXCg9jb252ZXJzYXRpb25faWQYBiABKAQidAoNT3JkZXJEZWxpdmVyeRITCgtkZWxpdmVyeV9pZBgBIAEoBBIOCgZzdGF0dXMYAiABKAkSEgoKbWVzc2FnZV9pZBgDIAEoBBINCgVlcnJvchgEIAEoCRINCgVhdF9tcxgFIAEoAxIMCgRwYXRoGAYgASgJIu8CCgtBY3RpdmVPcmRlchIQCghvcmRlcl9ubxgBIAEoCRIOCgZzb3VyY2UYAiABKAkSDAoEa2luZBgDIAEoCRIPCgdyZXF1ZXN0GAQgASgJEg4KBnN0YXR1cxgFIAEoCRIrCgZzdGFnZXMYBiADKAsyGy5kYXJrZmx1ZW56ZXIudjEuT3JkZXJTdGFnZRISCgpjcmVhdGVkX2F0GAcgASgJEi0KBW9mZmVyGAggASgLMh4uZGFya2ZsdWVuemVyLnYxLkN1c3RvbWVyT2ZmZXISMgoKZGVsaXZlcmllcxgJIAMoCzIeLmRhcmtmbHVlbnplci52MS5PcmRlckRlbGl2ZXJ5EhMKC2N1c3RvbWVyX2lkGAogASgEEhMKC2N1c3RvbWVyX25vGAsgASgJEhcKD3Jlc3VsdF9tZWRpYV9pZBgMIAEoBBITCgtyZXN1bHRfcGF0aBgNIAEoCRITCgtyZXN1bHRfdGllchgOIAEoCSKBAQoMT3JkZXJzQWN0aXZlEiwKBm9yZGVycxgBIAMoCzIcLmRhcmtmbHVlbnplci52MS5BY3RpdmVPcmRlchIPCgd2ZXJzaW9uGAIgASgEEhoKEmNhbmRpZGF0ZXNfZGVmYXVsdBgDIAEoDRIWCg5jYW5kaWRhdGVzX21heBgEIAEoDSJqCgxPcmRlclVwZGF0ZWQSEAoIb3JkZXJfbm8YASABKAkSDQoFZXZlbnQYAiABKAkSDgoGc3RhdHVzGAMgASgJEgsKA3NlcRgEIAEoDRIMCgRraW5kGAUgASgJEg4KBmRldGFpbBgGIAEoCWIGcHJvdG8z");
 
 /**
  * Ein Job einer Stufe und sein Ergebnis.
@@ -138,6 +138,152 @@ export const OrderStageSchema: GenMessage<OrderStage> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_order, 1);
 
 /**
+ * Eindeutiger Betrag je Zahlungsweg eines Angebots (V0 §8.5 Punkt 2).
+ *
+ * @generated from message darkfluenzer.v1.OfferAmount
+ */
+export type OfferAmount = Message<"darkfluenzer.v1.OfferAmount"> & {
+  /**
+   * btc | usdt | usdc
+   *
+   * @generated from field: string method = 1;
+   */
+  method: string;
+
+  /**
+   * @generated from field: string asset = 2;
+   */
+  asset: string;
+
+  /**
+   * Dezimaltext, exakt zu zahlen
+   *
+   * @generated from field: string amount = 3;
+   */
+  amount: string;
+
+  /**
+   * Claras öffentliche Adresse und Netz (bitcoin | bsc)
+   *
+   * @generated from field: string address = 4;
+   */
+  address: string;
+
+  /**
+   * @generated from field: string network = 5;
+   */
+  network: string;
+
+  /**
+   * Kurs (Euro je Einheit) und Kurszeit beim Angebot
+   *
+   * @generated from field: double rate = 6;
+   */
+  rate: number;
+
+  /**
+   * @generated from field: int64 rate_ms = 7;
+   */
+  rateMs: bigint;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.OfferAmount.
+ * Use `create(OfferAmountSchema)` to create a new message.
+ */
+export const OfferAmountSchema: GenMessage<OfferAmount> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_order, 2);
+
+/**
+ * Angebot eines Kundenauftrags aus der Preisliste (V0 §8.4 Punkt 3).
+ *
+ * @generated from message darkfluenzer.v1.CustomerOffer
+ */
+export type CustomerOffer = Message<"darkfluenzer.v1.CustomerOffer"> & {
+  /**
+   * @generated from field: string product = 1;
+   */
+  product: string;
+
+  /**
+   * @generated from field: bool hd = 2;
+   */
+  hd: boolean;
+
+  /**
+   * @generated from field: uint32 price_cents = 3;
+   */
+  priceCents: number;
+
+  /**
+   * @generated from field: int64 expires_ms = 4;
+   */
+  expiresMs: bigint;
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.OfferAmount amounts = 5;
+   */
+  amounts: OfferAmount[];
+
+  /**
+   * @generated from field: uint64 conversation_id = 6;
+   */
+  conversationId: bigint;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.CustomerOffer.
+ * Use `create(CustomerOfferSchema)` to create a new message.
+ */
+export const CustomerOfferSchema: GenMessage<CustomerOffer> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_order, 3);
+
+/**
+ * Eine Zustellung (V0 §8.4 Punkt 9): pending (im Postausgang) | sent | failed; „unknown“ =
+ * Versandausgang ungeklärt (kein automatischer Neuversuch).
+ *
+ * @generated from message darkfluenzer.v1.OrderDelivery
+ */
+export type OrderDelivery = Message<"darkfluenzer.v1.OrderDelivery"> & {
+  /**
+   * @generated from field: uint64 delivery_id = 1;
+   */
+  deliveryId: bigint;
+
+  /**
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: uint64 message_id = 3;
+   */
+  messageId: bigint;
+
+  /**
+   * @generated from field: string error = 4;
+   */
+  error: string;
+
+  /**
+   * @generated from field: int64 at_ms = 5;
+   */
+  atMs: bigint;
+
+  /**
+   * @generated from field: string path = 6;
+   */
+  path: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.OrderDelivery.
+ * Use `create(OrderDeliverySchema)` to create a new message.
+ */
+export const OrderDeliverySchema: GenMessage<OrderDelivery> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_order, 4);
+
+/**
  * @generated from message darkfluenzer.v1.ActiveOrder
  */
 export type ActiveOrder = Message<"darkfluenzer.v1.ActiveOrder"> & {
@@ -179,6 +325,45 @@ export type ActiveOrder = Message<"darkfluenzer.v1.ActiveOrder"> & {
    * @generated from field: string created_at = 7;
    */
   createdAt: string;
+
+  /**
+   * nur Kundenaufträge
+   *
+   * @generated from field: darkfluenzer.v1.CustomerOffer offer = 8;
+   */
+  offer?: CustomerOffer | undefined;
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.OrderDelivery deliveries = 9;
+   */
+  deliveries: OrderDelivery[];
+
+  /**
+   * @generated from field: uint64 customer_id = 10;
+   */
+  customerId: bigint;
+
+  /**
+   * @generated from field: string customer_no = 11;
+   */
+  customerNo: string;
+
+  /**
+   * Ergebnis zur Freigabe (Status review): Medium der letzten fertigen Stufe, mit Inhaltsstufe
+   *
+   * @generated from field: uint64 result_media_id = 12;
+   */
+  resultMediaId: bigint;
+
+  /**
+   * @generated from field: string result_path = 13;
+   */
+  resultPath: string;
+
+  /**
+   * @generated from field: string result_tier = 14;
+   */
+  resultTier: string;
 };
 
 /**
@@ -186,7 +371,7 @@ export type ActiveOrder = Message<"darkfluenzer.v1.ActiveOrder"> & {
  * Use `create(ActiveOrderSchema)` to create a new message.
  */
 export const ActiveOrderSchema: GenMessage<ActiveOrder> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_order, 2);
+  messageDesc(file_darkfluenzer_v1_order, 5);
 
 /**
  * STATE orders.active: Aufträge in Produktion (Stufen laufen oder warten auf den Betreiber)
@@ -224,7 +409,7 @@ export type OrdersActive = Message<"darkfluenzer.v1.OrdersActive"> & {
  * Use `create(OrdersActiveSchema)` to create a new message.
  */
 export const OrdersActiveSchema: GenMessage<OrdersActive> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_order, 3);
+  messageDesc(file_darkfluenzer_v1_order, 6);
 
 /**
  * EVENT orders.updated: Auftrag angelegt, Statuswechsel, Stufenwechsel (Journal)
@@ -270,5 +455,5 @@ export type OrderUpdated = Message<"darkfluenzer.v1.OrderUpdated"> & {
  * Use `create(OrderUpdatedSchema)` to create a new message.
  */
 export const OrderUpdatedSchema: GenMessage<OrderUpdated> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_order, 4);
+  messageDesc(file_darkfluenzer_v1_order, 7);
 

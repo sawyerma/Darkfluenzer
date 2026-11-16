@@ -37,6 +37,42 @@ message OrderStage {
   uint32 attempts = 10;
 }
 
+// Eindeutiger Betrag je Zahlungsweg eines Angebots (V0 §8.5 Punkt 2).
+message OfferAmount {
+  // btc | usdt | usdc
+  string method = 1;
+  string asset = 2;
+  // Dezimaltext, exakt zu zahlen
+  string amount = 3;
+  // Claras öffentliche Adresse und Netz (bitcoin | bsc)
+  string address = 4;
+  string network = 5;
+  // Kurs (Euro je Einheit) und Kurszeit beim Angebot
+  double rate = 6;
+  int64 rate_ms = 7;
+}
+
+// Angebot eines Kundenauftrags aus der Preisliste (V0 §8.4 Punkt 3).
+message CustomerOffer {
+  string product = 1;
+  bool hd = 2;
+  uint32 price_cents = 3;
+  int64 expires_ms = 4;
+  repeated OfferAmount amounts = 5;
+  uint64 conversation_id = 6;
+}
+
+// Eine Zustellung (V0 §8.4 Punkt 9): pending (im Postausgang) | sent | failed; „unknown“ =
+// Versandausgang ungeklärt (kein automatischer Neuversuch).
+message OrderDelivery {
+  uint64 delivery_id = 1;
+  string status = 2;
+  uint64 message_id = 3;
+  string error = 4;
+  int64 at_ms = 5;
+  string path = 6;
+}
+
 message ActiveOrder {
   string order_no = 1;
   // operator | cloner | customer
@@ -47,6 +83,15 @@ message ActiveOrder {
   string status = 5;
   repeated OrderStage stages = 6;
   string created_at = 7;
+  // nur Kundenaufträge
+  CustomerOffer offer = 8;
+  repeated OrderDelivery deliveries = 9;
+  uint64 customer_id = 10;
+  string customer_no = 11;
+  // Ergebnis zur Freigabe (Status review): Medium der letzten fertigen Stufe, mit Inhaltsstufe
+  uint64 result_media_id = 12;
+  string result_path = 13;
+  string result_tier = 14;
 }
 
 // STATE orders.active: Aufträge in Produktion (Stufen laufen oder warten auf den Betreiber)

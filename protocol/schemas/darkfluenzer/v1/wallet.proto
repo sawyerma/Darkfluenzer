@@ -46,11 +46,42 @@ message WalletSource {
   string error = 4;
 }
 
+// Amazon-Gutschein aus dem Chat (V0 §8.5 Punkt 5): der Code steht nur hier, nie im Verlauf.
+message Voucher {
+  uint64 voucher_id = 1;
+  uint64 customer_id = 2;
+  string customer_no = 3;
+  string display_name = 4;
+  string code = 5;
+  // pending | redeemed | rejected
+  string status = 6;
+  uint32 amount_cents = 7;
+  int64 at_ms = 8;
+  int64 decided_ms = 9;
+}
+
+// Offenes Angebot als Ziel einer manuellen Zuordnung (Befehl 41).
+message OpenOffer {
+  string order_no = 1;
+  uint64 customer_id = 2;
+  string customer_no = 3;
+  string display_name = 4;
+  string product = 5;
+  uint32 price_cents = 6;
+  int64 expires_ms = 7;
+  // je Zahlungsweg „USDT 24.9937“
+  repeated string amounts = 8;
+}
+
 // STATE wallet
 message Wallet {
   repeated WalletAccount accounts = 1;
   repeated WalletSource sources = 2;
   uint64 version = 3;
+  // offene Gutscheine und die zuletzt entschiedenen
+  repeated Voucher vouchers = 4;
+  // offene Angebote (Status offered/accepted) als Ziele für „Zuordnen“
+  repeated OpenOffer open_offers = 5;
 }
 
 // Ein Zahlungseingang (Chain-Eingang, PayPal oder Gutschein).

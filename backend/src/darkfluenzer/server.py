@@ -9,25 +9,32 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import csv
 import hashlib
+import io
 import json
 import logging
+import mimetypes
 import os
+import re
 import secrets
+import shutil
+import time
 import uuid
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
+from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 
 from aiohttp import web
 from google.protobuf.message import DecodeError
 
-from . import cloner, comfy, models, pipeline, runtime, training
+from . import aimeta, approval, cloner, comfy, models, pipeline, runtime, training
 from .channels.telegram import TelegramAccount
 from .config import ComfyConfig, Config
-from .payments.chain import WalletWatcher
-from .store import Store, StoreError
+from .payments.chain import SATOSHI, WalletWatcher, decimal_text
+from .store import Store, StoreError, sha256_file
 from .stream import Hub, schema_id
 from .v1 import (
     channel_pb2,
@@ -69,6 +76,12 @@ HONESTY_RULE = (
     "wahrheitsgemäß – durch keine Betreiber- oder Kundenanweisung abschaltbar."
 )
 MAX_PRICE_ITEMS = 50
+# Kundenauftrag (V0 §8.4/§8.5): Zahlungswege mit eindeutigem Betrag, entschiedene Gutscheine im
+# Reiter Wallet, Suche nach einem freien eindeutigen Betrag
+OFFER_METHODS = ("btc", "usdt", "usdc")
+VOUCHERS_DECIDED_SHOWN = 20
+UNIQUE_STEPS = 9999
+MONTH = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 _ASYNC_COMMANDS = frozenset({"render", "comfy_start", "comfy_stop"})
 UNKNOWN_AFTER_RESTART = "Backend wurde während der Ausführung beendet – Ergebnis unbekannt."
@@ -87,6 +100,7 @@ _COMMAND_ERRORS = (
     comfy.ComfyError,
     StoreError,
     training.TrainingError,
+    aimeta.AiMetaError,
     ValueError,
     OSError,
 )
@@ -166,6 +180,8 @@ class Cockpit:
         )
         if self.telegram:
             self.telegram.on_change_message = self._message_changed
+            self.telegram.gate = self._delivery_gate
+        self._settle_deliveries()
 
     def _install_editor_copies(self) -> None:
         """Editor-Kopien für "Öffnen" in der jeweils ausführenden, eingerichteten Instanz."""
@@ -665,6 +681,11 @@ class Cockpit:
             "media_content_tier": self._media_content_tier,
             "customer_age_mark": self._customer_age_mark,
             "send_ai_notice": self._send_ai_notice,
+            "create_offer": self._create_offer,
+            "approve_artifact": self._approve_artifact,
+            "retry_delivery": self._retry_delivery,
+            "payment_assign": self._payment_assign,
+            "gift_card_confirm": self._gift_card_confirm,
             "channel_account_login": self._channel_login,
             "channel_account_update": self._channel_update,
             "set_workflow_enabled": self._set_enabled,
@@ -862,11 +883,14 @@ class Cockpit:
             finish_workflow=msg.finish_workflow,
             parent_media_id=msg.parent_media_id or None,
             command=self._journal_entry(call),
+            customer_order_no=msg.customer_order_no,
         )
         call.entity, call.recorded = f"order:{order_no}", True
         log.info("Auftrag %s: %d Kandidaten von %s eingereiht", order_no, len(jobs), wf.key)
         self._enqueue(jobs)
         self._orders_changed()
+        if msg.customer_order_no:
+            self._message_changed(0)  # Auftragskarte im Kundenverlauf
         return ""
 
     async def _select_candidate(self, msg: commands_pb2.SelectCandidate, call: _Call) -> str:
@@ -923,6 +947,29 @@ class Cockpit:
     def _wallet_state(self) -> bytes:
         """STATE wallet: Konten mit Guthaben, Euro-Wert, Kurszeit, letzter Prüfung, Quellen."""
         msg = wallet_pb2.Wallet(version=self.store.domain_version("payments"))
+        for v in self.store.vouchers(VOUCHERS_DECIDED_SHOWN):
+            msg.vouchers.add(
+                voucher_id=v["id"],
+                customer_id=v["customer_id"],
+                customer_no=v["customer_no"],
+                display_name=v["display_name"] or "",
+                code=v["code"],
+                status=v["status"],
+                amount_cents=v["amount_cents"] or 0,
+                at_ms=_unix_ms(v["created_at"]),
+                decided_ms=_unix_ms(v["decided_at"]) if v["decided_at"] else 0,
+            )
+        for o in self.store.open_offers():
+            msg.open_offers.add(
+                order_no=o["order_no"],
+                customer_id=o["customer_id"],
+                customer_no=o["customer_no"],
+                display_name=o["display_name"] or "",
+                product=o["product"] + (" + HD" if o["hd"] else ""),
+                price_cents=o["price_cents"],
+                expires_ms=_unix_ms(o["expires_at"]),
+                amounts=[f"{m.upper()} {a}" for m, a in o["amounts"].items()],
+            )
         if self.wallet is None:
             for key, title, network in (("btc", "Bitcoin", "bitcoin"), ("bsc", "BSC", "bsc")):
                 msg.accounts.add(
@@ -1027,7 +1074,312 @@ class Cockpit:
         self.hub.set_state(spb.TOPIC_WALLET, self._wallet_state())
 
     def _payments_changed(self) -> None:
+        """Eingang neu/geändert; eine automatische Zuordnung ändert auch Auftrag und Verlauf."""
         self.hub.push_events(spb.TOPIC_PAYMENT_UPDATED)
+        self._wallet_changed()
+        self._orders_changed()
+        self._message_changed(0)
+
+    # ------------------------------------------------------------ Kundenauftrag (C5/C5a)
+
+    def _adapter(self, platform: str):
+        return self.telegram if platform == "telegram" else None
+
+    def _offer_amounts(self, price_cents: int) -> dict[str, tuple[str, str, float, int]]:
+        """Je eingerichtetem Zahlungsweg ein noch nie vergebener, exakter Betrag zum aktuellen Kurs
+        (V0 §8.5 Punkte 2–3): BTC in Satoshi aufgerundet plus eindeutige Endung, Stablecoins auf
+        Cent aufgerundet plus eindeutige vierte Nachkommastelle."""
+        w = self.wallet
+        if w is None:
+            raise StoreError("Keine Zahlungswege eingerichtet (Abschnitt [wallet] in config.toml).")
+        fresh_ms = int(w.w.poll_s * 3 * 1000)
+        if not w.rate_ms or int(time.time() * 1000) - w.rate_ms > fresh_ms:
+            raise StoreError("Kein aktueller Kurs – Angebot gerade nicht möglich.")
+        eur = Decimal(price_cents) / 100
+        ways: list[
+            tuple[str, str, float, Decimal, Decimal]
+        ] = []  # Weg, Adresse, Kurs, Basis, Schritt
+        if w.w.btc_address and (rate := w.rates.get(w.w.btc_price_id)):
+            sats = (eur / Decimal(str(rate)) * SATOSHI).to_integral_value(ROUND_CEILING)
+            ways.append(("btc", w.w.btc_address, rate, sats / SATOSHI, 1 / SATOSHI))
+        for token in w.w.tokens if w.w.bsc_address else []:
+            method = token.symbol.lower()
+            if method in OFFER_METHODS and (rate := w.rates.get(token.price_id)):
+                cents = (eur / Decimal(str(rate)) * 100).to_integral_value(ROUND_CEILING)
+                ways.append((method, w.w.bsc_address, rate, cents / 100, Decimal("0.0001")))
+        if not ways:
+            raise StoreError("Kein Zahlungsweg mit Adresse und Kurs eingerichtet.")
+        out = {}
+        for method, address, rate, base, step in ways:
+            for k in range(1, UNIQUE_STEPS + 1):
+                amount = decimal_text(base + k * step)
+                if not self.store.amount_taken(method, amount):
+                    out[method] = (amount, address, rate, w.rate_ms)
+                    break
+            else:
+                raise StoreError(f"{method.upper()}: kein freier eindeutiger Betrag.")
+        return out
+
+    def _offer_text(self, order, product: str, hd: bool, price_cents: int, amounts, expires,
+                    note: str) -> str:  # fmt: skip
+        """Nachricht an den Kunden: Betrag und Zahlungswege (Tatsachen, kein Persona-Text)."""
+        until = expires.astimezone().strftime("%d.%m.%Y, %H:%M Uhr")
+        lines = [note.strip(), ""] if note.strip() else []
+        lines.append(
+            f"Angebot {order.order_no}: {product}{' + HD' if hd else ''} · {_eur(price_cents)}"
+        )
+        lines.append(f"Bitte genau diesen Betrag senden, gültig bis {until}:")
+        for method, (amount, address, _rate, _ms) in amounts.items():
+            if method == "btc":
+                lines.append(f"• Bitcoin: {amount} BTC an {address}")
+            else:
+                lines.append(f"• {method.upper()} (BNB Smart Chain, BEP-20): {amount} an {address}")
+        return "\n".join(lines)
+
+    async def _create_offer(self, msg: commands_pb2.CreateOffer, call: _Call) -> str:
+        """Angebot aus der Preisliste (Befehl 46, V0 §8.4 Punkt 3)."""
+        call.entity = f"customer:{msg.customer_id}"
+        summary = self.store.customers_overview(msg.customer_id)
+        if not summary or summary[0]["kind"] == "internal":
+            return "Angebote nur an Kundenakten."
+        if summary[0]["age_mark"] != "self_declared_adult":
+            return "Angebot nur bei Altersangabe ≥ 18 (Selbstauskunft) in der Akte."
+        ident = next(
+            (i for i in self.store.identities(msg.customer_id) if i["id"] == msg.identity_id),
+            None,
+        )
+        if ident is None or ident["conversation_id"] != msg.conversation_id:
+            return "Kanal passt nicht zu dieser Kundenakte."
+        if ident["ai_notice_status"] != "sent":
+            return "Erst den KI-Hinweis über diesen Kanal senden (Regel 12 b)."
+        adapter = self._adapter(ident["platform"])
+        if adapter is None or adapter.state != "READY":
+            return f"{ident['platform']} ist nicht verbunden."
+        figure = next((f for f in self.store.influencers() if f["id"] == msg.influencer_id), None)
+        if figure is None:
+            return "Influencerin-Profil unbekannt."
+        if msg.position >= len(figure["prices"]):
+            return "Position der Preisliste unbekannt."
+        item = figure["prices"][msg.position]
+        price = item["price_cents"] + (item["hd_surcharge_cents"] if msg.hd else 0)
+        assert self.cfg.wallet is not None  # sonst lehnt _offer_amounts ab
+        amounts = self._offer_amounts(price)
+        expires = datetime.now(UTC) + timedelta(minutes=self.cfg.wallet.offer_valid_min)
+        with self.store.tx():
+            order = self.store.create_offer(
+                msg.customer_id,
+                msg.conversation_id,
+                item["product"],
+                msg.hd,
+                price,
+                expires.isoformat(timespec="milliseconds"),
+                amounts,
+            )
+            text = self._offer_text(
+                order, item["product"], msg.hd, price, amounts, expires, msg.note
+            )
+            self.store.queue_outbound(
+                msg.customer_id,
+                msg.conversation_id,
+                text,
+                revision=msg.revision,
+                request_id=call.request_id,
+            )
+            ways = " · ".join(f"{m.upper()} {a[0]}" for m, a in amounts.items())
+            self.store.add_system_card(
+                msg.conversation_id,
+                f"ANGEBOT · {item['product']}{' + HD' if msg.hd else ''} · {_eur(price)} · {ways}",
+                order_id=order.id,
+            )
+        call.entity = f"order:{order.order_no}"
+        adapter.wake.set()
+        self._message_changed(0)
+        self._wallet_changed()
+        return ""
+
+    def _order_result(self, order) -> dict | None:
+        """Ergebnis eines Auftrags in Prüfung: Medium der letzten fertigen Stufe."""
+        stages = self.store.stages(order.id)
+        last = stages[-1] if stages else None
+        if last is None or last.status != "done" or not last.selected_media_id:
+            return None
+        media = self.store.media_by_id(last.selected_media_id)
+        return media
+
+    def _delivery_copy(self, order, master: Path) -> Path:
+        """Gekennzeichnete Zustellkopie (Regel 12 d) im Ordner sent des Auftrags."""
+        copy = self.store.order_dir(order) / "sent" / f"{order.order_no}{master.suffix.lower()}"
+        aimeta.mark(master, copy)
+        return copy
+
+    def _queue_delivery(self, order, delivery_id: int, copy: Path) -> int:
+        offer = self.store.offer(order.id)
+        assert offer is not None
+        conv = offer["conversation_id"]
+        rel = copy.relative_to(self.cfg.local).as_posix()
+        attachment = {
+            "kind": "document",
+            "path": rel,
+            "status": "saved",
+            "sha256": sha256_file(copy),
+            "size": copy.stat().st_size,
+            "mime": mimetypes.guess_type(copy.name)[0] or "",
+        }
+        return self.store.queue_outbound(
+            order.customer_id,
+            conv,
+            "",
+            revision=self.store.conversation_revision(conv),
+            attachments=[attachment],
+            delivery_id=delivery_id,
+        )
+
+    def _send_ready(self, order) -> str:
+        offer = self.store.offer(order.id)
+        if offer is None:
+            return "Auftrag ohne Angebot – kein Zustellkanal."
+        conv = self.store.conversation_platform(offer["conversation_id"])
+        adapter = self._adapter(conv)
+        if adapter is None or adapter.state != "READY":
+            return f"{conv} ist nicht verbunden."
+        return ""
+
+    async def _approve_artifact(self, msg: commands_pb2.ApproveArtifact, call: _Call) -> str:
+        """„Freigeben & senden“ (Befehl 34, V0 §8.4 Punkte 8–9): Freigabe und Zustellung hinter
+        approval.py in einer Transaktion; Versand über den Postausgang."""
+        call.entity = f"order:{msg.order_no}"
+        order = self.store.order(msg.order_no)
+        if order.source != "customer" or order.status != "review":
+            return f"{msg.order_no} wartet nicht auf die Freigabe ({order.status})."
+        if not msg.not_explicit:
+            return "Bitte bestätigen: das Ergebnis ist nicht explizit."
+        result = self._order_result(order)
+        if result is None or result["id"] != msg.media_id:
+            return "Freigeben lässt sich nur das fertige Ergebnis dieses Auftrags."
+        if result["content_tier"] != "standard":
+            return "Inhaltsstufe nicht standard – an Kunden nicht zustellbar (Regel 13)."
+        if reason := self._send_ready(order):
+            return reason
+        src = self.cfg.local / result["path"]
+        master = (
+            self.store.order_dir(order) / "work" / f"{order.order_no}_ergebnis{src.suffix.lower()}"
+        )
+        await asyncio.to_thread(_place_copy, src, master, result["sha256"])
+        copy = await asyncio.to_thread(self._delivery_copy, order, master)
+        with self.store.tx():
+            art = self.store.add_artifact(order.order_no, "master", master, job_id=result["job_id"])
+            self.store.record_approval(order.order_no, art.id, "approved", "Betreiber")
+            delivery = approval.prepare_delivery(
+                self.store, order.order_no, art.id, order.customer_no
+            )
+            message_id = self._queue_delivery(order, delivery, copy)
+            self._card(order, f"FREIGEGEBEN · {order.order_no} · Zustellung im Postausgang")
+        call.entity = f"message:{message_id}"
+        self._wake(order)
+        self._orders_changed()
+        self._message_changed(message_id)
+        return ""
+
+    async def _retry_delivery(self, msg: commands_pb2.RetryDelivery, call: _Call) -> str:
+        """Erneut senden (Befehl 47) – nur nach endgültig fehlgeschlagener Zustellung."""
+        call.entity = f"order:{msg.order_no}"
+        order = self.store.order(msg.order_no)
+        deliveries = self.store.deliveries(order.id)
+        if order.status != "approved" or not deliveries or deliveries[-1]["status"] != "failed":
+            return "Erneut senden nur nach endgültig fehlgeschlagener Zustellung."
+        if reason := self._send_ready(order):
+            return reason
+        last = deliveries[-1]
+        master = self.cfg.local / self.store.artifact(last["artifact_id"]).path
+        copy = await asyncio.to_thread(self._delivery_copy, order, master)
+        with self.store.tx():
+            delivery = approval.prepare_delivery(
+                self.store, order.order_no, last["artifact_id"], order.customer_no,
+                attempt=len(deliveries),
+            )  # fmt: skip
+            message_id = self._queue_delivery(order, delivery, copy)
+            self._card(order, f"ERNEUT GESENDET · {order.order_no} · Zustellung im Postausgang")
+        call.entity = f"message:{message_id}"
+        self._wake(order)
+        self._orders_changed()
+        self._message_changed(message_id)
+        return ""
+
+    def _card(self, order, text: str) -> None:
+        offer = self.store.offer(order.id)
+        if offer is not None:
+            self.store.add_system_card(offer["conversation_id"], text, order_id=order.id)
+
+    def _wake(self, order) -> None:
+        offer = self.store.offer(order.id)
+        adapter = self._adapter(self.store.conversation_platform(offer["conversation_id"]))
+        if adapter is not None:
+            adapter.wake.set()
+
+    def _delivery_gate(self, item: dict) -> str:
+        """Letzte Prüfung im Versandmoment (Postausgang): Gate frisch gegen Datenbank und Datei,
+        Zustellkopie unverändert und gekennzeichnet. Leer = senden."""
+        delivery = self.store.delivery(item["delivery_id"])
+        if delivery is None or delivery["status"] != "pending":
+            return "Zustellung ist nicht mehr offen."
+        gate = approval.check_gate(
+            self.store, delivery["order_no"], delivery["artifact_id"], delivery["customer_no"]
+        )
+        if not gate.ok:
+            return "Zustellung gesperrt: " + "; ".join(gate.reasons)
+        for att in item["attachments"]:
+            path = self.cfg.local / att["path"]
+            if not path.is_file() or sha256_file(path) != att.get("sha256"):
+                return "Zustellkopie fehlt oder wurde verändert."
+            if not aimeta.is_marked(path):
+                return "Zustellkopie ohne KI-Kennzeichnung."
+        return ""
+
+    def _delivery_update(self, message_id: int) -> None:
+        """Versandausgang einer Zustellnachricht festschreiben (Karte VERSENDET bzw. Fehler)."""
+        delivery = self.store.delivery_by_message(message_id)
+        if delivery is None or delivery["status"] != "pending":
+            return
+        msg = self.store.message(message_id)
+        order = self.store.order_by_id(delivery["order_id"])
+        if msg["status"] == "sent":
+            approval.confirm_sent(self.store, delivery["id"], msg["platform_message_id"] or "")
+            self._card(order, f"VERSENDET · {order.order_no}")
+        elif msg["status"] == "failed":
+            if self.store.fail_delivery(delivery["id"], msg["error"] or ""):
+                self._card(
+                    order, f"ZUSTELLUNG FEHLGESCHLAGEN · {order.order_no} · {msg['error'] or ''}"
+                )
+        else:
+            return
+        self._orders_changed()
+
+    def _settle_deliveries(self) -> None:
+        """Nach einem Neustart: gesendete Zustellnachricht, deren Bestätigung fehlt."""
+        for delivery_id, external in self.store.pending_sent_deliveries():
+            try:
+                approval.confirm_sent(self.store, delivery_id, external)
+            except StoreError as exc:
+                log.error("Zustellung %s: %s", delivery_id, exc)
+
+    async def _payment_assign(self, msg: commands_pb2.PaymentAssign, call: _Call) -> str:
+        """Nicht zugeordneten Eingang einem offenen Angebot zuordnen (Befehl 41)."""
+        call.entity = f"payment:{msg.payment_id}"
+        self.store.assign_inflow(msg.payment_id, msg.order_no, "Betreiber")
+        self._payments_changed()
+        return ""
+
+    async def _gift_card_confirm(self, msg: commands_pb2.GiftCardConfirm, call: _Call) -> str:
+        """Amazon-Gutschein entscheiden (Befehl 42): eingelöster Betrag oder abgelehnt."""
+        call.entity = f"voucher:{msg.voucher_id}"
+        if msg.reject:
+            self.store.reject_voucher(msg.voucher_id)
+        elif msg.amount_cents <= 0:
+            return "Eingelösten Betrag angeben."
+        else:
+            self.store.redeem_voucher(msg.voucher_id, msg.amount_cents)
+        self._payments_changed()
+        return ""
 
     def read_payments(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
         rows, gap = self.store.payment_events(after, limit)
@@ -1045,7 +1397,12 @@ class Cockpit:
     def _channels_changed(self) -> None:
         self.hub.set_state(spb.TOPIC_CHANNELS, self._channels())
 
-    def _message_changed(self, _message_id: int) -> None:
+    def _message_changed(self, message_id: int) -> None:
+        if message_id:
+            try:
+                self._delivery_update(message_id)
+            except StoreError as exc:  # Gate beim Festschreiben gesperrt: bleibt offen, sichtbar
+                log.error("Zustellung zu Nachricht %s: %s", message_id, exc)
         self.hub.push_events(spb.TOPIC_CONVERSATION_EVENT)
         self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)
 
@@ -1053,6 +1410,7 @@ class Cockpit:
         """Neue Nachricht gespeichert: Cockpit per Push aktualisieren; Nachrichten des Default-
         Kontakts gehen vor jeder Kundenverarbeitung durch die Kloner-Weiche (V0 §8)."""
         self._message_changed(inbound.message_id or 0)
+        self._wallet_changed()  # erkannter Gutscheincode erscheint im Reiter Wallet
         if inbound.customer.kind == "internal" and inbound.message_id:
             try:
                 await self._cloner(inbound)
@@ -1063,7 +1421,20 @@ class Cockpit:
     def _reply_internal(self, conversation_id: int, text: str, files: list[str] = ()) -> None:
         """Rückfrage bzw. Ergebnis an den Default-Nutzer in denselben Chat (Postausgang)."""
         default = self.store.default_contact()
-        attachments = [{"kind": "document", "path": f, "status": "saved"} for f in files]
+        attachments = []
+        for rel in files:
+            src = self.cfg.local / rel
+            copy = self.cfg.local / "channels" / "sent" / f"{src.stem}_ki{src.suffix.lower()}"
+            try:
+                if not copy.exists():
+                    aimeta.mark(src, copy)
+            except (aimeta.AiMetaError, OSError) as exc:
+                text += f"\n{src.name}: nicht gesendet ({exc})"
+                continue
+            attachments.append(
+                {"kind": "document", "path": copy.relative_to(self.cfg.local).as_posix(),
+                 "status": "saved", "sha256": sha256_file(copy)}
+            )  # fmt: skip
         message_id = self.store.queue_outbound(
             default["customer_id"],
             conversation_id,
@@ -1938,6 +2309,43 @@ async def _payment_page(request: web.Request) -> web.Response:
     return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
 
 
+async def _payment_export(request: web.Request) -> web.Response:
+    """Steuer-Monatsliste (V0 §8.5 Punkt 7) als CSV-Datei: Euro-Wert und Kurs je Eingang."""
+    if request.app[GUARD_KEY].csrf_of(request) is None:
+        return web.Response(status=401, text="Keine gültige Sitzung")
+    month = request.match_info["month"]
+    if not MONTH.match(month):
+        return web.Response(status=400, text="Monat als JJJJ-MM angeben")
+    rows = request.app[COCKPIT_KEY].store.payments_of_month(month)
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=";")
+    writer.writerow(
+        ["Zeit (UTC)", "Weg", "Netz", "Asset", "Betrag", "Euro-Wert", "Kurs EUR", "Kurszeit (UTC)",
+         "Transaktion", "Position", "Bestätigungen", "Status", "Auftrag", "Kunde"]
+    )  # fmt: skip
+    for r in rows:
+        rate_at = (
+            datetime.fromtimestamp(r["rate_ms"] / 1000, UTC).isoformat(timespec="seconds")
+            if r["rate_ms"]
+            else ""
+        )
+        writer.writerow(
+            [r["detected_at"], r["method"], r["network"], r["asset"], r["amount"],
+             f"{r['eur']:.2f}" if r["eur"] is not None else "", r["rate"] or "", rate_at,
+             r["txid"], r["position"], r["confirmations"], r["status"], r["order_no"] or "",
+             r["customer_no"] or ""]
+        )  # fmt: skip
+    return web.Response(
+        body=out.getvalue().encode("utf-8-sig"),
+        content_type="text/csv",
+        charset="utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="darkfluenzer-zahlungen-{month}.csv"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
 async def _wallet_qr(request: web.Request) -> web.Response:
     """QR-Code der öffentlichen Adresse eines Kontos als SVG (Schublade, FRONT F7.8)."""
     import segno
@@ -2020,6 +2428,22 @@ def _customer_summary(row: dict) -> channel_pb2.CustomerSummary:
     )
 
 
+def _eur(cents: int) -> str:
+    return f"{cents / 100:.2f} €".replace(".", ",")
+
+
+def _place_copy(src: Path, dst: Path, sha256: str) -> None:
+    """Bytegleiche Kopie (Hash geprüft); eine vorhandene gleiche Kopie bleibt."""
+    if dst.is_file() and sha256_file(dst) == sha256:
+        return
+    if sha256_file(src) != sha256:
+        raise StoreError(f"{src.name}: Datei weicht vom Galerie-Eintrag ab.")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dst.with_name(dst.name + ".tmp")
+    shutil.copyfile(src, tmp)
+    os.replace(tmp, dst)
+
+
 def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
     """Auftrag mit Stufen, Jobs und Kandidaten (STATE orders.active, Systemkarte)."""
     item.order_no, item.source, item.kind = order.order_no, order.source, order.kind
@@ -2046,6 +2470,46 @@ def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
                 error=j["error"] or "",
                 content_tier=j["content_tier"] or "",
             )
+        if st.status == "done" and st.selected_media_id:
+            media = store.media_by_id(st.selected_media_id)
+            item.result_media_id = st.selected_media_id
+            item.result_path = media["path"] if media else ""
+            item.result_tier = (media["content_tier"] if media else "") or ""
+    if order.source != "customer":
+        return
+    item.customer_id, item.customer_no = order.customer_id or 0, order.customer_no or ""
+    offer = store.offer(order.id)
+    if offer is not None:
+        item.offer.product, item.offer.hd = offer["product"], bool(offer["hd"])
+        item.offer.price_cents, item.offer.expires_ms = (
+            offer["price_cents"],
+            _unix_ms(offer["expires_at"]),
+        )
+        item.offer.conversation_id = offer["conversation_id"]
+        for row in store.offer_amount_rows(order.id):
+            network = "bitcoin" if row["method"] == "btc" else "bsc"
+            item.offer.amounts.add(
+                method=row["method"],
+                asset=row["method"].upper(),
+                amount=row["amount"],
+                address=row["address"],
+                network=network,
+                rate=row["rate"],
+                rate_ms=row["rate_ms"],
+            )
+    for d in store.deliveries(order.id):
+        status = d["status"]
+        if status == "pending" and d["message_status"] == "unknown":
+            status = "unknown"
+        atts = json.loads(d["attachments"] or "[]")
+        item.deliveries.add(
+            delivery_id=d["id"],
+            status=status,
+            message_id=d["message_id"] or 0,
+            error=d["message_error"] or "",
+            at_ms=_unix_ms(d["sent_at"] or d["created_at"]),
+            path=atts[0]["path"] if atts else "",
+        )
 
 
 def _conversation_item(row: dict, store: Store) -> channel_pb2.ConversationItem:
@@ -2240,6 +2704,7 @@ def create_app(cfg: Config) -> web.Application:
     app.router.add_get("/api/v1/reference-page", _reference_page)
     app.router.add_get("/api/v1/payment-page", _payment_page)
     app.router.add_get("/api/v1/wallet-qr/{key}", _wallet_qr)
+    app.router.add_get("/api/v1/payment-export/{month}", _payment_export)
     app.router.add_get("/api/v1/customer-page", _customer_page)
     app.router.add_get("/api/v1/conversation-page", _conversation_page)
 

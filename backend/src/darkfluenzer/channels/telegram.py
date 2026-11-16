@@ -548,6 +548,11 @@ class TelegramAccount:
 
     async def _send(self, item: dict) -> None:
         assert self._td is not None
+        # Zustellung an Kunden: Gate im Versandmoment frisch prüfen (approval.py, V0 §8.4 Punkt 9)
+        if item.get("delivery_id") and (reason := self.gate(item)):
+            self.store.set_message_status(item["id"], "failed", error=reason)
+            self.on_change_message(item["id"])
+            return
         self.store.set_message_status(item["id"], "sending")
         self.on_change_message(item["id"])
         chat = int(item["platform_conversation_id"])
@@ -623,6 +628,8 @@ class TelegramAccount:
 
     # Server setzt diesen Rückruf (Push des geänderten Nachrichtenstatus)
     on_change_message: Callable[[int], None] = staticmethod(lambda _id: None)  # type: ignore[assignment]
+    # Server setzt die Versandprüfung für Zustellungen (leer = senden, sonst der Sperrgrund)
+    gate: Callable[[dict], str] = staticmethod(lambda _item: "Keine Versandprüfung.")  # type: ignore[assignment]
 
 
 def _pending(f: dict) -> dict:

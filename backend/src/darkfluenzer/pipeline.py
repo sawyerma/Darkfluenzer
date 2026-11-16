@@ -197,10 +197,13 @@ def create_order(
     command: dict | None = None,
     source: str = "operator",
     origin: int | None = None,
+    customer_order_no: str = "",
 ) -> tuple[str, list[int]]:
     """Auftrag des Betreibers: Stufe 1 rendert ``count`` Kandidaten mit fortlaufenden Seeds und
     wartet dann auf die Auswahl; optional wird der ausgewählte Kandidat mit ``finish_workflow``
-    (Eingang ``image``) fertiggestellt. Auftrag, Stufe, Jobs und Befehl in einem Commit."""
+    (Eingang ``image``) fertiggestellt. Auftrag, Stufe, Jobs und Befehl in einem Commit.
+    ``customer_order_no``: bezahlter Kundenauftrag, der so produziert wird (V0 §8.4 Punkt 5) –
+    nur mit Workflows der Inhaltsstufe standard (Regel 13)."""
     wf = man.workflows.get(workflow_key)
     if wf is None:
         raise PipelineError(f"Workflow '{workflow_key}' ist nicht registriert.")
@@ -216,14 +219,30 @@ def create_order(
         extra = [n for n, p in fw.params.items() if p.required and n != "image"]
         if extra:
             raise PipelineError(f"Fertigstellen mit {fw.title} braucht zusätzlich: {extra}.")
+    if customer_order_no:
+        for key in filter(None, (workflow_key, finish_workflow)):
+            if man.workflows[key].content != "standard":
+                raise PipelineError(
+                    f"{man.workflows[key].title}: an Kunden nur Inhaltsstufe standard."
+                )
+        if parent_media_id is not None and store.media_tier(parent_media_id) != "standard":
+            raise PipelineError("Ausgangsmedium ist nicht Inhaltsstufe standard.")
+        existing = store.order(customer_order_no)
+        if existing.source != "customer" or existing.status != "paid":
+            raise PipelineError(f"{customer_order_no} ist kein bezahlter Kundenauftrag.")
     graph = comfy.load_graph(man, wf)
     base = int(values.get("seed", graph[seed.node]["inputs"][seed.input])) if seed else 0
     top = int(seed.max) if seed and seed.max is not None else 2**32 - 1
     params = {"values": values, "inputs": inputs, "finish": finish_workflow, "origin": origin}
+    kind = man.engines[wf.engine].kind
     with store.tx():
-        order = store.create_production_order(
-            source, man.engines[wf.engine].kind, str(values.get("prompt", "")) or wf.title
-        )
+        if customer_order_no:
+            order = store.transition(customer_order_no, "producing", workflow=workflow_key)
+            store.set_order_kind(customer_order_no, kind)
+        else:
+            order = store.create_production_order(
+                source, kind, str(values.get("prompt", "")) or wf.title
+            )
         stage = store.add_stage(order.id, "candidates", workflow_key, params, count)
         jobs = [
             create_render(

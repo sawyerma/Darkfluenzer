@@ -52,11 +52,17 @@ def check_gate(store: Store, order_no: str, artifact_id: int, customer_no: str) 
 
     if art.order_id != order.id:
         reasons.append("ARTIFACT_ORDER_MISMATCH")
-    # Regel 13: an Kunden nur Inhaltsstufe „standard“ (unbekannt zählt als explizit)
-    tier = store.db.execute(
-        "SELECT content_tier FROM media WHERE artifact_id = ?", (art.id,)
-    ).fetchone()
-    if tier is None or tier[0] != "standard":
+    # Regel 13: an Kunden nur Inhaltsstufe „standard“ (unbekannt zählt als explizit). Das
+    # Artefakt ist eine Kopie eines Galerie-Mediums (gleicher Inhalt steht nur einmal im Index):
+    # jede Fundstelle über Artefakt oder Inhalt zählt, die höchste Stufe entscheidet.
+    tiers = [
+        r[0]
+        for r in store.db.execute(
+            "SELECT content_tier FROM media WHERE artifact_id = ? OR sha256 = ?",
+            (art.id, art.sha256),
+        )
+    ]
+    if not tiers or any(t != "standard" for t in tiers):
         reasons.append("CONTENT_TIER: nur Inhaltsstufe standard an Kunden")
     path = store.local / art.path
     try:
@@ -69,14 +75,17 @@ def check_gate(store: Store, order_no: str, artifact_id: int, customer_no: str) 
     return GateResult(not reasons, reasons)
 
 
-def prepare_delivery(store: Store, order_no: str, artifact_id: int, customer_no: str) -> int:
-    """Legt genau eine Lieferung je Auftrag an (idempotent). Gate wird vorher geprüft."""
+def prepare_delivery(
+    store: Store, order_no: str, artifact_id: int, customer_no: str, attempt: int = 0
+) -> int:
+    """Legt genau eine Lieferung je Auftrag und Versuch an (idempotent). Gate wird vorher
+    geprüft. ``attempt`` > 0: erneute Zustellung nach endgültig fehlgeschlagener (Befehl 47)."""
     gate = check_gate(store, order_no, artifact_id, customer_no)
     if not gate.ok:
         raise StoreError("Lieferung gesperrt: " + "; ".join(gate.reasons))
     order = store.order(order_no)
     art = store.artifact(artifact_id)
-    key = f"{order.order_no}:{art.sha256}"
+    key = f"{order.order_no}:{art.sha256}" + (f":r{attempt}" if attempt else "")
     with store.tx() as db:
         existing = db.execute(
             "SELECT id FROM deliveries WHERE idempotency_key = ?", (key,)

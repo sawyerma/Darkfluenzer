@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/wallet.proto.
  */
 export const file_darkfluenzer_v1_wallet: GenFile = /*@__PURE__*/
-  fileDesc("ChxkYXJrZmx1ZW56ZXIvdjEvd2FsbGV0LnByb3RvEg9kYXJrZmx1ZW56ZXIudjEiOwoNV2FsbGV0QmFsYW5jZRINCgVhc3NldBgBIAEoCRIOCgZhbW91bnQYAiABKAkSCwoDZXVyGAMgASgBIooCCg1XYWxsZXRBY2NvdW50EgsKA2tleRgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgduZXR3b3JrGAMgASgJEg8KB2FkZHJlc3MYBCABKAkSMAoIYmFsYW5jZXMYBSADKAsyHi5kYXJrZmx1ZW56ZXIudjEuV2FsbGV0QmFsYW5jZRIRCglldXJfdG90YWwYBiABKAESDwoHcmF0ZV9tcxgHIAEoAxISCgpjaGVja2VkX21zGAggASgDEhIKCmNoZWNrZWRfYXQYCSABKAkSDgoGc291cmNlGAogASgJEg0KBXN0YXRlGAsgASgJEg0KBWVycm9yGAwgASgJEg8KB21pc3NpbmcYDSABKAkiRwoMV2FsbGV0U291cmNlEgwKBG5hbWUYASABKAkSCwoDdXJsGAIgASgJEg0KBW9rX21zGAMgASgDEg0KBWVycm9yGAQgASgJInsKBldhbGxldBIwCghhY2NvdW50cxgBIAMoCzIeLmRhcmtmbHVlbnplci52MS5XYWxsZXRBY2NvdW50Ei4KB3NvdXJjZXMYAiADKAsyHS5kYXJrZmx1ZW56ZXIudjEuV2FsbGV0U291cmNlEg8KB3ZlcnNpb24YAyABKAQiqQIKB1BheW1lbnQSEgoKcGF5bWVudF9pZBgBIAEoBBIOCgZtZXRob2QYAiABKAkSDQoFYXNzZXQYAyABKAkSDgoGYW1vdW50GAQgASgJEgsKA2V1chgFIAEoARIMCgRyYXRlGAYgASgBEg8KB3JhdGVfbXMYByABKAMSDAoEdHhpZBgIIAEoCRIVCg1jb25maXJtYXRpb25zGAkgASgNEh4KFnJlcXVpcmVkX2NvbmZpcm1hdGlvbnMYCiABKA0SDgoGc3RhdHVzGAsgASgJEhAKCG9yZGVyX25vGAwgASgJEhMKC2N1c3RvbWVyX2lkGA0gASgEEhMKC2N1c3RvbWVyX25vGA4gASgJEg0KBWF0X21zGA8gASgDEg8KB25ldHdvcmsYECABKAkiOwoOUGF5bWVudFVwZGF0ZWQSKQoHcGF5bWVudBgBIAEoCzIYLmRhcmtmbHVlbnplci52MS5QYXltZW50IlUKC1BheW1lbnRQYWdlEicKBWl0ZW1zGAEgAygLMhguZGFya2ZsdWVuemVyLnYxLlBheW1lbnQSDAoEbW9yZRgCIAEoCBIPCgd2ZXJzaW9uGAMgASgEYgZwcm90bzM");
+  fileDesc("ChxkYXJrZmx1ZW56ZXIvdjEvd2FsbGV0LnByb3RvEg9kYXJrZmx1ZW56ZXIudjEiOwoNV2FsbGV0QmFsYW5jZRINCgVhc3NldBgBIAEoCRIOCgZhbW91bnQYAiABKAkSCwoDZXVyGAMgASgBIooCCg1XYWxsZXRBY2NvdW50EgsKA2tleRgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgduZXR3b3JrGAMgASgJEg8KB2FkZHJlc3MYBCABKAkSMAoIYmFsYW5jZXMYBSADKAsyHi5kYXJrZmx1ZW56ZXIudjEuV2FsbGV0QmFsYW5jZRIRCglldXJfdG90YWwYBiABKAESDwoHcmF0ZV9tcxgHIAEoAxISCgpjaGVja2VkX21zGAggASgDEhIKCmNoZWNrZWRfYXQYCSABKAkSDgoGc291cmNlGAogASgJEg0KBXN0YXRlGAsgASgJEg0KBWVycm9yGAwgASgJEg8KB21pc3NpbmcYDSABKAkiRwoMV2FsbGV0U291cmNlEgwKBG5hbWUYASABKAkSCwoDdXJsGAIgASgJEg0KBW9rX21zGAMgASgDEg0KBWVycm9yGAQgASgJIrQBCgdWb3VjaGVyEhIKCnZvdWNoZXJfaWQYASABKAQSEwoLY3VzdG9tZXJfaWQYAiABKAQSEwoLY3VzdG9tZXJfbm8YAyABKAkSFAoMZGlzcGxheV9uYW1lGAQgASgJEgwKBGNvZGUYBSABKAkSDgoGc3RhdHVzGAYgASgJEhQKDGFtb3VudF9jZW50cxgHIAEoDRINCgVhdF9tcxgIIAEoAxISCgpkZWNpZGVkX21zGAkgASgDIqgBCglPcGVuT2ZmZXISEAoIb3JkZXJfbm8YASABKAkSEwoLY3VzdG9tZXJfaWQYAiABKAQSEwoLY3VzdG9tZXJfbm8YAyABKAkSFAoMZGlzcGxheV9uYW1lGAQgASgJEg8KB3Byb2R1Y3QYBSABKAkSEwoLcHJpY2VfY2VudHMYBiABKA0SEgoKZXhwaXJlc19tcxgHIAEoAxIPCgdhbW91bnRzGAggAygJItgBCgZXYWxsZXQSMAoIYWNjb3VudHMYASADKAsyHi5kYXJrZmx1ZW56ZXIudjEuV2FsbGV0QWNjb3VudBIuCgdzb3VyY2VzGAIgAygLMh0uZGFya2ZsdWVuemVyLnYxLldhbGxldFNvdXJjZRIPCgd2ZXJzaW9uGAMgASgEEioKCHZvdWNoZXJzGAQgAygLMhguZGFya2ZsdWVuemVyLnYxLlZvdWNoZXISLwoLb3Blbl9vZmZlcnMYBSADKAsyGi5kYXJrZmx1ZW56ZXIudjEuT3Blbk9mZmVyIqkCCgdQYXltZW50EhIKCnBheW1lbnRfaWQYASABKAQSDgoGbWV0aG9kGAIgASgJEg0KBWFzc2V0GAMgASgJEg4KBmFtb3VudBgEIAEoCRILCgNldXIYBSABKAESDAoEcmF0ZRgGIAEoARIPCgdyYXRlX21zGAcgASgDEgwKBHR4aWQYCCABKAkSFQoNY29uZmlybWF0aW9ucxgJIAEoDRIeChZyZXF1aXJlZF9jb25maXJtYXRpb25zGAogASgNEg4KBnN0YXR1cxgLIAEoCRIQCghvcmRlcl9ubxgMIAEoCRITCgtjdXN0b21lcl9pZBgNIAEoBBITCgtjdXN0b21lcl9ubxgOIAEoCRINCgVhdF9tcxgPIAEoAxIPCgduZXR3b3JrGBAgASgJIjsKDlBheW1lbnRVcGRhdGVkEikKB3BheW1lbnQYASABKAsyGC5kYXJrZmx1ZW56ZXIudjEuUGF5bWVudCJVCgtQYXltZW50UGFnZRInCgVpdGVtcxgBIAMoCzIYLmRhcmtmbHVlbnplci52MS5QYXltZW50EgwKBG1vcmUYAiABKAgSDwoHdmVyc2lvbhgDIAEoBGIGcHJvdG8z");
 
 /**
  * Guthaben eines Assets auf einem Konto. Beträge als Dezimaltext (keine Gleitkomma-Rundung).
@@ -173,6 +173,123 @@ export const WalletSourceSchema: GenMessage<WalletSource> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_wallet, 2);
 
 /**
+ * Amazon-Gutschein aus dem Chat (V0 §8.5 Punkt 5): der Code steht nur hier, nie im Verlauf.
+ *
+ * @generated from message darkfluenzer.v1.Voucher
+ */
+export type Voucher = Message<"darkfluenzer.v1.Voucher"> & {
+  /**
+   * @generated from field: uint64 voucher_id = 1;
+   */
+  voucherId: bigint;
+
+  /**
+   * @generated from field: uint64 customer_id = 2;
+   */
+  customerId: bigint;
+
+  /**
+   * @generated from field: string customer_no = 3;
+   */
+  customerNo: string;
+
+  /**
+   * @generated from field: string display_name = 4;
+   */
+  displayName: string;
+
+  /**
+   * @generated from field: string code = 5;
+   */
+  code: string;
+
+  /**
+   * pending | redeemed | rejected
+   *
+   * @generated from field: string status = 6;
+   */
+  status: string;
+
+  /**
+   * @generated from field: uint32 amount_cents = 7;
+   */
+  amountCents: number;
+
+  /**
+   * @generated from field: int64 at_ms = 8;
+   */
+  atMs: bigint;
+
+  /**
+   * @generated from field: int64 decided_ms = 9;
+   */
+  decidedMs: bigint;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.Voucher.
+ * Use `create(VoucherSchema)` to create a new message.
+ */
+export const VoucherSchema: GenMessage<Voucher> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_wallet, 3);
+
+/**
+ * Offenes Angebot als Ziel einer manuellen Zuordnung (Befehl 41).
+ *
+ * @generated from message darkfluenzer.v1.OpenOffer
+ */
+export type OpenOffer = Message<"darkfluenzer.v1.OpenOffer"> & {
+  /**
+   * @generated from field: string order_no = 1;
+   */
+  orderNo: string;
+
+  /**
+   * @generated from field: uint64 customer_id = 2;
+   */
+  customerId: bigint;
+
+  /**
+   * @generated from field: string customer_no = 3;
+   */
+  customerNo: string;
+
+  /**
+   * @generated from field: string display_name = 4;
+   */
+  displayName: string;
+
+  /**
+   * @generated from field: string product = 5;
+   */
+  product: string;
+
+  /**
+   * @generated from field: uint32 price_cents = 6;
+   */
+  priceCents: number;
+
+  /**
+   * @generated from field: int64 expires_ms = 7;
+   */
+  expiresMs: bigint;
+
+  /**
+   * je Zahlungsweg „USDT 24.9937“
+   *
+   * @generated from field: repeated string amounts = 8;
+   */
+  amounts: string[];
+};
+
+/**
+ * Describes the message darkfluenzer.v1.OpenOffer.
+ * Use `create(OpenOfferSchema)` to create a new message.
+ */
+export const OpenOfferSchema: GenMessage<OpenOffer> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_wallet, 4);
+
+/**
  * STATE wallet
  *
  * @generated from message darkfluenzer.v1.Wallet
@@ -192,6 +309,20 @@ export type Wallet = Message<"darkfluenzer.v1.Wallet"> & {
    * @generated from field: uint64 version = 3;
    */
   version: bigint;
+
+  /**
+   * offene Gutscheine und die zuletzt entschiedenen
+   *
+   * @generated from field: repeated darkfluenzer.v1.Voucher vouchers = 4;
+   */
+  vouchers: Voucher[];
+
+  /**
+   * offene Angebote (Status offered/accepted) als Ziele für „Zuordnen“
+   *
+   * @generated from field: repeated darkfluenzer.v1.OpenOffer open_offers = 5;
+   */
+  openOffers: OpenOffer[];
 };
 
 /**
@@ -199,7 +330,7 @@ export type Wallet = Message<"darkfluenzer.v1.Wallet"> & {
  * Use `create(WalletSchema)` to create a new message.
  */
 export const WalletSchema: GenMessage<Wallet> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_wallet, 3);
+  messageDesc(file_darkfluenzer_v1_wallet, 5);
 
 /**
  * Ein Zahlungseingang (Chain-Eingang, PayPal oder Gutschein).
@@ -303,7 +434,7 @@ export type Payment = Message<"darkfluenzer.v1.Payment"> & {
  * Use `create(PaymentSchema)` to create a new message.
  */
 export const PaymentSchema: GenMessage<Payment> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_wallet, 4);
+  messageDesc(file_darkfluenzer_v1_wallet, 6);
 
 /**
  * EVENT payments.updated: Eingang neu oder Statuswechsel
@@ -322,7 +453,7 @@ export type PaymentUpdated = Message<"darkfluenzer.v1.PaymentUpdated"> & {
  * Use `create(PaymentUpdatedSchema)` to create a new message.
  */
 export const PaymentUpdatedSchema: GenMessage<PaymentUpdated> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_wallet, 5);
+  messageDesc(file_darkfluenzer_v1_wallet, 7);
 
 /**
  * HTTP GET /api/v1/payment-page[?before=ID&limit=N&filter=all|open|confirmed|unassigned]
@@ -351,5 +482,5 @@ export type PaymentPage = Message<"darkfluenzer.v1.PaymentPage"> & {
  * Use `create(PaymentPageSchema)` to create a new message.
  */
 export const PaymentPageSchema: GenMessage<PaymentPage> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_wallet, 6);
+  messageDesc(file_darkfluenzer_v1_wallet, 8);
 

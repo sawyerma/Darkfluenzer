@@ -111,6 +111,9 @@ message CreateOrder {
   uint32 candidates = 4;
   string finish_workflow = 5;
   uint64 parent_media_id = 6;
+  // Bezahlter Kundenauftrag (Status paid), der hiermit produziert wird (V0 §8.4 Punkt 5); nur
+  // Workflows der Inhaltsstufe standard. Leer: neuer Auftrag des Betreibers.
+  string customer_order_no = 7;
 }
 
 // Auswahl an der kreativen Stufe; geprüft wird im Backend: Stufe wartet, Medium stammt aus ihr.
@@ -178,6 +181,54 @@ message CustomerAgeMark {
 message SendAiNotice {
   uint64 customer_id = 1;
   uint64 identity_id = 2;
+}
+
+// Angebot aus der Preisliste der Influencerin an eine Kundenakte (Befehl 46, V0 §8.4 Punkt 3):
+// nur bei Altersangabe ≥ 18 (Selbstauskunft) und gesendetem KI-Hinweis dieser Kanalidentität;
+// Preis nur aus der Preisposition (+ HD-Aufschlag), je eingerichtetem Zahlungsweg ein eindeutiger
+// Betrag mit Gültigkeit aus config.toml. Karte ANGEBOT im Verlauf; die Nachricht mit Betrag und
+// Zahlungswegen geht über den Postausgang an genau diese Konversation (CAS über die Revision).
+message CreateOffer {
+  uint64 customer_id = 1;
+  uint64 identity_id = 2;
+  uint64 conversation_id = 3;
+  uint64 revision = 4;
+  uint64 influencer_id = 5;
+  // Position in der Preisliste
+  uint32 position = 6;
+  bool hd = 7;
+  // persönlicher Satz des Betreibers vor den Zahlungsangaben (optional)
+  string note = 8;
+}
+
+// „Freigeben & senden“ (Befehl 34): Ergebnis eines Kundenauftrags in Prüfung freigeben und hinter
+// approval.py (Zahlung, Freigabe, Hash, Kunde, Inhaltsstufe standard) als gekennzeichnete
+// Zustellkopie an die Konversation des Angebots senden. not_explicit: ausdrückliche Bestätigung
+// des Betreibers, dass das Ergebnis nicht explizit ist.
+message ApproveArtifact {
+  string order_no = 1;
+  uint64 media_id = 2;
+  bool not_explicit = 3;
+}
+
+// Zustellung erneut senden (Befehl 47) – nur nach endgültig fehlgeschlagener Zustellung, nie bei
+// ungeklärtem Versand (unknown).
+message RetryDelivery {
+  string order_no = 1;
+}
+
+// Nicht zugeordneten Eingang einem offenen Angebot zuordnen (Befehl 41, protokolliert).
+message PaymentAssign {
+  uint64 payment_id = 1;
+  string order_no = 2;
+}
+
+// Amazon-Gutschein entscheiden (Befehl 42): eingelösten Betrag eintragen (amount_cents > 0) oder
+// ablehnen (reject, z. B. ungültiger Code).
+message GiftCardConfirm {
+  uint64 voucher_id = 1;
+  uint32 amount_cents = 2;
+  bool reject = 3;
 }
 
 // Erkannten Kloner-Auftrag starten, der auf den Betreiberstart wartet (Systemkarte mit
@@ -253,6 +304,11 @@ message CommandRequest {
     MediaContentTier media_content_tier = 43;
     CustomerAgeMark customer_age_mark = 44;
     SendAiNotice send_ai_notice = 45;
+    CreateOffer create_offer = 46;
+    ApproveArtifact approve_artifact = 34;
+    RetryDelivery retry_delivery = 47;
+    PaymentAssign payment_assign = 41;
+    GiftCardConfirm gift_card_confirm = 42;
   }
 }
 
