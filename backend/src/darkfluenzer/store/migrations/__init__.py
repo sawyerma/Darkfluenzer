@@ -494,6 +494,14 @@ CREATE TABLE media_checks (
 );
 CREATE INDEX media_checks_media ON media_checks(media_id) WHERE media_id IS NOT NULL;
 """,
+    24: """
+-- Abmessungen je Medium (SP3 Ausgabe): Datei und native Erzeugungsgröße getrennt; Hochskalieren
+-- und Ausgabeformate werden nie als nativ ausgegeben. NULL = unbekannt (Video, noch nicht gelesen).
+ALTER TABLE media ADD COLUMN width INTEGER;
+ALTER TABLE media ADD COLUMN height INTEGER;
+ALTER TABLE media ADD COLUMN native_width INTEGER;
+ALTER TABLE media ADD COLUMN native_height INTEGER;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

@@ -132,10 +132,36 @@ def delete_media(cfg: Config, ids: list[int]) -> list[str]:
         store.close()
 
 
-def scan_media(cfg: Config, seen: set[str], settle_s: float, folders: bool = True) -> int:
+SIZE_BATCH = 200  # so viele Bilder je Runde bekommen ihre Abmessungen nachgetragen
+
+
+def fill_sizes(cfg: Config, store: Store, resizing: frozenset[str], limit: int) -> int:
+    """Abmessungen für Bilder ohne Eintrag nachtragen (Dateikopf, älteste zuerst, damit das
+    Ausgangsmedium vor seinem Hochskalierten steht). Liefert die Zahl bearbeiteter Bilder."""
+    from .pipeline import image_size, native_size
+
+    rows = store.media_without_size(limit)
+    for row in rows:
+        size_px = image_size(cfg.local / row["path"]) or (0, 0)
+        resized = (row["workflow"] or "") in resizing
+        native = (
+            native_size(store, size_px, resized, row["parent_media_id"]) if any(size_px) else None
+        )
+        store.set_media_size(row["id"], size_px, native)
+    return len(rows)
+
+
+def scan_media(
+    cfg: Config,
+    seen: set[str],
+    settle_s: float,
+    folders: bool = True,
+    resizing: frozenset[str] = frozenset(),
+) -> int:
     """Nimmt alle noch nicht erfassten erzeugten Medien chronologisch in den Galerie-Index auf;
     liest das Job-Journal ab der gespeicherten Position, die Ordner nur mit ``folders``. Eigener
-    Strang mit eigener Verbindung (SP0 Schritt 5/6). Liefert die Zahl neuer Einträge."""
+    Strang mit eigener Verbindung (SP0 Schritt 5/6). Trägt danach fehlende Bildabmessungen nach
+    (``resizing``: Workflows, deren Ergebnis nie als nativ gilt). Liefert die neuen Einträge."""
     store = Store(cfg.local)
     try:
         after = int(store.adapter_get(*CURSOR) or 0)
@@ -146,6 +172,7 @@ def scan_media(cfg: Config, seen: set[str], settle_s: float, folders: bool = Tru
             added += bool(store.add_media(rel, sha, size, job_id=job_id, created_at=created))
         if cursor != after:
             store.adapter_set(*CURSOR, str(cursor))
+        fill_sizes(cfg, store, resizing, SIZE_BATCH)
         return added
     finally:
         store.close()

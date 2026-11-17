@@ -451,9 +451,10 @@ def run_render(
             else:
                 store.set_job_status(job_id, "failed", error=str(exc) or type(exc).__name__)
             raise
-        first = register_outputs(
-            store, job_id, outputs
-        )  # erst in die Galerie, dann gilt der Job als fertig
+        first = register_outputs(  # erst in die Galerie, dann gilt der Job als fertig
+            store, job_id, outputs, local=cfg.local, parent=job["parent_media_id"],
+            resized=man.engines[wf.engine].role in RESIZING_ROLES,
+        )  # fmt: skip
         if result.checks:  # Messwerte gehören zum Ergebnis, sonst zum geprüften Eingabebild
             checked = first or job["parent_media_id"] or _input_media(store, uploads)
             store.add_media_checks(
@@ -483,14 +484,52 @@ def _input_media(store: Store, uploads: dict[str, Path]) -> int | None:
     return None
 
 
-def register_outputs(store: Store, job_id: int, outputs: list[dict]) -> int | None:
+RESIZING_ROLES = ("upscale", "output")  # Engines, deren Ergebnis nie als nativ gilt
+
+
+def image_size(path: Path) -> tuple[int, int] | None:
+    """Abmessungen aus dem Dateikopf (Dateiprüfung, keine Bildbewertung); None = kein Bild."""
+    try:
+        with Image.open(path) as img:
+            return img.size
+    except (OSError, ValueError):
+        return None
+
+
+def native_size(
+    store: Store, size_px: tuple[int, int] | None, resized: bool, parent: int | None
+) -> tuple[int, int] | None:
+    """Native Erzeugungsgröße: eigene Größe, außer nach Hochskalieren/Ausgabeformat – dann die
+    native Größe des Ausgangsmediums (unbekannt bleibt unbekannt, nie die Ausgabegröße)."""
+    if not resized:
+        return size_px
+    row = store.media_by_id(parent) if parent else None
+    if row and row.get("native_width") and row.get("native_height"):
+        return int(row["native_width"]), int(row["native_height"])
+    return None
+
+
+def register_outputs(
+    store: Store,
+    job_id: int,
+    outputs: list[dict],
+    *,
+    resized: bool = False,
+    parent: int | None = None,
+    local: Path | None = None,
+) -> int | None:
     """Ausgaben eines Jobs in die Galerie; liefert das erste Ergebnis-Medium. Ist eine Ausgabe
-    bitgleich zu einem vorhandenen Medium, zählt dieses als Ergebnis (BUG-064)."""
+    bitgleich zu einem vorhandenen Medium, zählt dieses als Ergebnis (BUG-064). ``resized``:
+    Hochskalieren oder Ausgabeformat – native Größe vom Ausgangsmedium ``parent``."""
     first = None
     for out in outputs:
         if Path(out["path"]).suffix.lower() not in MEDIA_KINDS:
             continue
-        media_id = store.add_media(out["path"], out["sha256"], out["size"], job_id=job_id)
+        size_px = image_size(local / out["path"]) if local is not None else None
+        media_id = store.add_media(
+            out["path"], out["sha256"], out["size"], job_id=job_id, size_px=size_px,
+            native_px=native_size(store, size_px, resized, parent) if size_px else None,
+        )  # fmt: skip
         if media_id is None:
             existing = store.media_by_sha(out["sha256"])
             media_id = existing["id"] if existing else None

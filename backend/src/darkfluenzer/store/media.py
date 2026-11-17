@@ -104,6 +104,8 @@ class MediaMixin:
         job_id: int | None = None,
         artifact_id: int | None = None,
         created_at: str | None = None,
+        size_px: tuple[int, int] | None = None,
+        native_px: tuple[int, int] | None = None,
     ) -> int | None:
         """Nimmt eine erzeugte Datei (Pfad relativ zu ``local/``) genau einmal in die Galerie auf.
         Gleiche Bytes oder gleicher Pfad -> keine zweite Aufnahme (None). Kundenbezug nur über
@@ -142,9 +144,12 @@ class MediaMixin:
                     "UPDATE counters SET value = value + 1 WHERE name = 'media_number'"
                     " RETURNING value"
                 ).fetchone()[0]
+            width, height = size_px or (None, None)
+            native_w, native_h = native_px or (None, None)
             db.execute(
                 "INSERT INTO media (id, sha256, path, kind, size, job_id, artifact_id, order_id,"
-                " number, created_at, content_tier) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                " number, created_at, content_tier, width, height, native_width, native_height)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     media_id,
                     sha,
@@ -157,6 +162,10 @@ class MediaMixin:
                     number,
                     created_at or now(),
                     content_tier,
+                    width,
+                    height,
+                    native_w,
+                    native_h,
                 ),
             )
             self._event("media", media_id, "added", path=rel)
@@ -225,6 +234,28 @@ class MediaMixin:
     def media_by_path(self, rel: str) -> dict | None:
         row = self.db.execute("SELECT * FROM media WHERE path = ?", (rel,)).fetchone()
         return dict(row) if row else None
+
+    def set_media_size(
+        self, media_id: int, size_px: tuple[int, int], native_px: tuple[int, int] | None
+    ) -> None:
+        """Abmessungen nachtragen (einmaliger Abgleich vorhandener Medien)."""
+        native_w, native_h = native_px or (None, None)
+        with self.tx() as db:
+            db.execute(
+                "UPDATE media SET width = ?, height = ?, native_width = ?, native_height = ?"
+                " WHERE id = ?",
+                (*size_px, native_w, native_h, media_id),
+            )
+
+    def media_without_size(self, limit: int) -> list[dict]:
+        """Bilder ohne gelesene Abmessungen, älteste zuerst (Eltern vor Kindern)."""
+        rows = self.db.execute(
+            "SELECT m.id, m.path, m.job_id, j.workflow, j.parent_media_id FROM media m"
+            " LEFT JOIN jobs j ON j.id = m.job_id WHERE m.kind = 'image' AND m.width IS NULL"
+            " ORDER BY m.id LIMIT ?",
+            (limit,),
+        )
+        return [dict(r) for r in rows]
 
     def add_media_checks(
         self, job_id: int, media_id: int | None, reference: str, checks: list[dict]

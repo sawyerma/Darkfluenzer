@@ -99,6 +99,7 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
   - **Umgesetzt 17.11.2026:** je Lauf „Checkpoint n von m · Verlust“ mit „Fortsetzen“ und „Beenden“ im Trainingsbereich; Checkpoint-Abstand als Feld des Trainingsformulars. Laufender Fortschritt und Restdauer kommen aus der Warteschlange (jobs.active).
   - Versionen: Tabelle aus der Registry mit Figur, Architektur, Datensatz, Schritten, Rang; Probebilder mit Identitätswert; „Aktiv setzen“ je Architektur.
   - Dateien, Herkunft: LoRA-Schlüssel, Stärke, Identitätswert.
+  - **Umgesetzt 17.11.2026:** Dateien zeigen „Abmessungen B × H“ und getrennt die native Größe („nativ … (hochskaliert/Ausgabeformat)“ oder „native Größe unbekannt“).
   - Default-Kontakt: Vorschlag des Workflows je Befehl aus der Registry (Ergebnis des Kloner-Vergleichs, SP3 Schritt 8).
   - Abnahme: Browser-Test für Anlegen, Fotostatus, Trainingsstart mit zu wenigen Fotos (gesperrt) und Umschalten der aktiven Version.
 - **Referenzanalyse (B5.6, FL-5):** Knopf „Analysieren“ an Vorlage und Datei; Ergebnis als bearbeitbarer Prompt mit Pose, Licht, Kamera, Komposition; „Als Prompt übernehmen“ oder „Als Referenz verwenden“.

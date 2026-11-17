@@ -46,6 +46,12 @@ message MediaItem {
   string customer_no = 13;
   // Inhaltsstufe (Regel 13): standard | explizit; leer = unbekannt (gilt als explizit)
   string content_tier = 14;
+  // Abmessungen der Datei und native Erzeugungsgröße (SP3 Ausgabe): nach Hochskalieren oder
+  // Ausgabeformat ist nativ die Größe des Ausgangsmediums, nie die Ausgabegröße; 0 = unbekannt
+  uint32 width = 15;
+  uint32 height = 16;
+  uint32 native_width = 17;
+  uint32 native_height = 18;
 }
 
 // Vom Betreiber gelöschter Galerie-Eintrag (Datei samt gleicher Kopien entfernt).

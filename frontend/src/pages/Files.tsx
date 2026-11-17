@@ -182,6 +182,16 @@ function MediaDetail({
             local/{item.path} · {(Number(item.size) / 1e6).toFixed(1)} MB
           </Row>
           <Row label="SHA-256">{short(item.sha256)}</Row>
+          {item.width ? (
+            <Row label="Abmessungen">
+              {item.width} × {item.height}
+              {item.nativeWidth && (item.nativeWidth !== item.width || item.nativeHeight !== item.height)
+                ? ` · nativ ${item.nativeWidth} × ${item.nativeHeight} (hochskaliert/Ausgabeformat)`
+                : item.nativeWidth
+                  ? " · nativ"
+                  : " · native Größe unbekannt"}
+            </Row>
+          ) : null}
           <Row label="Inhaltsstufe">
             {item.contentTier === "standard" ? "standard" : item.contentTier === "explizit" ? "explizit" : "unbekannt – gilt als explizit"}
           </Row>

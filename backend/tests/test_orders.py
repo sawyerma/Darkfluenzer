@@ -234,3 +234,59 @@ def test_queue_priority_classes_and_order(setup):
     flipped = ("training", "cockpit", "default", "customer")
     assert [j for j, _ in store.queued_jobs(flipped)][0] == training
     assert [j for j, _ in store.queued_jobs()][0] == cockpit_jobs[0]  # ohne Vorrang: FIFO
+
+
+def test_sizes_native_and_upscaled_are_kept_apart(setup):
+    """SP3 Ausgabe: Abmessungen aus dem Dateikopf; nach Hochskalieren oder Ausgabeformat ist
+    nativ die Größe des Ausgangsmediums, nie die Ausgabegröße; vorhandene Bilder werden
+    nachgetragen."""
+    from darkfluenzer.media import gallery
+
+    cfg, store, man = setup
+
+    def png(name: str, w: int, h: int) -> dict:
+        rel = f"evaluation/test/{name}.png"
+        (cfg.local / rel).parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (w, h), (w % 255, h % 255, 7)).save(cfg.local / rel)
+        data = (cfg.local / rel).read_bytes()
+        return {"path": rel, "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
+
+    master_job = store.create_job(None, "e", "lustify_sdxl_t2i", "p", {}, [])
+    master = pipeline.register_outputs(store, master_job, [png("m", 96, 64)], local=cfg.local)
+    row = store.media_by_id(master)
+    assert (row["width"], row["height"], row["native_width"], row["native_height"]) == (
+        96,
+        64,
+        96,
+        64,
+    )
+    up_job = store.create_job(None, "e", "seedvr2_upscale_image", "p", {}, [])
+    up = pipeline.register_outputs(
+        store, up_job, [png("u", 192, 128)], local=cfg.local, resized=True, parent=master
+    )
+    row = store.media_by_id(up)
+    assert (row["width"], row["height"], row["native_width"], row["native_height"]) == (
+        192,
+        128,
+        96,
+        64,
+    )
+    lost = pipeline.register_outputs(
+        store, up_job, [png("x", 300, 200)], local=cfg.local, resized=True, parent=None
+    )
+    assert store.media_by_id(lost)["native_width"] is None  # unbekannt, nie die Ausgabegröße
+    # Nachtrag: ein Bild ohne Abmessungen (z. B. aus dem Ordner-Scan)
+    old_job = store.create_job(
+        None, "e", "seedvr2_upscale_image", "p", {}, [], parent_media_id=master
+    )
+    out = png("o", 120, 80)
+    old = store.add_media(out["path"], out["sha256"], out["size"], job_id=old_job)
+    assert store.media_by_id(old)["width"] is None
+    assert gallery.fill_sizes(cfg, store, frozenset({"seedvr2_upscale_image"}), 10) == 1
+    row = store.media_by_id(old)
+    assert (row["width"], row["height"], row["native_width"], row["native_height"]) == (
+        120,
+        80,
+        96,
+        64,
+    )

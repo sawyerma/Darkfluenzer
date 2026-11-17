@@ -64,6 +64,10 @@ def _media_item(row: dict) -> media_pb2.MediaItem:
         order_no=row["order_no"] or "",
         customer_no=row["customer_no"] or "",
         content_tier=row["content_tier"] or "",
+        width=row.get("width") or 0,
+        height=row.get("height") or 0,
+        native_width=row.get("native_width") or 0,
+        native_height=row.get("native_height") or 0,
     )
     item.params.update({k: str(v) for k, v in row["params"].items()})
     return item

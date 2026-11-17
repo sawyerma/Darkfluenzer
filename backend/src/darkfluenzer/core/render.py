@@ -245,12 +245,18 @@ class RenderMixin:
                 # Ordner nur in großem Abstand, Job-Ausgaben jede Runde (SP0 Schritt 6)
                 now = asyncio.get_running_loop().time()
                 folders = now - self._folder_scan_at >= self.cfg.server.folder_scan_s
+                resizing = frozenset(  # Ergebnis gilt nie als nativ (Hochskalieren, Ausgabe)
+                    k
+                    for k, wf in self.manifest.workflows.items()
+                    if self.manifest.engines[wf.engine].role in pipeline.RESIZING_ROLES
+                )
                 await asyncio.to_thread(
                     gallery.scan_media,
                     self.cfg,
                     self._seen_media,
                     self.cfg.server.media_settle_s,
                     folders,
+                    resizing,
                 )
                 if folders:
                     self._folder_scan_at = now
