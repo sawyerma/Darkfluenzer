@@ -151,6 +151,7 @@ max_image_mb = 8
 max_video_mb = 25
 max_audio_mb = 25
 max_text_bytes = 1000
+max_webhook_kb = 1024            # Webhook-Körper (öffentlich, vor der Signaturprüfung gelesen)
 media_url_ttl_s = 900            # Gültigkeit der signierten Medien-URL für den Abruf durch Meta
 oauth_state_ttl_s = 600
 token_refresh_margin_s = 864000  # Token so lange vor Ablauf erneuern (10 Tage)

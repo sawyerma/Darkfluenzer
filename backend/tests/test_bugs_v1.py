@@ -93,6 +93,10 @@ def test_bug002_tunnel_never_reaches_cockpit_even_with_rewritten_host(cfg, monke
                 ig.webhook_path, data=b"{}", headers={"X-Hub-Signature-256": "sha256=00"}
             )
             assert resp.status == 403  # Signatur falsch, aber der Pfad existiert
+            # FABLE-007: vor der Signaturprüfung nur ein kleiner Körper (instagram.max_webhook_kb)
+            big = b"x" * (int(ig.max_webhook_kb * 1024) + 1)
+            resp = await pub.post(ig.webhook_path, data=big, headers={"X-Hub-Signature-256": "x"})
+            assert resp.status == 413
 
     _run(cfg, scenario)
 

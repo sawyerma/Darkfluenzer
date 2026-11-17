@@ -173,9 +173,29 @@ def test_webhook_signature_and_verify_handshake(cfg, vault):
 
     asyncio.run(scenario())
     ok = {"hub.mode": "subscribe", "hub.verify_token": VERIFY, "hub.challenge": "1158201444"}
-    assert acc.verify(ok) == (200, "1158201444")
-    assert acc.verify(ok | {"hub.verify_token": "falsch"})[0] == 403
-    assert acc.verify(ok | {"hub.mode": "unsubscribe"})[0] == 403
+
+    # FABLE-007: der Schlüsselbund wird nie im Event-Loop gelesen
+    import threading
+
+    reads: list[bool] = []
+    real = instagram.secret
+
+    def spy(service):
+        reads.append(threading.current_thread() is threading.main_thread())
+        return real(service)
+
+    async def handshake():
+        acc._keys.clear()
+        instagram.secret = spy
+        try:
+            assert await acc.verify(ok) == (200, "1158201444")
+            assert (await acc.verify(ok | {"hub.verify_token": "falsch"}))[0] == 403
+            assert (await acc.verify(ok | {"hub.mode": "unsubscribe"}))[0] == 403
+        finally:
+            instagram.secret = real
+
+    asyncio.run(handshake())
+    assert reads and not any(reads)
     store.close()
 
 

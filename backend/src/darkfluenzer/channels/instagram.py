@@ -550,10 +550,12 @@ class InstagramAccount(Channel):
 
     # ------------------------------------------------------------------ Webhook
 
-    def verify(self, params: Mapping[str, str]) -> tuple[int, str]:
+    async def verify(self, params: Mapping[str, str]) -> tuple[int, str]:
         """Webhook-Abonnement (GET): ``hub.mode`` = subscribe und Verify-Token aus dem
-        Schlüsselbund -> ``hub.challenge``."""
-        expected = self._key("verify_token")
+        Schlüsselbund (im Arbeiter-Thread, FABLE-007) -> ``hub.challenge``."""
+        expected = self._keys.get("verify_token") or await asyncio.to_thread(
+            self._key, "verify_token"
+        )
         given = str(params.get("hub.verify_token") or "")
         challenge = str(params.get("hub.challenge") or "")
         if (

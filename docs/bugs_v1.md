@@ -198,6 +198,20 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-007 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-115“)
+Commit: siehe git log „FABLE-007“ / web.http.create_public_app, channels.instagram.verify, config
+Behauptung: BESTÄTIGT – die öffentliche App (Tunnel) nahm Körper bis max_upload_mb (50 MB) an und las
+  sie vor der Signaturprüfung ganz; verify() las den Verify-Token synchron aus dem Schlüsselbund im
+  Event-Loop
+Korrektur: eigene Grenze instagram.max_webhook_kb (Standard 1024, config.example.toml) für die
+  öffentliche App, größere Körper → 413 vor jeder Prüfung; verify ist asynchron, der Schlüsselbund wird
+  im Arbeiter-Thread gelesen
+Nachweis: tests/test_bugs_v1.py::test_bug002_… (Körper über der Grenze → 413; ohne Korrektur 403, rot)
+  und tests/test_instagram.py::test_webhook_signature_and_verify_handshake (Schlüsselbund nie im
+  Hauptstrang; vorher rot); test_server, test_channels grün
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
+Bearbeiter/Datum: Claude, 17.11.2026
+
 ID: FABLE-006 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-114“)
 Commit: siehe git log „FABLE-006“ / core.delivery (_place_copy, _delivery_copy), store.artifact_at
 Behauptung: BESTÄTIGT – Master (work/<Nr>_ergebnis) und Zustellkopie (sent/<Nr>) hatten je Auftrag einen

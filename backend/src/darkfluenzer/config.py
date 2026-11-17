@@ -148,6 +148,7 @@ class InstagramConfig:
     max_video_mb: float
     max_audio_mb: float
     max_text_bytes: int
+    max_webhook_kb: float  # größter Webhook-Körper; öffentlich, vor der Signaturprüfung gelesen
     media_url_ttl_s: float
     oauth_state_ttl_s: float
     token_refresh_margin_s: float
@@ -497,6 +498,7 @@ def _parse_instagram(t: object, path: Path) -> InstagramConfig | None:
         max_video_mb=_positive(t, "max_video_mb", 25, w),
         max_audio_mb=_positive(t, "max_audio_mb", 25, w),
         max_text_bytes=int(_positive(t, "max_text_bytes", 1000, w)),
+        max_webhook_kb=_positive(t, "max_webhook_kb", 1024, w),
         media_url_ttl_s=_positive(t, "media_url_ttl_s", 900, w),
         oauth_state_ttl_s=_positive(t, "oauth_state_ttl_s", 600, w),
         token_refresh_margin_s=_positive(t, "token_refresh_margin_s", 10 * 86400, w),

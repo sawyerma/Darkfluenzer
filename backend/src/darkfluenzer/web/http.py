@@ -155,7 +155,7 @@ def _instagram(request: web.Request) -> InstagramAccount:
 
 
 async def _ig_verify(request: web.Request) -> web.Response:
-    status, body = _instagram(request).verify(request.query)
+    status, body = await _instagram(request).verify(request.query)
     return web.Response(status=status, text=body)
 
 
@@ -650,7 +650,10 @@ def create_public_app(cockpit: Cockpit) -> web.Application:
     """Öffentlicher Eingang (einziges Tunnel-Ziel, bugs_v1 BUG-002): ausschließlich Webhook,
     OAuth-Rückruf und signierte Medien – jeweils mit eigener Prüfung; sonst existiert nichts."""
     cfg = cockpit.cfg
-    app = web.Application(client_max_size=int(cfg.server.max_upload_mb * 1024 * 1024))
+    # Nur der Webhook nimmt einen Körper an; er wird vor der Signaturprüfung gelesen, deshalb eine
+    # eigene kleine Grenze statt max_upload_mb (FABLE-007). Ohne Instagram gibt es keinen Pfad.
+    limit_kb = cfg.instagram.max_webhook_kb if cfg.instagram else 1
+    app = web.Application(client_max_size=int(limit_kb * 1024))
     app[COCKPIT_KEY] = cockpit
     if cfg.instagram:
         ig = cfg.instagram
