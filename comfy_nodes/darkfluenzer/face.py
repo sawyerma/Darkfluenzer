@@ -19,9 +19,8 @@ import json
 from pathlib import Path
 
 import cv2
-import numpy as np
-
 import folder_paths
+import numpy as np
 
 FOLDER = "face"  # Modellordner (extra_model_paths.yaml: face: face)
 ARCFACE_SIZE = 112

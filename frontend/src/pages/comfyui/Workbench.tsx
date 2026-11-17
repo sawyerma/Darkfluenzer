@@ -287,7 +287,7 @@ export function Workbench({
             Aus einem Auftrag geladen{wf.params.some((p) => p.upload) ? " – Bilddateien neu wählen." : "."}
           </p>
         ) : null}
-        {wf.training ? <TrainingFolder character={character} /> : null}
+        {wf.training ? <TrainingFolder character={character} version={version} /> : null}
         <div className="g-form">
           {wf.kind === "video" ? (
             <>

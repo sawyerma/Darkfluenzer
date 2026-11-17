@@ -129,3 +129,74 @@ def test_captions_from_txt_and_dataset_id_covers_trigger_class_captions(tmp_path
     (photos / "p2.txt").write_text("neu beschriftet")
     os.utime(photos / "p2.txt", (1, 1))
     assert training.build_dataset(folders, rules, "clara01", "woman") != ds  # Beschriftung zählt
+
+
+def test_checkpoint_folder_per_figure_dataset_and_settings(cfg):
+    """SP3 Schritt 3: derselbe Ordner für dieselbe Figur, denselben Datensatz und dieselben
+    Einstellungen (fehlende aus dem Graphen), unabhängig von Gesamtschritten und Abstand; andere
+    Einstellungen bekommen einen eigenen Ordner. Der Trainingsknoten bekommt ihn als Eingang."""
+    import shutil
+
+    from darkfluenzer.config import project_root
+    from darkfluenzer.media import models, pipeline
+    from darkfluenzer.nodes import comfy
+
+    shutil.copytree(project_root() / "workflows", cfg.root / "workflows", dirs_exist_ok=True)
+    man = models.load_manifest(cfg.root)
+    wf = man.workflows["lustify_sdxl_lora_train"]
+    ds = "characters/clara/datasets/ds_abc"
+    seed = comfy.load_graph(man, wf)[wf.params["seed"].node]["inputs"]["seed"]
+    first = pipeline.checkpoint_dir(cfg, man, wf, ds, {"steps": 1500})
+    assert first.parent == cfg.local / "characters" / "clara" / "training"
+    assert first.name.startswith("ds_abc_")
+    assert pipeline.checkpoint_dir(cfg, man, wf, ds, {"steps": 300, "seed": seed}) == first
+    assert pipeline.checkpoint_dir(cfg, man, wf, ds, {"checkpoint_every": 5}) == first
+    assert pipeline.checkpoint_dir(cfg, man, wf, ds, {"seed": seed + 1}) != first
+    assert pipeline.checkpoint_dir(cfg, man, wf, ds, {"rank": 32}) != first
+    with pytest.raises(pipeline.PipelineError, match="Charakterschema"):
+        pipeline.checkpoint_dir(cfg, man, wf, "datasets/ds_abc", {})
+    assert wf.train_checkpoint and (wf.train_checkpoint, "checkpoint_dir") in wf.runtime_inputs
+    node = comfy.load_graph(man, wf)[wf.train_checkpoint]
+    assert node["class_type"] == "DarkfluenzerTrainLora" and "checkpoint_every" in node["inputs"]
+
+
+def test_checkpoints_appear_with_their_training_job(cfg):
+    """SP3 Schritt 3: der STATE characters nennt je Lauf den letzten Checkpoint (Schritt, Gesamt,
+    Verlust) und den Trainingsjob, den Fortsetzen/Beenden wiederholen."""
+    import asyncio
+
+    from test_server import _run
+
+    from darkfluenzer.media import pipeline
+    from darkfluenzer.v1 import character_pb2
+    from darkfluenzer.v1 import stream_pb2 as spb
+    from darkfluenzer.web import http as server
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        slug = cockpit.store.character(1)["slug"]
+        wf = cockpit.manifest.workflows["lustify_sdxl_lora_train"]
+        params = {"dataset": f"characters/{slug}/datasets/ds_x", "steps": 400, "seed": 7}
+        job = cockpit.store.create_job(
+            None, wf.engine, wf.key, "", params, [7], priority="training"
+        )
+        folder = pipeline.checkpoint_dir(cfg, cockpit.manifest, wf, params["dataset"], params)
+        folder.mkdir(parents=True)
+        status = {"step": 200, "total": 400, "file": "checkpoint_00000200.pt", "loss": 0.125,
+                  "saved_at": 1794944000.5}  # fmt: skip
+        (folder / "checkpoint.json").write_text(json.dumps(status))
+        (folder.parent / "kaputt").mkdir()
+        (folder.parent / "kaputt" / "checkpoint.json").write_text("{")  # unlesbar: entfällt
+        await cockpit.refresh_characters()
+        payload = app[server.HUB_KEY]._states[spb.TOPIC_CHARACTERS].payload
+        char = next(
+            c for c in character_pb2.Characters.FromString(payload).characters if c.id == "1"
+        )
+        (cp,) = char.checkpoints
+        assert (cp.run, cp.step, cp.total, cp.job_id, cp.workflow) == (
+            folder.name, 200, 400, job, wf.key,
+        )  # fmt: skip
+        assert round(cp.loss, 3) == 0.125 and cp.saved_ms == 1794944000500
+        await asyncio.sleep(0)
+
+    _run(cfg, scenario)

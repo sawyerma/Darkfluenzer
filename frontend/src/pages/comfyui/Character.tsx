@@ -188,9 +188,26 @@ export function CharacterControl({ training, list, current, choose }: { training
 }
 
 /** Charaktertraining (Mitte, F7): geprüfter Inhalt des Trainingsdatenordners, Datensätze, LoRAs. */
-export function TrainingFolder({ character }: { character: Character | undefined }) {
+export function TrainingFolder({ character, version }: { character: Character | undefined; version: bigint }) {
   const cmd = useCommand();
   if (!character) return <p className="g-note">Keine Daten zum Trainingsordner.</p>;
+  // Fortsetzen: derselbe Lauf setzt beim letzten Checkpoint fort; Beenden: Gesamtschritte = Schritt
+  // des Checkpoints, die LoRA entsteht aus dessen Gewichten (SP3 Schritt 3)
+  const continueRun = (cp: (typeof character.checkpoints)[number], finish: boolean) =>
+    void cmd.run(
+      {
+        case: "render",
+        value: {
+          workflow: cp.workflow,
+          repeatJobId: cp.jobId,
+          characterId: BigInt(character.id),
+          values: finish ? [{ name: "steps", value: { case: "integer", value: BigInt(cp.step) } }] : [],
+          files: [],
+          parentMediaId: 0n,
+        },
+      },
+      { version, acceptedOnly: true, done: finish ? "Beenden eingereiht." : "Fortsetzen eingereiht." },
+    );
   // Aktive LoRA je Architektur setzen oder aufheben (Befehl 64, SP3 Schritt 6)
   const activate = (lora: string, arch: string) =>
     void cmd.run({ case: "loraActivate", value: { characterId: BigInt(character.id), lora, arch } }, { done: lora ? "Aktiv gesetzt." : "Aufgehoben." });
@@ -219,6 +236,24 @@ export function TrainingFolder({ character }: { character: Character | undefined
           </span>
         </div>
       ) : null}
+      {character.checkpoints.map((cp) => (
+        <div className="g-line" key={cp.run}>
+          <span className="g-ellipsis" title={cp.run}>
+            Checkpoint {cp.step} von {cp.total}
+            {cp.loss ? ` · Verlust ${cp.loss.toFixed(4)}` : ""}
+          </span>
+          {cp.jobId && cp.step < cp.total ? (
+            <span className="g-value">
+              <button type="button" className="g-button" disabled={cmd.pending} onClick={() => continueRun(cp, false)}>
+                Fortsetzen
+              </button>
+              <button type="button" className="g-button" disabled={cmd.pending} onClick={() => continueRun(cp, true)}>
+                Beenden
+              </button>
+            </span>
+          ) : null}
+        </div>
+      ))}
       {character.loras.map((l) => (
         <div className="g-line" key={l.key}>
           <span className="g-ellipsis">

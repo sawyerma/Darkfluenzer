@@ -90,7 +90,7 @@ files = ["face_yunet", "face_sface", "face_auraface"]
 license = "Apache 2.0 (OpenCV YuNet und SFace, AuraFace-v1)"
 usage = "evaluation"
 gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
-note = "Eigener Knoten DarkfluenzerFaceIdentity (comfy_nodes/darkfluenzer_checks, SP3 Schritt 7): misst die Identität gegen reference/ der Figur; Schwellen und Entscheidung im Backend (SP5 Schritt 7)."
+note = "Eigener Knoten DarkfluenzerFaceIdentity (comfy_nodes/darkfluenzer, SP3 Schritt 7): misst die Identität gegen reference/ der Figur; Schwellen und Entscheidung im Backend (SP5 Schritt 7)."
 
 [engines.krea2_turbo]
 title = "Krea 2 Turbo (BF16) – Foto"
@@ -870,13 +870,14 @@ ui = "image/lustify_sdxl_lora_train.ui.json"
 api = "image/lustify_sdxl_lora_train.api.json"
 status = "OFFEN"
 title = "LUSTIFY · Charakter-LoRA trainieren"
-training = { dataset = "2", lora = "5" }
+training = { dataset = "2", lora = "5", checkpoint = "4" }
 
 [workflows.lustify_sdxl_lora_train.params]
 steps = { node = "4", input = "steps", type = "int", min = 50, max = 10000, label = "Trainingsschritte" }
 rank = { node = "4", input = "rank", type = "int", min = 4, max = 128, label = "LoRA-Rang" }
 learning_rate = { node = "4", input = "learning_rate", type = "float", min = 0.000001, max = 0.01, label = "Lernrate" }
 seed = { node = "4", input = "seed", type = "int", min = 0, max = 4294967295 }
+checkpoint_every = { node = "4", input = "checkpoint_every", type = "int", min = 0, max = 100000, label = "Checkpoint alle … Schritte" }
 
 [workflows.output_instagram]
 engine = "output_image"
@@ -913,7 +914,7 @@ ui = "image/krea2_raw_lora_train.ui.json"
 api = "image/krea2_raw_lora_train.api.json"
 status = "OFFEN"
 title = "Krea 2 · Charakter-LoRA trainieren"
-training = { dataset = "4", lora = "7" }
+training = { dataset = "4", lora = "7", checkpoint = "6" }
 
 [workflows.krea2_raw_lora_train.params]
 steps = { node = "6", input = "steps", type = "int", min = 50, max = 10000, label = "Trainingsschritte" }
@@ -921,6 +922,7 @@ rank = { node = "6", input = "rank", type = "int", min = 4, max = 128, label = "
 learning_rate = { node = "6", input = "learning_rate", type = "float", min = 0.000001, max = 0.01, label = "Lernrate" }
 seed = { node = "6", input = "seed", type = "int", min = 0, max = 4294967295 }
 train_size = { node = "8", input = "resize_type.longer_size", type = "int", min = 512, max = 1024, multiple_of = 64, label = "Trainingsauflösung (längere Seite, px)" }
+checkpoint_every = { node = "6", input = "checkpoint_every", type = "int", min = 0, max = 100000, label = "Checkpoint alle … Schritte" }
 
 [workflows.krea2_raw_turbo_lora_t2i]
 engine = "krea2_raw"

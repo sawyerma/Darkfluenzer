@@ -66,7 +66,7 @@ darkfluenzer:
 EOF
 
 # Eigene Prüfknoten (SP3 Schritt 7): im Repository gepinnt, als Link in custom_nodes.
-ln -sfn "$ROOT/comfy_nodes/darkfluenzer_checks" "$DIR/custom_nodes/darkfluenzer_checks"
+ln -sfn "$ROOT/comfy_nodes/darkfluenzer" "$DIR/custom_nodes/darkfluenzer"
 
 "$PY" - <<'EOF'
 import torch

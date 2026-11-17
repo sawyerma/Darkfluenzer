@@ -44,6 +44,19 @@ message CharacterLora {
   double strength = 11;
 }
 
+// Letzter gültiger Checkpoint eines Trainingslaufs (SP3 Schritt 3): Ordner
+// characters/<kürzel>/training/<lauf>/checkpoint.json, geschrieben vom Trainingsknoten.
+message TrainingCheckpoint {
+  string run = 1;
+  uint32 step = 2;
+  uint32 total = 3;
+  double loss = 4;
+  int64 saved_ms = 5;
+  // Trainingsjob, aus dem der Lauf stammt (Fortsetzen/Beenden wiederholen ihn); 0 = unbekannt
+  uint64 job_id = 6;
+  string workflow = 7;
+}
+
 message Character {
   // Profil-ID (Zahl als Text)
   string id = 1;
@@ -69,6 +82,8 @@ message Character {
   string folder = 14;
   // Probe-Prompts für die Probebilder einer LoRA (SP3 Schritt 6)
   repeated string probe_prompts = 15;
+  // Trainingsläufe mit Checkpoint, neuester zuerst
+  repeated TrainingCheckpoint checkpoints = 16;
 }
 
 // STATE characters

@@ -273,6 +273,18 @@ class JobsMixin:
         mid = len(values) // 2
         return values[mid] if len(values) % 2 else (values[mid - 1] + values[mid]) / 2
 
+    def training_jobs(self, workflows: list[str], slug: str, limit: int) -> list[dict]:
+        """Letzte Trainingsjobs einer Figur (Datensatz unter ``characters/<kürzel>/``)."""
+        if not workflows:
+            return []
+        marks = ",".join("?" * len(workflows))
+        rows = self.db.execute(
+            f"SELECT id, workflow, params FROM jobs WHERE workflow IN ({marks})"
+            " AND json_extract(params, '$.dataset') LIKE ? ORDER BY id DESC LIMIT ?",
+            (*workflows, f"characters/{slug}/%", limit),
+        )
+        return [dict(r) | {"params": json.loads(r["params"])} for r in rows]
+
     def seconds_per_step(self, workflow: str, runs: int) -> float:
         """Median Sekunden je Schritt der letzten ``runs`` erfolgreichen Läufe des Workflows
         (Dauer / Parameter ``steps``), z. B. für die Trainingsschätzung vor dem Start (SP3

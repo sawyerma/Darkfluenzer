@@ -530,6 +530,7 @@ class RenderMixin:
             v.name: getattr(v, v.WhichOneof("value")) for v in msg.values if v.WhichOneof("value")
         }
         inputs = {}
+        origin = None
         if msg.repeat_job_id:  # Wiederholen/Variieren: Parameter und Eingaben des Ursprungsjobs
             origin = self.store.job(msg.repeat_job_id)
             if origin["workflow"] != wf.key:
@@ -543,7 +544,11 @@ class RenderMixin:
                     values.setdefault(name, value)
         inputs.update(await self._inputs(wf, msg.files))
         dataset = None
-        if wf.training:  # Datensatzversion der geeigneten Bilder des gewählten Charakters
+        if wf.training and origin is not None and origin["params"].get("dataset"):
+            # Fortsetzen/Beenden (SP3 Schritt 3): derselbe Datensatz wie der Ursprungslauf, damit
+            # der Trainingsknoten seinen Checkpoint-Ordner wiederfindet
+            dataset = str(origin["params"]["dataset"])
+        elif wf.training:  # Datensatzversion der geeigneten Bilder des gewählten Charakters
             if not msg.character_id:
                 return "Für ein Training einen Charakter wählen."
             folders = self._folders(self.store.character(msg.character_id))

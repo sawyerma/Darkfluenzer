@@ -1,5 +1,5 @@
 {
- "id": "e25ee9b1-100d-5a20-a646-48c0aa8e64d3",
+ "id": "7c1f55ff-de5c-54c6-8e7b-712f4b24041d",
  "revision": 0,
  "last_node_id": 8,
  "last_link_id": 10,
@@ -209,14 +209,14 @@
   },
   {
    "id": 6,
-   "type": "TrainLoraNode",
+   "type": "DarkfluenzerTrainLora",
    "pos": [
     1300,
     40
    ],
    "size": [
     360,
-    622
+    670
    ],
    "flags": {},
    "order": 6,
@@ -263,7 +263,7 @@
     }
    ],
    "properties": {
-    "Node name for S&R": "TrainLoraNode"
+    "Node name for S&R": "DarkfluenzerTrainLora"
    },
    "widgets_values": [
     1,
@@ -283,9 +283,11 @@
     false,
     "[None]",
     false,
-    true
+    true,
+    "",
+    100
    ],
-   "title": "Training · Charakter-LoRA"
+   "title": "Training · Charakter-LoRA (Checkpoints)"
   },
   {
    "id": 7,

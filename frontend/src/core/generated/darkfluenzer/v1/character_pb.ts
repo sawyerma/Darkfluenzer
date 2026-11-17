@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/character.proto.
  */
 export const file_darkfluenzer_v1_character: GenFile = /*@__PURE__*/
-  fileDesc("Ch9kYXJrZmx1ZW56ZXIvdjEvY2hhcmFjdGVyLnByb3RvEg9kYXJrZmx1ZW56ZXIudjEiWgoNVHJhaW5pbmdQaG90bxIMCgRuYW1lGAEgASgJEg4KBnN0YXR1cxgCIAEoCRINCgV3aWR0aBgDIAEoDRIOCgZoZWlnaHQYBCABKA0SDAoEbm90ZRgFIAEoCSJSCg9UcmFpbmluZ0RhdGFzZXQSCgoCaWQYASABKAkSDgoGaW1hZ2VzGAIgASgNEhIKCmNyZWF0ZWRfYXQYAyABKAkSDwoHdHJpZ2dlchgEIAEoCSLEAQoNQ2hhcmFjdGVyTG9yYRILCgNrZXkYASABKAkSEwoLYmFzZV9lbmdpbmUYAiABKAkSDwoHZGF0YXNldBgDIAEoCRIPCgd0cmlnZ2VyGAQgASgJEg0KBXN0ZXBzGAUgASgNEgwKBHJhbmsYBiABKA0SDgoGc3RhdHVzGAcgASgJEhIKCmNyZWF0ZWRfYXQYCCABKAkSDAoEYXJjaBgJIAEoCRIOCgZhY3RpdmUYCiABKAgSEAoIc3RyZW5ndGgYCyABKAEi9AIKCUNoYXJhY3RlchIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnBob3Rvc19kaXIYAyABKAkSLgoGcGhvdG9zGAQgAygLMh4uZGFya2ZsdWVuemVyLnYxLlRyYWluaW5nUGhvdG8SDgoGdXNhYmxlGAUgASgNEhIKCm1pbl9pbWFnZXMYBiABKA0SMgoIZGF0YXNldHMYByADKAsyIC5kYXJrZmx1ZW56ZXIudjEuVHJhaW5pbmdEYXRhc2V0Ei0KBWxvcmFzGAggAygLMh4uZGFya2ZsdWVuemVyLnYxLkNoYXJhY3RlckxvcmESEAoIcmV2aXNpb24YCSABKAQSFgoOcGhvdG9zX21pc3NpbmcYCiABKAgSDAoEc2x1ZxgLIAEoCRIPCgd0cmlnZ2VyGAwgASgJEhIKCmNsYXNzX3dvcmQYDSABKAkSDgoGZm9sZGVyGA4gASgJEhUKDXByb2JlX3Byb21wdHMYDyADKAkiTQoKQ2hhcmFjdGVycxIuCgpjaGFyYWN0ZXJzGAEgAygLMhouZGFya2ZsdWVuemVyLnYxLkNoYXJhY3RlchIPCgd2ZXJzaW9uGAIgASgEYgZwcm90bzM");
+  fileDesc("Ch9kYXJrZmx1ZW56ZXIvdjEvY2hhcmFjdGVyLnByb3RvEg9kYXJrZmx1ZW56ZXIudjEiWgoNVHJhaW5pbmdQaG90bxIMCgRuYW1lGAEgASgJEg4KBnN0YXR1cxgCIAEoCRINCgV3aWR0aBgDIAEoDRIOCgZoZWlnaHQYBCABKA0SDAoEbm90ZRgFIAEoCSJSCg9UcmFpbmluZ0RhdGFzZXQSCgoCaWQYASABKAkSDgoGaW1hZ2VzGAIgASgNEhIKCmNyZWF0ZWRfYXQYAyABKAkSDwoHdHJpZ2dlchgEIAEoCSLEAQoNQ2hhcmFjdGVyTG9yYRILCgNrZXkYASABKAkSEwoLYmFzZV9lbmdpbmUYAiABKAkSDwoHZGF0YXNldBgDIAEoCRIPCgd0cmlnZ2VyGAQgASgJEg0KBXN0ZXBzGAUgASgNEgwKBHJhbmsYBiABKA0SDgoGc3RhdHVzGAcgASgJEhIKCmNyZWF0ZWRfYXQYCCABKAkSDAoEYXJjaBgJIAEoCRIOCgZhY3RpdmUYCiABKAgSEAoIc3RyZW5ndGgYCyABKAEigAEKElRyYWluaW5nQ2hlY2twb2ludBILCgNydW4YASABKAkSDAoEc3RlcBgCIAEoDRINCgV0b3RhbBgDIAEoDRIMCgRsb3NzGAQgASgBEhAKCHNhdmVkX21zGAUgASgDEg4KBmpvYl9pZBgGIAEoBBIQCgh3b3JrZmxvdxgHIAEoCSKuAwoJQ2hhcmFjdGVyEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEgoKcGhvdG9zX2RpchgDIAEoCRIuCgZwaG90b3MYBCADKAsyHi5kYXJrZmx1ZW56ZXIudjEuVHJhaW5pbmdQaG90bxIOCgZ1c2FibGUYBSABKA0SEgoKbWluX2ltYWdlcxgGIAEoDRIyCghkYXRhc2V0cxgHIAMoCzIgLmRhcmtmbHVlbnplci52MS5UcmFpbmluZ0RhdGFzZXQSLQoFbG9yYXMYCCADKAsyHi5kYXJrZmx1ZW56ZXIudjEuQ2hhcmFjdGVyTG9yYRIQCghyZXZpc2lvbhgJIAEoBBIWCg5waG90b3NfbWlzc2luZxgKIAEoCBIMCgRzbHVnGAsgASgJEg8KB3RyaWdnZXIYDCABKAkSEgoKY2xhc3Nfd29yZBgNIAEoCRIOCgZmb2xkZXIYDiABKAkSFQoNcHJvYmVfcHJvbXB0cxgPIAMoCRI4CgtjaGVja3BvaW50cxgQIAMoCzIjLmRhcmtmbHVlbnplci52MS5UcmFpbmluZ0NoZWNrcG9pbnQiTQoKQ2hhcmFjdGVycxIuCgpjaGFyYWN0ZXJzGAEgAygLMhouZGFya2ZsdWVuemVyLnYxLkNoYXJhY3RlchIPCgd2ZXJzaW9uGAIgASgEYgZwcm90bzM");
 
 /**
  * Eine Datei im Trainingsdatenordner und ihr Prüfergebnis (der Ordner wird nie verändert).
@@ -167,6 +167,58 @@ export const CharacterLoraSchema: GenMessage<CharacterLora> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_character, 2);
 
 /**
+ * Letzter gültiger Checkpoint eines Trainingslaufs (SP3 Schritt 3): Ordner
+ * characters/<kürzel>/training/<lauf>/checkpoint.json, geschrieben vom Trainingsknoten.
+ *
+ * @generated from message darkfluenzer.v1.TrainingCheckpoint
+ */
+export type TrainingCheckpoint = Message<"darkfluenzer.v1.TrainingCheckpoint"> & {
+  /**
+   * @generated from field: string run = 1;
+   */
+  run: string;
+
+  /**
+   * @generated from field: uint32 step = 2;
+   */
+  step: number;
+
+  /**
+   * @generated from field: uint32 total = 3;
+   */
+  total: number;
+
+  /**
+   * @generated from field: double loss = 4;
+   */
+  loss: number;
+
+  /**
+   * @generated from field: int64 saved_ms = 5;
+   */
+  savedMs: bigint;
+
+  /**
+   * Trainingsjob, aus dem der Lauf stammt (Fortsetzen/Beenden wiederholen ihn); 0 = unbekannt
+   *
+   * @generated from field: uint64 job_id = 6;
+   */
+  jobId: bigint;
+
+  /**
+   * @generated from field: string workflow = 7;
+   */
+  workflow: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.TrainingCheckpoint.
+ * Use `create(TrainingCheckpointSchema)` to create a new message.
+ */
+export const TrainingCheckpointSchema: GenMessage<TrainingCheckpoint> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_character, 3);
+
+/**
  * @generated from message darkfluenzer.v1.Character
  */
 export type Character = Message<"darkfluenzer.v1.Character"> & {
@@ -262,6 +314,13 @@ export type Character = Message<"darkfluenzer.v1.Character"> & {
    * @generated from field: repeated string probe_prompts = 15;
    */
   probePrompts: string[];
+
+  /**
+   * Trainingsläufe mit Checkpoint, neuester zuerst
+   *
+   * @generated from field: repeated darkfluenzer.v1.TrainingCheckpoint checkpoints = 16;
+   */
+  checkpoints: TrainingCheckpoint[];
 };
 
 /**
@@ -269,7 +328,7 @@ export type Character = Message<"darkfluenzer.v1.Character"> & {
  * Use `create(CharacterSchema)` to create a new message.
  */
 export const CharacterSchema: GenMessage<Character> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_character, 3);
+  messageDesc(file_darkfluenzer_v1_character, 4);
 
 /**
  * STATE characters
@@ -295,5 +354,5 @@ export type Characters = Message<"darkfluenzer.v1.Characters"> & {
  * Use `create(CharactersSchema)` to create a new message.
  */
 export const CharactersSchema: GenMessage<Characters> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_character, 4);
+  messageDesc(file_darkfluenzer_v1_character, 5);
 

@@ -194,6 +194,29 @@ LORA_KEY = "character_lora"  # Schlüssel der Charakter-LoRA in Job- und Stufenp
 CHARACTER_KEY = "character"  # Kürzel der Figur, gegen deren Referenzsatz geprüft wird
 
 
+# Einstellungen, die einen Trainingslauf bestimmen (Gesamtschritte und Checkpoint-Abstand nicht:
+# Verlängern, Beenden und Fortsetzen nutzen denselben Ordner)
+RUN_SETTINGS = ("rank", "learning_rate", "seed")
+
+
+def checkpoint_dir(cfg: Config, man: Manifest, wf: Workflow, dataset: str, values: dict) -> Path:
+    """Checkpoint-Ordner eines Trainingslaufs (SP3 Schritt 3):
+    ``characters/<kürzel>/training/<Datensatz>_<Einstellungen>/``. Ein erneuter Lauf mit derselben
+    Figur, demselben Datensatz und denselben Einstellungen (fehlende aus dem Graphen) setzt dort
+    fort."""
+    parts = Path(dataset).parts  # characters/<kürzel>/datasets/<id>
+    if len(parts) < 4 or parts[0] != "characters" or parts[2] != "datasets":
+        raise PipelineError(f"Datensatz {dataset} liegt nicht im Charakterschema.")
+    graph = comfy.load_graph(man, wf)
+    settings = {
+        k: values.get(k, graph[wf.params[k].node]["inputs"][wf.params[k].input])
+        for k in RUN_SETTINGS
+        if k in wf.params
+    }
+    tag = hashlib.sha256(json.dumps([wf.key, settings], sort_keys=True).encode()).hexdigest()[:10]
+    return training.character_folders(cfg.local, parts[1]).training / f"{parts[3]}_{tag}"
+
+
 def identity_overrides(cfg: Config, wf: Workflow, character: str) -> dict[tuple[str, str], object]:
     """Eingänge des Prüfknotens Gesichtsidentität (SP3 Schritt 7): Referenzordner ``reference/``
     der Figur, Mindestgröße und -sicherheit aus der Konfiguration ``[identity]``."""
@@ -526,6 +549,9 @@ def _render(
     if wf.training:  # Datensatz in den ComfyUI-Eingang, Ziel der LoRA festlegen
         folder = node.stage_dataset(cfg.local / str(dataset))
         overrides |= {(wf.train_dataset, "folder"): folder, (wf.train_lora, "prefix"): lora_prefix}
+        if wf.train_checkpoint:  # gleiche Figur, Datensatz, Einstellungen -> gleicher Ordner
+            ckpt = checkpoint_dir(cfg, man, wf, str(dataset), values)
+            overrides[(wf.train_checkpoint, "checkpoint_dir")] = str(ckpt)
     if resume:  # vor einem Neustart eingereicht: nur abholen, nie ein zweites Mal rendern
         if comfy.prompt_state(inst, resume) == "unknown":
             raise PipelineError(

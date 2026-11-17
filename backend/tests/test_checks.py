@@ -107,7 +107,7 @@ def _node_module(face_dir: Path):
     fake.get_full_path_or_raise = lambda folder, name: str(face_dir / name)
     fake.get_filename_list = lambda folder: []
     sys.modules["folder_paths"] = fake
-    path = project_root() / "comfy_nodes" / "darkfluenzer_checks" / "face.py"
+    path = project_root() / "comfy_nodes" / "darkfluenzer" / "face.py"
     spec = importlib.util.spec_from_file_location("df_face_node", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

@@ -196,8 +196,23 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP3 Schritt 3 (Training mit Wiederaufnahme-Checkpoints)
+Commit: siehe git log „SP3 step 3 checkpoints“ / comfy_nodes/darkfluenzer/train.py (DarkfluenzerTrainLora);
+  media.pipeline.checkpoint_dir; core.characters (Character.checkpoints); core.render (Datensatz beim Wiederholen)
+Nachweis: tests/test_training.py (Ordner je Figur, Datensatz und Einstellungen, unabhängig von Gesamtschritten;
+  Checkpoints im STATE mit Ursprungsjob, unlesbare entfallen)
+Mac-Lauf 17.11.2026: ComfyUI 1, LUSTIFY SDXL, 2 Bilder 512 px, 6 Schritte, Checkpoint alle 2: A durchgehend
+  (19,2 s); B nach Checkpoint 2 über /interrupt abgebrochen, derselbe Graph erneut → setzt bei 2 fort (14,2 s).
+  Verlust A = B je Schritt, Gewichte und LoRA-Datei Abweichung 0,0, Schrittzahl 6. Gefunden und behoben:
+  Checkpoint-Tensoren im inference_mode geladen; Optimiererzustand vor dem Verschieben auf mps; Startgewichte
+  aus dem Prozess-Zufall (jetzt aus dem Seed)
+Ergebnis: Implementierung PASS (Abnahme Fortsetzen bestanden); volles Charaktertraining OFFEN (keine Fotos)
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-091 / BUG-098 (Messwert-Teil) (SP3 Schritt 7)
-Commit: siehe git log „SP3 step 7“ / comfy_nodes/darkfluenzer_checks/face.py; nodes.comfy.collect_graph (CHECKS_KEY);
+Commit: siehe git log „SP3 step 7“ / comfy_nodes/darkfluenzer/face.py; nodes.comfy.collect_graph (CHECKS_KEY);
   media.pipeline.identity_overrides, _input_media; store.media.add_media_checks; web.mappers._job_completed
 Behauptung: BESTÄTIGT (Gesichtsdateien ohne Engine; collect_graph kannte nur Dateien)
 Nachweis: tests/test_checks.py (Engine identity, Prüf-Workflow; Messwerte aus der Historie, Lauf ohne Datei gültig,

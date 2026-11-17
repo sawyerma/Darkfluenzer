@@ -7,7 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from ..media import training
+from ..media import pipeline, training
 from ..v1 import (
     character_pb2,
     commands_pb2,
@@ -25,6 +25,30 @@ HONESTY_RULE = (
 
 
 MAX_PRICE_ITEMS = 50
+RUNS_SCAN = 50  # so viele letzte Trainingsjobs je Figur werden ihren Checkpoint-Ordnern zugeordnet
+CHECKPOINT_STATUS = "checkpoint.json"  # schreibt der Trainingsknoten (comfy_nodes/darkfluenzer)
+
+
+def _checkpoint_files(folders: training.Folders) -> list:
+    if not folders.training.is_dir():
+        return []
+    return sorted(folders.training.glob(f"*/{CHECKPOINT_STATUS}"))
+
+
+def _checkpoint_marks(folders: training.Folders) -> tuple:
+    return tuple((p.parent.name, p.stat().st_mtime_ns) for p in _checkpoint_files(folders))
+
+
+def _checkpoints(folders: training.Folders) -> list[dict]:
+    """Letzter Checkpoint je Trainingslauf der Figur, neuester zuerst; unlesbare entfallen."""
+    found = []
+    for path in _checkpoint_files(folders):
+        try:
+            status = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        found.append({**status, "run": path.parent.name})
+    return sorted(found, key=lambda s: float(s.get("saved_at") or 0), reverse=True)
 
 
 class CharactersMixin:
@@ -32,8 +56,12 @@ class CharactersMixin:
 
     async def refresh_characters(self) -> None:
         """Profile, Trainingsordner, Datensätze und LoRAs neu projizieren, nur bei Änderungen."""
-        rows = [  # aktive LoRA je Architektur gehört zum Profil (SP3 Schritt 6)
-            {**r, "active": tuple(sorted(self.store.active_loras(r["id"]).items()))}
+        rows = [  # aktive LoRA je Architektur und Trainingsläufe gehören zum Profil (SP3)
+            {
+                **r,
+                "active": tuple(sorted(self.store.active_loras(r["id"]).items())),
+                "runs": self._training_runs(r["slug"]),
+            }
             for r in self.store.characters()
         ]
         folders = [self._folders(r) for r in rows]
@@ -42,6 +70,7 @@ class CharactersMixin:
             tuple(tuple(sorted(r.items())) for r in rows),
             await asyncio.to_thread(lambda: tuple(training.signature(f, rules) for f in folders)),
             tuple(sorted(self.manifest.loras.items())),
+            await asyncio.to_thread(lambda: tuple(_checkpoint_marks(f) for f in folders)),
         )
         if sig != self._character_sig:
             msg = await asyncio.to_thread(self._characters, rows)
@@ -49,6 +78,25 @@ class CharactersMixin:
             msg.version = self.store.bump("characters", fingerprint)  # SQLite im Loop-Thread
             self.hub.set_state(spb.TOPIC_CHARACTERS, msg.SerializeToString())
             self._character_sig = sig
+
+    def _training_runs(self, slug: str) -> tuple[tuple[str, int, str], ...]:
+        """Checkpoint-Ordner -> letzter Trainingsjob dieser Figur (Loop-Thread: SQLite)."""
+        keys = [k for k, wf in self.manifest.workflows.items() if wf.train_checkpoint]
+        found: dict[str, tuple[int, str]] = {}
+        for job in self.store.training_jobs(keys, slug, RUNS_SCAN):
+            wf = self.manifest.workflows[job["workflow"]]
+            try:
+                folder = pipeline.checkpoint_dir(
+                    self.cfg,
+                    self.manifest,
+                    wf,
+                    str(job["params"].get("dataset", "")),
+                    job["params"],
+                )
+            except (pipeline.PipelineError, KeyError):
+                continue
+            found.setdefault(folder.name, (job["id"], wf.key))
+        return tuple(sorted((name, jid, key) for name, (jid, key) in found.items()))
 
     def _folders(self, row: dict) -> training.Folders:
         return training.character_folders(self.cfg.local, row["slug"])
@@ -130,6 +178,18 @@ class CharactersMixin:
                 )
             for d in training.datasets(folders.datasets):
                 char.datasets.add(**d)
+            runs = {name: (jid, key) for name, jid, key in row.get("runs", ())}
+            for status in _checkpoints(folders):  # neuester Checkpoint zuerst (SP3 Schritt 3)
+                jid, key = runs.get(status["run"], (0, ""))
+                char.checkpoints.add(
+                    run=status["run"],
+                    step=int(status.get("step") or 0),
+                    total=int(status.get("total") or 0),
+                    loss=float(status.get("loss") or 0.0),
+                    saved_ms=int(float(status.get("saved_at") or 0) * 1000),
+                    job_id=jid,
+                    workflow=key,
+                )
             ids = {d.id for d in char.datasets}
             active = dict(row.get("active", ()))
             for lo in sorted(self.manifest.loras.values(), key=lambda lo: lo.created_at):

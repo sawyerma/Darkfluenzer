@@ -186,6 +186,9 @@ class Workflow:
     # beide setzt das Backend, nicht der Betreiber.
     train_dataset: str = ""
     train_lora: str = ""
+    # Trainingsknoten mit Wiederaufnahme-Checkpoints (SP3 Schritt 3): checkpoint_dir setzt das
+    # Backend je Figur, Datensatz und Einstellungen
+    train_checkpoint: str = ""
     # Inhaltsstufe der Ergebnisse (PHASENPLAN_V0 Regel 13): fail-closed – ohne Eintrag „explizit“;
     # „standard“ nur, wenn ausdrücklich so im Manifest markiert
     content: str = "explizit"
@@ -205,6 +208,8 @@ class Workflow:
         found = {(p.node, p.input) for p in self.params.values() if p.upload}
         if self.training:
             found.add((self.train_dataset, "folder"))
+        if self.train_checkpoint:
+            found.add((self.train_checkpoint, "checkpoint_dir"))
         if self.lora:
             found.add((self.lora.node, self.lora.name))
         if self.identity:
@@ -567,6 +572,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             mask_output=str(t.get("mask_output", "")),
             train_dataset=str((t.get("training") or {}).get("dataset", "")),
             train_lora=str((t.get("training") or {}).get("lora", "")),
+            train_checkpoint=str((t.get("training") or {}).get("checkpoint", "")),
             content=str(t.get("content", "explizit")),
             video=_video(t.get("video"), params, w),
             lora=_lora_slot(t.get("lora"), params, w),
@@ -660,6 +666,7 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
     for role, node, name in (
         ("training.dataset", wf.train_dataset, "folder"),
         ("training.lora", wf.train_lora, "prefix"),
+        ("training.checkpoint", wf.train_checkpoint, "checkpoint_dir"),
     ):
         if node and name not in (graph.get(node) or {}).get("inputs", {}):
             problems.append(f"{role} -> {node} hat keinen Eingang '{name}' im API-Graph.")
