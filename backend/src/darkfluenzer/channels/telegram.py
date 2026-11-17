@@ -562,7 +562,7 @@ class TelegramAccount(Channel):
         target = self.cfg.local / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         if not target.exists():
-            await asyncio.to_thread(shutil.copyfile, src, target)
+            await asyncio.to_thread(_copy_whole, src, target)
         # TDLib-Kopie entfernen: Anhänge liegen nur unter local/channels (V0 §6.1 Punkt 1)
         self._td.send({"@type": "deleteFile", "file_id": f["file_id"]})
         digest = await asyncio.to_thread(_sha256, target)
@@ -694,6 +694,17 @@ class TelegramAccount(Channel):
 
 def _pending(f: dict) -> dict:
     return {"kind": f["kind"], "size": f["size"], "mime": f["mime"], "status": "pending"}
+
+
+def _copy_whole(src: Path, target: Path) -> None:
+    """Vollständig oder gar nicht: über eine Zwischendatei und ``os.replace``; ein Abbruch
+    hinterlässt nie eine halbe Datei am Ziel (FABLE-017)."""
+    tmp = target.with_name(target.name + ".part")
+    try:
+        shutil.copyfile(src, tmp)
+        os.replace(tmp, target)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def _sha256(path: Path) -> str:

@@ -338,3 +338,37 @@ def test_auth_failure_is_visible_and_tasks_are_kept(cfg, tmp_path):
         asyncio.run(scenario())
     finally:
         store.close()
+
+
+def test_interrupted_attachment_copy_leaves_no_partial_file(cfg, tmp_path, monkeypatch):
+    """FABLE-017: bricht das Kopieren ab, bleibt keine halbe Datei als „gespeichert“ liegen;
+    der nächste Versuch kopiert vollständig."""
+    import shutil
+
+    import pytest
+
+    store = Store(cfg.local)
+    acc, _, _ = _account(cfg, tmp_path, store)
+    real = shutil.copyfile
+
+    def broken(src, dst, *a, **k):
+        with open(dst, "wb") as out:
+            out.write(b"jp")  # halbe Datei, dann Abbruch (z. B. Platte voll)
+        raise OSError(28, "No space left on device")
+
+    file = {"kind": "photo", "file_id": 5, "size": 10, "mime": "image/jpeg"}
+
+    async def scenario():
+        monkeypatch.setattr(shutil, "copyfile", broken)
+        with pytest.raises(OSError):
+            await acc._save(TEST_CHAT, 77, 0, file)
+        target = cfg.local / "channels" / "telegram" / str(TEST_CHAT) / "77_0.jpg"
+        assert not target.exists()
+        monkeypatch.setattr(shutil, "copyfile", real)
+        att = await acc._save(TEST_CHAT, 77, 0, file)
+        assert att["status"] == "saved" and target.read_bytes() == b"jpeg-bytes"
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        store.close()

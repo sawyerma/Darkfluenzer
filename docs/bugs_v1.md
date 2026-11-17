@@ -198,6 +198,16 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-017 (Audit Fable 17.11., P3; im Auditblatt vorläufig „BUG-125“)
+Commit: siehe git log „FABLE-017“ / channels.telegram._copy_whole
+Behauptung: BESTÄTIGT – der Anhang wurde direkt in die Zieldatei kopiert; nach einem Abbruch blieb eine
+  halbe Datei, der nächste Versuch übersprang sie („existiert schon“) und speicherte sie als fertig
+Korrektur: Kopie über <Ziel>.part und os.replace, Zwischendatei wird immer entfernt (wie bei Instagram)
+Nachweis: tests/test_telegram.py::test_interrupted_attachment_copy_leaves_no_partial_file (vor der
+  Korrektur rot, danach grün); test_telegram, test_channels grün
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
+Bearbeiter/Datum: Claude, 17.11.2026
+
 ID: FABLE-007 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-115“)
 Commit: siehe git log „FABLE-007“ / web.http.create_public_app, channels.instagram.verify, config
 Behauptung: BESTÄTIGT – die öffentliche App (Tunnel) nahm Körper bis max_upload_mb (50 MB) an und las
