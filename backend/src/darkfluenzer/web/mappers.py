@@ -150,6 +150,16 @@ def _job_completed(row: dict, indexed: dict[str, str]) -> bytes:
             continue
         msg.outputs.add(path=path, sha256=out["sha256"], size=out["size"])
     msg.params.update({k: str(v) for k, v in (row.get("params") or {}).items()})
+    for c in data.get("checks") or []:
+        msg.checks.add(
+            check=str(c.get("check", "")),
+            status=str(c.get("status", "")),
+            sface=float(c.get("sface", 0.0)),
+            auraface=float(c.get("auraface", 0.0)),
+            references=int(c.get("references", 0)),
+            face_px=int(c.get("face_px", 0)),
+            score=float(c.get("score", 0.0)),
+        )
     return msg.SerializeToString()
 
 

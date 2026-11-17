@@ -10,6 +10,12 @@ import { useEventTopic } from "../../core/state";
 const RECENT_RESULTS = 4;
 
 /** Ergebnis (Mitte): laufender Auftrag und die letzten echten Ausgaben dieses Workflows. */
+/** Messwerte der Prüfknoten (SP3 Schritt 7); entschieden wird im Backend gegen die Schwellen. */
+const CHECK_STATUS: Record<string, string> = {
+  kein_gesicht: "nicht prüfbar (kein ausreichend großes Gesicht)",
+  keine_referenz: "keine Referenzfotos der Figur",
+};
+
 export function WorkflowResults({
   wf,
   running,
@@ -30,7 +36,7 @@ export function WorkflowResults({
   // nur echte Ergebnisse: vorhandene Ausgabedatei oder ein Fehler mit Grund (gelöschte Dateien entfallen)
   const recent = (results?.items ?? [])
     .filter((e) => e.value.workflow === wf.key)
-    .filter((e) => e.value.result !== JobResult.DONE || e.value.outputs.some((o) => !gone.has(o.path)))
+    .filter((e) => e.value.result !== JobResult.DONE || e.value.checks.length > 0 || e.value.outputs.some((o) => !gone.has(o.path)))
     .slice(-RECENT_RESULTS)
     .reverse();
   return (
@@ -82,6 +88,16 @@ export function WorkflowResults({
                   </span>
                 </button>
                 {job.result === JobResult.FAILED && job.error ? <p className="g-note g-error">{job.error}</p> : null}
+                {job.checks.map((c, i) => (
+                  <small key={i} className="g-line">
+                    <span>Identität</span>
+                    <span className="g-value">
+                      {c.status === "ok"
+                        ? `SFace ${c.sface.toFixed(3)} · AuraFace ${c.auraface.toFixed(3)} · ${c.references} Referenzen`
+                        : (CHECK_STATUS[c.status] ?? c.status)}
+                    </span>
+                  </small>
+                ))}
                 {outs
                   .filter((o) => !VIDEO.test(o.path) && !IMAGE.test(o.path))
                   .map((o) => (

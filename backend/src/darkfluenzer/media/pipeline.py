@@ -26,7 +26,7 @@ from ..config import ComfyConfig, Config
 from ..nodes import comfy
 from ..nodes.base import node_for
 from ..store import MEDIA_KINDS, Store, sha256_file
-from . import models
+from . import models, training
 from .models import Lora, Manifest, Workflow
 
 log = logging.getLogger("darkfluenzer.pipeline")
@@ -191,6 +191,20 @@ def _input_tier(store: Store, rel: str) -> str | None:
 
 
 LORA_KEY = "character_lora"  # Schlüssel der Charakter-LoRA in Job- und Stufenparametern
+CHARACTER_KEY = "character"  # Kürzel der Figur, gegen deren Referenzsatz geprüft wird
+
+
+def identity_overrides(cfg: Config, wf: Workflow, character: str) -> dict[tuple[str, str], object]:
+    """Eingänge des Prüfknotens Gesichtsidentität (SP3 Schritt 7): Referenzordner ``reference/``
+    der Figur, Mindestgröße und -sicherheit aus der Konfiguration ``[identity]``."""
+    if not wf.identity:
+        return {}
+    folder = training.character_folders(cfg.local, character).reference
+    return {
+        (wf.identity, "reference_dir"): str(folder),
+        (wf.identity, "min_face_px"): cfg.identity.min_face_px,
+        (wf.identity, "min_score"): cfg.identity.min_score,
+    }
 
 
 def check_lora(man: Manifest, wf: Workflow, key: str, character: str | None = None) -> Lora:
@@ -250,6 +264,7 @@ def create_render(
     video_max_s: float | None = None,
     inherit_tier: str | None = None,
     lora: str = "",
+    character: str = "",
 ) -> int:
     """Prüft einen Renderauftrag gegen die Registry und legt ihn als Job (Status queued) an.
     ``dataset``: Datensatzversion eines Trainingsworkflows (beim Anlegen festgelegt).
@@ -278,6 +293,8 @@ def create_render(
         raise PipelineError(f"{workflow_key}: Datensatz nur und immer für Trainingsworkflows.")
     if lora:
         check_lora(man, wf, lora)
+    if wf.identity and not character:
+        raise PipelineError(f"{wf.title}: eine Figur wählen (Referenzsatz für die Prüfung).")
     seeds = [values["seed"]] if "seed" in values else []
     prompt = str(values.get("prompt", ""))
     # Inhaltsstufe (Regel 13) an einer Stelle (SP2 Schritt 2, BUG-047): höchste Stufe aus
@@ -309,6 +326,7 @@ def create_render(
             **inputs,
             **({"dataset": dataset} if dataset else {}),
             **({LORA_KEY: lora} if lora else {}),
+            **({CHARACTER_KEY: character} if character else {}),
             **(
                 {"duration_s": plan["duration_s"], "segment_s": plan["segment_s"], "video": plan}
                 if plan
@@ -391,9 +409,12 @@ def run_render(
                     on_submit=submitted,
                     unload_first=unload_first,
                     dataset=params.get("dataset"),
-                    overrides={(wf.video.length_node, wf.video.length_input): plan["length"]}
-                    if plan and wf.video
-                    else None,
+                    overrides=(
+                        {(wf.video.length_node, wf.video.length_input): plan["length"]}
+                        if plan and wf.video
+                        else {}
+                    )
+                    | identity_overrides(cfg, wf, str(params.get(CHARACTER_KEY) or "")),
                 )
             if is_cancelled():  # fertig, obwohl abgebrochen: Ergebnis verwerfen (BUG-043)
                 for out in outputs:
@@ -407,9 +428,14 @@ def run_render(
             else:
                 store.set_job_status(job_id, "failed", error=str(exc) or type(exc).__name__)
             raise
-        register_outputs(
+        first = register_outputs(
             store, job_id, outputs
         )  # erst in die Galerie, dann gilt der Job als fertig
+        if result.checks:  # Messwerte gehören zum Ergebnis, sonst zum geprüften Eingabebild
+            checked = first or job["parent_media_id"] or _input_media(store, uploads)
+            store.add_media_checks(
+                job_id, checked, str(params.get(CHARACTER_KEY) or ""), result.checks
+            )
         store.set_job_status(
             job_id,
             "done",
@@ -417,10 +443,21 @@ def run_render(
             duration_s=result.duration_s,
             outputs=outputs,
             memory=result.memory,
+            **({"checks": result.checks} if result.checks else {}),
         )
         return result
     finally:
         store.close()
+
+
+def _input_media(store: Store, uploads: dict[str, Path]) -> int | None:
+    """Galerie-Medium des (ersten) Eingabebildes über seinen Inhalt, sonst None."""
+    for path in uploads.values():
+        if path.is_file():
+            row = store.media_by_sha(sha256_file(path))
+            if row:
+                return int(row["id"])
+    return None
 
 
 def register_outputs(store: Store, job_id: int, outputs: list[dict]) -> int | None:

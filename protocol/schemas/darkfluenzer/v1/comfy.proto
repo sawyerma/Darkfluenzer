@@ -165,6 +165,8 @@ message WorkflowInfo {
   bool lora_slot = 18;
   // Schlüssel der LoRAs, die diese Engine laden darf (Trainings-Engine oder eingetragen)
   repeated string loras = 19;
+  // Der Workflow braucht eine Figur (Training: Datensatz; Prüfung: Referenzsatz, SP3 Schritt 7)
+  bool uses_character = 20;
 }
 
 message OutputFormat {
@@ -209,4 +211,18 @@ message JobCompleted {
   // Leer bei Renderungen ohne Kundenbezug (Evaluation).
   string order_no = 8;
   map<string, string> params = 9;
+  // Messwerte der Prüfknoten (SP3 Schritt 7)
+  repeated MediaCheck checks = 10;
+}
+
+// Messwert eines Prüfknotens je Bild. Gesichtsidentität: Kosinus zum Schwerpunkt des
+// Referenzsatzes je Modell; status ok | kein_gesicht (nicht prüfbar) | keine_referenz.
+message MediaCheck {
+  string check = 1;
+  string status = 2;
+  double sface = 3;
+  double auraface = 4;
+  uint32 references = 5;
+  uint32 face_px = 6;
+  double score = 7;
 }

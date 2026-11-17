@@ -479,6 +479,21 @@ CREATE TABLE character_loras (
 );
 ALTER TABLE characters ADD COLUMN probe_prompts TEXT NOT NULL DEFAULT '[]';
 """,
+    23: """
+-- Messwerte der Prüfknoten je Medium (SP3 Schritt 7): Identität mit „nicht prüfbar“ als eigenem
+-- Status; entschieden wird gegen die Schwellen in SP5 Schritt 7.
+CREATE TABLE media_checks (
+    id         INTEGER PRIMARY KEY,
+    media_id   INTEGER REFERENCES media(id),
+    job_id     INTEGER REFERENCES jobs(id),
+    check_name TEXT    NOT NULL,
+    status     TEXT    NOT NULL,
+    data       TEXT    NOT NULL DEFAULT '{}',
+    reference  TEXT    NOT NULL DEFAULT '',
+    created_at TEXT    NOT NULL
+);
+CREATE INDEX media_checks_media ON media_checks(media_id) WHERE media_id IS NOT NULL;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

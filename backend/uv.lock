@@ -109,7 +109,6 @@ dependencies = [
     { name = "aiohttp" },
     { name = "huggingface-hub" },
     { name = "numpy" },
-    { name = "opencv-python-headless" },
     { name = "pillow" },
     { name = "protobuf" },
     { name = "segno" },
@@ -118,6 +117,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "opencv-python-headless" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -127,7 +127,6 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.14" },
     { name = "huggingface-hub", specifier = ">=1.7" },
     { name = "numpy", specifier = ">=2.2" },
-    { name = "opencv-python-headless", specifier = ">=4.11" },
     { name = "pillow", specifier = ">=11" },
     { name = "protobuf", specifier = ">=6.33,<7" },
     { name = "segno", specifier = ">=1.6" },
@@ -136,6 +135,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "opencv-python-headless", specifier = ">=4.11" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "ruff", specifier = ">=0.8" },
 ]

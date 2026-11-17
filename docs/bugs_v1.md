@@ -196,6 +196,22 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-091 / BUG-098 (Messwert-Teil) (SP3 Schritt 7)
+Commit: siehe git log „SP3 step 7“ / comfy_nodes/darkfluenzer_checks/face.py; nodes.comfy.collect_graph (CHECKS_KEY);
+  media.pipeline.identity_overrides, _input_media; store.media.add_media_checks; web.mappers._job_completed
+Behauptung: BESTÄTIGT (Gesichtsdateien ohne Engine; collect_graph kannte nur Dateien)
+Nachweis: tests/test_checks.py (Engine identity, Prüf-Workflow; Messwerte aus der Historie, Lauf ohne Datei gültig,
+  unlesbare Werte = Fehler; Referenzordner der Figur und [identity]-Werte als Eingänge, media_checks und
+  JobCompleted.checks; Knoten mit den echten Modellen: ohne Referenz, ohne Gesicht, Bild gegen sich ≈ 1)
+Mac-Lauf 17.11.2026: OpenCV in der ComfyUI-venv (nur dieses Paket, numpy unverändert), ComfyUI 1 neu gestartet,
+  Knoten geladen; direkter Lauf: gleiches Bild SFace/AuraFace 1,000, andere Person 0,055/0,050; Browser-Kette
+  „Prüfen · Gesichtsidentität“ für Clara → Job 92 → keine_referenz (reference/ leer), Gesicht 123 px, Medium 94
+Ergebnis: Implementierung PASS; Identitätswerte gegen echte Referenzfotos OFFEN (Qualifikation); Textweg für
+  Sprach-Workflows bleibt BUG-098/SP4
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: SP3 Schritt 6 (aktive LoRA je Figur und Architektur)
 Commit: siehe git log „SP3 step 6“ / store.profiles.set_active_lora, active_loras; core.characters._lora_activate;
   media.pipeline.active_lora, check_lora(character=…); core.orders.create_order(character_id=…)

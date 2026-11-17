@@ -62,6 +62,8 @@ class RenderResult:
     provenance: dict = field(default_factory=dict)
     # Speicherverlauf während des Laufs (MemoryTrace.summary)
     memory: dict = field(default_factory=dict)
+    # Messwerte der Prüfknoten (ui.darkfluenzer_checks, SP3 Schritt 7), je Eintrag mit Node
+    checks: list[dict] = field(default_factory=list)
 
 
 def swap_used_mb() -> float:
@@ -355,6 +357,9 @@ def apply_params(graph: dict, wf: Workflow, values: dict) -> dict:
     return out
 
 
+CHECKS_KEY = "darkfluenzer_checks"  # UI-Ausgabe der Darkfluenzer-Prüfknoten (comfy_nodes/)
+
+
 @dataclass(frozen=True)
 class LoraUse:
     """Charakter-LoRA eines Auftrags (SP3 Schritt 5): Datei und Text, der dem Prompt vorangeht."""
@@ -584,6 +589,12 @@ def collect_graph(
     result.memory = trace.summary()
     index = 0
     for node_id, out in (entry.get("outputs") or {}).items():
+        for text in out.get(CHECKS_KEY, []):  # Messwerte eines Prüfknotens (JSON-Liste)
+            try:
+                values = json.loads(text)
+            except (TypeError, ValueError) as exc:
+                raise ComfyError(f"Prüfknoten {node_id}: Messwerte unlesbar ({exc}).") from exc
+            result.checks.extend({**v, "node": node_id} for v in values)
         for item in out.get("images", []) + out.get("gifs", []) + out.get("videos", []):
             index += 1
             data = client.fetch(item)
@@ -599,7 +610,7 @@ def collect_graph(
                     size=len(data),
                 )
             )
-    if not result.outputs and not allow_empty:
+    if not result.outputs and not result.checks and not allow_empty:
         raise ComfyError(f"Auftrag {prompt_id} lieferte keine Ausgabedatei.", prompt_id=prompt_id)
     result.duration_s = round(time.monotonic() - start, 1)
     log.info(

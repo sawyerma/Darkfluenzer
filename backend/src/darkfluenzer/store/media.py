@@ -226,6 +226,27 @@ class MediaMixin:
         row = self.db.execute("SELECT * FROM media WHERE path = ?", (rel,)).fetchone()
         return dict(row) if row else None
 
+    def add_media_checks(
+        self, job_id: int, media_id: int | None, reference: str, checks: list[dict]
+    ) -> None:
+        """Messwerte der Prüfknoten eines Jobs festhalten (SP3 Schritt 7); ``media_id`` ist das
+        geprüfte Medium (Ergebnis oder Eingabe), ``reference`` der Referenzsatz (Figur)."""
+        with self.tx() as db:
+            for c in checks:
+                data = {k: v for k, v in c.items() if k not in ("check", "status")}
+                db.execute(
+                    "INSERT INTO media_checks (media_id, job_id, check_name, status, data,"
+                    " reference, created_at) VALUES (?,?,?,?,?,?,?)",
+                    (media_id, job_id, str(c.get("check", "")), str(c.get("status", "")),
+                     json.dumps(data), reference, now()),
+                )  # fmt: skip
+
+    def media_checks(self, media_id: int) -> list[dict]:
+        rows = self.db.execute(
+            "SELECT * FROM media_checks WHERE media_id = ? ORDER BY id", (media_id,)
+        )
+        return [dict(r) | {"data": json.loads(r["data"])} for r in rows]
+
     def media_by_sha(self, sha256: str) -> dict | None:
         """Medium mit genau diesem Inhalt (Herkunftsprüfung, z. B. Kloner-Befehl edit)."""
         if not sha256:

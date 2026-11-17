@@ -230,7 +230,8 @@ class ProductionConfig:
 
 @dataclass(frozen=True)
 class IdentityConfig:
-    """Gesichtsprüfung (identity.py): kleinere oder unsicherere Gesichter sind „nicht prüfbar“."""
+    """Gesichtsprüfung (Knoten DarkfluenzerFaceIdentity, SP3 Schritt 7): kleinere oder unsicherere
+    Gesichter sind „nicht prüfbar“; das Backend setzt beide Werte als Eingänge des Knotens."""
 
     min_face_px: int
     min_score: float

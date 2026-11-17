@@ -79,6 +79,19 @@ usage = "evaluation"
 gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
 note = "Vorlagen-Analyse (C1): Tiefenkarte; Vorlage utility_depth_anything3_image_depth_estimation; ComfyUI-Ordner geometry_estimation (extra_model_paths)."
 
+[engines.identity]
+title = "Gesichtsidentität (YuNet · SFace · AuraFace) – Prüfknoten"
+kind = "image"
+role = "analysis"
+arch = "face"
+precision = "fp32"
+wave = 2
+files = ["face_yunet", "face_sface", "face_auraface"]
+license = "Apache 2.0 (OpenCV YuNet und SFace, AuraFace-v1)"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Eigener Knoten DarkfluenzerFaceIdentity (comfy_nodes/darkfluenzer_checks, SP3 Schritt 7): misst die Identität gegen reference/ der Figur; Schwellen und Entscheidung im Backend (SP5 Schritt 7)."
+
 [engines.krea2_turbo]
 title = "Krea 2 Turbo (BF16) – Foto"
 kind = "image"
@@ -677,6 +690,20 @@ content = "standard"
 
 [workflows.da3_depth.params]
 reference = { node = "85", input = "image", type = "str", required = true, upload = true, reference = true }
+
+[workflows.identity_check]
+engine = "identity"
+ui = "image/identity_check.ui.json"
+api = "image/identity_check.api.json"
+status = "OFFEN"
+title = "Prüfen · Gesichtsidentität"
+content = "standard"
+
+[workflows.identity_check.params]
+image = { node = "1", input = "image", type = "str", required = true, upload = true, tier_exempt = true }
+
+[workflows.identity_check.identity]
+node = "2"
 
 [workflows.wan22_i2v]
 engine = "wan22_i2v"

@@ -12,7 +12,6 @@ dependencies = [
     "tomlkit>=0.13",
     # Laufzeit passend zum Generator libprotoc 33.x (protocol/buf.gen.yaml)
     "protobuf>=6.33,<7",
-    "opencv-python-headless>=4.11",
     "segno>=1.6",
 ]
 
@@ -20,7 +19,8 @@ dependencies = [
 darkfluenzer = "darkfluenzer.app:main"
 
 [dependency-groups]
-dev = ["pytest>=8.3", "ruff>=0.8"]
+# opencv: nur für den Test des ComfyUI-Prüfknotens (comfy_nodes/), das Backend prüft keine Bilder
+dev = ["pytest>=8.3", "ruff>=0.8", "opencv-python-headless>=4.11"]
 
 [build-system]
 requires = ["hatchling>=1.25"]

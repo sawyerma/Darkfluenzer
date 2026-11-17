@@ -556,6 +556,11 @@ class RenderMixin:
                 row["class_word"],
             )
             dataset = path.relative_to(self.cfg.local).as_posix()
+        character = ""
+        if wf.identity:  # Prüfung gegen den Referenzsatz der gewählten Figur (SP3 Schritt 7)
+            if not msg.character_id:
+                return "Für die Prüfung einen Charakter wählen."
+            character = self.store.character(msg.character_id)["slug"]
         job_id = pipeline.create_render(
             self.store,
             self.manifest,
@@ -564,6 +569,7 @@ class RenderMixin:
             inputs,
             video_max_s=self.cfg.production.video_max_s,
             dataset=dataset,
+            character=character,
             parent_media_id=msg.parent_media_id or None,
             command={
                 "request_id": call.request_id,

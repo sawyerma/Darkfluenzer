@@ -27,6 +27,8 @@ log = logging.getLogger("darkfluenzer.models")
 MANIFEST_RELATIVE = Path("workflows") / "manifest.toml"
 # Lokale, nicht versionierte Registry-Einträge (BUG-092): trainierte LoRAs und Schalter „aktiviert“
 LOCAL_REGISTRY = Path("local") / "registry.toml"
+# Eingänge des Prüfknotens Gesichtsidentität, die das Backend setzt (SP3 Schritt 7)
+IDENTITY_INPUTS = ("reference_dir", "min_face_px", "min_score")
 GATES = ("load", "render", "quality", "license_pass")
 GATE_VALUES = {"OFFEN", "PASS", "FAIL", "GESPERRT"}
 USAGES = {"evaluation", "production"}
@@ -189,6 +191,9 @@ class Workflow:
     content: str = "explizit"
     video: VideoSpec | None = None
     lora: LoraSlot | None = None  # Lader der Charakter-LoRA (SP3 Schritt 5)
+    # Prüfknoten Gesichtsidentität (SP3 Schritt 7): Referenzordner der Figur, Mindestgröße und
+    # -sicherheit setzt das Backend; der Knoten liefert Messwerte (ui.darkfluenzer_checks)
+    identity: str = ""
 
     @property
     def training(self) -> bool:
@@ -202,6 +207,8 @@ class Workflow:
             found.add((self.train_dataset, "folder"))
         if self.lora:
             found.add((self.lora.node, self.lora.name))
+        if self.identity:
+            found.add((self.identity, "reference_dir"))
         return found
 
 
@@ -563,6 +570,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             content=str(t.get("content", "explizit")),
             video=_video(t.get("video"), params, w),
             lora=_lora_slot(t.get("lora"), params, w),
+            identity=str((t.get("identity") or {}).get("node", "")),
         )
         for name, prm in params.items():
             if prm.below and prm.below not in params:
@@ -642,6 +650,11 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
             value = (graph.get(v.length_node) or {}).get("inputs", {}).get(v.length_input)
             if not isinstance(value, (int, float)) or not 1 <= value <= v.seconds_max:
                 problems.append(f"video.length: Graph-Wert {value} außerhalb 1…{v.seconds_max:g}.")
+    if wf.identity:
+        inputs = (graph.get(wf.identity) or {}).get("inputs", {})
+        missing = [n for n in IDENTITY_INPUTS if n not in inputs]
+        if missing:
+            problems.append(f"identity -> {wf.identity} hat keine Eingänge {missing} im API-Graph.")
     if wf.mask_output and (graph.get(wf.mask_output) or {}).get("class_type") != "SaveImage":
         problems.append(f"mask_output -> {wf.mask_output} ist kein SaveImage-Node im API-Graph.")
     for role, node, name in (

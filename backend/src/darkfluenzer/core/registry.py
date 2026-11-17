@@ -94,6 +94,7 @@ class RegistryMixin:
                 role=eng.role,
                 content=wf.content,
                 lora_slot=wf.lora is not None,
+                uses_character=wf.training or bool(wf.identity),
             )
             if wf.lora is not None:  # ladbare Charakter-LoRAs (SP3 Schritt 4/5)
                 names = models.engine_model_names(

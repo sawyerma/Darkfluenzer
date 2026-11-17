@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-SCHEMA_VERSION = 22
+SCHEMA_VERSION = 23
 DB_NAME = "darkfluenzer.sqlite3"
 ORDER_KINDS = ("image", "video")
 ARTIFACT_ROLES = ("input", "master", "mask", "candidate", "preview", "edit", "refined", "sent")

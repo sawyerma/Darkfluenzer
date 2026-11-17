@@ -27,7 +27,6 @@ from pathlib import Path
 from . import __version__, keychain
 from .config import INSTANCE_SECTIONS, ConfigError, load, project_root, setup_logging
 from .media import models, pipeline, training
-from .media.identity import FaceIdentity, IdentityError
 from .nodes import comfy
 from .nodes import local as runtime
 from .nodes.base import node_for
@@ -129,20 +128,6 @@ def _comfy(action: str, instance: str) -> tuple[dict, int]:
         return {"ok": True, **st}, 0
     message = f"Verwaltete ComfyUI nicht gesund (Zustand: {st['state']})."
     return {"ok": False, **st, "error": "unhealthy", "message": message}, 7
-
-
-def _identity(args: argparse.Namespace) -> tuple[dict, int]:
-    cfg = load()
-    match = FaceIdentity(cfg, models.load_manifest(cfg.root)).compare(args.ref, args.image)
-    if match is None:
-        return {"ok": True, "pruefbar": False, "message": "Kein ausreichend großes Gesicht."}, 0
-    return {
-        "ok": True,
-        "pruefbar": True,
-        "sface": round(match.sface, 4),
-        "auraface": round(match.auraface, 4),
-        "mittel": round(match.mean, 4),
-    }, 0
 
 
 def _models(args: argparse.Namespace) -> tuple[dict, int]:
@@ -333,10 +318,6 @@ def main(argv: list[str] | None = None) -> int:
     cmd.add_argument("action", choices=["start", "stop", "status", "health"])
     cmd.add_argument("--instance", choices=list(INSTANCE_SECTIONS), default="media")
     cmd.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
-    ide = sub.add_parser("identity", help="Gesichtsidentität: Bild gegen Referenzen messen")
-    ide.add_argument("image", type=Path)
-    ide.add_argument("--ref", type=Path, action="append", required=True, help="Referenzbild")
-    ide.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     mod = sub.add_parser("models", help="Modell-Registry workflows/manifest.toml")
     mod.add_argument("action", choices=["status", "download", "verify", "orphans"])
     mod.add_argument("--wave", type=int)
@@ -377,8 +358,6 @@ def main(argv: list[str] | None = None) -> int:
             payload, code = _comfy(args.action, args.instance)
         elif args.area == "models":
             payload, code = _models(args)
-        elif args.area == "identity":
-            payload, code = _identity(args)
         elif args.area == "workflows":
             payload, code = _workflows(args.action)
         elif args.area == "character":
@@ -404,8 +383,6 @@ def main(argv: list[str] | None = None) -> int:
         code = 9
     except training.TrainingError as exc:
         payload, code = {"ok": False, "error": exc.code, "message": str(exc)}, 10
-    except IdentityError as exc:
-        payload, code = {"ok": False, "error": "identity", "message": str(exc)}, 11
     except (models.ManifestError, models.ModelError) as exc:
         payload, code = {"ok": False, "error": "models", "message": str(exc)}, 8
     except ConfigError as exc:

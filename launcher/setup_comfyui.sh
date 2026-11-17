@@ -62,7 +62,11 @@ darkfluenzer:
   model_patches: model_patches
   controlnet: controlnet
   geometry_estimation: geometry_estimation
+  face: face
 EOF
+
+# Eigene Prüfknoten (SP3 Schritt 7): im Repository gepinnt, als Link in custom_nodes.
+ln -sfn "$ROOT/comfy_nodes/darkfluenzer_checks" "$DIR/custom_nodes/darkfluenzer_checks"
 
 "$PY" - <<'EOF'
 import torch

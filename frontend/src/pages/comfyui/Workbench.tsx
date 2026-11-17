@@ -191,7 +191,7 @@ export function Workbench({
       : await cmd.run(
           {
             case: "render",
-            value: { workflow: wf.key, values, files: inputs, parentMediaId, characterId: wf.training && character ? BigInt(character.id) : 0n },
+            value: { workflow: wf.key, values, files: inputs, parentMediaId, characterId: wf.usesCharacter && character ? BigInt(character.id) : 0n },
           },
           { version, acceptedOnly: true, done: "Eingereiht." },
         );
@@ -307,7 +307,7 @@ export function Workbench({
       <aside className="g-control" aria-label="Steuerung">
         <h2>Steuerung</h2>
         <div className="g-control-part">
-          <CharacterControl training={wf.training} {...chars} />
+          <CharacterControl training={wf.usesCharacter} {...chars} />
           {wf.params
             .filter((p) => p.reference)
             .map((p) => {
