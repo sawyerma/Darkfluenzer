@@ -94,6 +94,7 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
   - **Umgesetzt 17.11.2026 (Teil):** Workflow „Prüfen · Gesichtsidentität“ nimmt die gewählte Figur (Referenzordner) und zeigt im Ergebnis SFace, AuraFace und die Zahl der Referenzen oder „nicht prüfbar“ / „keine Referenzfotos der Figur“; Ablageflächen für Trainings- und Referenzfotos auch dort. Echter Browser-Lauf 17.11. (Job 92). Die Hinweise in der Fotoliste folgen.
   - Profilfelder Trigger und Klasse; Probe-Prompts.
   - Vor „Trainieren“ steht die geschätzte Dauer; der Knopf ist gesperrt, solange bezahlte Aufträge warten.
+  - **Umgesetzt 17.11.2026 (Teil):** Gesamtschritte und geschätzte Dauer aus `step_s` über dem Knopf („noch keine Messung“ ohne Lauf).
   - **Training mit Checkpoints [17.11., Wellen gestrichen] (Backend SP3 Schritt 3):** Gesamtschritte, aktuelle Schrittzahl, geschätzte Restdauer, letzter gültiger Checkpoint, Knöpfe „Fortsetzen“ und „Beenden“; Probebilder optional.
   - Versionen: Tabelle aus der Registry mit Figur, Architektur, Datensatz, Schritten, Rang; Probebilder mit Identitätswert; „Aktiv setzen“ je Architektur.
   - Dateien, Herkunft: LoRA-Schlüssel, Stärke, Identitätswert.

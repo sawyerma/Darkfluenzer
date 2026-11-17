@@ -2,7 +2,7 @@ import { VIDEO_ORDER, VideoSettings } from "./VideoSettings";
 import { Candidates } from "./Candidates";
 import { CharacterControl, TrainingFolder, useCharacter } from "./Character";
 import { Instances } from "./Instances";
-import { LABEL, WORKFLOW_TONE } from "./common";
+import { LABEL, WORKFLOW_TONE, duration } from "./common";
 import { LoadDraft, Queue } from "./Queue";
 import type { MediaItem } from "../../core/generated/darkfluenzer/v1/media_pb";
 import { MediaPicker } from "../Files";
@@ -476,6 +476,12 @@ export function Workbench({
             <summary>Erweiterte Workflow-Einstellungen</summary>
             <div className="g-form">{expertParams.map(field)}</div>
           </details>
+        ) : null}
+        {wf.training ? (
+          <p className="g-note">
+            Gesamtschritte {raw.steps || "?"} ·{" "}
+            {wf.stepS > 0 && Number(raw.steps) > 0 ? `geschätzt ${duration(Number(raw.steps) * wf.stepS)}` : "Dauer: noch keine Messung"}
+          </p>
         ) : null}
         <button type="button" className="g-button g-primary g-block" disabled={!live || Boolean(blocked) || cmd.pending} onClick={() => void generate()}>
           {wf.training ? "Training starten" : "Generieren"}

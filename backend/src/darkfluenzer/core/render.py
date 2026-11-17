@@ -232,7 +232,7 @@ class RenderMixin:
                 async with self._registry:
                     if fingerprint := await asyncio.to_thread(self._reload_if_changed):
                         self._registry_version = self.store.bump("workflows", fingerprint)
-                    workflows = await asyncio.to_thread(self._workflows)
+                    workflows = await asyncio.to_thread(self._workflows, self._step_seconds())
                 self.hub.set_state(spb.TOPIC_COMFY_WORKFLOWS, workflows)
                 await self.refresh_characters()
                 await self._watch_runs()

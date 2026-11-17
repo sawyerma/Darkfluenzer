@@ -142,7 +142,7 @@ class CommandsMixin:
                         fingerprint = await asyncio.to_thread(self._fingerprint)
                         self._registry_version = self.store.bump("workflows", fingerprint)
                         version = self._registry_version
-                workflows = await asyncio.to_thread(self._workflows)
+                workflows = await asyncio.to_thread(self._workflows, self._step_seconds())
             self.hub.set_state(spb.TOPIC_COMFY_WORKFLOWS, workflows)
             self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
         if not call.recorded:

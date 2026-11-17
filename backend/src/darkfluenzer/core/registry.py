@@ -67,7 +67,17 @@ class RegistryMixin:
         log.info("Registry neu geladen (%d Workflows)", len(self.manifest.workflows))
         return self._fingerprint()
 
-    def _workflows(self) -> bytes:
+    def _step_seconds(self) -> dict[str, float]:
+        """Sekunden je Schritt der Trainingsworkflows (Loop-Thread: SQLite), SP3 Schritt 3."""
+        runs = self.cfg.production.estimate_runs
+        return {
+            key: self.store.seconds_per_step(key, runs)
+            for key, wf in self.manifest.workflows.items()
+            if wf.training
+        }
+
+    def _workflows(self, step_s: dict[str, float] | None = None) -> bytes:
+        step_s = step_s or {}
         engines = models.status(self.manifest, models.models_dir(self.cfg.root))["engines"]
         msg = comfy_pb2.Workflows(version=self._registry_version)
         for key, wf in self.manifest.workflows.items():
@@ -95,6 +105,7 @@ class RegistryMixin:
                 content=wf.content,
                 lora_slot=wf.lora is not None,
                 uses_character=wf.training or bool(wf.identity),
+                step_s=step_s.get(key, 0.0),
             )
             if wf.lora is not None:  # ladbare Charakter-LoRAs (SP3 Schritt 4/5)
                 names = models.engine_model_names(

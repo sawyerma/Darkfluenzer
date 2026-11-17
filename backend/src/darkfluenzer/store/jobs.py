@@ -273,6 +273,24 @@ class JobsMixin:
         mid = len(values) // 2
         return values[mid] if len(values) % 2 else (values[mid - 1] + values[mid]) / 2
 
+    def seconds_per_step(self, workflow: str, runs: int) -> float:
+        """Median Sekunden je Schritt der letzten ``runs`` erfolgreichen Läufe des Workflows
+        (Dauer / Parameter ``steps``), z. B. für die Trainingsschätzung vor dem Start (SP3
+        Schritt 3); 0 = keine Messung."""
+        rows = self.db.execute(
+            "SELECT json_extract(e.data, '$.duration_s'), json_extract(j.params, '$.steps')"
+            " FROM events e JOIN jobs j ON j.id = e.entity_id WHERE e.entity = 'job'"
+            " AND e.event = 'status' AND json_extract(e.data, '$.status') = 'done'"
+            " AND j.workflow = ? AND json_extract(e.data, '$.duration_s') IS NOT NULL"
+            " AND json_extract(j.params, '$.steps') > 0 ORDER BY e.id DESC LIMIT ?",
+            (workflow, runs),
+        ).fetchall()
+        values = sorted(float(d) / float(n) for d, n in rows)
+        if not values:
+            return 0.0
+        mid = len(values) // 2
+        return values[mid] if len(values) % 2 else (values[mid - 1] + values[mid]) / 2
+
     def finished_jobs_after(self, after: int, limit: int) -> list[dict]:
         """Abgeschlossene Jobs mit Cursor (events.id) > ``after``, aufsteigend, höchstens
         ``limit`` – für den Abgleich ab einer gemerkten Position (SP0 Schritt 6, BUG-107)."""

@@ -147,3 +147,20 @@ def test_duration_estimate_uses_only_runs_with_the_same_parameters(cfg):
         assert s.duration_estimate("wf", {"steps": 20}, 5) == 0.0  # keine Messung
     finally:
         s.close()
+
+
+def test_seconds_per_step_for_the_training_estimate(cfg):
+    """SP3 Schritt 3: geschätzte Trainingsdauer vor dem Start = Schritte × Median Sekunden je
+    Schritt der letzten Läufe; ohne Messung 0."""
+    s = Store(cfg.local)
+    try:
+        assert s.seconds_per_step("train", 5) == 0.0
+        for steps, secs in ((100, 200.0), (50, 150.0), (200, 360.0)):
+            job = s.create_job(None, "e", "train", "p", {"steps": steps}, [])
+            s.set_job_status(job, "done", duration_s=secs, outputs=[])
+        failed = s.create_job(None, "e", "train", "p", {"steps": 10}, [])
+        s.set_job_status(failed, "failed", error="x")  # zählt nicht
+        assert s.seconds_per_step("train", 5) == 2.0  # Median aus 2,0 · 3,0 · 1,8
+        assert s.seconds_per_step("train", 1) == 1.8  # nur der letzte Lauf
+    finally:
+        s.close()

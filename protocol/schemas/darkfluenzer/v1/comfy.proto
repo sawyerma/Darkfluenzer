@@ -167,6 +167,9 @@ message WorkflowInfo {
   repeated string loras = 19;
   // Der Workflow braucht eine Figur (Training: Datensatz; Prüfung: Referenzsatz, SP3 Schritt 7)
   bool uses_character = 20;
+  // Training: Median Sekunden je Schritt aus den letzten Läufen dieses Workflows (0 = keine
+  // Messung); das Cockpit zeigt damit vor dem Start Gesamtschritte und geschätzte Dauer
+  double step_s = 21;
 }
 
 message OutputFormat {
