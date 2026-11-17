@@ -208,8 +208,11 @@ Korrektur: Video-Workflows bekommen vor CreateVideo eine Stichprobe (Darkfluenze
   Frames; Prompttreue und Q-ReAlign (8B/9B) nicht je Frame. Offen: Abschnittsketten (Langvideo) ohne
   Prüfknoten, Schwellen und Entscheidung
 Nachweis: tests/test_checks.py::test_video_checks_sample_frames_before_create_video,
-  ::test_check_plan_for_video_takes_frame_and_temporal_checks, ::test_frame_sample_and_temporal_measures
-Ergebnis: CODE (Mac-Lauf folgt)
+  ::test_check_plan_for_video_takes_frame_and_temporal_checks, ::test_frame_sample_and_temporal_measures;
+  echter Lauf 18.11. (Job 101, LTX 2.5 i2v 512×320, 2 s, 49 Frames, 135 s): Stichprobe 0,8,…,48 (7),
+  Inhalt 7× neutral ≥ 0,99, Technik 7 Werte, Hände keine erkannt, zeitlich 0 Sprünge, 0 Standbilder,
+  Änderung Ø 6,8; alle Werte am Videomedium 104 (Ziel SaveVideo 75)
+Ergebnis: TEIL (Implementierung am Mac belegt; Schwellen, Langvideo-Abschnitte OFFEN)
 Bearbeiter/Datum: Claude, 18.11.2026
 
 ID: FABLE-014 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-122“) – Teil
