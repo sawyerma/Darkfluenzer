@@ -528,3 +528,11 @@ button.g-account:hover { border-color: var(--g-brand); }
 
 /* Preisliste der Influencerin (FRONT F4 V1.12 Punkt 12) */
 .g-price-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: var(--g-gap-sm); align-items: center; }
+
+/* Zeitleiste der Schlüsselbilder (B4): Marken für Start, Schlüsselbilder und Ende; Klick setzt eins */
+.g-timeline { display: block; width: 100%; height: 22px; margin: var(--g-gap-sm) 0; border: 1px solid var(--g-line-input); border-radius: var(--g-r-input); background: var(--g-well); cursor: copy; }
+.g-timeline-mark { fill: var(--g-brand); }
+.g-timeline-mark[data-edge] { fill: var(--g-muted); }
+.g-timeline-mark[data-tone="bad"] { fill: var(--g-bad); }
+.g-keyframe { display: grid; gap: var(--g-gap-xs); padding-top: var(--g-gap-sm); border-top: 1px solid var(--g-line); }
+.g-keyframe-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--g-gap-xs) var(--g-gap-sm); color: var(--g-muted); }

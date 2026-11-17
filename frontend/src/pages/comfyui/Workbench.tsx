@@ -88,8 +88,10 @@ export function Workbench({
       w.params.every((p) => !p.required || p.name === "image"),
   );
   const [count, setCount] = useState("");
-  // weitere Schlüsselbilder zwischen Start- und Endbild (Zeitachse B4): Zeit (s), Bild, Stärke
-  const [keyframes, setKeyframes] = useState<{ at: string; file?: File; strength: string }[]>([]);
+  // weitere Schlüsselbilder zwischen Start- und Endbild (Zeitachse B4): Zeit (s), Bild (Upload
+  // oder Medium aus Dateien, Backend prüft den SHA-256), Stärke
+  const [keyframes, setKeyframes] = useState<{ at: string; file?: File; media?: MediaItem; strength: string }[]>([]);
+  const [kfPicking, setKfPicking] = useState<number | null>(null);
   const [finish, setFinish] = useState("");
   // Kundenauftrag: nur bezahlte (Status paid) und nur Workflows der Inhaltsstufe standard (Regel 13)
   const awaiting = ordersState?.awaitingProduction ?? [];
@@ -105,6 +107,7 @@ export function Workbench({
   const [raw, setRaw] = useState<Record<string, string>>(() =>
     Object.fromEntries(wf.params.filter((p) => !p.upload).map((p) => [p.name, draft?.[p.name] ?? defaultText(p)])),
   );
+  const videoS = Number(raw.duration_s ?? 0); // Länge der Zeitleiste (B4)
   const top = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (draft) top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -182,11 +185,13 @@ export function Workbench({
     const parentMediaId = picked.image?.mediaId ?? 0n;
     const frames = await Promise.all(
       keyframes
-        .filter((k) => k.file)
+        .filter((k) => k.file || k.media)
         .map(async (k) => ({
           atS: Number(k.at),
           strength: Number(k.strength),
-          file: { param: "", filename: k.file!.name, data: new Uint8Array(await k.file!.arrayBuffer()) },
+          file: k.media
+            ? { param: "", filename: k.media.path.split("/").pop() ?? "", mediaId: k.media.mediaId }
+            : { param: "", filename: k.file!.name, data: new Uint8Array(await k.file!.arrayBuffer()) },
         })),
     );
     const asOrder = forOrder !== "" || lora !== "" || (canCandidates && (candidates > 1 || finish !== ""));
@@ -417,38 +422,86 @@ export function Workbench({
         {wf.keyframes ? (
           <div className="g-field">
             <label>Weitere Schlüsselbilder</label>
+            {videoS > 0 ? (
+              <svg
+                className="g-timeline"
+                viewBox="0 0 1000 20"
+                preserveAspectRatio="none"
+                role="button"
+                tabIndex={0}
+                aria-label="Zeitleiste: Klick setzt ein Schlüsselbild"
+                onClick={(e) => {
+                  const box = e.currentTarget.getBoundingClientRect();
+                  const at = Math.round(((e.clientX - box.left) / box.width) * videoS * 10) / 10;
+                  if (at > 0 && at < videoS) setKeyframes([...keyframes, { at: String(at), strength: "0.8" }].sort((a, b) => Number(a.at) - Number(b.at)));
+                }}
+              >
+                <title>Klick setzt ein Schlüsselbild</title>
+                <rect className="g-timeline-mark" data-edge="" x={6} y={3} width={8} height={14}>
+                  <title>Start 0 s</title>
+                </rect>
+                {keyframes.map((k, i) => {
+                  const at = Number(k.at);
+                  const inside = at > 0 && at < videoS;
+                  const x = Math.min(990, Math.max(6, (at / videoS) * 1000 - 4));
+                  return (
+                    <rect key={i} className="g-timeline-mark" data-tone={inside && (k.file || k.media) ? undefined : "bad"} x={x} y={3} width={8} height={14}>
+                      <title>{`${k.at} s${inside ? "" : " · außerhalb"}${k.file || k.media ? "" : " · Bild fehlt"}`}</title>
+                    </rect>
+                  );
+                })}
+                <rect className="g-timeline-mark" data-edge="" x={986} y={3} width={8} height={14}>
+                  <title>{`Ende ${videoS} s`}</title>
+                </rect>
+              </svg>
+            ) : null}
             {keyframes.map((k, i) => (
-              <span key={i} className="g-between">
-                <input
-                  className="g-input"
-                  type="number"
-                  min={0}
-                  step={0.1}
-                  aria-label="Zeitpunkt (s)"
-                  value={k.at}
-                  onChange={(e) => setKeyframes(keyframes.map((x, j) => (j === i ? { ...x, at: e.target.value } : x)))}
-                />
-                <input
-                  className="g-input"
-                  type="file"
-                  accept="image/*"
-                  aria-label="Bild"
-                  onChange={(e) => setKeyframes(keyframes.map((x, j) => (j === i ? { ...x, file: e.target.files?.[0] } : x)))}
-                />
-                <input
-                  className="g-input"
-                  type="number"
-                  min={0.1}
-                  max={1}
-                  step={0.05}
-                  aria-label="Stärke"
-                  value={k.strength}
-                  onChange={(e) => setKeyframes(keyframes.map((x, j) => (j === i ? { ...x, strength: e.target.value } : x)))}
-                />
-                <button type="button" className="g-button" onClick={() => setKeyframes(keyframes.filter((_, j) => j !== i))}>
-                  Entfernen
-                </button>
-              </span>
+              <div key={i} className="g-keyframe">
+                <span className="g-keyframe-values">
+                  <small>Zeit (s)</small>
+                  <small>Stärke</small>
+                  <input
+                    className="g-input"
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    aria-label="Zeitpunkt (s)"
+                    value={k.at}
+                    onChange={(e) => setKeyframes(keyframes.map((x, j) => (j === i ? { ...x, at: e.target.value } : x)))}
+                  />
+                  <input
+                    className="g-input"
+                    type="number"
+                    min={0.1}
+                    max={1}
+                    step={0.05}
+                    aria-label="Stärke"
+                    value={k.strength}
+                    onChange={(e) => setKeyframes(keyframes.map((x, j) => (j === i ? { ...x, strength: e.target.value } : x)))}
+                  />
+                </span>
+                {k.media ? (
+                  <small className="g-ellipsis" title={`local/${k.media.path}`}>
+                    {k.media.path.split("/").pop()}
+                  </small>
+                ) : (
+                  <input
+                    className="g-input"
+                    type="file"
+                    accept="image/*"
+                    aria-label="Bild"
+                    onChange={(e) => setKeyframes(keyframes.map((x, j) => (j === i ? { ...x, file: e.target.files?.[0], media: undefined } : x)))}
+                  />
+                )}
+                <span className="g-actions">
+                  <button type="button" className="g-button" onClick={() => setKfPicking(i)}>
+                    Aus Dateien
+                  </button>
+                  <button type="button" className="g-button" onClick={() => setKeyframes(keyframes.filter((_, j) => j !== i))}>
+                    Entfernen
+                  </button>
+                </span>
+              </div>
             ))}
             <button type="button" className="g-button" onClick={() => setKeyframes([...keyframes, { at: "1", strength: "0.8" }])}>
               Schlüsselbild hinzufügen
@@ -564,6 +617,13 @@ export function Workbench({
       ) : null}
       {picking ? (
         <MediaPicker title={`${paramLabel(picking, wf.kind)} aus Dateien`} onPick={(item) => pick(picking.name, item)} onClose={() => setPicking(null)} />
+      ) : null}
+      {kfPicking !== null ? (
+        <MediaPicker
+          title="Schlüsselbild aus Dateien"
+          onPick={(item) => setKeyframes(keyframes.map((x, j) => (j === kfPicking ? { ...x, media: item, file: undefined } : x)))}
+          onClose={() => setKfPicking(null)}
+        />
       ) : null}
       <dialog ref={dialog} className="g-dialog" aria-labelledby={`${wf.key}-delete`}>
         <h2 id={`${wf.key}-delete`}>Workflow löschen</h2>

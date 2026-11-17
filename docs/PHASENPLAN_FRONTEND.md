@@ -175,7 +175,7 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 | **SP3 (B1)** | Bereich Charakter §3.3 (Liste, Fotostatus, Training, Versionen, Aktiv setzen, LoRA-Auswahl im Formular) | echter Ordner → Training → LoRA → Bild (**[17.11., E22]** ein kurzes echtes Training belegt die Kette als TEIL, volles Training und Identitätsmessung folgen); Browser-Test Anlegen, Fotostatus, gesperrter Start, Umschalten |
 | **B4** | Zeitachse §3.3 | 15 s mit vier Marken → ein Auftrag mit vier Schlüsselbildern |
 
-**Umgesetzt 17.11.2026 (B4 Teil):** Formular „Weitere Schlüsselbilder“ für Workflows mit Schlüsselbild-Kette (`WorkflowInfo.keyframes`): je Zeile Zeitpunkt (s), Bild, Stärke, Entfernen; „Schlüsselbild hinzufügen“. Offen: Auswahl aus Dateien, Zeitleiste mit Marken.
+**Umgesetzt 17.11.2026 (B4 Teil):** Formular „Weitere Schlüsselbilder“ für Workflows mit Schlüsselbild-Kette (`WorkflowInfo.keyframes`): je Zeile Zeitpunkt (s), Bild, Stärke, Entfernen; „Schlüsselbild hinzufügen“. **[18.11.]** Schlüsselbild auch „Aus Dateien“ (Galerie-Medium per ID, Backend prüft den SHA-256) und Zeitleiste über die Videodauer mit Marken für Start, Schlüsselbilder (rot: außerhalb oder ohne Bild) und Ende; Klick setzt ein Schlüsselbild.
 | **B5.6** | Referenzanalyse §3.3 | eigenes Bild → Prompt → echte Generierung |
 | **SP6 Betrieb, Recht, Abnahme** | Frontend-Teil nach §4.4 (Betriebsanzeige, erneutes Neuladen nach Schemawechsel, Auskunft und Löschung je Akte, Pflichttexte, Release-Kennung) | ein Browser-Lauf über die ganze Kette; Screenshots aller sechs Reiter gegen die Referenz; Betreiberabnahme nach der Probephase |
 
