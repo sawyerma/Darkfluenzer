@@ -7,11 +7,26 @@ mit genau einer Rückfrage statt zu raten.
 
 from __future__ import annotations
 
-COMMANDS = ("clone", "pose", "style", "remix", "animate")
+COMMANDS = ("clone", "pose", "style", "remix", "animate", "edit")
 ASK_COMMAND = (
-    "Bitte beginne mit einem Befehl: clone, pose, style, remix oder animate "
+    "Bitte beginne mit einem Befehl: clone, pose, style, remix, animate oder edit "
     "(dahinter optional, was du dir wünschst)."
 )
+ASK_OWN = (
+    "edit nur für eigene Bilder: antworte mit edit auf ein Ergebnis von Darkfluenzer "
+    "(z. B. „edit dress: rotes Kleid“)."
+)
+# Bildanweisung je Befehl für Workflows mit Vorlagen-Parameter (FLUX 3 Klein: <ref_image_0>);
+# der Wunsch des Betreibers folgt dahinter (V0 §8.1, FL-6)
+TEMPLATES = {
+    "clone": "Recreate <ref_image_0> as faithfully as possible: same pose, framing, camera angle, "
+    "lighting, outfit and setting.",
+    "pose": "A new photo with exactly the same body pose and framing as <ref_image_0>.",
+    "style": "A new photo with the same lighting, color grading, mood and photographic style as "
+    "<ref_image_0>.",
+    "remix": "A new variation inspired by <ref_image_0>: similar setting and mood, different "
+    "details.",
+}
 ASK_REFERENCE = "Bitte schick das Referenzbild mit dem Befehl oder antworte mit dem Befehl darauf."
 
 
@@ -29,3 +44,15 @@ def parse(text: str) -> tuple[str, str] | None:
 def card(command: str, platform: str, detail: str) -> str:
     """Text der Systemkarte im Default-Verlauf (FRONT F4: INTERNER AUFTRAG · BEFEHL · KANAL)."""
     return f"INTERNER AUFTRAG · {command.upper()} · {platform.upper()}\n{detail}"
+
+
+def prompt(command: str, wish: str, templated: bool) -> str:
+    """Prompt für den Auftrag: bei Vorlagen-Workflows die Befehlsanweisung plus Wunsch."""
+    base = TEMPLATES.get(command, "") if templated else ""
+    return " ".join(x for x in (base, wish) if x)
+
+
+def edit_parts(wish: str) -> tuple[str, str]:
+    """„edit dress: rotes Kleid“ -> (Bereich, Änderung); ohne Doppelpunkt nur die Änderung."""
+    region, sep, change = wish.partition(":")
+    return (region.strip(), change.strip()) if sep else ("", wish.strip())

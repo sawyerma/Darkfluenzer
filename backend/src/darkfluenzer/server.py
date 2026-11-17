@@ -1570,21 +1570,36 @@ class Cockpit:
         Medien-Workflow) und Referenzen (angehängt oder beantwortete Nachricht); bei fehlenden
         Voraussetzungen der Grund."""
         refs = [a for a in msg["attachments"] if a.get("status") == "saved"]
-        if not refs and msg["reply_to_platform_id"]:
+        replied = None
+        if msg["reply_to_platform_id"]:
             replied = self.store.message_by_platform_id(
                 msg["conversation_id"], msg["reply_to_platform_id"]
             )
-            refs = [a for a in (replied or {}).get("attachments", []) if a.get("status") == "saved"]
+        if not refs and replied:
+            refs = [a for a in replied.get("attachments", []) if a.get("status") == "saved"]
         video = command == "animate"
-        key = default["video_workflow" if video else "media_workflow"]
+        key = (
+            default["command_workflows"].get(command)
+            or default["video_workflow" if video else "media_workflow"]
+        )
         if not key or key not in self.manifest.workflows:
             if video:
                 return "Kein Video-Workflow (animate) im Default-Kontakt gewählt."
-            return "Kein Medien-Workflow im Default-Kontakt gewählt."
-        wf = self.manifest.workflows[key]
-        if "image" in wf.params and wf.params["image"].upload and not refs:
+            return f"Kein Workflow für {command} im Default-Kontakt gewählt."
+        if _upload_param(self.manifest.workflows[key]) and not refs:
             return cloner.ASK_REFERENCE
+        if command == "edit" and not self._own_reference(refs, replied):
+            return cloner.ASK_OWN
         return key, refs
+
+    def _own_reference(self, refs: list[dict], replied: dict | None) -> bool:
+        """edit nur auf eigene Bilder (V0 §8): Antwort auf eine eigene gesendete Nachricht oder
+        eine Datei, deren Inhalt Darkfluenzer erzeugt hat (gleicher SHA-256 wie ein Medium)."""
+        if replied is not None and replied.get("direction") == "out":
+            return True
+        return bool(refs) and all(
+            self.store.media_by_sha(r.get("sha256", "")) is not None for r in refs
+        )
 
     def _cloner_detail(self, order_no: str, key: str, wish: str) -> str:
         return f"{order_no} · {self.manifest.workflows[key].title} · {wish or '–'}"
@@ -1594,16 +1609,27 @@ class Cockpit:
     ) -> str:
         """Kloner-Auftrag (Quelle ``cloner``) mit Kandidaten anlegen und einreihen."""
         wf = self.manifest.workflows[key]
-        takes_image = "image" in wf.params and wf.params["image"].upload
+        upload = _upload_param(wf)
         inputs = {}
-        if takes_image:
+        if upload:
             ref = self.cfg.local / refs[0]["path"]
-            inputs["image"] = await asyncio.to_thread(
+            inputs[upload] = await asyncio.to_thread(
                 pipeline.store_input, self.cfg, ref.read_bytes(), ref.name
             )
             # Vorlagen kommen auch aus dem Kloner-Eingang (FRONT, C1)
-            await self._register_reference(inputs["image"], f"{msg['platform']}:{msg['id']}")
-        values = {"prompt": wish} if wish and "prompt" in wf.params else {}
+            await self._register_reference(inputs[upload], f"{msg['platform']}:{msg['id']}")
+        values: dict = {}
+        if command == "edit" and "region" in wf.params:
+            region, wish = cloner.edit_parts(wish)
+            if region:
+                values["region"] = region
+        text = cloner.prompt(command, wish, templated=bool(upload and wf.params[upload].reference))
+        if text and "prompt" in wf.params:
+            values["prompt"] = text
+        graph = comfy.load_graph(self.manifest, wf)
+        for name, p in wf.params.items():  # Pflichtwerte ohne Angabe: geprüfter Graph-Standard
+            if p.required and not p.upload and name not in values:
+                values[name] = graph[p.node]["inputs"][p.input]
         order_no, jobs = pipeline.create_order(
             self.store,
             self.manifest,
@@ -1783,6 +1809,14 @@ class Cockpit:
         for key, kind in ((msg.media_workflow, "image"), (msg.video_workflow, "video")):
             if reason := self._cloner_workflow_reason(key, kind):
                 return reason
+        commands: dict[str, str] = {}
+        for cw in msg.command_workflows:  # FL-6: Workflow je Befehl
+            if cw.command not in cloner.COMMANDS or cw.command in commands:
+                return f"Befehl '{cw.command}' unbekannt oder doppelt."
+            kind = "video" if cw.command == "animate" else "image"
+            if reason := self._cloner_workflow_reason(cw.workflow, kind):
+                return f"{cw.command}: {reason}"
+            commands[cw.command] = cw.workflow
         senders = {}
         if msg.telegram_sender_id.strip() != current["sender_ids"].get("telegram", ""):
             senders[("telegram", self._default_identity_account("telegram"))] = (
@@ -1803,6 +1837,7 @@ class Cockpit:
                 "video_workflow": msg.video_workflow,
             },
             senders,
+            commands,
         )
         self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)
         return ""
@@ -2818,9 +2853,21 @@ async def _conversation_page(request: web.Request) -> web.Response:
                 media_workflow=d["media_workflow"],
                 revision=d["revision"],
                 video_workflow=d["video_workflow"],
+                command_workflows=[
+                    channel_pb2.CommandWorkflow(command=c, workflow=w)
+                    for c, w in sorted(d["command_workflows"].items())
+                ],
             )
         )
     return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
+
+
+def _upload_param(wf: models.Workflow) -> str:
+    """Eingangsbild eines Workflows für den Kloner: ``image`` bzw. die Vorlage (``reference``)."""
+    for name in ("image", "reference"):
+        if name in wf.params and wf.params[name].upload:
+            return name
+    return next((n for n, p in wf.params.items() if p.upload), "")
 
 
 def _static(dist: Path):

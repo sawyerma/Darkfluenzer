@@ -1067,6 +1067,9 @@ function MakeDefault({ customer, identity }: { customer: CustomerSummary; identi
 
 type Run = ReturnType<typeof useCommand>["run"];
 
+// Kurzbefehle des Default-Nutzers (V0 §8.1, FL-6), Reihenfolge wie im Backend (cloner.COMMANDS)
+const COMMANDS = ["clone", "pose", "style", "remix", "animate", "edit"] as const;
+
 /** Operator-Felder des Default-Kontakts (F7.4, V0 §8.1); CAS über die gelesene Revision. */
 function DefaultForm({
   contact,
@@ -1089,6 +1092,8 @@ function DefaultForm({
   const [influencer, setInfluencer] = useState(contact.influencer);
   const [workflow, setWorkflow] = useState(contact.mediaWorkflow);
   const [video, setVideo] = useState(contact.videoWorkflow);
+  const saved = Object.fromEntries(contact.commandWorkflows.map((c) => [c.command, c.workflow]));
+  const [commands, setCommands] = useState<Record<string, string>>(saved);
   const registry = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
   const influencers = useStateTopic(Topic.INFLUENCERS)?.value.influencers ?? [];
   const usable = registry.filter((w) => w.enabled && w.modelsReady && w.instance !== "ai" && !w.training);
@@ -1103,7 +1108,8 @@ function DefaultForm({
     approval !== contact.approvalMode ||
     influencer.trim() !== contact.influencer ||
     workflow !== contact.mediaWorkflow ||
-    video !== contact.videoWorkflow;
+    video !== contact.videoWorkflow ||
+    COMMANDS.some((c) => (commands[c] ?? "") !== (saved[c] ?? ""));
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -1120,6 +1126,7 @@ function DefaultForm({
           influencer: influencer.trim(),
           mediaWorkflow: workflow,
           videoWorkflow: video,
+          commandWorkflows: COMMANDS.filter((c) => commands[c]).map((c) => ({ command: c, workflow: commands[c] })),
         },
       },
       { done: "Einstellungen übernommen." },
@@ -1146,12 +1153,19 @@ function DefaultForm({
     );
   }
 
-  function choice(id: string, label: string, value: string, set: (v: string) => void, options: typeof usable) {
+  function choice(
+    id: string,
+    label: string,
+    value: string,
+    set: (v: string) => void,
+    options: typeof usable,
+    none = "Nicht festgelegt",
+  ) {
     return (
       <div className="g-field">
         <label htmlFor={id}>{label}</label>
         <select id={id} value={value} onChange={(e) => set(e.target.value)}>
-          <option value="">Nicht festgelegt</option>
+          <option value="">{none}</option>
           {options.map((w) => (
             <option key={w.key} value={w.key}>
               {w.title}
@@ -1210,6 +1224,19 @@ function DefaultForm({
           <input type="checkbox" checked={autoOrders} onChange={(e) => setAutoOrders(e.target.checked)} />
           Automatische Produktionsaufträge
         </label>
+      </div>
+      <div className="g-control-part g-wide">
+        <h3>Befehle</h3>
+        {COMMANDS.map((c) =>
+          choice(
+            `df-cmd-${c}`,
+            c,
+            commands[c] ?? "",
+            (v) => setCommands((m) => ({ ...m, [c]: v })),
+            c === "animate" ? videos : media,
+            c === "animate" ? "wie Video-Workflow" : "wie Medien-Workflow",
+          ),
+        )}
       </div>
       <div className="g-control-part g-wide">
         <h3>Einstellungen</h3>

@@ -155,6 +155,14 @@ message DefaultContact {
   uint64 revision = 9;
   // Video-Workflow für `animate` (Foto -> Video); die übrigen Befehle nutzen media_workflow
   string video_workflow = 10;
+  // Workflow je Befehl (FL-6); fehlt ein Befehl, gilt media_workflow bzw. video_workflow
+  repeated CommandWorkflow command_workflows = 11;
+}
+
+message CommandWorkflow {
+  // clone | pose | style | remix | animate | edit
+  string command = 1;
+  string workflow = 2;
 }
 
 // HTTP GET /api/v1/conversation-page?customer=ID[&before=ITEM]: Verlauf (neueste zuerst

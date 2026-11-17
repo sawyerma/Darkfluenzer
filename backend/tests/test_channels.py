@@ -492,3 +492,69 @@ def test_default_sender_by_click_moves_identity_and_history(cfg):
         assert "bereits" in await assign(default, ident)
 
     _run(cfg, scenario)
+
+
+def test_cloner_command_workflows_reference_and_edit(cloner_cfg):
+    """FL-6: Workflow je Befehl (Befehl 37); ein Vorlagen-Workflow erhält das Referenzbild als
+    `reference` samt Befehlsanweisung; edit nur auf eigene Bilder, Bereich aus „edit dress: …“."""
+    from darkfluenzer import models
+
+    cfg = cloner_cfg
+    man = models.load_manifest(cfg.root)
+    for engine in ("flux3_klein_base", "lustify_sam31_edit"):
+        for mf in man.engine_files(engine):
+            target = models.models_dir(cfg.root) / mf.target
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with open(target, "wb") as fh:
+                fh.truncate(mf.size)
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+        send, photo = _cloner_setup(cfg, store, auto=True)
+        csrf = await _csrf(client)
+
+        async def update(commands):
+            d = store.default_contact()
+            req = commands_pb2.CommandRequest(
+                request_id=str(uuid.uuid4()),
+                default_contact_update=commands_pb2.DefaultContactUpdate(
+                    revision=d["revision"], telegram_sender_id="99", approval_mode="direct",
+                    process_commands=True, auto_orders=True, media_workflow="lustify_sdxl_refine",
+                    command_workflows=[
+                        channel_pb2.CommandWorkflow(command=c, workflow=w) for c, w in commands
+                    ],
+                ),
+            )  # fmt: skip
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body).detail
+
+        assert "kein Video-Workflow" in await update([("animate", "lustify_sdxl_refine")])
+        assert "unbekannt" in await update([("dance", "lustify_sdxl_refine")])
+        ok = [("clone", "flux3_klein_reference"), ("edit", "lustify_sam31_edit")]
+        assert await update(ok) == ""
+        assert store.default_contact()["command_workflows"] == dict(ok)
+
+        first = send("1", "clone in rotem Kleid", "1", [photo])
+        await cockpit._on_inbound(first)
+        (jid,) = [r[0] for r in store.db.execute("SELECT id FROM jobs ORDER BY id LIMIT 1")]
+        params = store.job(jid)["params"]
+        assert "reference" in params and store.job(jid)["workflow"] == "flux3_klein_reference"
+        assert params["prompt"].startswith("Recreate <ref_image_0>")
+        assert params["prompt"].endswith("in rotem Kleid")
+
+        orders = store.db.execute("SELECT count(*) FROM orders").fetchone()[0]
+        await cockpit._on_inbound(send("2", "edit dress: rotes Kleid", "2", [photo]))  # fremd
+        assert store.db.execute("SELECT count(*) FROM orders").fetchone()[0] == orders
+        items, _ = store.conversation_items(first.customer.id, 0, 50)
+        assert "nur für eigene Bilder" in items[-1]["text"]
+
+        store.add_media("evaluation/x/own.png", photo["sha256"], 10)  # eigener Inhalt
+        await cockpit._on_inbound(send("3", "edit dress: rotes Kleid", "3", [photo]))
+        last = store.db.execute("SELECT id FROM jobs ORDER BY id DESC LIMIT 1").fetchone()[0]
+        params = store.job(last)["params"]
+        assert params["region"] == "dress" and params["prompt"] == "rotes Kleid"
+        assert params["keep"]  # Pflichtwert aus dem geprüften Graph
+
+    _run(cfg, scenario)

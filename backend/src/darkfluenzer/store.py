@@ -20,7 +20,7 @@ from pathlib import Path
 
 from .payments.vouchers import extract as extract_vouchers
 
-SCHEMA_VERSION = 16
+SCHEMA_VERSION = 17
 DB_NAME = "darkfluenzer.sqlite3"
 
 ORDER_KINDS = ("image", "video")
@@ -636,6 +636,15 @@ CREATE TABLE job_segments (
     duration_s REAL,
     done_at    TEXT,
     PRIMARY KEY (job_id, idx)
+);
+""",
+    17: """
+-- Befehl -> Workflow des Default-Kontakts (V0 §8.1, FL-6); ohne Eintrag gilt der Medien- bzw.
+-- (animate) Video-Workflow
+CREATE TABLE default_commands (
+    command  TEXT PRIMARY KEY
+             CHECK (command IN ('clone', 'pose', 'style', 'remix', 'animate', 'edit')),
+    workflow TEXT NOT NULL
 );
 """,
 }
@@ -1972,9 +1981,12 @@ class Store:
                     (row["customer_id"],),
                 )
             }
-            return dict(row) | {"sender_ids": ids}
+            commands = dict(db.execute("SELECT command, workflow FROM default_commands"))
+            return dict(row) | {"sender_ids": ids, "command_workflows": commands}
 
-    def update_default_contact(self, revision: int, fields: dict, sender_ids: dict) -> dict:
+    def update_default_contact(
+        self, revision: int, fields: dict, sender_ids: dict, commands: dict | None = None
+    ) -> dict:
         """Operator-Felder speichern (CAS auf die Revision); Absender-IDs sind Identitäten des
         internen Kontakts je Plattform (Konto = Kanal der Influencerin)."""
         allowed = {
@@ -2003,6 +2015,12 @@ class Store:
             else:
                 db.execute(
                     "UPDATE default_contact SET revision = revision + 1, updated_at = ?", (now(),)
+                )
+            if commands is not None:  # vollständige Zuordnung ersetzt die bisherige
+                db.execute("DELETE FROM default_commands")
+                db.executemany(
+                    "INSERT INTO default_commands (command, workflow) VALUES (?,?)",
+                    [(c, w) for c, w in commands.items() if w],
                 )
             cid = current["customer_id"]
             for (platform, account), sender in sender_ids.items():
@@ -2744,6 +2762,13 @@ class Store:
 
     def media_by_path(self, rel: str) -> dict | None:
         row = self.db.execute("SELECT * FROM media WHERE path = ?", (rel,)).fetchone()
+        return dict(row) if row else None
+
+    def media_by_sha(self, sha256: str) -> dict | None:
+        """Medium mit genau diesem Inhalt (Herkunftsprüfung, z. B. Kloner-Befehl edit)."""
+        if not sha256:
+            return None
+        row = self.db.execute("SELECT * FROM media WHERE sha256 = ?", (sha256,)).fetchone()
         return dict(row) if row else None
 
     def media_children(self, media_id: int) -> list[int]:
