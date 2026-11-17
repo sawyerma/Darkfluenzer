@@ -45,3 +45,55 @@ test("ohne Quittung: Statusabfrage, bei 404 derselbe Befehl mit derselben reques
   expect(posted).toEqual([sent.requestId, sent.requestId]); // erneut gesendet, dieselbe request_id
   expect(unknown).toBe(2); // zweimal „Ergebnis unbekannt, Status wird geprüft“
 });
+
+test("4xx vor dem Journal ist endgültig: ein Versuch, kein „Verbindung unterbrochen“, settle endet (FABLE-009)", async () => {
+  const posted: number[] = [];
+  let reject = 413;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/v1/session") {
+        return new Response(null, { status: 204, headers: { "X-CSRF-Token": "t", "X-Command-Wait-S": "0.02" } });
+      }
+      if (url === "/api/v1/command") {
+        posted.push((init!.body as Uint8Array).length);
+        return new Response(reject === 413 ? "Befehl zu groß" : "Ungültiger CommandRequest", { status: reject });
+      }
+      if (url.startsWith("/api/v1/command/")) return new Response("", { status: 404 });
+      throw new Error(`unerwartet ${url}`);
+    }),
+  );
+  await refreshSession();
+  const command = { case: "pauseQueue", value: { paused: true } } as const;
+  const sent = await sendCommand(command);
+  expect(posted.length).toBe(1); // kein erneutes Hochladen des ganzen Körpers
+  expect(sent.accepted).toBe(false);
+  expect(sent.unknown).toBe(false);
+  expect(sent.detail).toBe("Abgewiesen (413): Befehl zu groß");
+
+  // Quittung fehlt, Status 404, erneutes Senden wird abgewiesen -> Endzustand statt Schleife
+  reject = 400;
+  const receipt = await settle(command, 0n, sent.requestId, () => {});
+  expect(receipt.status).toBe(CommandStatus.REJECTED);
+  expect(receipt.detail).toBe("Abgewiesen (400): Ungültiger CommandRequest");
+  expect(posted.length).toBe(2);
+});
+
+test("5xx bleibt „Ergebnis unbekannt“: gleiche request_id, danach Statusabfrage (FABLE-009)", async () => {
+  const posted: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/v1/session") return new Response(null, { status: 204, headers: { "X-CSRF-Token": "t" } });
+      if (url === "/api/v1/command") {
+        posted.push(fromBinary(CommandRequestSchema, init!.body as Uint8Array).requestId);
+        return new Response("", { status: 500 });
+      }
+      throw new Error(`unerwartet ${url}`);
+    }),
+  );
+  const sent = await sendCommand({ case: "pauseQueue", value: { paused: true } });
+  expect(sent.unknown).toBe(true);
+  expect(sent.detail.startsWith("Verbindung unterbrochen")).toBe(true);
+  expect(new Set(posted)).toEqual(new Set([sent.requestId]));
+});

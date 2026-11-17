@@ -30,6 +30,7 @@ const OUTCOME: Partial<Record<CommandStatus, string>> = {
   [CommandStatus.FAILED]: "Fehlgeschlagen",
   [CommandStatus.UNKNOWN]: "Ergebnis unbekannt",
   [CommandStatus.CANCELLED]: "Abgebrochen",
+  [CommandStatus.REJECTED]: "Abgewiesen",
 };
 
 export interface CommandResult {
@@ -37,6 +38,8 @@ export interface CommandResult {
   detail: string;
   entity: string;
   requestId: string;
+  /** Ergebnis unbekannt (Netz weg oder Serverfehler 5xx): Status abfragen, nie neu ausführen. */
+  unknown: boolean;
 }
 
 /** Sendet einen Befehl; ``expectedVersion`` = gesehene Domain-Version (CAS, z. B. Workflows.version). */
@@ -47,14 +50,20 @@ export async function sendCommand(command: Command, expectedVersion = 0n, reques
     try {
       let resp = await post(body, attempt === 0 ? csrfToken() : await refreshSession());
       if (resp.status === 401 || resp.status === 403) resp = await post(body, await refreshSession());
-      if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
+      if (resp.status >= 400 && resp.status < 500) {
+        // Vor dem Befehlsjournal abgewiesen (400 ungültig, 413 zu groß, 415 Typ, 403 Herkunft):
+        // endgültig, kein erneutes Hochladen und kein „Ergebnis unbekannt“ (FABLE-009).
+        const why = (await resp.text()).trim();
+        return { accepted: false, detail: `Abgewiesen (${resp.status})${why ? `: ${why}` : ""}`, entity: "", requestId, unknown: false };
+      }
+      if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`); // 5xx: Ergebnis unbekannt
       const answer = fromBinary(CommandResponseSchema, new Uint8Array(await resp.arrayBuffer()));
-      return { accepted: answer.status === CommandStatus.ACCEPTED, detail: answer.detail, entity: answer.entity, requestId };
+      return { accepted: answer.status === CommandStatus.ACCEPTED, detail: answer.detail, entity: answer.entity, requestId, unknown: false };
     } catch (e) {
       failure = e instanceof Error ? e.message : String(e);
     }
   }
-  return { accepted: false, detail: `Verbindung unterbrochen – Ergebnis unbekannt (${failure})`, entity: "", requestId };
+  return { accepted: false, detail: `Verbindung unterbrochen – Ergebnis unbekannt (${failure})`, entity: "", requestId, unknown: true };
 }
 
 function post(body: Uint8Array, csrf: string): Promise<Response> {
@@ -113,7 +122,8 @@ export const UNKNOWN_NOTICE = "Ergebnis unbekannt, Status wird geprüft";
 
 /** Bis zum Endzustand warten (BUG-024): Zeit abgelaufen oder Verbindung weg -> Status abfragen;
  *  „in Bearbeitung“ -> weiter warten; 404 -> DENSELBEN Befehl mit derselben request_id erneut
- *  senden (das Backend führt ihn höchstens einmal aus), nie eine neue request_id. */
+ *  senden (das Backend führt ihn höchstens einmal aus), nie eine neue request_id. Wird der erneut
+ *  gesendete Befehl abgewiesen, ist das der Endzustand (FABLE-009). */
 export async function settle(command: Command, version: bigint, requestId: string, onUnknown: () => void): Promise<CommandReceipt> {
   for (;;) {
     const receipt = await terminalReceipt(requestId, commandWaitMs());
@@ -121,7 +131,12 @@ export async function settle(command: Command, version: bigint, requestId: strin
     onUnknown();
     const answer = await commandStatus(requestId);
     if (answer.kind === "receipt" && TERMINAL.has(answer.receipt.status)) return answer.receipt;
-    if (answer.kind === "missing") await sendCommand(command, version, requestId);
+    if (answer.kind === "missing") {
+      const again = await sendCommand(command, version, requestId);
+      if (!again.accepted && !again.unknown) {
+        return create(CommandReceiptSchema, { requestId, status: CommandStatus.REJECTED, detail: again.detail });
+      }
+    }
   }
 }
 
@@ -146,7 +161,7 @@ export function useCommand() {
       const result = await sendCommand(command, opts.version ?? 0n);
       if (!result.accepted) {
         setNotice(result.detail);
-        if (result.detail.startsWith("Verbindung unterbrochen")) {
+        if (result.unknown) {
           const late = await settle(command, opts.version ?? 0n, result.requestId, () => setNotice(UNKNOWN_NOTICE));
           setNotice(late.status === CommandStatus.COMPLETED ? (opts.done ?? "") : `${OUTCOME[late.status] ?? ""} ${late.detail}`.trim());
           return late.status === CommandStatus.COMPLETED ? { ...result, accepted: true, entity: late.entity } : null;
@@ -159,7 +174,7 @@ export function useCommand() {
       }
       const receipt = await settle(command, opts.version ?? 0n, result.requestId, () => setNotice(UNKNOWN_NOTICE));
       if (receipt.status !== CommandStatus.COMPLETED) {
-        setNotice(`${OUTCOME[receipt.status] ?? ""}${receipt.detail ? `: ${receipt.detail}` : ""}`);
+        setNotice([OUTCOME[receipt.status], receipt.detail].filter(Boolean).join(": "));
         return null;
       }
       setNotice(opts.done ?? "");

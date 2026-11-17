@@ -198,6 +198,19 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-009 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-117“)
+Commit: siehe git log „FABLE-009“ / frontend/src/core/commands.ts
+Behauptung: BESTÄTIGT – sendCommand behandelte jede Nicht-2xx-Antwort wie Verbindungsverlust: drei
+  Versuche (bei 413 jedes Mal der ganze Körper), dann „Verbindung unterbrochen“; settle bekam 404 und
+  sendete alle 30 s erneut, ohne Ende, Knopf gesperrt
+Korrektur: 4xx (vor dem Befehlsjournal abgewiesen) ist endgültig: ein Versuch, Meldung
+  „Abgewiesen (413): Befehl zu groß“; wird der in settle erneut gesendete Befehl abgewiesen, ist das der
+  Endzustand; 5xx und Netzfehler bleiben „Ergebnis unbekannt“ mit derselben request_id
+Nachweis: frontend tests/commands.test.ts (4xx endgültig und settle endet; 5xx unbekannt) vor der
+  Korrektur rot, danach grün; alle 14 Frontend-Tests und npm run build grün
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
+Bearbeiter/Datum: Claude, 17.11.2026
+
 ID: FABLE-010 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-118“)
 Commit: siehe git log „FABLE-010“ / media.gallery.media_candidates
 Behauptung: BESTÄTIGT – die Sperre „gehört zu einem laufenden Job“ galt nur für ComfyUIs Ausgabeordner;
