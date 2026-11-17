@@ -220,6 +220,8 @@ Mac-Lauf 17.11.2026: timm 1.0.31 in der ComfyUI-venv (nur dieses Paket), Modelle
   ComfyUI 1 neu gestartet; LUSTIFY Job 95 → Knoten 8 an Ausgang 7, Medium 98: low 0,88, Körperstellen gemessen
   E17 Teil 1: technische Qualität (Schärfe, Rauschen, Beschnitt, Kontrast) als Knoten; Job 96 → Medium 99 mit Inhalt
   und Qualität (Knoten 9000/9001); Test tests/test_checks.py::test_quality_node_measures_blur_noise_and_clipping
+  E17 Teil 2: Q-ReAlign-Pro-9B als Knoten (12 Dateien mit SHA-256, Download einmal hängen geblieben und neu
+  gestartet); Job 99 → Medium 102 mit Inhalt, Technik und Qualität 0,998; Freigabe beim /free belegt (Log)
 Ergebnis: Implementierung PASS (messen); Schwellen, Entscheidung, weitere Prüfer OFFEN
 Bearbeiter/Datum: Claude, 17.11.2026
 ```

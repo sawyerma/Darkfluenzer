@@ -26,6 +26,8 @@ import timm
 import torch
 from safetensors.torch import load_file
 
+from .memory import register
+
 FOLDER = "checks"  # Modellordner (extra_model_paths.yaml: checks: checks)
 DETECTOR_SIZE = 640
 NMS_SCORE, NMS_IOU = 0.25, 0.45  # wie nudenet.py
@@ -37,8 +39,8 @@ LABELS = (
     "BUTTOCKS_COVERED",
 )  # fmt: skip
 
-_detectors: dict[str, object] = {}
-_classifiers: dict[str, tuple] = {}
+_detectors: dict[str, object] = register({})
+_classifiers: dict[str, tuple] = register({})
 
 
 def _detector(name: str):

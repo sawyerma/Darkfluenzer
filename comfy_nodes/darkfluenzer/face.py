@@ -22,12 +22,14 @@ import cv2
 import folder_paths
 import numpy as np
 
+from .memory import register
+
 FOLDER = "face"  # Modellordner (extra_model_paths.yaml: face: face)
 ARCFACE_SIZE = 112
 SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
 cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR)
 
-_models: dict[tuple, tuple] = {}  # (Dateien, Schwelle) -> (Detektor, Erkenner, ArcFace)
+_models: dict[tuple, tuple] = register({})  # (Dateien, Schwelle) -> (Detektor, Erkenner, ArcFace)
 _centers: dict[str, tuple] = {}  # Signatur des Referenzsatzes -> (Schwerpunkte, Anzahl)
 
 

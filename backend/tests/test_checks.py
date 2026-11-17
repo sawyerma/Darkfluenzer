@@ -107,8 +107,13 @@ def _node_module(face_dir: Path):
     fake.get_full_path_or_raise = lambda folder, name: str(face_dir / name)
     fake.get_filename_list = lambda folder: []
     sys.modules["folder_paths"] = fake
+    package = types.ModuleType("df_nodes")  # Paket-Rahmen für ``from .memory import register``
+    package.__path__ = []
+    memory = types.ModuleType("df_nodes.memory")
+    memory.register = lambda cache: cache
+    sys.modules |= {"df_nodes": package, "df_nodes.memory": memory}
     path = project_root() / "comfy_nodes" / "darkfluenzer" / "face.py"
-    spec = importlib.util.spec_from_file_location("df_face_node", path)
+    spec = importlib.util.spec_from_file_location("df_nodes.face", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -189,7 +194,8 @@ def test_check_plan_needs_models_and_a_figure_for_identity(setup, monkeypatch):
     # ohne Modelldateien (Testprojekt) nur die modellfreie technische Qualitätsprüfung
     assert [s.name for s, _ in pipeline.check_plan(cfg, man, wf, None)] == ["quality"]
     monkeypatch.setattr(models, "file_state", lambda mf, base: "present")
-    assert [s.name for s, _ in pipeline.check_plan(cfg, man, wf, None)] == ["content", "quality"]
+    names = [s.name for s, _ in pipeline.check_plan(cfg, man, wf, None)]
+    assert names == ["content", "quality", "quality_score"]
     lora = models.Lora(
         key="k", target="loras/characters/clara/k.safetensors", size=1, sha256="a" * 64,
         base_engine="lustify_sdxl", base_file=man.engines["lustify_sdxl"].files[0], dataset="d",
