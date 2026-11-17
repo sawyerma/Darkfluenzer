@@ -114,6 +114,7 @@
 | BUG-106 | Schwere Arbeit im Hauptstrang: `_reply_internal` hasht und kennzeichnet Dateien synchron; lange Datenbankabfragen laufen dort ebenfalls. | CODE | Arbeiter-Threads; Messwert für die Verzögerung. | B SP0 |
 | BUG-107 | `pipeline.media_candidates` liest je Beobachterrunde alle abgeschlossenen Jobs (`finished_jobs(0, 1_000_000)`); `add_media` bildet je Eintrag das Maximum über das Journal. (In Fables Blatt als „BUG-105“ geführt; 105 ist bereits vergeben.) | CODE | Position merken, Index, Zählertabelle. | B SP0 |
 | BUG-108 | `comfy.ui_to_api` bricht bei offiziellen Vorlagen aus älteren Knotenfassungen ab (dynamische Auswahl mit weniger gespeicherten Werten, z. B. `SaveVideo` in `video_ltx2_5_flf2v`: „pop from empty list“), setzt sonst fehlende Werte auf `None`; `check_graph` meldet wachsende Eingänge (`values.a` von `ComfyMathExpression`) als unbekannt, auch im abgenommenen `ltx25_i2v`. | CODE | Standard bzw. erste Option wie im Frontend; Autogrow-Unterreingänge anerkennen. | A (Zeitachse B4) |
+| BUG-109 | Wiederholen und „Wiederholen“ (repeat_job_id) eines Sekunden-Videos (LTX) scheitern: der Job speichert `segment_s = 0`, `video_plan` lehnt jedes `segment_s` ab („Abschnitte gibt es bei diesem Workflow nicht“). Gefunden mit dem Regressionstest zu FABLE-008. | CODE | `segment_s = 0` heißt keine Abschnitte; andere Werte bleiben abgelehnt. | A |
 
 ## 4. P3
 
@@ -195,6 +196,18 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 **Abschluss:** PASS erst, wenn der Test grün ist, die Änderung auf `main` liegt und der Mac-Lauf belegt ist.
 
 ## 7. Prüfprotokoll (ab 17.11.2026)
+
+```text
+ID: FABLE-008 (Audit Fable 17.11., P0; im Auditblatt vorläufig „BUG-116“) und BUG-109
+Commit: siehe git log „FABLE-008“ / media.pipeline.create_render (upload_tiers), video_plan (seconds)
+Behauptung FABLE-008: BESTÄTIGT – weitere Schlüsselbilder (bb7c98f) gingen nicht in die Inhaltsstufe ein; ein
+  explizites oder fremdes Schlüsselbild ergab ein Video der Stufe standard (Klasse von BUG-047)
+Nachweis: tests/test_orders.py::test_keyframes_count_for_the_content_tier (Galerie standard/explizit, fremdes Bild,
+  gemischt, Auftrag und Wiederholen) – vor der Korrektur rot („standard“ statt „explizit“), danach grün;
+  ::test_retry_of_a_seconds_video_keeps_its_length (BUG-109) – vorher rot („Abschnitte gibt es … nicht“)
+Ergebnis: PASS (beide); Auditregister docs/bugs_fable_v1.md führt FABLE-001…017, BUG-109 ff. bleiben hier
+Bearbeiter/Datum: Claude, 17.11.2026
+```
 
 ```text
 ID: BUG-108

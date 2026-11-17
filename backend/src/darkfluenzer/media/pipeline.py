@@ -147,7 +147,7 @@ def video_plan(wf: Workflow, graph: dict, values: dict, max_s: float | None) -> 
     fps_param = wf.params[spec.fps]
     fps = float(values.get(spec.fps, graph[fps_param.node]["inputs"][fps_param.input]))
     if spec.mode == "seconds":  # ein Lauf, Länge direkt in Sekunden (LTX, SP1 Schritt 10)
-        if "segment_s" in video:
+        if video.get("segment_s", 0.0) != 0.0:  # 0 = keine Abschnitte (so im Job gespeichert)
             raise PipelineError(f"{wf.title}: Abschnitte gibt es bei diesem Workflow nicht.")
         top = min(max_s, spec.seconds_max)
         default = float(graph[spec.length_node]["inputs"][spec.length_input])
@@ -411,7 +411,7 @@ def create_render(
     parent_tier = store.media_tier(parent_media_id) if parent_media_id is not None else "standard"
     upload_tiers = [
         _input_tier(store, rel) for name, rel in inputs.items() if not wf.params[name].tier_exempt
-    ]
+    ] + [_input_tier(store, kf["image"]) for kf in keyframes]  # Schlüsselbilder (FABLE-008)
     content_tier = models.higher_tier(
         wf.content,
         parent_tier,

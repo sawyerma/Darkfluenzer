@@ -290,3 +290,73 @@ def test_sizes_native_and_upscaled_are_kept_apart(setup):
         96,
         64,
     )
+
+
+def test_keyframes_count_for_the_content_tier(setup):
+    """FABLE-008 (P0, Audit 17.11.): jedes weitere Schlüsselbild zählt für die Inhaltsstufe wie ein
+    Upload – Galerie-Treffer über SHA-256 mit dessen Stufe, fremdes Bild explizit; die höchste Stufe
+    aller Eingaben gilt, auch beim Wiederholen."""
+    cfg, store, man = setup
+
+    def gallery(name: str, color: int, tier: str) -> str:
+        rel = f"evaluation/t/{name}.png"
+        (cfg.local / rel).parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (32, 32), (color, 7, 0)).save(cfg.local / rel)
+        data = (cfg.local / rel).read_bytes()
+        mid = store.add_media(rel, hashlib.sha256(data).hexdigest(), len(data))
+        store.db.execute("UPDATE media SET content_tier = ? WHERE id = ?", (tier, mid))
+        return pipeline.input_from_media(cfg, mid)
+
+    standard, standard2 = gallery("s1", 10, "standard"), gallery("s2", 20, "standard")
+    explicit = gallery("x", 200, "explizit")
+    buf = io.BytesIO()
+    Image.new("RGB", (32, 32), (0, 99, 7)).save(buf, "PNG")
+    foreign = pipeline.store_input(cfg, buf.getvalue(), "fremd.png")
+
+    def render(*frames: str) -> int:
+        return pipeline.create_render(
+            store, man, "ltx25_flf2v", {"prompt": "p", "duration_s": 2.0},
+            {"image": standard, "end_image": standard2}, video_max_s=120, keyframes_max=4,
+            keyframes=[{"at_s": 0.5 + i * 0.5, "image": f} for i, f in enumerate(frames)],
+        )  # fmt: skip
+
+    assert man.workflows["ltx25_flf2v"].content == "standard"
+    tier = lambda job: store.job(job)["content_tier"]  # noqa: E731
+    assert tier(render()) == "standard"
+    assert tier(render(standard)) == "standard"  # Galerie-Medium der Stufe standard
+    assert tier(render(explicit)) == "explizit"  # Galerie-Medium explizit
+    assert tier(render(foreign)) == "explizit"  # fremdes Bild: unbekannt gilt als explizit
+    mixed = render(standard, explicit)
+    assert tier(mixed) == "explizit"  # gemischt: die höchste Stufe
+    order_no, (job,) = orders.create_order(
+        store, man, "ltx25_flf2v", {"prompt": "p", "duration_s": 2.0},
+        {"image": standard, "end_image": standard2}, count=1, video_max_s=120, keyframes_max=4,
+        keyframes=[{"at_s": 1.0, "image": explicit}],
+    )  # fmt: skip
+    assert tier(job) == "explizit"
+    _finish(cfg, store, job, ok=False)
+    (again,) = orders.retry_stage(store, man, order_no, 1, 3, _command("retry-kf"), video_max_s=120)
+    assert tier(again) == "explizit" and store.job(again)["params"]["keyframes"]
+
+
+def test_retry_of_a_seconds_video_keeps_its_length(setup):
+    """BUG-109: Wiederholen eines Sekunden-Videos (LTX) übernimmt duration_s und das gespeicherte
+    segment_s = 0; vorher scheiterte es an „Abschnitte gibt es bei diesem Workflow nicht“. Ein
+    echter Abschnittswert bleibt abgelehnt."""
+    cfg, store, man = setup
+    buf = io.BytesIO()
+    Image.new("RGB", (32, 32), (5, 5, 5)).save(buf, "PNG")
+    image = pipeline.store_input(cfg, buf.getvalue(), "start.png")
+    order_no, (job,) = orders.create_order(
+        store, man, "ltx25_i2v", {"prompt": "p", "duration_s": 3.0}, {"image": image}, count=1,
+        video_max_s=120,
+    )  # fmt: skip
+    assert store.job(job)["params"]["segment_s"] == 0.0
+    _finish(cfg, store, job, ok=False)
+    (again,) = orders.retry_stage(
+        store, man, order_no, 1, 3, _command("retry-ltx"), video_max_s=120
+    )
+    assert store.job(again)["params"]["duration_s"] == 3.0
+    with pytest.raises(pipeline.PipelineError, match="Abschnitte"):
+        pipeline.create_render(store, man, "ltx25_i2v", {"prompt": "p", "segment_s": 2.0},
+                               {"image": image}, video_max_s=120)  # fmt: skip
