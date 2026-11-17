@@ -133,6 +133,16 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 
 ## 4. Pakete (Nummern wie im Backend-Plan)
 
+**Reihenfolge:** Die Frontend-Teile folgen den Etappen des Backend-Plans (§6):
+
+- **A:** SP0 (Seiten in Komponenten teilen), `VideoSettings`, „Auftrag abbrechen“, Ganzzahlprüfung, Befehle mit Zeitlimit und Statusabfrage, Bereich Charakter mit Training und Versionen, Zeitachse, Vorrang in der Warteschlange.
+- **B:** KI-Studio (Chat-Test, Persona, Gedächtnis, Prüfansicht).
+- **C:** Zustandskarten der Default-Kette, Betriebsart, Ausgabeprofil je Befehl, Stapel; Modus der Konversation, Entwürfe, geplante Antworten, Verhaltensprofil; Kundentest mit Latenztafel.
+- **D:** Produktliste, Medienwunsch, Angebot, Produktion mit Prüfwerten, Zustellung, Marke TEST.
+- **E:** Reiter Einstellungen, Kanalkonten, Figur-Filter, Wallet mit PayPal und Kulanz, restliche Härtung.
+- **F:** Betriebsanzeige, Auskunft und Löschung, Release-Kennung, Gesamtlauf.
+
+
 | Paket | Frontend-Umfang | Abnahme |
 |---|---|---|
 | **SP2 Fundament** | Frontend-Teil nach §4.1 (Befehle mit Zeitlimit und Statusabfrage, begrenzte Ereignislisten, Kundenliste/Übersicht per EVENT 26, Kanalstatus je Konto, Figur-Filter, Reiter Einstellungen mit Kanalkonten, kleinere Punkte) | je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet und Einstellungen; Smoke klickt alle sechs Reiter; Verbindungsabbruch während eines Befehls gibt den Knopf wieder frei |

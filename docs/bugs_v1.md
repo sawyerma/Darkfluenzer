@@ -8,7 +8,7 @@
 
 1. **Ablauf je Befund:** gegen den aktuellen Code prüfen; Test schreiben, der den Fehler zeigt (rot); korrigieren; Test grün; Normalfall, Fehlerfall und Neustart prüfen; Lauf auf dem echten Mac; Protokollzeile (§6).
 2. **Belegstufen:** **CODE** im Quelltext gelesen, kein Lauf · **TEST** durch vorhandenen Test belegt · **LIVE** am laufenden System gesehen · **FREMD** Fremdmeldung, vor der Korrektur im Code bestätigen · **HYPOTHESE** nur ein Lauf entscheidet.
-3. **Priorität:** **P0** – die P0-Befunde auf dem Default-Pfad schließt SP1 vor seiner Abnahme, alle übrigen sind vor dem ersten KI-Kanaltest mit Kunden (SP4) behoben (Backend §6) · **P1** vor dem ersten echten Kunden · **P2** danach gezielt · **P3** Pflege.
+3. **Priorität:** **P0** – die P0-Befunde der Default-Kette sind vor der Abnahme von Etappe C geschlossen; alle übrigen vor dem ersten echten Kunden außerhalb des Testbetriebs (Backend §6, Tore) · **P1** vor dem ersten echten Kunden · **P2** danach gezielt · **P3** Pflege.
 4. **Status:** OFFEN · BEHOBEN (Code korrigiert, Mac-Nachweis fehlt) · TEIL (Teil am Mac belegt) · PASS (Mac-Nachweis liegt vor) · WIDERLEGT.
 5. Tests mit Ersatzobjekten (FakeTd, FakeComfy, Testinstanz) sind Regression, kein Nachweis. Keine künstlichen Daten in der echten Datenbank.
 6. Regressionstests: Backend `backend/tests/test_bugs_v1.py` als `test_bugNNN_…` oder im fachlichen Testmodul, Frontend `frontend/tests/`.

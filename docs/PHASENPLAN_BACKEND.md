@@ -302,7 +302,92 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 
 ---
 
-## 6. Reihenfolge (nach Freigabe): Sammelpakete SP0 bis SP6
+## 6. Reihenfolge (verbindlich, Betreiberentscheidung 17.11.2026)
+
+Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, Inhalt §7). Umgesetzt wird in sechs Etappen. Innerhalb einer Etappe gilt die genannte Reihenfolge. Die nächste Etappe beginnt erst nach der Abnahme der vorigen. SP0 steht ganz vorn, weil es die Datenbanksicherung und die Aufteilung von `server.py` enthält.
+
+| Etappe | Inhalt | Am Ende kann der Betreiber |
+|---|---|---|
+| A | Medien: Bild, Video, eigenes Modell | im Cockpit jedes Bild und Video mit Claras Gesicht erzeugen |
+| B | Chatbot | im KI-Studio mit Clara schreiben und Messwerte sehen |
+| C | Telegram | vom Handy Bilder schicken, Ergebnisse zurückbekommen, als Testkunde chatten |
+| D | Verkauf im Test, ohne Geld | die ganze Kette von Wunsch bis Bild im Kundentest durchspielen |
+| E | Einstellungen, Konten, Zahlungen | Zugangsdaten im Cockpit pflegen, PayPal und Gutschein nutzen |
+| F | Betrieb, Recht, Abnahme | Dauerbetrieb und Probephase fahren |
+
+### Etappe A – Medien: Bild, Video, eigenes Modell (im Cockpit)
+
+1. SP0 vollständig (Schritte 1 bis 6).
+2. SP1 Schritt 2 (Render-Worker absichern, Zeitlimit je Workflow), Schritt 10 (Video-Vertrag), Schritt 11 (Auftrag abbrechen); dazu BUG-064, 090, 093.
+3. SP2 Schritt 2 (Inhaltsstufe) und Schritt 11 (Befehlsstatus).
+4. SP5 Schritt 5 (Warteschlange mit Vorrang).
+5. SP3 Schritte 1 bis 7 (Ordner, Datensatz, Training, LoRA-Registry, LoRA im Workflow, aktive LoRA, Gesichtsprüfung).
+6. B4 Video: Abnahme Wan, Vergleich LTX gegen Wan, Zeitachse; dazu aus SP3 die Ausgabe 2K/4K und die Instagram-Profile (Ergänzung, in der Etappenliste von Fable nicht genannt).
+
+**Abnahme A:**
+- Jeder registrierte Bild- und Video-Workflow läuft einmal echt aus dem Cockpit, Videos mit einheitlicher Steuerung.
+- Ein vollständiges Training ist gelaufen.
+- Claras LoRA ist aktiv, und ein Bild liegt mit dem Identitätswert über der Schwelle.
+- Ein 15-s-Video mit vier Schlüsselbildern ist erzeugt.
+- Abbruch und Neustart im Lauf sind bestanden.
+
+**Braucht vom Betreiber:** Charakterfotos, Entscheidung E14. Fehlen sie, laufen die Punkte 1 bis 4 und 6 trotzdem.
+
+### Etappe B – Chatbot (im KI-Studio)
+
+1. SP4 Schritte 1 bis 5 (KI-Laufzeit, Persona, Regelprüfung, strukturierte Funktionen, Gedächtnis).
+
+**Abnahme B:**
+- 20 Nachrichten im Chat-Test mit Messwerten.
+- Persona-Versionen sind angelegt.
+- Die Testsätze der strukturierten Funktionen sind mit Trefferquote gelaufen.
+- Der Gedächtnistest ist bestanden.
+- Die Messung Chat neben Bild- und Videorender ist notiert.
+
+**Danach entscheidet der Betreiber E15.**
+
+### Etappe C – Telegram
+
+1. SP2 Schritte 1, 3, 4, 5, 6, 7 (Aufsicht, Kundenereignisse, ein TDLib-Empfänger, Eingang vervollständigen, ungeklärter Versand, KI-Hinweis).
+2. SP1 Schritte 1, 3, 4, 5, 6, 7, 8, 9, 12 (Rückverfolgung, Reihenfolge und Alben, Referenzen, Vorprüfung und Antwort, Optionen, Aufträge, Rückversand, Postausgang, Betriebsart).
+3. SP3 Schritte 8 und 9 (Kloner-Methode je Befehl, Abnahme mit Figur).
+4. SP4 Schritte 6, 7, 8 (Dialogbetrieb, Verhalten, Kundentest Chat) und die freien Default-Anweisungen aus Schritt 4; dazu C5.1 (Schalter der Influencerin, Bindung an den Charakter; Ergänzung, in der Etappenliste von Fable nicht genannt).
+
+**Abnahme C:** die Abnahmeliste von SP1 mit Claras LoRA; dazu der Kundentest Chat vom Handy mit Messwerten.
+
+**Meilenstein:** Der Betreiber erzeugt vom Handy Bilder und Videos für Instagram (Stapel, Story 9:16) und chattet als Testkunde mit Clara. Der Testbetrieb bleibt an; Clara antwortet nur dem Default und freigegebenen Test-Chats.
+
+### Etappe D – Verkauf im Test, ohne Geld
+
+1. SP5 Schritte 1, 2, 6, 7, 8, 9, 11, 12 (Produkte, Angebot, Produktion, Prüfung, Systemfreigabe, Zustellung, Handy-Ausnahmeweg, Kundentest mit Bild).
+
+**Abnahme D:** Kundentest von Wunsch über Angebot und Testfreigabe bis zum zugestellten Bild und Video. Solange E16 und E17 offen sind, gibt der Betreiber frei, im Cockpit oder vom Handy.
+
+### Etappe E – Einstellungen, Konten, Zahlungen
+
+1. SP2 Schritte 9, 10, 12 (Kanalkonten als Liste, Einstellungen, Starter) und die restliche Frontend-Härtung.
+2. Instagram am echten Konto (Meta-App, Tunnel).
+3. SP5 Schritt 3 (öffentlicher Eingang, PayPal), SP2 Schritt 8 und SP5 Schritt 4 (Gutschein, Fehlbetrag), SP5 Schritt 10 (Nachlauf); dazu C5a.1 Krypto, falls zugeschaltet (Ergänzung, in der Etappenliste von Fable nicht genannt).
+
+**Abnahme E:**
+- Zugangsdaten sind im Cockpit eingetragen und geprüft.
+- Zwei Konten laufen nebeneinander.
+- Eine echte PayPal-Zahlung eines Testkunden ist samt Erstattung durchgelaufen.
+- Ein Gutschein ist bestätigt.
+
+### Etappe F – Betrieb, Recht, Abnahme
+
+1. SP6 Schritte 1 bis 9 (Dienst, Ruhezustand, Betriebsmeldungen, Sicherung, Aufräumen, Beobachter, Release, Recht, Probephase).
+
+### Tore
+
+- Automatik für echte Kunden bleibt aus, bis KI-Hinweis und Sperre bei Minderjährigkeit abgenommen sind (Etappe C).
+- Echte Kunden außerhalb des Testbetriebs erst, wenn alle P0-Befunde aus `bugs_v1.md` geschlossen sind, darunter BUG-050 (Gutscheintext, Etappe E) – Ergänzung zur Wahrung der P0-Regel.
+- Der erste zahlende Kunde erst nach SP6 Schritt 8 (Recht).
+- B5.6 Referenzanalyse (SP3) beginnt, sobald der Betreiber ein Bildmodell freigibt; sie gehört dann zu der Etappe, die gerade läuft.
+- Später, je mit eigener Freigabe: SP7 Instagram-Signale, Telegram-Bot-Adapter, zweiter Rechner, Wechsel Instagram zu Telegram (C5.9), Default über Instagram (C4), WhatsApp und Fansly (C8).
+
+### 6.1 Sammelpakete (Übersicht)
 
 | Paket | Inhalt (bisherige Nummern) | Steht am Ende |
 |---|---|---|
@@ -313,11 +398,6 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 | **SP4 Clara chattet** (§7.3, ausgeschrieben) | B5.1–B5.4, B5.4a, C5.2–C5.4, T1; C5.1 (Influencerin-Block) | Kundentest-Chat mit Messwerten, Clara antwortet Kunden selbst |
 | **SP5 Verkauf automatisch** (§7.5, ausgeschrieben) | C5a, C5.5–C5.8, C5.6a, C5.10, T2; dazu unverändert Krypto (C5a.1) | Zahlung rein, Bild raus, ohne Klick |
 | **SP6 Betrieb, Recht, Abnahme** (§7.7, ausgeschrieben) | D1–D3, C6; später mit eigener Freigabe C4, C5.9, C8, SP7, Telegram-Bot-Adapter, zweiter Rechner | unbeaufsichtigter Dauerbetrieb, Probephase bestanden |
-
-- **Reihenfolge:** DOK-1 (erledigt) → SP0 → SP1 bis SP6 → später, je mit eigener Freigabe: SP7 Instagram-Signale, Telegram-Bot-Adapter, zweiter Rechner (SP6 Schritt 10).
-- SP2 bis SP6 werden wie SP1 in Code-Tiefe ausgeschrieben, bevor sie beginnen; bis dahin gelten die bisherigen Paketbeschreibungen in §7.
-- SP3 läuft parallel, sobald Charakterfotos vorliegen. Höchstens zwei Agenten, keine gleichzeitigen schweren GPU-Läufe.
-- **P0-Regel:** Die P0-Befunde auf dem Default-Pfad schließt SP1 vor seiner Abnahme; alle übrigen P0 sind vor dem ersten KI-Kanaltest mit Kunden (SP4) behoben.
 
 ---
 
