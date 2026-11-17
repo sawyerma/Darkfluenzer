@@ -153,6 +153,8 @@ class StoreBase:
         # Einzelne Statements statt executescript(): executescript würde die laufende
         # Transaktion implizit committen; so bleibt die Migration atomar und parallel sicher.
         pending = self.db.execute("PRAGMA user_version").fetchone()[0]
+        if pending == SCHEMA_VERSION:  # aktuell: keine Schreibsperre nehmen (FABLE-016)
+            return
         backup = None
         if 1 <= pending < SCHEMA_VERSION:  # bestehende Datenbank: vorher sichern
             backup = self.backup(f"vor-migration{pending + 1}")

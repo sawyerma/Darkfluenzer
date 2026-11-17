@@ -481,3 +481,27 @@ def test_explicit_or_unknown_tier_never_reaches_customers(store):
         store.db.execute("UPDATE media SET content_tier = 'standard' WHERE id = ?", (media_id,))
     with pytest.raises(StoreError, match="bereits explizit"):
         store.raise_content_tier(media_id)
+
+
+def test_opening_a_current_store_needs_no_write_lock(tmp_path):
+    """FABLE-016: ohne anstehende Migration öffnet ein Store, während ein anderer Schreiber die
+    Sperre hält (früher wartete jede Instanz in _migrate auf BEGIN IMMEDIATE)."""
+    Store(tmp_path).close()
+    holder = sqlite3.connect(tmp_path / store_module.DB_NAME, isolation_level=None)
+    holder.execute("BEGIN IMMEDIATE")
+    opened: list[int] = []
+
+    def open_store() -> None:
+        s = Store(tmp_path)
+        opened.append(s.db.execute("PRAGMA user_version").fetchone()[0])
+        s.close()
+
+    worker = threading.Thread(target=open_store)
+    try:
+        worker.start()
+        worker.join(2.0)
+        assert not worker.is_alive() and opened == [store_module.SCHEMA_VERSION]
+    finally:
+        holder.execute("ROLLBACK")
+        holder.close()
+        worker.join()

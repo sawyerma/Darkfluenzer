@@ -198,6 +198,17 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-016 (Audit Fable 17.11., P3; im Auditblatt vorläufig „BUG-124“)
+Commit: siehe git log „FABLE-016“ / store.db.StoreBase._migrate
+Behauptung: BESTÄTIGT – jede Store-Instanz öffnete in _migrate eine Schreibtransaktion (BEGIN IMMEDIATE),
+  auch ohne anstehende Migration; hielt ein anderer Schreiber die Sperre, wartete das Öffnen bis zu 30 s
+Korrektur: Schemaversion zuerst ohne Sperre lesen; aktuell → sofort fertig; sonst wie bisher in der
+  Transaktion erneut prüfen und migrieren
+Nachweis: tests/test_store.py::test_opening_a_current_store_needs_no_write_lock (vor der Korrektur rot:
+  Öffnen blockiert, danach grün); test_journal, test_lora (Migrationen), test_server grün
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
+Bearbeiter/Datum: Claude, 17.11.2026
+
 ID: FABLE-017 (Audit Fable 17.11., P3; im Auditblatt vorläufig „BUG-125“)
 Commit: siehe git log „FABLE-017“ / channels.telegram._copy_whole
 Behauptung: BESTÄTIGT – der Anhang wurde direkt in die Zieldatei kopiert; nach einem Abbruch blieb eine
