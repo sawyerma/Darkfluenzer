@@ -82,6 +82,20 @@ def test_ai_mark_png_jpeg_mp4(tmp_path):
         aimeta.mark(tmp_path / "d.webp", tmp_path / "out" / "d.webp")
 
 
+def test_place_copy_never_overwrites_other_content(tmp_path):
+    """FABLE-006: ein Artefakt im Auftragsordner wird nie mit anderem Inhalt überschrieben."""
+    from darkfluenzer.core.delivery import _place_copy
+
+    src = tmp_path / "neu.png"
+    src.write_bytes(b"neu")
+    dst = tmp_path / "work" / "master.png"
+    dst.parent.mkdir()
+    dst.write_bytes(b"alt")
+    with pytest.raises(StoreError, match="anderem Inhalt"):
+        _place_copy(src, dst, hashlib.sha256(b"neu").hexdigest())
+    assert dst.read_bytes() == b"alt"
+
+
 def test_voucher_codes_are_masked():
     text, codes = vouchers.extract("hier: ab12-cd34ef-gh56 danke, Tel 0171-123456-7890")
     assert codes == ["AB12-CD34EF-GH56"] and "ab12" not in text and "0171-123456-7890" in text
@@ -286,6 +300,9 @@ def test_customer_order_chain(cfg, monkeypatch):
         assert await send(retry_delivery=commands_pb2.RetryDelivery(order_no=no)) == ""
         d2 = store.deliveries(o1.id)[-1]
         assert d2["id"] != d1["id"] and d2["status"] == "pending"
+        att2 = store.message(d2["message_id"])["attachments"][0]
+        assert att2["path"] != att["path"]  # FABLE-006: eigene Zustellkopie je Versuch
+        assert hashlib.sha256((cfg.local / att["path"]).read_bytes()).hexdigest() == att["sha256"]
         store.set_message_status(d2["message_id"], "sent", platform_message_id="77")
         cockpit._message_changed(d2["message_id"])
         assert store.order(no).status == "delivered"

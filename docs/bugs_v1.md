@@ -198,6 +198,21 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-006 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-114“)
+Commit: siehe git log „FABLE-006“ / core.delivery (_place_copy, _delivery_copy), store.artifact_at
+Behauptung: BESTÄTIGT – Master (work/<Nr>_ergebnis) und Zustellkopie (sent/<Nr>) hatten je Auftrag einen
+  festen Pfad: nach „Neu“ überschrieb die zweite Freigabe den unveränderlichen alten Master (os.replace
+  über 0444) und scheiterte dann am eindeutigen Artefaktpfad; „Erneut senden“ überschrieb die schon
+  gesendete Zustellkopie
+Korrektur: Master nach Inhalt benannt (…_ergebnis_<sha12>), gleicher Inhalt nutzt dasselbe Artefakt;
+  _place_copy überschreibt nie anderen Inhalt; Zustellkopie je Versuch in sent/<n>/ mit unverändertem
+  Dateinamen
+Nachweis: tests/test_customer_orders.py::test_place_copy_never_overwrites_other_content und die neue
+  Prüfung in ::test_customer_order_chain (eigene Kopie je Versuch, erste Kopie unverändert) vor der
+  Korrektur rot, danach grün; test_store, test_server grün
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
+Bearbeiter/Datum: Claude, 17.11.2026
+
 ID: FABLE-005 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-113“)
 Commit: siehe git log „FABLE-005“ / channels.telegram (_spawn, _auth_step)
 Behauptung: BESTÄTIGT – Anmeldeschritte und eingehende Nachrichten liefen als asyncio-Aufgaben ohne

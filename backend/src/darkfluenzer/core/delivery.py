@@ -17,9 +17,12 @@ from .base import _Call, _document_attachment, log
 
 
 def _place_copy(src: Path, dst: Path, sha256: str) -> None:
-    """Bytegleiche Kopie (Hash geprüft); eine vorhandene gleiche Kopie bleibt."""
-    if dst.is_file() and sha256_file(dst) == sha256:
-        return
+    """Bytegleiche Kopie (Hash geprüft); eine vorhandene gleiche Kopie bleibt, eine mit anderem
+    Inhalt wird nie überschrieben (Artefakte sind unveränderlich, FABLE-006)."""
+    if dst.is_file():
+        if sha256_file(dst) == sha256:
+            return
+        raise StoreError(f"{dst.name}: Ziel existiert mit anderem Inhalt.")
     if sha256_file(src) != sha256:
         raise StoreError(f"{src.name}: Datei weicht vom Galerie-Eintrag ab.")
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -42,9 +45,11 @@ def _copies_intact(local: Path, attachments: list[dict]) -> str:
 class DeliveryMixin:
     """Freigabe, Zustellkopie, Liefer-Gate; Teil von ``Cockpit``."""
 
-    def _delivery_copy(self, order, master: Path) -> Path:
-        """Gekennzeichnete Zustellkopie (Regel 12 d) im Ordner sent des Auftrags."""
-        copy = self.store.order_dir(order) / "sent" / f"{order.order_no}{master.suffix.lower()}"
+    def _delivery_copy(self, order, master: Path, attempt: int) -> Path:
+        """Gekennzeichnete Zustellkopie (Regel 12 d) im Ordner sent/<Versuch> des Auftrags: eine
+        gesendete Kopie wird nie überschrieben (FABLE-006), der Dateiname bleibt die Nummer."""
+        name = f"{order.order_no}{master.suffix.lower()}"
+        copy = self.store.order_dir(order) / "sent" / str(attempt) / name
         aimeta.mark(master, copy)
         return copy
 
@@ -89,16 +94,17 @@ class DeliveryMixin:
         if reason := self._send_ready(order):
             return reason
         src = self.cfg.local / result["path"]
-        master = (
-            self.store.order_dir(order) / "work" / f"{order.order_no}_ergebnis{src.suffix.lower()}"
-        )
+        # Name nach Inhalt: ein neues Ergebnis nach „Neu“ überschreibt nie den alten Master
+        name = f"{order.order_no}_ergebnis_{result['sha256'][:12]}{src.suffix.lower()}"
+        master = self.store.order_dir(order) / "work" / name
+        attempt = len(self.store.deliveries(order.id)) + 1
         await asyncio.to_thread(_place_copy, src, master, result["sha256"])
-        copy = await asyncio.to_thread(self._delivery_copy, order, master)
+        copy = await asyncio.to_thread(self._delivery_copy, order, master, attempt)
         attachment = await asyncio.to_thread(_document_attachment, self.cfg.local, copy)
         with self.store.tx():
-            art = self.store.add_artifact(  # Hash eben in _place_copy geprüft (FABLE-003)
+            art = self.store.artifact_at(master) or self.store.add_artifact(
                 order.order_no, "master", master, job_id=result["job_id"], sha256=result["sha256"]
-            )
+            )  # Hash eben in _place_copy geprüft (FABLE-003); gleicher Inhalt: derselbe Master
             self.store.record_approval(order.order_no, art.id, "approved", "Betreiber")
             delivery = approval.prepare_delivery(
                 self.store, order.order_no, art.id, order.customer_no, disk_sha=result["sha256"]
@@ -123,7 +129,7 @@ class DeliveryMixin:
         last = deliveries[-1]
         master = self.cfg.local / self.store.artifact(last["artifact_id"]).path
         disk_sha = await asyncio.to_thread(approval.file_sha, master)
-        copy = await asyncio.to_thread(self._delivery_copy, order, master)
+        copy = await asyncio.to_thread(self._delivery_copy, order, master, len(deliveries) + 1)
         attachment = await asyncio.to_thread(_document_attachment, self.cfg.local, copy)
         with self.store.tx():
             delivery = approval.prepare_delivery(

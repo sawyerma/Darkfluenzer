@@ -331,6 +331,12 @@ class OrdersMixin:
         os.chmod(file, 0o444)
         return self.artifact(cur.lastrowid)
 
+    def artifact_at(self, file: Path) -> Artifact | None:
+        """Artefakt einer Datei unter ``local/`` oder None (gleicher Inhalt, gleicher Pfad)."""
+        rel = file.resolve().relative_to(self.local.resolve()).as_posix()
+        row = self.db.execute("SELECT id FROM artifacts WHERE path = ?", (rel,)).fetchone()
+        return self.artifact(row["id"]) if row else None
+
     def artifact(self, artifact_id: int) -> Artifact:
         row = self.db.execute("SELECT * FROM artifacts WHERE id = ?", (artifact_id,)).fetchone()
         if row is None:
