@@ -53,45 +53,62 @@ class RenderMixin:
 
     async def render_worker(self, lane: _Lane) -> None:
         """Führt die Renderjobs einer Instanz nacheinander (FIFO) aus; vor jedem Start prüft die
-        gemeinsame Zulassung den freien Speicher (§4.2)."""
+        gemeinsame Zulassung den freien Speicher (§4.2). Ein Fehler außerhalb des Renderlaufs wird
+        protokolliert und beendet die Bahn nie (SP1 Schritt 2)."""
         while True:
             job_id = await lane.renders.get()
-            await lane.resume.wait()  # angehalten: nächster Job wartet
-            job = self.store.job(job_id)
-            status = job["status"]
-            if status != "queued" and not (status == "running" and job_id in self._resuming):
-                continue  # inzwischen entfernt
-            self._resuming.discard(job_id)
-            engine = job["engine"]
-            eng = self.manifest.engines.get(engine)
-            modelfree = eng is not None and eng.modelfree  # lässt geladene Modelle in Ruhe
-            if not modelfree and not await self._admit(lane, job_id, engine):
-                continue  # während des Wartens auf Speicher entfernt
-            lane.running_job = job_id
             try:
-                await asyncio.to_thread(
-                    pipeline.run_render,
-                    self.cfg,
-                    self.manifest,
-                    job_id,
-                    client_id=lane.client_id,
-                    is_cancelled=lambda job=job_id: job in self._cancelled,
-                    unload_first=bool(lane.engine) and lane.engine != engine and not modelfree,
+                await self._run_job(lane, job_id)
+            except Exception:
+                log.exception(
+                    "Renderbahn %s: Job %s – Fehler bei der Ausführung", lane.inst.name, job_id
                 )
-            except Exception as exc:  # im Journal als fehlgeschlagen festgehalten
-                log.error("Renderjob %s fehlgeschlagen: %s", job_id, exc)
-            lane.engine, lane.running_job = lane.engine if modelfree else engine, 0
-            if job_id in self._cancelled:  # abgebrochen: Modelle entladen, Speicher frei
-                self._cancelled.discard(job_id)
-                client = comfy.ComfyClient(lane.inst.url, timeout=self.cfg.server.timeout_s)
-                try:
-                    await asyncio.to_thread(client.free)
-                    lane.engine = ""
-                except comfy.ComfyError as exc:
-                    log.warning("Speicherfreigabe nach Abbruch von Job %s: %s", job_id, exc)
+                lane.running_job = 0
+
+    async def _run_job(self, lane: _Lane, job_id: int) -> None:
+        await lane.resume.wait()  # angehalten: nächster Job wartet
+        job = self.store.job(job_id)
+        status = job["status"]
+        if status != "queued" and not (status == "running" and job_id in self._resuming):
+            return  # inzwischen entfernt
+        self._resuming.discard(job_id)
+        engine = job["engine"]
+        eng = self.manifest.engines.get(engine)
+        modelfree = eng is not None and eng.modelfree  # lässt geladene Modelle in Ruhe
+        if not modelfree and not await self._admit(lane, job_id, engine):
+            return  # während des Wartens auf Speicher entfernt
+        lane.running_job = job_id
+        try:
+            await asyncio.to_thread(
+                pipeline.run_render,
+                self.cfg,
+                self.manifest,
+                job_id,
+                client_id=lane.client_id,
+                is_cancelled=lambda job=job_id: job in self._cancelled,
+                unload_first=bool(lane.engine) and lane.engine != engine and not modelfree,
+            )
+        except Exception as exc:  # im Journal als fehlgeschlagen festgehalten
+            log.error("Renderjob %s fehlgeschlagen: %s", job_id, exc)
+        lane.engine, lane.running_job = lane.engine if modelfree else engine, 0
+        await self._after_job(lane, job_id)
+
+    async def _after_job(self, lane: _Lane, job_id: int) -> None:
+        """Nachbearbeitung eines beendeten Jobs: Speicher nach Abbruch frei, Stufe fortschreiben,
+        Kloner-Rückversand, Pushes. Ein Fehler hier betrifft nur diesen Job."""
+        if job_id in self._cancelled:  # abgebrochen: Modelle entladen, Speicher frei
+            self._cancelled.discard(job_id)
+            client = comfy.ComfyClient(lane.inst.url, timeout=self.cfg.server.timeout_s)
+            try:
+                await asyncio.to_thread(client.free)
+                lane.engine = ""
+            except comfy.ComfyError as exc:
+                log.warning("Speicherfreigabe nach Abbruch von Job %s: %s", job_id, exc)
+        try:
             orders.advance_order(self.store, job_id)  # Stufe vollständig? (SQLite im Loop)
             if (stage_id := self.store.job(job_id).get("stage_id")) is not None:
                 await self._cloner_delivery(self.store.stage(stage_id).order_id)
+        finally:  # Anzeige folgt dem Journal auch nach einem Fehler in der Nachbearbeitung
             self._orders_changed()
             self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
             self.hub.push_events(spb.TOPIC_MEDIA_ADDED)

@@ -647,3 +647,48 @@ def test_order_commands_push_stages_and_retry(cfg):
         await ws.close()
 
     _run(cfg, scenario)
+
+
+def test_render_worker_survives_a_failing_after_job(cfg, monkeypatch):
+    """SP1 Schritt 2: wirft die Nachbearbeitung (hier der Kloner-Rückversand), protokolliert die
+    Bahn den Fehler, schickt die Pushes trotzdem und führt den nächsten Job aus."""
+    import asyncio
+    import types
+
+    from darkfluenzer.core import orders as core_orders
+    from darkfluenzer.core import render as core_render
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        lane = cockpit.lanes["media"]
+        jobs = {
+            1: {"status": "queued", "engine": "x", "stage_id": 7},
+            2: {"status": "queued", "engine": "x", "stage_id": None},
+        }
+        ran, pushed = [], []
+
+        async def admit(_lane, _job, _engine):
+            return True
+
+        async def delivery(order_id, selected=None):
+            raise RuntimeError("Rückversand kaputt")
+
+        monkeypatch.setattr(cockpit.store, "job", lambda job_id: dict(jobs[job_id]))
+        monkeypatch.setattr(cockpit.store, "stage", lambda sid: types.SimpleNamespace(order_id=3))
+        monkeypatch.setattr(cockpit, "_admit", admit)
+        monkeypatch.setattr(cockpit, "_cloner_delivery", delivery)
+        monkeypatch.setattr(cockpit, "_orders_changed", lambda: pushed.append("orders"))
+        monkeypatch.setattr(core_orders, "advance_order", lambda store, job_id: None)
+        monkeypatch.setattr(
+            core_render.pipeline, "run_render", lambda cfg, man, job_id, **kw: ran.append(job_id)
+        )
+        lane.renders.put_nowait(1)
+        lane.renders.put_nowait(2)
+        for _ in range(100):
+            if ran == [1, 2] and len(pushed) == 2:
+                break
+            await asyncio.sleep(0.05)
+        assert ran == [1, 2] and pushed == ["orders", "orders"]
+        assert lane.running_job == 0
+
+    _run(cfg, scenario)
