@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import mimetypes
+from pathlib import Path
 
 from ..core import cloner_text as cloner
 from ..core import orders
@@ -13,7 +13,7 @@ from ..store import sha256_file
 from ..v1 import (
     commands_pb2,
 )
-from .base import _Call, log
+from .base import _Call, _document_attachment, log
 
 
 def _upload_param(wf: models.Workflow) -> str:
@@ -24,10 +24,20 @@ def _upload_param(wf: models.Workflow) -> str:
     return next((n for n, p in wf.params.items() if p.upload), "")
 
 
+def _marked_copy(local: Path, src: Path) -> dict:
+    """Inhaltsadressierte, gekennzeichnete Kopie in ``channels/sent`` (bugs_v1 BUG-004: gleicher
+    Name, anderer Inhalt -> andere Kopie); liest und schreibt ganze Dateien, daher im Thread."""
+    digest = sha256_file(src)
+    copy = local / "channels" / "sent" / f"{digest[:16]}_{src.stem}_ki{src.suffix.lower()}"
+    if not (copy.is_file() and aimeta.is_marked(copy)):
+        aimeta.mark(src, copy)
+    return _document_attachment(local, copy)
+
+
 class ClonerMixin:
     """Kloner der Default-Kette: Plan, Auftrag, Rückversand; Teil von ``Cockpit``."""
 
-    def _reply_internal(self, conversation_id: int, text: str, files: list[str] = ()) -> None:
+    async def _reply_internal(self, conversation_id: int, text: str, files: list[str] = ()) -> None:
         """Rückfrage bzw. Ergebnis an den Default-Nutzer in denselben Chat (Postausgang)."""
         default = self.store.default_contact()
         platform = self.store.conversation_platform(conversation_id)
@@ -40,21 +50,11 @@ class ClonerMixin:
                 blocked.append(src.name)
                 text += f"\n{src.name}: nicht gesendet (Inhaltsstufe explizit)"
                 continue
-            try:
-                # inhaltsadressiert (bugs_v1 BUG-004): gleicher Name, anderer Inhalt -> andere Kopie
-                digest = sha256_file(src)
-                name = f"{digest[:16]}_{src.stem}_ki{src.suffix.lower()}"
-                copy = self.cfg.local / "channels" / "sent" / name
-                if not (copy.is_file() and aimeta.is_marked(copy)):
-                    aimeta.mark(src, copy)
+            try:  # Hash, Kennzeichnung und Kopie im Arbeiter-Thread (SP0 Schritt 5, BUG-106)
+                attachments.append(await asyncio.to_thread(_marked_copy, self.cfg.local, src))
             except (aimeta.AiMetaError, OSError) as exc:
                 text += f"\n{src.name}: nicht gesendet ({exc})"
                 continue
-            attachments.append(
-                {"kind": "document", "path": copy.relative_to(self.cfg.local).as_posix(),
-                 "status": "saved", "sha256": sha256_file(copy), "size": copy.stat().st_size,
-                 "mime": mimetypes.guess_type(copy.name)[0] or ""}
-            )  # fmt: skip
         if blocked:
             label = {"instagram": "Instagram", "whatsapp": "WhatsApp"}.get(platform, platform)
             self.store.add_system_card(
@@ -82,13 +82,13 @@ class ClonerMixin:
         parsed = cloner.parse(msg["text"])
         if parsed is None:
             if msg["text"].strip():  # freie Anweisung: KI-Deutung folgt mit B5
-                self._reply_internal(inbound.conversation_id, cloner.ASK_COMMAND)
+                await self._reply_internal(inbound.conversation_id, cloner.ASK_COMMAND)
             return
         command, wish = parsed
         plan = self._cloner_plan(msg, default, command)
         if isinstance(plan, str):
             if plan == cloner.ASK_REFERENCE:
-                self._reply_internal(inbound.conversation_id, plan)
+                await self._reply_internal(inbound.conversation_id, plan)
             else:
                 self.store.add_system_card(
                     inbound.conversation_id, cloner.card(command, msg["platform"], plan)
@@ -233,7 +233,7 @@ class ClonerMixin:
         self._message_changed(card["id"])
         return ""
 
-    def _cloner_delivery(self, order_id: int, selected: int | None = None) -> None:
+    async def _cloner_delivery(self, order_id: int, selected: int | None = None) -> None:
         """Rückversand eines Kloner-Auftrags je Freigabemodus (V0 §8.1): direkt die Kandidaten,
         nach Auswahl das gewählte bzw. fertiggestellte Ergebnis, „nur Cockpit“ nichts."""
         order = self.store.order_by_id(order_id)
@@ -264,4 +264,4 @@ class ClonerMixin:
             files = [media["path"]] if media else []
         for n, path in enumerate(files, 1):
             label = f"{order.order_no} · Nr. {n}" if len(files) > 1 else order.order_no
-            self._reply_internal(conv, label, [path])
+            await self._reply_internal(conv, label, [path])

@@ -91,7 +91,7 @@ class RenderMixin:
                     log.warning("Speicherfreigabe nach Abbruch von Job %s: %s", job_id, exc)
             orders.advance_order(self.store, job_id)  # Stufe vollständig? (SQLite im Loop)
             if (stage_id := self.store.job(job_id).get("stage_id")) is not None:
-                self._cloner_delivery(self.store.stage(stage_id).order_id)
+                await self._cloner_delivery(self.store.stage(stage_id).order_id)
             self._orders_changed()
             self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
             self.hub.push_events(spb.TOPIC_MEDIA_ADDED)
@@ -253,13 +253,35 @@ class RenderMixin:
                 add(self._lane_of_job(job_id), job_id, False)
         return msg.SerializeToString()
 
+    async def watch_loop(self) -> None:
+        """Verzögerung des Hauptstrangs (SP0 Schritt 5, BUG-106): wie viel später als geplant der
+        Loop nach einer kurzen Pause wieder an die Reihe kommt."""
+        probe, window = self.cfg.server.loop_probe_s, self.cfg.server.loop_lag_window_s
+        loop = asyncio.get_running_loop()
+        while True:
+            start = loop.time()
+            await asyncio.sleep(probe)
+            now = loop.time()
+            self._lags.append((now, max(0.0, now - start - probe)))
+            while now - self._lags[0][0] > window:
+                self._lags.popleft()
+
+    def loop_lag_ms(self) -> tuple[float, float]:
+        """Letzte Verzögerung und Höchstwert im Fenster, in Millisekunden."""
+        if not self._lags:
+            return 0.0, 0.0
+        return self._lags[-1][1] * 1000, max(lag for _, lag in self._lags) * 1000
+
     def _resources(self) -> bytes:
         mem = self._memory
+        lag, lag_max = self.loop_lag_ms()
         msg = comfy_pb2.Resources(
             ram_total_gb=round(mem.get("ram_total", 0) / 2**30, 1),
             ram_free_gb=round(mem.get("ram_free", 0) / 2**30, 1),
             swap_used_mb=round(mem.get("swap", 0.0), 1),
             reserve_gb=self.cfg.server.memory_reserve_gb,
+            loop_lag_ms=round(lag, 1),
+            loop_lag_max_ms=round(lag_max, 1),
         )
         for lane in self.lanes.values():
             msg.instances.add(

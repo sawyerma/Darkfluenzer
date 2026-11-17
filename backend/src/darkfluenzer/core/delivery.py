@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import mimetypes
 import os
 import shutil
 from pathlib import Path
@@ -14,7 +13,7 @@ from ..store import StoreError, sha256_file
 from ..v1 import (
     commands_pb2,
 )
-from .base import _Call, log
+from .base import _Call, _document_attachment, log
 
 
 def _place_copy(src: Path, dst: Path, sha256: str) -> None:
@@ -29,6 +28,17 @@ def _place_copy(src: Path, dst: Path, sha256: str) -> None:
     os.replace(tmp, dst)
 
 
+def _copies_intact(local: Path, attachments: list[dict]) -> str:
+    """Zustellkopien unverändert und gekennzeichnet; leer = in Ordnung (Arbeiter-Thread)."""
+    for att in attachments:
+        path = local / att["path"]
+        if not path.is_file() or sha256_file(path) != att.get("sha256"):
+            return "Zustellkopie fehlt oder wurde verändert."
+        if not aimeta.is_marked(path):
+            return "Zustellkopie ohne KI-Kennzeichnung."
+    return ""
+
+
 class DeliveryMixin:
     """Freigabe, Zustellkopie, Liefer-Gate; Teil von ``Cockpit``."""
 
@@ -38,19 +48,11 @@ class DeliveryMixin:
         aimeta.mark(master, copy)
         return copy
 
-    def _queue_delivery(self, order, delivery_id: int, copy: Path) -> int:
+    def _queue_delivery(self, order, delivery_id: int, attachment: dict) -> int:
+        """Zustellnachricht mit vorher (im Arbeiter-Thread) berechnetem Anhang einreihen."""
         offer = self.store.offer(order.id)
         assert offer is not None
         conv = offer["conversation_id"]
-        rel = copy.relative_to(self.cfg.local).as_posix()
-        attachment = {
-            "kind": "document",
-            "path": rel,
-            "status": "saved",
-            "sha256": sha256_file(copy),
-            "size": copy.stat().st_size,
-            "mime": mimetypes.guess_type(copy.name)[0] or "",
-        }
         return self.store.queue_outbound(
             order.customer_id,
             conv,
@@ -92,13 +94,14 @@ class DeliveryMixin:
         )
         await asyncio.to_thread(_place_copy, src, master, result["sha256"])
         copy = await asyncio.to_thread(self._delivery_copy, order, master)
+        attachment = await asyncio.to_thread(_document_attachment, self.cfg.local, copy)
         with self.store.tx():
             art = self.store.add_artifact(order.order_no, "master", master, job_id=result["job_id"])
             self.store.record_approval(order.order_no, art.id, "approved", "Betreiber")
             delivery = approval.prepare_delivery(
                 self.store, order.order_no, art.id, order.customer_no
             )
-            message_id = self._queue_delivery(order, delivery, copy)
+            message_id = self._queue_delivery(order, delivery, attachment)
             self._card(order, f"FREIGEGEBEN · {order.order_no} · Zustellung im Postausgang")
         call.entity = f"message:{message_id}"
         self._wake(order)
@@ -118,12 +121,13 @@ class DeliveryMixin:
         last = deliveries[-1]
         master = self.cfg.local / self.store.artifact(last["artifact_id"]).path
         copy = await asyncio.to_thread(self._delivery_copy, order, master)
+        attachment = await asyncio.to_thread(_document_attachment, self.cfg.local, copy)
         with self.store.tx():
             delivery = approval.prepare_delivery(
                 self.store, order.order_no, last["artifact_id"], order.customer_no,
                 attempt=len(deliveries),
             )  # fmt: skip
-            message_id = self._queue_delivery(order, delivery, copy)
+            message_id = self._queue_delivery(order, delivery, attachment)
             self._card(order, f"ERNEUT GESENDET · {order.order_no} · Zustellung im Postausgang")
         call.entity = f"message:{message_id}"
         self._wake(order)
@@ -131,9 +135,10 @@ class DeliveryMixin:
         self._message_changed(message_id)
         return ""
 
-    def _delivery_gate(self, item: dict) -> str:
+    async def _delivery_gate(self, item: dict) -> str:
         """Letzte Prüfung im Versandmoment (Postausgang): Gate frisch gegen Datenbank und Datei,
-        Zustellkopie unverändert und gekennzeichnet. Leer = senden."""
+        Zustellkopie unverändert und gekennzeichnet. Leer = senden. Datenbank im Hauptstrang,
+        Dateien im Arbeiter-Thread (SP0 Schritt 5)."""
         delivery = self.store.delivery(item["delivery_id"])
         if delivery is None or delivery["status"] != "pending":
             return "Zustellung ist nicht mehr offen."
@@ -142,13 +147,7 @@ class DeliveryMixin:
         )
         if not gate.ok:
             return "Zustellung gesperrt: " + "; ".join(gate.reasons)
-        for att in item["attachments"]:
-            path = self.cfg.local / att["path"]
-            if not path.is_file() or sha256_file(path) != att.get("sha256"):
-                return "Zustellkopie fehlt oder wurde verändert."
-            if not aimeta.is_marked(path):
-                return "Zustellkopie ohne KI-Kennzeichnung."
-        return ""
+        return await asyncio.to_thread(_copies_intact, self.cfg.local, item["attachments"])
 
     def _delivery_update(self, message_id: int) -> None:
         """Versandausgang einer Zustellnachricht festschreiben (Karte VERSENDET bzw. Fehler)."""

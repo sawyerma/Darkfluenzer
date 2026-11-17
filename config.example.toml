@@ -10,6 +10,9 @@ port = 8190
 heartbeat_s = 15
 # Abstand, in dem das Backend ComfyUI-Prozess und Job-Journal beobachtet (nur bei Änderung Push).
 observe_s = 2
+# Verzögerung des Hauptstrangs: Messabstand und Fenster für den angezeigten Höchstwert (Sekunden).
+loop_probe_s = 0.25
+loop_lag_window_s = 60
 # Höchstzahl nachgeladener Ereignisse je Topic nach einem Reconnect.
 catchup_limit = 200
 # Höchstzahl ungesendeter Ereignis-Frames je Browser; darüber wird er getrennt und holt nach

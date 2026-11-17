@@ -337,7 +337,7 @@ class OrdersMixin:
         call.recorded = True
         log.info("Auftrag %s: Medium %s ausgewählt", msg.order_no, msg.media_id)
         if not jobs:  # ohne Fertigstellen: das Gewählte geht ggf. an den Default-Nutzer
-            self._cloner_delivery(self.store.order(msg.order_no).id, selected=msg.media_id)
+            await self._cloner_delivery(self.store.order(msg.order_no).id, selected=msg.media_id)
         self._enqueue(jobs)
         self._orders_changed()
         return ""

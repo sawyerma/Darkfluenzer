@@ -58,6 +58,10 @@ message Resources {
   // Mindestens frei zu haltender Speicher (local/config.toml [server] memory_reserve_gb)
   double reserve_gb = 4;
   repeated InstanceLoad instances = 5;
+  // Verzögerung des Hauptstrangs im Backend (SP0 Schritt 5): letzte Messung und Höchstwert im
+  // Fenster server.loop_lag_window_s, in Millisekunden.
+  double loop_lag_ms = 6;
+  double loop_lag_max_ms = 7;
 }
 
 // Ein Auftrag in der ComfyUI-Warteschlange.

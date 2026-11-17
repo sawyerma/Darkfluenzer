@@ -207,7 +207,7 @@ function Instances({ live }: { live: boolean }) {
       )}
       {res && res.ramTotalGb ? (
         <small>
-          Speicher frei {res.ramFreeGb} von {res.ramTotalGb} GB · Swap {Math.round(res.swapUsedMb)} MB · Reserve {res.reserveGb} GB
+          Speicher frei {res.ramFreeGb} von {res.ramTotalGb} GB · Swap {Math.round(res.swapUsedMb)} MB · Reserve {res.reserveGb} GB · Hauptstrang {Math.round(res.loopLagMs)} ms (max {Math.round(res.loopLagMaxMs)})
         </small>
       ) : null}
       {waiting.map((w) => (

@@ -144,15 +144,15 @@ def test_bug003_explicit_default_return_never_over_instagram(cfg):
             ).fetchone()
             return rows[0] if rows else ""
 
-        cockpit._reply_internal(ig.conversation_id, "Ergebnis", [paths["explizit"]])
+        await cockpit._reply_internal(ig.conversation_id, "Ergebnis", [paths["explizit"]])
         assert "explizit_ki" not in sent(ig.conversation_id)  # nie über Instagram
         cards = [r[0] for r in store.db.execute(
             "SELECT text FROM channel_messages WHERE conversation_id = ? AND direction = 'system'",
             (ig.conversation_id,))]  # fmt: skip
         assert any("explizit" in c and "Instagram" in c for c in cards)
-        cockpit._reply_internal(ig.conversation_id, "Ergebnis", [paths["standard"]])
+        await cockpit._reply_internal(ig.conversation_id, "Ergebnis", [paths["standard"]])
         assert "standard_ki" in sent(ig.conversation_id)
-        cockpit._reply_internal(tg.conversation_id, "Ergebnis", [paths["explizit"]])
+        await cockpit._reply_internal(tg.conversation_id, "Ergebnis", [paths["explizit"]])
         assert "explizit_ki" in sent(tg.conversation_id)  # Default über Telegram: erlaubt
 
     _run(cfg, scenario)
@@ -194,7 +194,7 @@ def test_bug004_same_name_different_content_never_sends_the_wrong_copy(cfg):
 
         for _ in range(2):  # auch beim erneuten Versand die richtige Datei
             for rel, color in sources.items():
-                cockpit._reply_internal(tg.conversation_id, "Ergebnis", [rel])
+                await cockpit._reply_internal(tg.conversation_id, "Ergebnis", [rel])
                 with Image.open(last_copy()) as im:
                     assert im.convert("RGB").getpixel((0, 0)) == color, rel
 

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 
@@ -37,7 +37,7 @@ class Channel(ABC):
     account: str  # unveränderliche Plattform-ID des Kontos nach der Anmeldung
     wake: asyncio.Event  # Postausgang hat Arbeit
     on_change_message: Callable[[int], None] | None
-    gate: Callable | None  # Liefer-Gate vor dem Versand einer Zustellkopie
+    gate: Callable[[dict], Awaitable[str]] | None  # Liefer-Gate vor dem Versand einer Zustellkopie
 
     @property
     @abstractmethod

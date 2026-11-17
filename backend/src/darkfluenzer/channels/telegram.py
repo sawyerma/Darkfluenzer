@@ -593,7 +593,7 @@ class TelegramAccount(Channel):
     async def _send(self, item: dict) -> None:
         assert self._td is not None
         # Zustellung an Kunden: Gate im Versandmoment frisch prüfen (approval.py, V0 §8.4 Punkt 9)
-        if item.get("delivery_id") and (reason := self.gate(item)):
+        if item.get("delivery_id") and (reason := await self.gate(item)):
             self.store.set_message_status(item["id"], "failed", error=reason)
             self.on_change_message(item["id"])
             return

@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import mimetypes
 import uuid
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ..channels.instagram import InstagramAccount
@@ -15,7 +18,7 @@ from ..config import ComfyConfig, Config
 from ..media import models
 from ..nodes.base import Node, node_for
 from ..payments.chain import WalletWatcher
-from ..store import Store
+from ..store import Store, sha256_file
 
 if TYPE_CHECKING:
     from ..web.stream import Hub
@@ -62,6 +65,19 @@ class _Lane:
         self.resume.set()
 
 
+def _document_attachment(local: Path, path: Path) -> dict:
+    """Anhang einer fertigen Datei für den Postausgang; liest die ganze Datei (Hash), daher nur in
+    einem Arbeiter-Thread aufrufen (SP0 Schritt 5, BUG-106)."""
+    return {
+        "kind": "document",
+        "path": path.relative_to(local).as_posix(),
+        "status": "saved",
+        "sha256": sha256_file(path),
+        "size": path.stat().st_size,
+        "mime": mimetypes.guess_type(path.name)[0] or "",
+    }
+
+
 def _unix_ms(iso: str) -> int:
     return int(datetime.fromisoformat(iso).timestamp() * 1000)
 
@@ -81,6 +97,8 @@ class CockpitBase:
         for name, lane in self.lanes.items():  # Pause übersteht den Neustart (BUG-046)
             if self.store.adapter_get("comfyui", name, "paused") == "1":
                 lane.resume.clear()
+        # Verzögerung des Hauptstrangs (Zeitpunkt, Sekunden), SP0 Schritt 5
+        self._lags: deque[tuple[float, float]] = deque()
         self._memory: dict = {}  # letzte Messung: ram_total, ram_free (Bytes), swap (MB)
         self._cancelled: set[int] = set()  # laufende Jobs mit Abbruchwunsch des Betreibers
         self._seen_media = store.media_paths()  # bereits geprüfte Dateien des Galerie-Index

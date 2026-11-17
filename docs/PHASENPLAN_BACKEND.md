@@ -464,6 +464,7 @@ backend/src/darkfluenzer/
    - Datei-Hashes, Kennzeichnung (`aimeta.mark`) und Dateikopien laufen in Arbeiter-Threads. Heute läuft das in `_reply_internal` im Hauptstrang (BUG-106).
    - Lange Datenbankabfragen laufen in einem eigenen Strang mit eigener Verbindung.
    - Die Verzögerung des Hauptstrangs wird gemessen und in der Betriebsanzeige gezeigt.
+   - **Umgesetzt 17.11.2026:** `_reply_internal`, `_cloner_delivery` und das Liefer-Gate sind asynchron; Hash, Kennzeichnung und Kopie laufen im Arbeiter-Thread, der Zustellanhang wird vor der Transaktion berechnet. Die MP4-Kennzeichnung (`aimeta`) arbeitet blockweise ohne Ganzdatei-Puffer, sonst blockiert sie den Hauptstrang trotz Thread über die GIL (Ergebnis byte-gleich zum bisherigen Verfahren). Messung `watch_loop` (`server.loop_probe_s`, `server.loop_lag_window_s`), STATE `resources` Felder 6 und 7, Anzeige „Hauptstrang x ms (max y)“. Abnahme: 500-MB-Video, Hauptstrang unter 100 ms (vorher 899 ms), `tests/test_mainloop.py` mit `DF_MAINLOOP_MB=500`. Lange Datenbankabfragen: mit Schritt 6 nach Messung.
 6. **Journal.**
    - `media_candidates` liest nur Ereignisse nach der gemerkten Position. Heute liest es je Runde alle abgeschlossenen Jobs (BUG-107).
    - Der Ordner-Scan läuft in großem Abstand.

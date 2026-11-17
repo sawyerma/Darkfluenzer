@@ -196,6 +196,17 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-106 (SP0 Schritt 5)
+Commit: siehe git log „SP0 step 5“ / core.cloner._reply_internal, core.delivery, media.aimeta, core.render.watch_loop
+Behauptung: BESTÄTIGT (Hash und Kennzeichnung im Hauptstrang; zusätzlich: Ganzdatei-Puffer in aimeta hält die GIL)
+Nachweis: tests/test_mainloop.py mit DF_MAINLOOP_MB=500: vorher 899 ms Blockade (rot), danach < 100 ms (grün);
+  aimeta-Ausgabe byte-gleich zum alten Verfahren (MP4 mit udta/meta/altem XMP, 64-Bit-Kiste)
+Mac-Lauf 17.11.2026: Cockpit neu gestartet, Betriebsanzeige „Hauptstrang 1 ms (max 2)“
+Ergebnis: PASS (Dateiarbeit); lange Datenbankabfragen folgen mit BUG-107/SP0 Schritt 6
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-105 (SP0 Schritt 1)
 Commit: siehe git log „SP0 step 1“ / store.Store._migrate, _backup, _check_integrity
 Behauptung: BESTÄTIGT (Migration ohne Sicherung, Integritätsprüfung nur bei Tabellenumbau)

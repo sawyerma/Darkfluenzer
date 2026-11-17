@@ -589,6 +589,7 @@ def create_app(cfg: Config) -> web.Application:
         cockpit.enqueue_existing()
         tasks = [
             asyncio.create_task(cockpit.observe()),
+            asyncio.create_task(cockpit.watch_loop()),
             *(asyncio.create_task(cockpit.render_worker(lane)) for lane in cockpit.lanes.values()),
             *(
                 asyncio.create_task(cockpit.progress_listener(lane))

@@ -895,7 +895,7 @@ class InstagramAccount(Channel):
         message_id = int(item["id"])
         partner = str(item["platform_conversation_id"])
         # Zustellung an Kunden: Gate im Versandmoment frisch prüfen (approval.py, V0 §8.4 Punkt 9)
-        if item.get("delivery_id") and (reason := self.gate(item)):
+        if item.get("delivery_id") and (reason := await self.gate(item)):
             self._finish(message_id, "failed", error=reason)
             return
         human = message_id in self._ids(HUMAN)

@@ -11,6 +11,7 @@ Dateitypen werden nicht versandt.
 from __future__ import annotations
 
 import os
+import shutil
 import struct
 import zlib
 from pathlib import Path
@@ -90,13 +91,18 @@ def _jpeg(data: bytes) -> bytes:
     return b"".join(out)
 
 
-def _boxes(data: bytes | bytearray, start: int, end: int):
+CHUNK = 4 * 2**20  # Blockgröße beim Kopieren, Nullen und Suchen (kein Ganzdatei-Puffer)
+
+
+def _boxes(f, start: int, end: int):
+    """Kisten zwischen ``start`` und ``end``; liest nur die Köpfe (mdat bleibt auf der Platte)."""
     pos = start
     while pos + 8 <= end:
-        size, kind = struct.unpack(">I4s", data[pos : pos + 8])
+        f.seek(pos)
+        size, kind = struct.unpack(">I4s", f.read(8))
         header = 8
         if size == 1:
-            size, header = struct.unpack(">Q", data[pos + 8 : pos + 16])[0], 16
+            size, header = struct.unpack(">Q", f.read(8))[0], 16
         elif size == 0:
             size = end - pos
         if size < header or pos + size > end:
@@ -105,27 +111,41 @@ def _boxes(data: bytes | bytearray, start: int, end: int):
         pos += size
 
 
-def _blank(buf: bytearray, pos: int, size: int, header: int) -> None:
-    """Box zu ``free`` mit Nullen (Inhalt weg, Größe und alle Versätze bleiben)."""
-    buf[pos + 4 : pos + 8] = b"free"
-    buf[pos + header : pos + size] = bytes(size - header)
-
-
-def _mp4(data: bytes) -> bytes:
-    buf = bytearray(data)
-    kinds = set()
-    for pos, size, kind, header in list(_boxes(buf, 0, len(buf))):
-        kinds.add(kind)
-        if kind == b"uuid" and buf[pos + header : pos + header + 16] == XMP_UUID:
-            _blank(buf, pos, size, header)  # altes XMP
-        if kind == b"moov":
-            for inner, inner_size, sub, inner_header in list(_boxes(buf, pos + header, pos + size)):
-                if sub in (b"udta", b"meta"):
-                    _blank(buf, inner, inner_size, inner_header)
+def _mp4(src: Path, tmp: Path) -> None:
+    """MP4/MOV blockweise: Kopie der Datei, darin ``moov/udta``, ``moov/meta`` und altes XMP zu
+    ``free`` mit genulltem Inhalt (Größe und Versätze bleiben), neue XMP-Kiste am Ende. Kein
+    Ganzdatei-Puffer, damit eine große Datei den Hauptstrang nicht über die GIL blockiert
+    (SP0 Schritt 5)."""
+    blank, kinds = [], set()
+    with open(src, "rb") as f:
+        for pos, size, kind, header in list(_boxes(f, 0, src.stat().st_size)):
+            kinds.add(kind)
+            if kind == b"uuid":
+                f.seek(pos + header)
+                if f.read(16) == XMP_UUID:
+                    blank.append((pos, size, header))  # altes XMP
+            if kind == b"moov":
+                for inner, inner_size, sub, inner_header in list(
+                    _boxes(f, pos + header, pos + size)
+                ):
+                    if sub in (b"udta", b"meta"):
+                        blank.append((inner, inner_size, inner_header))
     if b"moov" not in kinds or b"ftyp" not in kinds:
         raise AiMetaError("keine MP4/MOV-Datei")
+    shutil.copyfile(src, tmp)
     box = XMP_UUID + XMP
-    return bytes(buf) + struct.pack(">I4s", len(box) + 8, b"uuid") + box
+    with open(tmp, "r+b") as out:
+        for pos, size, header in blank:
+            out.seek(pos + 4)
+            out.write(b"free")
+            out.seek(pos + header)
+            left = size - header
+            while left:
+                n = min(left, CHUNK)
+                out.write(bytes(n))
+                left -= n
+        out.seek(0, os.SEEK_END)
+        out.write(struct.pack(">I4s", len(box) + 8, b"uuid") + box)
 
 
 def mark(src: Path, dst: Path) -> None:
@@ -133,20 +153,28 @@ def mark(src: Path, dst: Path) -> None:
     suffix = src.suffix.lower()
     if suffix not in SUFFIXES:
         raise AiMetaError(f"Dateityp {suffix or 'ohne Endung'} kann nicht gekennzeichnet werden")
-    data = src.read_bytes()
-    if suffix == ".png":
-        out = _png(data)
-    elif suffix in (".jpg", ".jpeg"):
-        out = _jpeg(data)
-    else:
-        out = _mp4(data)
     dst.parent.mkdir(parents=True, exist_ok=True)
     tmp = dst.with_name(dst.name + ".tmp")
-    tmp.write_bytes(out)
+    if tmp.exists():
+        os.chmod(tmp, 0o644)
+        tmp.unlink()
+    if suffix == ".png":
+        tmp.write_bytes(_png(src.read_bytes()))
+    elif suffix in (".jpg", ".jpeg"):
+        tmp.write_bytes(_jpeg(src.read_bytes()))
+    else:
+        _mp4(src, tmp)
     os.chmod(tmp, 0o444)
     os.replace(tmp, dst)
 
 
 def is_marked(path: Path) -> bool:
     """Trägt die Datei die Kennzeichnung? (Abgleich vor dem Versand)"""
-    return DIGITAL_SOURCE.encode() in path.read_bytes()
+    needle = DIGITAL_SOURCE.encode()
+    tail = b""
+    with open(path, "rb") as f:
+        while chunk := f.read(CHUNK):  # blockweise, auch über Blockgrenzen
+            if needle in chunk or needle in tail + chunk[: len(needle) - 1]:
+                return True
+            tail = chunk[-(len(needle) - 1) :]
+    return False
