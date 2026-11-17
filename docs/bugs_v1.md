@@ -196,6 +196,17 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-064 (Etappe A)
+Commit: siehe git log „BUG-064“ / media.pipeline.register_outputs, store.orders.stage_jobs, Migration 19 (jobs.media_id)
+Behauptung: BESTÄTIGT (alter Weg: zweiter, bitgleicher Kandidat ohne Ergebnis [1, None])
+Nachweis: tests/test_orders.py::test_bit_identical_result_counts_as_candidate (beide Kandidaten zeigen das Medium)
+Mac-Lauf 17.11.2026: echte Datenbank 18 → 19 mit Sicherung …bak-20261117191103-vor-migration19, integrity_check ok;
+  bitgleiches Renderergebnis am Mac nicht erzwungen (Seed-Determinismus nicht garantiert)
+Ergebnis: TEIL (Code und Migration am Mac belegt, bitgleicher Lauf nicht real nachgestellt)
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-107 (SP0 Schritt 6)
 Commit: siehe git log „SP0 step 6“ / media.gallery.media_candidates, scan_media, store.media.add_media, Migration 18
 Behauptung: BESTÄTIGT (finished_jobs(0, 1_000_000) je Runde, Medien-Nummer über das Journal)

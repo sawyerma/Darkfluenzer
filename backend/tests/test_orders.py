@@ -22,7 +22,9 @@ def setup(cfg):
     store.close()
 
 
-def _finish(cfg, store: Store, job_id: int, ok: bool = True) -> int | None:
+def _finish(
+    cfg, store: Store, job_id: int, ok: bool = True, color: int | None = None
+) -> int | None:
     """Job so abschließen, wie es der Renderweg tut (Ausgabe in der Galerie, dann Status)."""
     store.set_job_status(job_id, "running")
     if not ok:
@@ -31,10 +33,13 @@ def _finish(cfg, store: Store, job_id: int, ok: bool = True) -> int | None:
         return None
     rel = f"evaluation/test/job{job_id}.png"
     (cfg.local / rel).parent.mkdir(parents=True, exist_ok=True)
-    Image.new("RGB", (64, 64), (job_id * 40 % 255, 10, 10)).save(cfg.local / rel)
+    Image.new("RGB", (64, 64), (color if color is not None else job_id * 40 % 255, 10, 10)).save(
+        cfg.local / rel
+    )
     sha = hashlib.sha256((cfg.local / rel).read_bytes()).hexdigest()
-    media = store.add_media(rel, sha, (cfg.local / rel).stat().st_size, job_id=job_id)
-    store.set_job_status(job_id, "done", outputs=[{"path": rel, "sha256": sha}])
+    out = {"path": rel, "sha256": sha, "size": (cfg.local / rel).stat().st_size}
+    media = pipeline.register_outputs(store, job_id, [out])  # wie run_render
+    store.set_job_status(job_id, "done", outputs=[out])
     orders.advance_order(store, job_id)
     return media
 
@@ -117,3 +122,19 @@ def test_order_rules(setup):
         )
     with pytest.raises(StoreError):
         store.create_production_order("customer", "image", "x")
+
+
+def test_bit_identical_result_counts_as_candidate(setup):
+    """BUG-064: liefert ein Kandidat dieselben Bytes wie ein vorhandenes Medium, zählt dieses als
+    sein Ergebnis – statt „kein Ergebnis“."""
+    cfg, store, man = setup
+    order_no, jobs = orders.create_order(
+        store, man, "lustify_sdxl_t2i", {"prompt": "p", "seed": 1}, {}, count=2,
+        command=_command("bitgleich"),
+    )  # fmt: skip
+    first = _finish(cfg, store, jobs[0], color=77)
+    second = _finish(cfg, store, jobs[1], color=77)  # bitgleich
+    assert second == first
+    stage = store.stages(store.order(order_no).id)[0]
+    assert stage.status == "waiting"
+    assert [j["media_id"] for j in store.stage_jobs(stage.id)] == [first, first]

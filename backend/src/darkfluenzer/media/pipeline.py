@@ -329,9 +329,9 @@ def run_render(
             else:
                 store.set_job_status(job_id, "failed", error=str(exc) or type(exc).__name__)
             raise
-        for out in outputs:  # erst in die Galerie, dann gilt der Job als fertig
-            if Path(out["path"]).suffix.lower() in MEDIA_KINDS:
-                store.add_media(out["path"], out["sha256"], out["size"], job_id=job_id)
+        register_outputs(
+            store, job_id, outputs
+        )  # erst in die Galerie, dann gilt der Job als fertig
         store.set_job_status(
             job_id,
             "done",
@@ -343,6 +343,23 @@ def run_render(
         return result
     finally:
         store.close()
+
+
+def register_outputs(store: Store, job_id: int, outputs: list[dict]) -> int | None:
+    """Ausgaben eines Jobs in die Galerie; liefert das erste Ergebnis-Medium. Ist eine Ausgabe
+    bitgleich zu einem vorhandenen Medium, zählt dieses als Ergebnis (BUG-064)."""
+    first = None
+    for out in outputs:
+        if Path(out["path"]).suffix.lower() not in MEDIA_KINDS:
+            continue
+        media_id = store.add_media(out["path"], out["sha256"], out["size"], job_id=job_id)
+        if media_id is None:
+            existing = store.media_by_sha(out["sha256"])
+            media_id = existing["id"] if existing else None
+        first = first or media_id
+    if first is not None:
+        store.set_job_media(job_id, first)
+    return first
 
 
 def render_evaluation(

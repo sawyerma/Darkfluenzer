@@ -10,6 +10,7 @@ import os
 import sqlite3
 import time
 
+from darkfluenzer import store as store_module
 from darkfluenzer.media import gallery
 from darkfluenzer.store import Store, sha256_file
 
@@ -66,8 +67,9 @@ def test_migration_18_takes_counters_from_the_journal_and_never_reuses(tmp_path)
     local = tmp_path / "local"
     Store(local).close()  # aktuelles Schema, dann auf Version 17 zurück
     db = sqlite3.connect(local / "darkfluenzer.sqlite3")
-    db.execute("DROP INDEX events_entity_event")
+    db.execute("DROP INDEX events_entity_event")  # Migration 18 zurück
     db.execute("DROP TABLE counters")
+    db.execute("ALTER TABLE jobs DROP COLUMN media_id")  # Migration 19 zurück
     db.execute("PRAGMA user_version = 17")
     # Journal kennt Medium 7 (gelöscht, Nummer 5) und Medium 9 (vorhanden, Nummer 6)
     ev = "INSERT INTO events (entity, entity_id, event, data, created_at) VALUES (?,?,?,?,'t')"
@@ -82,7 +84,7 @@ def test_migration_18_takes_counters_from_the_journal_and_never_reuses(tmp_path)
     db.close()
     s = Store(local)
     try:
-        assert s.db.execute("PRAGMA user_version").fetchone()[0] == 18
+        assert s.db.execute("PRAGMA user_version").fetchone()[0] == store_module.SCHEMA_VERSION
         counters = dict(s.db.execute("SELECT name, value FROM counters").fetchall())
         assert counters == {"media_id": 9, "media_number": 6}
         assert s.add_media("evaluation/y.png", "y" * 64, 1) == 10

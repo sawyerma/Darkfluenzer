@@ -216,6 +216,11 @@ class JobsMixin:
         )
         return {r["id"]: (r["workflow"], json.loads(r["params"])) for r in rows}
 
+    def set_job_media(self, job_id: int, media_id: int) -> None:
+        """Ergebnis-Medium eines Jobs festhalten (auch ein vorhandenes, bitgleiches; BUG-064)."""
+        with self.tx() as db:
+            db.execute("UPDATE jobs SET media_id = ? WHERE id = ?", (media_id, job_id))
+
     def job_started_at(self, job_id: int) -> float | None:
         """Beginn des letzten Laufs (Statuswechsel auf running) als Unix-Sekunden."""
         row = self.db.execute(

@@ -168,7 +168,8 @@ class OrdersMixin:
         rows = self.db.execute(
             "SELECT j.id, j.status, j.error, j.seeds, m.id AS media_id, m.path, m.content_tier"
             " FROM jobs j"
-            " LEFT JOIN media m ON m.id = (SELECT min(id) FROM media WHERE job_id = j.id)"
+            " LEFT JOIN media m ON m.id = coalesce("
+            "(SELECT min(id) FROM media WHERE job_id = j.id), j.media_id)"
             " WHERE j.stage_id = ? ORDER BY j.id",
             (stage_id,),
         )

@@ -448,6 +448,11 @@ INSERT INTO counters (name, value) VALUES
         coalesce((SELECT max(json_extract(data, '$.number')) FROM events
                   WHERE entity = 'media' AND event = 'removed'), 0)));
 """,
+    19: """
+-- Ergebnis eines Jobs, auch wenn es bitgleich zu einem vorhandenen Medium ist (BUG-064): dann
+-- zeigt media_id auf dieses Medium (ohne Fremdschlüssel, damit Löschen in der Galerie frei bleibt)
+ALTER TABLE jobs ADD COLUMN media_id INTEGER;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
