@@ -198,6 +198,23 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-002 und FABLE-004 (Audit Fable 17.11., P1; im Auditblatt vorläufig „BUG-110“, „BUG-112“)
+Commit: siehe git log „FABLE-002“ / core.render.render_worker, _admit; media.pipeline.run_render
+Behauptung FABLE-002: BESTÄTIGT – scheiterte free() der ruhenden anderen Instanz, ging der Fehler aus der
+  Zulassung, der einzige Weckruf war verbraucht, die Warteschlange stand
+Behauptung FABLE-004: BESTÄTIGT – Galerie-Eintrag, Messwerte und Abschluss lagen außerhalb des Fehlerfangs;
+  ein Fehler dort ließ den Job auf running
+Korrektur: Zulassung überspringt eine nicht entladbare Instanz (Warnung) statt abzubrechen; nach einem Fehler
+  stößt die Bahn wartende Jobs nach einer Beobachtungsrunde erneut an; Nachbearbeitung im Fehlerfang, Job
+  endet als failed mit „Nachbearbeitung fehlgeschlagen: …“
+Nachweis: tests/test_server.py::test_queue_survives_a_failing_free_of_the_other_instance,
+  tests/test_orders.py::test_failed_post_processing_ends_the_job_as_failed – beide vor der Korrektur rot
+  (ComfyError aus der Zulassung bzw. Job running), danach grün; Gesamtlauf 192 bestanden
+Ergebnis: PASS
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: FABLE-008 (Audit Fable 17.11., P0; im Auditblatt vorläufig „BUG-116“) und BUG-109
 Commit: siehe git log „FABLE-008“ / media.pipeline.create_render (upload_tiers), video_plan (seconds)
 Behauptung FABLE-008: BESTÄTIGT – weitere Schlüsselbilder (bb7c98f) gingen nicht in die Inhaltsstufe ein; ein

@@ -12,6 +12,7 @@ from PIL import Image
 from darkfluenzer.config import project_root
 from darkfluenzer.core import orders
 from darkfluenzer.media import models, pipeline
+from darkfluenzer.nodes import comfy
 from darkfluenzer.store import Store, StoreError
 
 
@@ -360,3 +361,29 @@ def test_retry_of_a_seconds_video_keeps_its_length(setup):
     with pytest.raises(pipeline.PipelineError, match="Abschnitte"):
         pipeline.create_render(store, man, "ltx25_i2v", {"prompt": "p", "segment_s": 2.0},
                                {"image": image}, video_max_s=120)  # fmt: skip
+
+
+def test_failed_post_processing_ends_the_job_as_failed(setup, monkeypatch):
+    """FABLE-004: scheitert nach dem Rendern das Eintragen in die Galerie (oder das Speichern der
+    Messwerte), endet der Job als failed mit Grund – vorher blieb er auf running stehen."""
+    cfg, store, man = setup
+    job = pipeline.create_render(store, man, "lustify_sdxl_t2i", {"prompt": "p"}, {})
+
+    def run_workflow(cfg_, man_, key, values, dest, **kw):
+        dest.mkdir(parents=True, exist_ok=True)
+        image = dest / "out.png"
+        Image.new("RGB", (8, 8)).save(image)
+        out = comfy.OutputFile(node="7", path=image, sha256=pipeline.sha256_file(image),
+                               size=image.stat().st_size)  # fmt: skip
+        return comfy.RenderResult(prompt_id="p", workflow=key, engine="e", params=values,
+                                  outputs=[out])  # fmt: skip
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("Datenbank gesperrt")
+
+    monkeypatch.setattr(comfy, "run_workflow", run_workflow)
+    monkeypatch.setattr(pipeline, "register_outputs", broken)
+    with pytest.raises(RuntimeError, match="gesperrt"):
+        pipeline.run_render(cfg, man, job)
+    row = store.job(job)
+    assert row["status"] == "failed" and "Nachbearbeitung fehlgeschlagen" in row["error"]

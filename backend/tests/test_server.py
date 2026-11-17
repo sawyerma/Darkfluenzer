@@ -935,3 +935,51 @@ def test_character_photos_add_and_reveal_folder(cfg, monkeypatch):
         assert "gibt es beim Charakter nicht" in await send(reveal_folder=bad)
 
     _run(cfg, scenario)
+
+
+def test_queue_survives_a_failing_free_of_the_other_instance(cfg, monkeypatch):
+    """FABLE-002: scheitert das Entladen einer ruhenden anderen Instanz (nicht erreichbar), geht die
+    Zulassung weiter; wirft die Ausführung trotzdem, stößt die Bahn wartende Jobs nach einer Runde
+    selbst wieder an – vorher war der einzige Weckruf verbraucht und die Warteschlange stand."""
+    import asyncio
+    import dataclasses
+
+    from darkfluenzer.core import render as core_render
+
+    cfg = dataclasses.replace(cfg, server=dataclasses.replace(cfg.server, observe_s=0.05))
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        lane = cockpit.lanes["media"]
+        inst = types.SimpleNamespace(name="ai", url="http://127.0.0.1:9")  # nicht erreichbar
+        other = types.SimpleNamespace(engine="wan", running_job=0, inst=inst)
+        monkeypatch.setitem(cockpit.lanes, "ai", other)
+        monkeypatch.setattr(cockpit, "_need_gb", lambda engine: 100.0)
+        monkeypatch.setattr(cockpit, "_measure", lambda: {"ram_free": 1 * 2**30})
+        monkeypatch.setattr(cockpit.store, "job", lambda job_id: {"status": "queued"})
+        assert await cockpit._admit(lane, 5, "lustify_sdxl") is True  # kein Abbruch
+        assert other.engine == "wan"  # nicht als entladen markiert
+
+        ran, calls = [], []
+        jobs = {1: {"status": "queued", "engine": "x", "stage_id": None}}
+
+        async def admit(_lane, _job, _engine):
+            calls.append(_job)
+            if len(calls) == 1:
+                raise core_render.comfy.ComfyError("andere Instanz nicht erreichbar")
+            return True
+
+        monkeypatch.setattr(cockpit, "_next_job", lambda _lane: None if ran else 1)
+        monkeypatch.setattr(cockpit.store, "job", lambda job_id: dict(jobs[job_id]))
+        monkeypatch.setattr(cockpit, "_admit", admit)
+        monkeypatch.setattr(
+            core_render.pipeline, "run_render", lambda cfg, man, job_id, **kw: ran.append(job_id)
+        )
+        lane.renders.put_nowait(1)  # ein einziger Weckruf
+        for _ in range(100):
+            if ran:
+                break
+            await asyncio.sleep(0.05)
+        assert ran == [1] and calls == [1, 1]
+
+    _run(cfg, scenario)

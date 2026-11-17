@@ -542,29 +542,37 @@ def run_render(
             else:
                 store.set_job_status(job_id, "failed", error=str(exc) or type(exc).__name__)
             raise
-        first = register_outputs(  # erst in die Galerie, dann gilt der Job als fertig
-            store, job_id, outputs, local=cfg.local, parent=job["parent_media_id"],
-            resized=man.engines[wf.engine].role in RESIZING_ROLES,
-        )  # fmt: skip
-        if result.checks:  # Messwerte je geprüftem Medium (Prüfkette), sonst Eingabebild
-            reference = str(params.get(CHARACTER_KEY) or "")
-            if not reference and (lora := params.get(LORA_KEY)) and lora in man.loras:
-                reference = man.loras[lora].character
-            grouped = _check_media(store, result.checks, comfy.check_targets(sent), outputs)
-            for media_id, entries in grouped.items():
-                checked = (
-                    media_id or first or job["parent_media_id"] or _input_media(store, uploads)
-                )
-                store.add_media_checks(job_id, checked, reference, entries)
-        store.set_job_status(
-            job_id,
-            "done",
-            prompt_id=result.prompt_id,
-            duration_s=result.duration_s,
-            outputs=outputs,
-            memory=result.memory,
-            **({"checks": result.checks} if result.checks else {}),
-        )
+        try:  # Nachbearbeitung scheitert -> Job failed, nie running (FABLE-004)
+            first = register_outputs(  # erst in die Galerie, dann gilt der Job als fertig
+                store, job_id, outputs, local=cfg.local, parent=job["parent_media_id"],
+                resized=man.engines[wf.engine].role in RESIZING_ROLES,
+            )  # fmt: skip
+            if result.checks:  # Messwerte je geprüftem Medium (Prüfkette), sonst Eingabebild
+                reference = str(params.get(CHARACTER_KEY) or "")
+                if not reference and (lora := params.get(LORA_KEY)) and lora in man.loras:
+                    reference = man.loras[lora].character
+                grouped = _check_media(store, result.checks, comfy.check_targets(sent), outputs)
+                for media_id, entries in grouped.items():
+                    checked = (
+                        media_id or first or job["parent_media_id"] or _input_media(store, uploads)
+                    )
+                    store.add_media_checks(job_id, checked, reference, entries)
+            store.set_job_status(
+                job_id,
+                "done",
+                prompt_id=result.prompt_id,
+                duration_s=result.duration_s,
+                outputs=outputs,
+                memory=result.memory,
+                **({"checks": result.checks} if result.checks else {}),
+            )
+        except BaseException as exc:
+            store.set_job_status(
+                job_id,
+                "failed",
+                error=f"Nachbearbeitung fehlgeschlagen: {exc or type(exc).__name__}",
+            )
+            raise
         return result
     finally:
         store.close()

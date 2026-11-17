@@ -66,6 +66,11 @@ class RenderMixin:
             except Exception:
                 log.exception("Renderbahn %s: Fehler bei der Ausführung", lane.inst.name)
                 lane.running_job = 0
+                # der Weckruf ist verbraucht: wartende Jobs dieser Bahn nach einer Runde erneut
+                # anstoßen, sonst bleibt die Warteschlange stehen (FABLE-002)
+                await asyncio.sleep(self.cfg.server.observe_s)
+                if lane.renders.empty() and self._next_job(lane) is not None:
+                    lane.renders.put_nowait(0)
 
     def _next_job(self, lane: _Lane) -> int | None:
         """Wartender Job dieser Bahn mit dem besten Vorrang (Klassen laut production.priority,
@@ -167,6 +172,7 @@ class RenderMixin:
         need = self._need_gb(engine)
         if lane.engine == engine:
             return True  # gleiche Engine: Modelle sind bereits geladen
+        unreachable: set[str] = set()  # Instanzen, deren Entladen in dieser Zulassung scheiterte
         while True:
             if self.store.job(job_id)["status"] not in ("queued", "running"):
                 lane.waiting_job, lane.need_gb = 0, 0.0
@@ -178,11 +184,24 @@ class RenderMixin:
             idle = [
                 other
                 for other in self.lanes.values()
-                if other is not lane and other.engine and not other.running_job
+                if other is not lane
+                and other.engine
+                and not other.running_job
+                and other.inst.name not in unreachable
             ]
             if idle:
                 for other in idle:
-                    await asyncio.to_thread(comfy.ComfyClient(other.inst.url).free)
+                    try:
+                        await asyncio.to_thread(comfy.ComfyClient(other.inst.url).free)
+                    except (comfy.ComfyError, OSError) as exc:  # FABLE-002: nie die Bahn anhalten
+                        unreachable.add(other.inst.name)
+                        log.warning(
+                            "Zulassung: %s konnte %s nicht entladen (%s)",
+                            other.inst.name,
+                            other.engine,
+                            exc,
+                        )
+                        continue
                     log.info(
                         "Zulassung: %s entlädt %s für Auftrag %s",
                         other.inst.name,
