@@ -60,8 +60,8 @@ Video läuft genauso: erst das Bild, dann die Animation. Der Betreiber gibt die 
 | E13 | Zugangsdaten und Einstellungen werden im Cockpit im Reiter „Einstellungen“ gepflegt (S1). | entschieden |
 | E14 | Vorschlag: Kundenbilder entstehen mit `krea2_raw_turbo_lora_t2i` (Krea 2 Raw + Turbo-LoRA + Charakter-LoRA, Inhaltsstufe `standard`, 234 s je Bild gemessen). Die Charakter-LoRA wird mit `krea2_raw_lora_train` trainiert (gemessen 23,9 s je Schritt bei 768 px, 1500 Schritte ≈ 10 h). Vorbehalt: BUG-023 und der erste vollständige Trainingslauf. Bis zur Entscheidung ist kein Produkt lieferbar (SP5 Schritt 1). | **offen**, Betreiberantwort fehlt |
 | E15 | Chat neben Video: Melody bleibt immer geladen. Ein Videojob startet nur, wenn er daneben in den Speicher passt; sonst wartet er auf ein Videofenster, in dem Clara ohnehin langsam antwortet. Die Regel wird nach der Messung in SP4 (Schritt 1) festgelegt. | **offen**, nach Messung |
-| E16 | Prüfmodell für die Inhaltsstufe (SP5 Schritt 7): noch nicht gewählt; Kandidat (Fable): NudeNet, erkennt unbedeckte Körperstellen einzeln und liefe wie die Gesichtsprüfung direkt im Backend. Download nur nach Freigabe. Bis dahin keine Systemfreigabe, die Freigabe bleibt beim Betreiber. | **offen**, Voreinstellung gilt |
-| E17 | Qualitätsprüfer für Bildfehler (Hände, Anatomie, Artefakte): lokales Bildmodell oder externe Schnittstelle. Eine externe Schnittstelle verlangt eine Änderung von „FREE ONLY“ und Regel 6, gilt nur für Bilder der Stufe `standard` und nie für Kundenchats (Regel 12 e). Solange E16 oder E17 offen ist, gibt es keine Systemfreigabe; die Vollautomatik endet an dieser Stelle. | **offen** |
+| E16 | Inhaltsprüfung als Knoten im Workflow auf ComfyUI 1 (Kandidat: Rating Checker mit NudeNet). Regeln je Körperstelle eigens eingestellt; Schwellen aus einem Kalibrierlauf mit je 100 eigenen Bildern beider Stufen. Zeigt der Lauf Fehltreffer, kommt ein zweiter Prüfer dazu. | Vorschlag, Betreiberfreigabe **offen** |
+| E17 | Qualitätsprüfung als Knoten im Workflow: Anatomie (Kandidat: Evaluation Pack), Schärfe und Prompttreue, dazu ein bedingter Reparaturlauf (Impact Pack Detailer). Keine externe Schnittstelle in der ersten Umsetzung. | Vorschlag, Betreiberfreigabe **offen** |
 | E18 | Wiederanlauf ohne Anmeldung: automatische Anmeldung eines eigenen macOS-Benutzers (nur ohne FileVault) oder Anmeldung von Hand nach jedem Neustart. Bis zur Entscheidung: Anmeldung von Hand, automatische System-Neustarts aus, Meldung ans Handy nach jedem Wiederanlauf. | **offen** |
 
 ---
@@ -689,8 +689,8 @@ Ersetzt C5a, C5.5, C5.6, C5.6a, C5.7, C5.8, C5.10 und T2. Grundlage: Code-Vergle
 
 **Ziel:** Vom bestätigten Wunsch bis zur Zustellung ohne Klick. Der Betreiber greift nur ein, wenn die Prüfung scheitert oder ein Gutschein zu bestätigen ist.
 **Schließt:** BUG-012, 019, 022, 023, 051, 059, 060, 063, 090 (Video-Teil), 099 bis 102.
-**Braucht:** SP2 (Einstellungen, Inhaltsstufe), SP3 (LoRA, Gesichtsprüfung), SP4 (Dialog, Wunsch).
-**Dateien:** `server.py`, `store.py`, `pipeline.py`, `approval.py`, `aimeta.py`, `channels/telegram.py`, `channels/instagram.py`, neue `payments/paypal.py`, neue `checks.py`, `config.py`, `order.proto`, `wallet.proto`, `influencer.proto`, `commands.proto`.
+**Braucht:** SP2 (Einstellungen, Inhaltsstufe), SP3 (LoRA, Gesichtsprüfung), SP4 (Dialog, Wunsch; BUG-098 Werte aus dem Lauf lesen).
+**Dateien:** `server.py`, `store.py`, `pipeline.py`, `approval.py`, `aimeta.py`, `channels/telegram.py`, `channels/instagram.py`, neue `payments/paypal.py`, neue `checks.py`, `comfy.py`, `workflows/manifest.toml`, Workflow-Graphen (Prüfkette), `config.py`, `order.proto`, `wallet.proto`, `influencer.proto`, `commands.proto`.
 
 **Umsetzung in dieser Reihenfolge**
 
@@ -719,9 +719,14 @@ Ersetzt C5a, C5.5, C5.6, C5.6a, C5.7, C5.8, C5.10 und T2. Grundlage: Code-Vergle
    - Video: Kandidaten als Bild, danach die Animation als Fertigstellen-Stufe. Dafür trägt die Fertigstellen-Stufe eigene Werte (Prompt, `duration_s` bis zur Höchstlänge des Produkts; BUG-090).
    - Kundenproduktion nur auf Engines mit `usage = production` und allen Gates nach §9.1.
    - Nach dem Start schreibt Clara Dank und Lieferzeit aus den gemessenen Laufzeiten; bei Verzug genau eine Zwischennachricht.
-7. **Automatische Prüfung und Auswahl (`checks.py`, `pipeline.advance_order`; SPEC-013).**
-   - Nach der Kandidatenstufe je Kandidat vier Prüfungen, Ergebnisse in `media_checks`: Identität (SP3), Inhaltsstufe über das Prüfmodell (E16), Technik (Format, Auflösung, nicht leer; Video: Frame-Zahl, Dauer, Stichproben-Bilder), Qualität (Hände, Anatomie, Artefakte, Treue zum Wunsch; bei Video zeitliche Konsistenz) über den Qualitätsprüfer (E17).
-   - Jede Prüfung braucht ein als geprüft eingetragenes Modell. `checks.py` führt die Qualitätsprüfung als austauschbaren Baustein.
+7. **Automatische Prüfung und Auswahl (Workflow-Graphen, `comfy.py`, `checks.py`, `pipeline.advance_order`; SPEC-013; Fable 17.11.).**
+   - Die Prüfkette liegt im Workflow zwischen Dekodieren und Speichern: Inhaltsprüfung, Qualitätsprüfung, ein bedingter Reparaturlauf, erneute Prüfung des ganzen Bildes.
+   - Jeder Prüfknoten gibt seine Messwerte aus. Das Backend liest sie aus dem Lauf, speichert sie in `media_checks` und entscheidet gegen Schwellen aus der Konfiguration. Ein fehlender Wert gilt als nicht bestanden. Heute liest das Backend aus einem Lauf nur Dateien (dieselbe Lücke wie beim Chat, BUG-098; in Fables Blatt als „BUG-094“ geführt).
+   - Die Identitätsprüfung bleibt im Backend (`identity.py`), ebenso die Technikprüfung (Format, Auflösung, nicht leer; Video: Frame-Zahl, Dauer, Stichproben-Bilder).
+   - Keine Schleife im Graphen. Weitere Versuche sind neue Kandidatenstufen.
+   - Dieselbe Prüfkette läuft für die Default-Produktion; dort setzt sie nur die Inhaltsstufe und sperrt nichts.
+   - Voraussetzung je Erweiterung: fester Stand, Durchsicht des Codes, Modelldateien mit SHA-256 im Manifest, kein automatischer Download, ein Probelauf auf dem Mac. Hinweise (Fable): Das Evaluation Pack war beim Abruf drei Tage alt, braucht SAM3 über ein weiteres Paket und lädt seine Pose-Modelle beim ersten Start selbst. Der Rating Checker ist für gezeichnete Bilder gebaut und stuft in der Standardeinstellung schon erkannte Achseln als R18 ein. In diesem Ökosystem hat schon ein Knotenpaket Zugangsdaten gestohlen.
+   - Reihenfolge der Einführung: erst messen ohne Reparatur, dann der eine Reparaturlauf.
    - Auswahl: unter den Kandidaten, die alle vier Prüfungen bestehen, der beste Gesamtwert aus Identität und Qualität (Gewichte in der Konfiguration).
    - Kein bestandener Kandidat: neue Kandidatenstufe mit neuen Seeds (`pipeline.regenerate_order`), bis zur Obergrenze aus der Konfiguration; danach bleibt der Auftrag in `review` und der Betreiber wird benachrichtigt.
    - Kennzahlen je Workflow: Anteil bestandener Kandidaten, Reklamationen, Neuauflagen.
