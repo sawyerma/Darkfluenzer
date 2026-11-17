@@ -102,6 +102,22 @@
 | **BUG-036** | FILM fehlt in `extra_model_paths.yaml` | **Nur auf dem Mac** ComfyUI-Pfade, Modellregistrierung, echten FILM-Node und Workflow-Ausführung prüfen. |
 | **BUG-037** | Nicht committete Änderung `enabled = true` in `workflows/manifest.toml:530` | **Nur auf dem Mac** `git status` und `git diff` prüfen. Aus Remote-Git kann der lokale Dirty-Stand nicht verifiziert werden; kein automatisches Staging ohne Sichtung. |
 
+## 4a. Betreiber-Mängelmeldung 17.11.2026 (eigene Befunde am laufenden System)
+
+Bereiche FL-1 bis FL-7 im PHASENPLAN_V0 („Funktionslücken-Abgleich 17.11.2026“).
+
+| ID | Befund / Belegstufe | Stand |
+|---|---|---|
+| **BUG-038** | **Telegram: vor der Freigabe schreibender Test-Chat bzw. erstmals schreibender Kunde während Backend aus nie nachgeholt – BESTÄTIGT live** (Chat 571334304, 0 Akten). Erster Fix holte zusätzlich alten privaten Verlauf (2023/2024) samt falscher Übergabe-Karten. | BEHOBEN `36433c8`, `b4ad0c4`: nur Ungelesenes ab der zuletzt gelesenen Nachricht; 32 Fehlimporte mit Sicherung `darkfluenzer.sqlite3.bak-20261117090150-vor-tg-bereinigung` entfernt; Nachricht erschien live |
+| **BUG-039** | **Kundenregister öffnet nach Neuladen nicht – BESTÄTIGT** (FRONT F4 Punkt 2). | BEHOBEN `b4ad0c4`: beim ersten Stand Register für Akten mit Ungelesenem, ohne Fokuswechsel; Vitest |
+| **BUG-040** | **Kundenakte ohne Namen – BESTÄTIGT live** (`getUser` scheiterte nach Neustart). | BEHOBEN `e83b7f5`: Name aus dem Chat-Titel; namenlose Akte erhält den Namen einmal |
+| **BUG-041** | **Privates Zweitkonto landet als Kunde; Default nur per ID-Eingabe – BESTÄTIGT.** | BEHOBEN `ad82d0d`: Befehl 48 „Als Default festlegen“ an der Identität, mit Bestätigung; live per ID-Feld umgezogen, Klick an Testinstanz geprüft |
+| **BUG-042** | **„Generieren“ scheitert still bei LTX 2.5, FLUX 3 Klein Vorlage, Qwen-Image 2512/2.1 – BESTÄTIGT live.** Seed der Vorlage > Manifest-Grenze 2^32, Eingabeprüfung blockiert ohne sichtbaren Grund. | BEHOBEN `932c9ec`: Grenze 2^63−1, Registrierung weist ungültige Graph-Standardwerte ab, Cockpit nennt ungültige Felder am Knopf; LTX-Job 64 danach aus dem Cockpit gestartet |
+| **BUG-043** | **Abbrechen unvollständig – CODE.** `server.py:_cancel`: vor `prompt_id` „gleich erneut versuchen“; `pipeline.run_render`: Abbruch nur über Exception – fertig vor dem Interrupt wird als erfolgreich übernommen; kein `/free`. | OFFEN → FL-7 |
+| **BUG-044** | **Video standardmäßig 3 Kandidaten – BESTÄTIGT (GUI).** 3 × LTX (~19 min, ~45 GB Swap je Lauf). | OFFEN → FL-2 |
+| **BUG-045** | **Ergebnisvorschau eines Videos schwarz – BESTÄTIGT (GUI, Job 63).** | OFFEN → FL-2 |
+| **BUG-046** | **Pause der Warteschlange übersteht keinen Neustart – CODE/HYPOTHESE** (Pause 16.11. 23:47, nach Neustart „Anhalten“ angeboten). | OFFEN → FL-7, real prüfen |
+
 ## 5. Aussagen zum Gesamtstand, ausdrücklich gegenprüfen
 
 Diese Aussagen aus der Fremdanalyse sind **keine Bugs, aber unbewiesene Abnahmen** und dürfen nicht unkritisch als PASS übernommen werden:
@@ -131,7 +147,7 @@ Bearbeiter/Datum:
 
 **Abschluss je Befund:** reproduzierbarer Beleg oder widerlegter Sachverhalt, keine offene Gegenprüfung, Änderung auf `main` gepusht (falls erforderlich), Tests auf echtem Mac bestanden und belegbar. **Nicht gefixte/noch nicht geprüfte Punkte bleiben ausdrücklich OFFEN.**
 
-**Priorität gegenüber dem KI-Studio:** Die tatsächlich bestätigten P0-/relevanten P1-Fehler sollen vor dem Telegram-Kundentest gezielt korrigiert werden; die vereinbarte Produktreihenfolge **Cydonia → KI-Studio → Gedächtnis → Testauftrag → Telegram-Rückversand** bleibt danach unverändert. Keine ungefragten neuen Modellvergleiche oder Infrastrukturpakete.
+**Priorität gegenüber dem KI-Studio:** Die tatsächlich bestätigten P0-/relevanten P1-Fehler sollen vor dem Telegram-Kundentest gezielt korrigiert werden; die vereinbarte Produktreihenfolge **Melody (B5.1) → KI-Studio → Gedächtnis → Testauftrag → Telegram-Rückversand** (Betreiberentscheidung 16.11.2026) bleibt danach unverändert. Keine ungefragten neuen Modellvergleiche oder Infrastrukturpakete.
 
 ## 7. Prüfprotokoll
 
