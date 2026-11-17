@@ -208,6 +208,10 @@ class ProductionConfig:
     # Kein festes Zeitlimit für Läufe: abgebrochen wird erst, wenn ComfyUI so lange nicht antwortet
     # oder den Auftrag weder in der Warteschlange noch im Verlauf kennt
     comfy_lost_s: float
+    # Hinweis (kein Abbruch), wenn ein laufender Auftrag so lange keinen Fortschritt meldet
+    stall_notice_s: float
+    # Läufe je Workflow, aus denen die Dauer geschätzt wird (Median)
+    estimate_runs: int
 
 
 @dataclass(frozen=True)
@@ -609,6 +613,8 @@ def load(root: Path | None = None) -> Config:
         stage_attempts_max=int(_positive(prod, "stage_attempts_max", 3, "production")),
         video_max_s=float(_positive(prod, "video_max_s", 120, "production")),
         comfy_lost_s=float(_positive(prod, "comfy_lost_s", 60, "production")),
+        stall_notice_s=float(_positive(prod, "stall_notice_s", 900, "production")),
+        estimate_runs=int(_positive(prod, "estimate_runs", 5, "production")),
     )
     if production.candidates_default > production.candidates_max:
         raise ConfigError("Konfiguration: production.candidates_default > candidates_max.")

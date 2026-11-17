@@ -10,6 +10,10 @@ from .db import (
     now,
 )
 
+# Laufparameter, die die Dauer bestimmen (Schätzung nur aus Läufen mit denselben Werten)
+RUN_SIGNATURE = ("steps", "width", "height", "duration_s", "segment_s", "train_size", "batch_size")
+ESTIMATE_SCAN = 20  # so viele Läufe je gewünschter Messung werden nach gleichen Werten durchsucht
+
 
 class JobsMixin:
     """Renderjobs und Abschnitte; Teil von ``Store``."""
@@ -211,6 +215,36 @@ class JobsMixin:
             f"SELECT id, workflow, params FROM jobs WHERE id IN ({marks})", job_ids
         )
         return {r["id"]: (r["workflow"], json.loads(r["params"])) for r in rows}
+
+    def job_started_at(self, job_id: int) -> float | None:
+        """Beginn des letzten Laufs (Statuswechsel auf running) als Unix-Sekunden."""
+        row = self.db.execute(
+            "SELECT created_at FROM events WHERE entity = 'job' AND entity_id = ?"
+            " AND event = 'status' AND json_extract(data, '$.status') = 'running'"
+            " ORDER BY id DESC LIMIT 1",
+            (job_id,),
+        ).fetchone()
+        return datetime.fromisoformat(row[0]).timestamp() if row else None
+
+    def duration_estimate(self, workflow: str, params: dict, runs: int) -> float:
+        """Median der Dauer der letzten ``runs`` erfolgreichen Läufe des Workflows mit denselben
+        Laufparametern (Schritte, Größe, Länge; ``RUN_SIGNATURE``); 0 = keine Messung."""
+        want = {k: params.get(k) for k in RUN_SIGNATURE}
+        rows = self.db.execute(
+            "SELECT json_extract(e.data, '$.duration_s'), j.params FROM events e JOIN jobs j"
+            " ON j.id = e.entity_id WHERE e.entity = 'job' AND e.event = 'status'"
+            " AND json_extract(e.data, '$.status') = 'done' AND j.workflow = ?"
+            " AND json_extract(e.data, '$.duration_s') IS NOT NULL ORDER BY e.id DESC LIMIT ?",
+            (workflow, runs * ESTIMATE_SCAN),
+        ).fetchall()
+        same = [
+            float(d) for d, p in rows if {k: json.loads(p).get(k) for k in RUN_SIGNATURE} == want
+        ]
+        values = sorted(same[:runs])
+        if not values:
+            return 0.0
+        mid = len(values) // 2
+        return values[mid] if len(values) % 2 else (values[mid - 1] + values[mid]) / 2
 
     def finished_jobs_after(self, after: int, limit: int) -> list[dict]:
         """Abgeschlossene Jobs mit Cursor (events.id) > ``after``, aufsteigend, höchstens

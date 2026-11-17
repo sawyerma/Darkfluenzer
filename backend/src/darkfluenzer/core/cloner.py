@@ -233,6 +233,24 @@ class ClonerMixin:
         self._message_changed(card["id"])
         return ""
 
+    async def _stall_notice(self, job_id: int, quiet_s: float) -> None:
+        """Hinweis an den Default bei Stillstand eines Kloner-Auftrags (SP1 Schritt 2): der Lauf
+        geht weiter, abbrechen kann der Betreiber."""
+        stage_id = self.store.job(job_id).get("stage_id")
+        if stage_id is None:
+            return
+        order = self.store.order_by_id(self.store.stage(stage_id).order_id)
+        stages = self.store.stages(order.id)
+        origin = stages[0].params.get("origin") if stages else None
+        if order.source != "cloner" or not origin:
+            return
+        conv = self.store.message(int(origin))["conversation_id"]
+        await self._reply_internal(
+            conv,
+            f"Hinweis: {order.order_no} läuft seit {quiet_s / 60:.0f} min ohne Fortschritt. "
+            "Der Lauf geht weiter; abbrechen kannst du im Cockpit.",
+        )
+
     async def _cloner_delivery(self, order_id: int, selected: int | None = None) -> None:
         """Rückversand eines Kloner-Auftrags je Freigabemodus (V0 §8.1): direkt die Kandidaten,
         nach Auswahl das gewählte bzw. fertiggestellte Ergebnis, „nur Cockpit“ nichts."""

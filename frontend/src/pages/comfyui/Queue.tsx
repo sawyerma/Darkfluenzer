@@ -1,5 +1,5 @@
 import type { ActiveJob } from "../../core/generated/darkfluenzer/v1/comfy_pb";
-import { LABEL } from "./common";
+import { LABEL, duration } from "./common";
 import { Topic } from "../../core/generated/darkfluenzer/v1/stream_pb";
 import { useCommand } from "../../core/commands";
 import { useState } from "react";
@@ -88,17 +88,32 @@ export function Queue({ instance, onLoad, canLoad }: { instance: string; onLoad:
                   {i + 1}. {job.jobId ? job.workflow : "Auftrag aus der ComfyUI-Oberfläche"}
                 </span>
                 {job.running ? (
-                  <span className="g-badge" data-tone="ok">
-                    LÄUFT
+                  <span className="g-badge" data-tone={job.unknown ? "warn" : "ok"}>
+                    {job.unknown ? "UNBEKANNT" : "LÄUFT"}
                   </span>
                 ) : (
-                  <span className="g-value">wartet</span>
+                  <span className="g-value">wartet{job.estimateS ? ` · ~${duration(job.estimateS)}` : ""}</span>
                 )}
               </button>
               {job.running && job.progressMax ? (
                 <div className="g-qprogress">
                   <Progress job={job} />
                 </div>
+              ) : null}
+              {job.running && job.remainingS ? (
+                <small className="g-note">
+                  läuft seit {duration(job.elapsedS)} · noch ~{duration(job.remainingS)} (Schätzung)
+                </small>
+              ) : null}
+              {job.unknown ? (
+                <p className="g-note" role="status">
+                  Zustand unbekannt: ComfyUI antwortet nicht. Abgleich nach der Wiederverbindung, kein automatischer Neustart.
+                </p>
+              ) : null}
+              {job.stalledS ? (
+                <p className="g-note" role="status">
+                  Seit {duration(job.stalledS)} kein Fortschritt. Der Lauf geht weiter.
+                </p>
               ) : null}
               {isOpen ? (
                 <div className="g-details">

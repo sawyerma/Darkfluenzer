@@ -132,3 +132,16 @@ def test_observer_round_stays_fast_with_many_events(cfg):
         s.close()
     assert round_ms < 50, f"Beobachterrunde {round_ms:.1f} ms bei {EVENTS} Ereignissen"
     assert add_ms < 10, f"add_media {add_ms:.1f} ms bei {EVENTS} Ereignissen"
+
+
+def test_duration_estimate_uses_only_runs_with_the_same_parameters(cfg):
+    s = Store(cfg.local)
+    try:
+        for steps, secs in ((8, 3.0), (8, 5.0), (36, 70.0)):
+            job = s.create_job(None, "e", "wf", "p", {"steps": steps, "prompt": "x"}, [])
+            s.set_job_status(job, "done", duration_s=secs, outputs=[])
+        assert s.duration_estimate("wf", {"steps": 8, "prompt": "anders"}, 5) == 4.0
+        assert s.duration_estimate("wf", {"steps": 36}, 5) == 70.0
+        assert s.duration_estimate("wf", {"steps": 20}, 5) == 0.0  # keine Messung
+    finally:
+        s.close()

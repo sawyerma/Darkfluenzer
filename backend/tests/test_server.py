@@ -692,3 +692,48 @@ def test_render_worker_survives_a_failing_after_job(cfg, monkeypatch):
         assert lane.running_job == 0
 
     _run(cfg, scenario)
+
+
+def test_queue_shows_unknown_stall_and_estimate_and_notifies_once(cfg, monkeypatch):
+    """SP1 Schritt 2: läuft ein Job, während ComfyUI nicht antwortet, bleibt er sichtbar mit
+    Zustand unbekannt; Stillstand ist ein Hinweis (genau einmal), die Dauer eine Schätzung."""
+    import asyncio
+    import time
+
+    cfg = dataclasses.replace(
+        cfg, production=dataclasses.replace(cfg.production, stall_notice_s=300)
+    )
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+        lane = cockpit.lanes["media"]
+        notices = []
+
+        async def notice(job_id, quiet):
+            notices.append(job_id)
+
+        monkeypatch.setattr(cockpit, "_stall_notice", notice)
+        earlier = store.create_job(None, "e", "wf_lang", "p", {}, [])
+        store.set_job_status(earlier, "done", duration_s=120.0, outputs=[])
+        job = store.create_job(None, "e", "wf_lang", "p", {}, [])
+        store.set_job_status(job, "running")
+        lane.running_job = job
+        lane.started_at = lane.progress_at = time.time() - 1000
+        await cockpit._watch_runs()
+        await cockpit._watch_runs()
+        await asyncio.sleep(0.2)
+        assert notices == [job]  # genau ein Hinweis, kein Abbruch
+        lane.status = {}  # ComfyUI antwortet nicht
+        lane.queue = []
+        shown = [
+            j
+            for j in comfy_pb2.JobsActive.FromString(cockpit._jobs_active()).jobs
+            if j.job_id == job
+        ]
+        assert len(shown) == 1 and shown[0].running and shown[0].unknown
+        assert shown[0].stalled_s >= 1000 and shown[0].elapsed_s >= 1000
+        assert shown[0].estimate_s == 120 and shown[0].remaining_s == 0
+        assert store.job(job)["status"] == "running"  # nichts automatisch beendet
+
+    _run(cfg, scenario)

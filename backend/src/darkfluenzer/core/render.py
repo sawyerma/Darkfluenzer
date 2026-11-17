@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 
 from ..core import orders
 from ..media import gallery, models, pipeline, training
@@ -71,6 +72,7 @@ class RenderMixin:
         status = job["status"]
         if status != "queued" and not (status == "running" and job_id in self._resuming):
             return  # inzwischen entfernt
+        resumed = job_id in self._resuming
         self._resuming.discard(job_id)
         engine = job["engine"]
         eng = self.manifest.engines.get(engine)
@@ -78,6 +80,8 @@ class RenderMixin:
         if not modelfree and not await self._admit(lane, job_id, engine):
             return  # während des Wartens auf Speicher entfernt
         lane.running_job = job_id
+        started = self.store.job_started_at(job_id) if resumed else None
+        lane.started_at = lane.progress_at = started or time.time()
         try:
             await asyncio.to_thread(
                 pipeline.run_render,
@@ -91,6 +95,8 @@ class RenderMixin:
         except Exception as exc:  # im Journal als fehlgeschlagen festgehalten
             log.error("Renderjob %s fehlgeschlagen: %s", job_id, exc)
         lane.engine, lane.running_job = lane.engine if modelfree else engine, 0
+        lane.started_at = lane.progress_at = 0.0
+        self._stall_notified.discard(job_id)
         await self._after_job(lane, job_id)
 
     async def _after_job(self, lane: _Lane, job_id: int) -> None:
@@ -115,6 +121,28 @@ class RenderMixin:
             self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
             self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
             self.hub.set_state(spb.TOPIC_RESOURCES, self._resources())
+
+    async def _watch_runs(self) -> None:
+        """Schätzungen für die Workflows in der Warteschlange auffrischen; bei Stillstand eines
+        laufenden Jobs genau einen Hinweis senden (kein Abbruch, SP1 Schritt 2)."""
+        queued = {job_id for job_id, _ in self.store.queued_jobs()}
+        running = {lane.running_job for lane in self.lanes.values() if lane.running_job}
+        brief = self.store.jobs_brief(list(queued | running)) if queued | running else {}
+        runs = self.cfg.production.estimate_runs
+        self._estimates = {
+            job_id: self.store.duration_estimate(wf, params, runs)
+            for job_id, (wf, params) in brief.items()
+        }
+        now = time.time()
+        for lane in self.lanes.values():
+            job_id = lane.running_job
+            if not job_id or not lane.started_at or job_id in self._stall_notified:
+                continue
+            quiet = now - max(lane.progress_at, lane.started_at)
+            if quiet >= self.cfg.production.stall_notice_s:
+                self._stall_notified.add(job_id)
+                log.warning("Job %s seit %.0f s ohne Fortschritt (läuft weiter)", job_id, quiet)
+                await self._stall_notice(job_id, quiet)
 
     def _need_gb(self, engine: str) -> float:
         """Speicherbedarf einer Engine: gemessene Spitze des letzten Laufs, bis zur ersten
@@ -198,6 +226,7 @@ class RenderMixin:
                     workflows = await asyncio.to_thread(self._workflows)
                 self.hub.set_state(spb.TOPIC_COMFY_WORKFLOWS, workflows)
                 await self.refresh_characters()
+                await self._watch_runs()
                 self.hub.set_state(spb.TOPIC_ORDERS_ACTIVE, self._orders_active())
                 self.hub.set_state(spb.TOPIC_CHANNELS, self._channels())
                 self.hub.set_state(spb.TOPIC_WALLET, self._wallet_state())
@@ -231,6 +260,8 @@ class RenderMixin:
                         lane.inst.url, lane.client_id
                     ):
                         if maximum:
+                            if lane.progress.get(prompt_id) != (value, maximum):
+                                lane.progress_at = time.time()  # Fortschritt (SP1 Schritt 2)
                             lane.progress[prompt_id] = (value, maximum)
                         else:
                             lane.progress.pop(prompt_id, None)
@@ -252,15 +283,31 @@ class RenderMixin:
         queued = [job_id for job_id, _ in self.store.queued_jobs()]
         in_comfy = [job_id for lane in self.lanes.values() for job_id, _, _ in lane.queue if job_id]
         ids = in_comfy + [j for j in queued if j not in in_comfy]
-        brief = self.store.jobs_brief(ids) if ids else {}
+        running = [lane.running_job for lane in self.lanes.values() if lane.running_job]
+        wanted = ids + [j for j in running if j not in ids]
+        brief = self.store.jobs_brief(wanted) if wanted else {}
         msg = comfy_pb2.JobsActive(
             paused=[n for n, lane in self.lanes.items() if not lane.resume.is_set()],
             version=self.store.domain_version("jobs"),
         )
 
+        now = time.time()
+        stall_after = self.cfg.production.stall_notice_s
+
         def add(lane: _Lane, job_id: int, running: bool, prompt_id: str = "") -> None:
             workflow, params = brief.get(job_id, ("", {}))
             value, maximum = lane.progress.get(prompt_id, (0, 0)) if running else (0, 0)
+            estimate = self._estimates.get(job_id, 0.0)
+            elapsed = remaining = stalled = 0.0
+            mine = running and job_id and job_id == lane.running_job and lane.started_at
+            if mine:
+                elapsed = now - lane.started_at
+                quiet = now - max(lane.progress_at, lane.started_at)
+                stalled = quiet if quiet >= stall_after else 0.0
+                if value and maximum:  # aus dem Fortschritt des laufenden Nodes
+                    remaining = elapsed * (maximum - value) / value
+                elif estimate:  # sonst aus gleichen früheren Läufen
+                    remaining = max(estimate - elapsed, 0.0)
             job = msg.jobs.add(
                 job_id=job_id,
                 workflow=workflow,
@@ -268,12 +315,21 @@ class RenderMixin:
                 progress_value=value,
                 progress_max=maximum,
                 instance=lane.inst.name,
+                unknown=bool(mine) and not lane.status.get("health"),
+                stalled_s=int(stalled),
+                estimate_s=int(estimate),
+                elapsed_s=int(elapsed),
+                remaining_s=int(remaining),
             )
             job.params.update({k: _param_text(k, v) for k, v in params.items()})
 
         for lane in self.lanes.values():
             for job_id, running, prompt_id in lane.queue:
                 add(lane, job_id, running, prompt_id)
+            if lane.running_job and lane.running_job not in in_comfy:
+                # ComfyUI nicht erreichbar (oder Auftrag noch nicht übergeben): der laufende Job
+                # bleibt sichtbar, Zustand unbekannt (SP1 Schritt 2)
+                add(lane, lane.running_job, True)
         for job_id in queued:
             if job_id not in in_comfy:
                 add(self._lane_of_job(job_id), job_id, False)

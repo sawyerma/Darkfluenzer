@@ -60,3 +60,11 @@ export const STAGE_LABEL: Record<string, [string, Tone]> = {
   failed: ["FEHLER", "bad"],
   cancelled: ["ABGEBROCHEN", "neutral"],
 };
+
+/** Dauer als kurzer Text (Schätzungen in der Warteschlange, SP1 Schritt 2). */
+export function duration(seconds: number): string {
+  if (seconds < 90) return `${Math.max(1, Math.round(seconds))} s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 90) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}

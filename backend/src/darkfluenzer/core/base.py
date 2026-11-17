@@ -60,6 +60,8 @@ class _Lane:
     waiting_job: int = 0  # Auftrag, der auf freien Speicher wartet
     need_gb: float = 0.0
     running_job: int = 0
+    started_at: float = 0.0  # Start des laufenden Jobs (Unix-Sekunden), SP1 Schritt 2
+    progress_at: float = 0.0  # letzter gemeldeter Fortschritt (Unix-Sekunden)
 
     def __post_init__(self) -> None:
         self.resume.set()
@@ -103,6 +105,8 @@ class CockpitBase:
         self._cancelled: set[int] = set()  # laufende Jobs mit Abbruchwunsch des Betreibers
         self._seen_media = store.media_paths()  # bereits geprüfte Dateien des Galerie-Index
         self._folder_scan_at = float("-inf")  # letzter Ordner-Scan der Galerie (SP0 Schritt 6)
+        self._estimates: dict[int, float] = {}  # Job -> geschätzte Dauer (s), SP1 Schritt 2
+        self._stall_notified: set[int] = set()  # Jobs mit gesendetem Stillstandshinweis
         self._character_sig: tuple = ()  # letzter Stand von Trainingsordner, Datensätzen, LoRAs
         # Registry-Änderungen und das Lesen der Workflow-Projektion nie gleichzeitig
         self._registry = asyncio.Lock()

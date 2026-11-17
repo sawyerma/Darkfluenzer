@@ -85,6 +85,8 @@ candidates_max = 6
 stage_attempts_max = 3
 video_max_s = 120   # Obergrenze der Videolänge in Sekunden (Abschnitte à höchstens 5 s werden aneinandergereiht)
 comfy_lost_s = 60   # kein festes Zeitlimit: Abbruch erst, wenn ComfyUI so lange nicht antwortet oder den Auftrag nicht mehr kennt
+stall_notice_s = 900   # Hinweis im Cockpit und beim Default, wenn ein Lauf so lange keinen Fortschritt meldet (kein Abbruch)
+estimate_runs = 5   # bisherige Läufe je Workflow für die geschätzte Dauer (Median)
 
 # Claras Telegram-Konto (PHASENPLAN_V0 §6.1, C2d): Darkfluenzer meldet sich über TDLib als normales
 # Nutzerkonto an (kein Bot). TDLib bauen: launcher/setup_tdlib.sh. api_id/api_hash von

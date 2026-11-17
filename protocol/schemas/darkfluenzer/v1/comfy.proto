@@ -79,6 +79,18 @@ message ActiveJob {
   map<string, string> params = 6;
   // Ausführende Instanz (media | ai)
   string instance = 7;
+  // Kein zeitbasierter Abbruch (SP1 Schritt 2): ComfyUI antwortet nicht, Zustand des laufenden
+  // Auftrags unbekannt; nach der Wiederverbindung wird abgeglichen, nie automatisch neu gestartet.
+  bool unknown = 8;
+  // Sekunden ohne Fortschritt, sobald production.stall_notice_s überschritten ist (sonst 0);
+  // nur ein Hinweis, der Lauf geht weiter.
+  uint32 stalled_s = 9;
+  // Schätzung aus den bisherigen Läufen dieses Workflows (Median), 0 = keine Messung.
+  uint32 estimate_s = 10;
+  // Laufzeit bisher und geschätzte Restzeit des laufenden Auftrags (0 = unbekannt); Schätzung,
+  // keine zugesagte Endzeit.
+  uint32 elapsed_s = 11;
+  uint32 remaining_s = 12;
 }
 
 // STATE jobs.active
