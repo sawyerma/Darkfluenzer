@@ -117,6 +117,7 @@ class TelegramAccount:
         self.wake = asyncio.Event()  # Postausgang hat Arbeit
         self._td: TdJson | None = None
         self._chats: dict[int, str] = {}  # Chat-ID -> TDLib-Chatart
+        self._titles: dict[int, str] = {}  # Chat-ID -> Titel (Einzelchat: Name des Kontakts)
         # Chats mit ungelesenen Nachrichten -> zuletzt gelesene eingehende ID (aus TDLib-Updates);
         # gelesen wird erst nach dem Speichern, ungelesen heißt also: noch nicht verarbeitet
         self._unread: dict[int, int] = {}
@@ -285,6 +286,7 @@ class TelegramAccount:
         elif kind == "updateNewChat":
             chat = update["chat"]
             self._chats[chat["id"]] = chat["type"]["@type"]
+            self._titles[chat["id"]] = str(chat.get("title", ""))
             if chat.get("unread_count"):
                 self._unread[chat["id"]] = int(chat.get("last_read_inbox_message_id", 0))
         elif kind == "updateChatReadInbox":
@@ -413,6 +415,7 @@ class TelegramAccount:
         if chat_id not in self._chats and self._td is not None:
             chat = await self._td.call({"@type": "getChat", "chat_id": chat_id}, self._timeout)
             self._chats[chat_id] = chat["type"]["@type"]
+            self._titles[chat_id] = str(chat.get("title", ""))
         return self._chats.get(chat_id, "")
 
     async def _message(self, msg: dict) -> None:
@@ -492,13 +495,15 @@ class TelegramAccount:
 
     async def _user(self, user_id: int) -> tuple[str | None, str | None]:
         assert self._td is not None
+        title = self._titles.get(user_id) or None  # Einzelchat-ID = Nutzer-ID
         try:
             user = await self._td.call({"@type": "getUser", "user_id": user_id}, self._timeout)
-        except (TdError, TimeoutError):
-            return None, None
+        except (TdError, TimeoutError) as exc:
+            log.warning("Telegram: getUser %s: %s – Name aus dem Chat-Titel", user_id, exc)
+            return None, title
         names = (user.get("usernames") or {}).get("active_usernames") or []
         full = " ".join(filter(None, (user.get("first_name"), user.get("last_name"))))
-        return (names[0] if names else None), (full or None)
+        return (names[0] if names else None), (full or title)
 
     async def _save(self, chat_id: int, message_id: int, index: int, f: dict) -> dict:
         """Anhang über TDLib laden, nach local/channels/telegram/<chat>/ kopieren, Hash

@@ -284,3 +284,29 @@ def test_unread_chat_without_position_is_fetched_after_downtime(cfg, tmp_path):
     fetched = {c["chat_id"] for c in acc._td.calls if c["@type"] == "getChatHistory"}
     assert fetched == {77}
     store.close()
+
+
+def test_name_from_chat_title_fills_an_unnamed_file_once(cfg, tmp_path):
+    """Live 17.11.: Akte ohne Namen – getUser scheiterte. Ersatz: Chat-Titel; eine namenlose Akte
+    bekommt den Namen beim nächsten Eingang, ein gesetzter Name bleibt."""
+    store = Store(cfg.local)
+    acc, inbound, _ = _account(cfg, tmp_path, store)
+    store.customer_for_identity("telegram", CLARA, str(TEST_CHAT))  # namenlos angelegt
+    real = acc._td.call
+
+    async def no_user(request, timeout):
+        if request["@type"] == "getUser":
+            raise TdError(400, "User not found")
+        return await real(request, timeout)
+
+    acc._td.call = no_user
+    acc._on_update({
+        "@type": "updateNewChat",
+        "chat": {"id": TEST_CHAT, "type": {"@type": "chatTypePrivate"}, "title": "Mia Test"},
+    })  # fmt: skip
+    asyncio.run(acc._message(_msg(TEST_CHAT, 5)))
+    assert inbound[0].customer.display_name == "Mia Test"
+    acc._titles[TEST_CHAT] = "Anders"
+    asyncio.run(acc._message(_msg(TEST_CHAT, 6)))
+    assert inbound[1].customer.display_name == "Mia Test"
+    store.close()

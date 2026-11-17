@@ -824,6 +824,14 @@ class Store:
                         "UPDATE channel_identities SET handle = ? WHERE id = ?",
                         (handle, row["identity_id"]),
                     )
+                if display_name and not row["display_name"]:  # nie einen gesetzten Namen ersetzen
+                    db.execute(
+                        "UPDATE customers SET display_name = ? WHERE id = ?",
+                        (display_name, row["id"]),
+                    )
+                    self._event("customer", row["id"], "named")
+                    self.bump("customers")
+                    return self.customer_by_id(row["id"]), row["identity_id"], False
                 return _customer(row), row["identity_id"], False
             ts = now()
             cur = db.execute(
