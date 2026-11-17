@@ -198,6 +198,21 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-011 (Audit Fable 17.11., P2/P1-Kandidat; im Auditblatt vorläufig „BUG-119“)
+Commit: siehe git log „FABLE-011“ / media.gallery.delete_media, core.registry._delete_media
+Behauptung: BESTÄTIGT – Ordner-Scan und Hashing liefen in der Schreibtransaktion (Sperre für alle anderen
+  Schreiber); Dateien wurden in der Transaktion gelöscht, ein Fehler rollte den Index zurück, gelöschte
+  Dateien blieben weg
+Korrektur: suchen und hashen ohne Sperre, Index-Einträge in kurzer Transaktion entfernen, danach Dateien löschen;
+  nicht löschbare Dateien bleiben liegen und werden im Befehl gemeldet (erscheinen beim nächsten Abgleich
+  wieder) – nie ein Index-Eintrag ohne Datei
+Nachweis: tests/test_journal.py::test_delete_media_scans_without_the_write_lock_and_keeps_index_and_files_apart
+  (vor der Korrektur rot, danach grün); bestehender Löschtest in test_server.py grün
+Ergebnis: PASS
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: FABLE-001 (Audit Fable 17.11., P1; im Auditblatt vorläufig „BUG-109“)
 Commit: siehe git log „FABLE-001“ / web.commands._execute
 Behauptung: BESTÄTIGT – ein unerwarteter Fehler im Befehl (nicht in _COMMAND_ERRORS, z. B. der Wallet-Assert in

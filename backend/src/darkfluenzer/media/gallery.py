@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
@@ -11,8 +12,10 @@ from pathlib import Path
 
 from ..config import Config
 from ..nodes.base import node_for
-from ..store import MEDIA_KINDS, Store, sha256_file
+from ..store import MEDIA_KINDS, Store, StoreError, sha256_file
 from .pipeline import WORK_PREFIX
+
+log = logging.getLogger("darkfluenzer.gallery")
 
 JOURNAL_BATCH = 1000  # Job-Ereignisse je Abfrage beim Abgleich
 CURSOR = ("gallery", "", "job_cursor")  # gemerkte Journal-Position (adapter_state)
@@ -109,25 +112,37 @@ def media_candidates(
     return candidates, cursor
 
 
-def delete_media(cfg: Config, ids: list[int]) -> list[str]:
+def delete_media(cfg: Config, ids: list[int]) -> tuple[list[str], list[str]]:
     """Löscht Galerie-Einträge ohne Kundenbezug endgültig: Index-Eintrag (Journal 'removed')
     und Datei samt aller byte-gleichen Kopien in den Galerie-Quellen (z. B. ComfyUIs eigene
-    Ausgabe eines Renderjobs), damit nichts beim nächsten Durchlauf wieder auftaucht. Liefert
-    die entfernten Pfade relativ zu ``local/``."""
+    Ausgabe eines Renderjobs), damit nichts beim nächsten Durchlauf wieder auftaucht.
+
+    Drei Schritte (FABLE-011): Kopien suchen und hashen ohne Sperre; Index-Einträge in einer kurzen
+    Transaktion entfernen; danach die Dateien löschen. Eine Datei, die nicht gelöscht werden kann,
+    bleibt liegen (und erscheint beim nächsten Abgleich wieder) – nie umgekehrt ein Index-Eintrag
+    ohne Datei. Liefert (gelöschte Pfade, nicht löschbare Pfade) relativ zu ``local/``."""
     store = Store(cfg.local)
     try:
-        with store.tx():
-            rows = store.remove_media(ids)
-            wanted = {(r["size"], r["sha256"]) for r in rows}
-            doomed = {r["path"]: cfg.local / r["path"] for r in rows}
-            sizes = {size for size, _ in wanted}
-            for _, path, rel in _gallery_files(cfg):
-                size = path.stat().st_size
-                if rel not in doomed and size in sizes and (size, sha256_file(path)) in wanted:
-                    doomed[rel] = path
-            for path in doomed.values():  # Fehler -> Index bleibt unverändert (Rollback)
+        rows = [r for r in (store.media_by_id(i) for i in ids) if r is not None]
+        if any(r["order_id"] is not None for r in rows):
+            raise StoreError("Medien eines Kundenauftrags können nicht gelöscht werden.")
+        wanted = {(r["size"], r["sha256"]) for r in rows}
+        doomed = {r["path"]: cfg.local / r["path"] for r in rows}
+        sizes = {size for size, _ in wanted}
+        for _, path, rel in _gallery_files(cfg):  # ohne Schreibsperre: Ordner und Hashes
+            size = path.stat().st_size
+            if rel not in doomed and size in sizes and (size, sha256_file(path)) in wanted:
+                doomed[rel] = path
+        store.remove_media([r["id"] for r in rows])  # kurze Transaktion
+        removed, failed = [], []
+        for rel, path in doomed.items():
+            try:
                 path.unlink(missing_ok=True)
-        return list(doomed)
+                removed.append(rel)
+            except OSError as exc:
+                log.warning("Galerie: %s nicht gelöscht: %s", rel, exc)
+                failed.append(rel)
+        return removed, failed
     finally:
         store.close()
 

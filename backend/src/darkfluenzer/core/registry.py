@@ -262,11 +262,16 @@ class RegistryMixin:
         if not msg.media_ids:
             return "Keine Datei gewählt."
         call.entity = "media:" + ",".join(str(i) for i in msg.media_ids[:20])
-        removed = await asyncio.to_thread(gallery.delete_media, self.cfg, list(msg.media_ids))
-        # Freigewordene Pfade neu prüfen: ComfyUI vergibt gelöschte Dateinamen erneut.
-        self._seen_media.difference_update(removed)
+        removed, failed = await asyncio.to_thread(
+            gallery.delete_media, self.cfg, list(msg.media_ids)
+        )
+        # Freigewordene Pfade neu prüfen: ComfyUI vergibt gelöschte Dateinamen erneut; nicht
+        # löschbare Dateien erscheinen beim nächsten Abgleich wieder in der Galerie
+        self._seen_media.difference_update(removed + failed)
         self.hub.push_events(spb.TOPIC_MEDIA_REMOVED)
-        log.info("Galerie: %d Datei(en) gelöscht", len(removed))
+        log.info("Galerie: %d Datei(en) gelöscht, %d nicht", len(removed), len(failed))
+        if failed:
+            return f"{len(failed)} Datei(en) ließen sich nicht löschen: {', '.join(failed[:3])}"
         return ""
 
     async def _media_content_tier(self, msg: commands_pb2.MediaContentTier, call: _Call) -> str:

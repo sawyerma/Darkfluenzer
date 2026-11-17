@@ -9,6 +9,7 @@ import json
 import os
 import sqlite3
 import time
+from pathlib import Path
 
 from darkfluenzer import store as store_module
 from darkfluenzer.media import gallery
@@ -164,3 +165,54 @@ def test_seconds_per_step_for_the_training_estimate(cfg):
         assert s.seconds_per_step("train", 1) == 1.8  # nur der letzte Lauf
     finally:
         s.close()
+
+
+def test_delete_media_scans_without_the_write_lock_and_keeps_index_and_files_apart(
+    cfg, monkeypatch
+):
+    """FABLE-011: Kopien suchen und hashen geschieht ohne Schreibsperre (andere Schreiber laufen
+    weiter); ein nicht löschbarer Ordner-Fund bleibt liegen und wird gemeldet, der Index-Eintrag ist
+    trotzdem weg – nie ein Index-Eintrag ohne Datei."""
+    s = Store(cfg.local)
+    try:
+        job, out = _done_job(s, cfg, "weg.png")
+        media = s.add_media(out["path"], out["sha256"], 7, job_id=job)
+    finally:
+        s.close()
+    copy = cfg.local / "evaluation" / "kopie" / "weg_kopie.png"
+    copy.parent.mkdir(parents=True)
+    copy.write_bytes(b"weg.png")  # byte-gleiche Kopie in einer Galerie-Quelle
+    db_path = cfg.local / "darkfluenzer.sqlite3"
+    hashed: list[bool] = []
+    real_hash = gallery.sha256_file
+
+    def hash_and_try_write(path):
+        other = sqlite3.connect(db_path, timeout=0.2)
+        try:
+            other.execute("BEGIN IMMEDIATE")  # scheitert, solange jemand die Schreibsperre hält
+            other.execute("ROLLBACK")
+            hashed.append(True)
+        except sqlite3.OperationalError:
+            hashed.append(False)
+        finally:
+            other.close()
+        return real_hash(path)
+
+    real_unlink = Path.unlink
+
+    def unlink(self, missing_ok=False):
+        if self.name == "weg_kopie.png":
+            raise PermissionError("gesperrt")
+        return real_unlink(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(gallery, "sha256_file", hash_and_try_write)
+    monkeypatch.setattr(Path, "unlink", unlink)
+    removed, failed = gallery.delete_media(cfg, [media])
+    assert hashed and all(hashed)  # während des Hashens war schreiben möglich
+    assert removed == [out["path"]] and failed == ["evaluation/kopie/weg_kopie.png"]
+    s = Store(cfg.local)
+    try:
+        assert s.media_by_id(media) is None  # Index-Eintrag weg
+    finally:
+        s.close()
+    assert copy.exists() and not (cfg.local / out["path"]).exists()
