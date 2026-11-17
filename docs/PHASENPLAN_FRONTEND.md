@@ -1,8 +1,8 @@
 # Darkfluenzer – PHASENPLAN_FRONTEND.md
 
-**Stand:** 17.11.2026 (mit Änderungsblatt Einstellungen/Kundentest/Vollautomatik) · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
-**Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Produktziel, Regeln, Entscheidungen E1–E10, PASS-Definition, Reihenfolge, Paketnummern) und `docs/bugs_v1.md`.
-**Prüfbasis:** `main` `7a49b6a`, laufendes Cockpit am 17.11.2026.
+**Stand:** 17.11.2026 (Änderungsblätter und Korrektur nach den Prüfberichten von ChatGPT und Fable) · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
+**Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Produktziel, Regeln, Entscheidungen E1–E16, PASS-Definition, Reihenfolge, Paketnummern) und `docs/bugs_v1.md`.
+**Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; laufendes Cockpit am 17.11.2026.
 **Gestaltungsreferenz:** `docs/design/Darkfluenzer_Cockpit_Interaktiv.html` und Anhang A (F7, wörtlich aus dem archivierten FRONT V1).
 
 ---
@@ -49,7 +49,8 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
 - **Kundenliste:** oben Filter je Influencerin – *Alle · Clara · Lucy · Ken* – jeweils mit Ungelesen-Zahl; jede Zeile trägt das Kennzeichen der Influencerin (Name und feste Farbe aus dem Profil) neben dem Kanalkennzeichen (IG/TG) und dem Kontonamen (z. B. „Clara · IG @clara…“).
 - **Sortierung sichtbar:** über der Liste steht die aktive Sortierung, Standard „neueste Nachricht zuerst“; innerhalb des Filters „Alle“ wahlweise gruppiert nach Influencerin. Die Wahl bleibt nur im Browser gespeichert.
 - **Register:** jeder Reiter zeigt Name des Kunden und das Kennzeichen der Influencerin; der Kopf der Akte nennt „schreibt an <Influencerin> über <Kanal> <Konto>“.
-- **Rechte Steuerung und Composer** arbeiten immer mit dieser Figur (Persona, Preise, LoRA) und senden nur über dieses Konto; ein Wechsel der Figur in einer Akte ist nicht möglich.
+- **Eine Akte = eine Influencerin:** Eine Kundenakte kann mehrere verifizierte Identitäten auf Konten derselben Influencerin haben (z. B. Claras Instagram und Claras Telegram, C5.9); jede Nachricht zeigt das Konto, über das sie kam. Dieselbe Person bei Clara und bei Lucy erscheint als zwei getrennte Akten.
+- **Rechte Steuerung und Composer** arbeiten immer mit dieser Figur (Persona, Preise, LoRA) und senden über das Konto des gewählten Kanalregisters; ein Wechsel der Figur in einer Akte ist nicht möglich.
 
 **Spalten:** links Kunden (Figur-Filter, Suche, Avatar, Name, Kunden-ID, Kennzeichen von Influencerin und Kanal, letzte Aktivität, Ungelesen); Mitte Register mehrerer Akten (× schließt nur das Register), Unterregister Gesamter Verlauf · Instagram · Telegram · WhatsApp (Gesamt nur lesbar, ohne Composer; nicht verbundene Kanäle deaktiviert), eingehend links, ausgehend rechts, Kanalfarbe IG pink, TG blau, WA grün, Ereigniskarten zwischen den Nachrichten; rechts die vollständige Steuerung, eigene Scrollleiste.
 
@@ -59,7 +60,7 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
 |---|---|
 | Identität | Kundennummer, Kanalidentitäten (verifiziert), „Als Default festlegen“, Telegram-Übergang (C5.9) |
 | KI | Influencerin der Akte (C5.1) mit Schalter Freigabeart automatisch/Betreiber, Text-KI an/aus, Antwortmodus Automatisch · Entwürfe prüfen · Manuell (C5.3), automatische Antworten an/aus, Kaufbereitschaft mit Beleg (C5.4), geplante Sendezeit mit „Jetzt senden“/„Zurückhalten“ |
-| Sicherheit | Status des KI-Hinweises je Identität; Karte und Sperre „minderjährig vermutet“; Inhaltsstufe; Kanalfenster (Instagram 24 h, Telegram-Bremse) mit mitlaufender Frist. Der Altersblock entfällt (E2, C5.2). |
+| Sicherheit | Status des KI-Hinweises je Identität; Karte und Sperre „minderjährig vermutet“ (aufheben nur durch den Betreiber, protokolliert); Inhaltsstufe; Kanalfenster (Instagram 24 h, Telegram-Bremse) mit mitlaufender Frist. Der Altersblock entfällt (E2, C5.2). |
 | Gedächtnis | Zusammenfassung, Vorlieben mit Quelle, Korrigieren/Löschen (B5.3) |
 | Medienwunsch | Motiv, Foto/Video/Set, Anzahl, Format, Lieferart, Quellnachrichten, offene Rückfrage (C5.5) |
 | Angebot | Produkt-ID, Preislistenrevision, Betrag, Zahlungswege der Influencerin, Frist, Zusatzleistungen Originaldatei/selbstlöschend; Faktenblock gesperrt (C5.5) |
@@ -116,6 +117,7 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 ### 3.8 Kundentest T1 und T2 (Nachrichten, Default-Kontakt)
 
 - Umschalter Betriebsart: Produktion, Kundentest, Aus.
+- Der Kundentest läuft in einer eigenen Testakte (Art `test`) mit eigenem Verlauf; der Produktionsverlauf des Defaults bleibt unberührt. Jeder Wechsel erscheint als Karte in beiden Verläufen; der KI-Hinweis kommt wie bei Kunden einmal je Testsitzung.
 - Im Kundentest: Marke TEST im Verlauf, Messwerte je Nachricht aufklappbar, Tafel „Latenzen“ mit p50 und p95 für Antwort und Render.
 - Knöpfe „Test zurücksetzen“ und „Verzögerung wie Kunde“.
 - Testaufträge tragen in allen Listen die Marke TEST und erscheinen nie im Wallet.
@@ -127,14 +129,14 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 
 | Paket | Frontend-Umfang | Abnahme |
 |---|---|---|
-| **H allgemein** | Kundenliste/Übersicht folgen EVENT 26 bei jedem Eingang (BUG-048); Befehle mit Zeitlimit und Wiederaufnahme (BUG-024); Ganzzahlprüfung (BUG-025); mitlaufende Fristen (BUG-026); Video in der Auftragskarte als Player (BUG-027); Ereignislisten begrenzt (BUG-071); Wallet-Maskierung und Bestätigungen (BUG-032, 033); Übersichtszähler (BUG-070); automatisches Neuladen nach Schemawechsel (BUG-076) | je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet, Einstellungen; Smoke klickt alle sechs Reiter (BUG-072) |
+| **H allgemein** | Kundenliste/Übersicht folgen EVENT 26 bei jedem Eingang (BUG-048); Befehle mit Zeitlimit und Wiederaufnahme (BUG-024); Ganzzahlprüfung (BUG-025); mitlaufende Fristen (BUG-026); Video in der Auftragskarte als Player (BUG-027); Ereignislisten begrenzt (BUG-071); Wallet-Maskierung und Bestätigungen (BUG-032, 033); Übersichtszähler (BUG-070); automatisches Neuladen nach Schemawechsel (BUG-076) | je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet; Smoke klickt alle vorhandenen Reiter (ab S1 sechs; der Test für Einstellungen gehört zu S1) (BUG-072) |
 | **H3** | „Auftrag abbrechen“ an der Auftragskarte; Fortschritt langer Läufe; Abbruchzustand bis zur Quittung | laufender Mehrkandidaten-Auftrag abgebrochen |
 | **H4** | Zustandskarte je Default-Nachricht (gestartet, wartet auf Start mit Startknopf, abgelehnt mit Grund, zurückgesendet, Rückversand gesperrt); Default-Kontakt zeigt ausgeschaltete Schalter und fehlende Workflows; Betriebsart-Umschalter; Ausgabeprofil je Befehl (z. B. Story 9:16); Stapel mit einer Karte je Bild und gemeinsamem Fortschritt; Auftragskarte nennt Influencerin, Workflow, Zahl der Referenzen, LoRA-Version | Browser-Test für jeden der fünf Zustände plus echter Lauf vom Handy (H6) |
 | **H5** | `VideoSettings` für alle Video-Workflows | LTX, Wan, Remix zeigen dieselben Felder an derselben Stelle (Screenshot-Vergleich) |
 | **S1** | Reiter Einstellungen §3.7 | PayPal-Zugang eintragen, Verbindung prüfen, Wert danach nirgends lesbar |
 | **B5.1–B5.4** | KI-Studio §3.4 | 20 echte Testnachrichten im Chat-Test, Messwerte sichtbar |
 | **B5.4a** | Default-Verlauf zeigt die Deutung einer freien Anweisung (Befehl, Workflow, Prompt) in der Karte | 30 Anweisungen vom Handy |
-| **C5.1–C5.10** | rechte Kundensteuerung §3.2 je Paket; C5.1: Figur-Filter und Influencerin-Kennzeichen in Liste, Register und Aktenkopf, sichtbare Sortierung; C5.2: Status des KI-Hinweises, Karte und Sperre „minderjährig vermutet“, kein Altersblock; C5.6a: Prüfwerte je Kandidat, Karte „wartet auf Betreiber“ (Freigeben, Neu, Erstatten), Schalter Freigabeart im Influencerin-Block; C5.10: Auftragskarte zeigt, ob System oder Betreiber freigegeben hat und über welchen Weg | je Paket echter Lauf mit Testkunden |
+| **C5.1–C5.10** | rechte Kundensteuerung §3.2 je Paket; C5.1: Figur-Filter und Influencerin-Kennzeichen in Liste, Register und Aktenkopf, sichtbare Sortierung; C5.2: Status des KI-Hinweises, Karte und Sperre „minderjährig vermutet“, kein Altersblock; C5.6a: Prüfwerte je Kandidat (Identität, Inhaltsstufe, Technik, Qualität; bei Video Stichprobenbilder), Hinweis „keine automatische Freigabe“, solange ein Prüfmodell fehlt (E16), Karte „wartet auf Betreiber“ (Freigeben, Neu, Erstatten; „Freigeben“ nur bei technischem oder qualitativem Fehlschlag, harte Gates bleiben gesperrt), Schalter Freigabeart im Influencerin-Block; C5.10: Auftragskarte zeigt, ob System oder Betreiber freigegeben hat und über welchen Weg | je Paket echter Lauf mit Testkunden |
 | **T1, T2** | Kundentest §3.8 | Browser-Test Umschalten, Messwerte, Zurücksetzen; Testauftrag nie im Wallet |
 | **C5a** | Wallet §3.6 | echte Zahlung je Weg |
 | **B1** | Bereich Charakter §3.3 (Liste, Fotostatus, Training, Versionen, Aktiv setzen, LoRA-Auswahl im Formular) | echter Ordner → Training → LoRA → Bild; Browser-Test Anlegen, Fotostatus, gesperrter Start, Umschalten |
@@ -164,6 +166,14 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 
 Wörtlich aus dem archivierten `PHASENPLAN_FRONT_V1.md` (F7, Betreiberfreigabe 15./16.11.2026) übernommen. Verweise auf „V0“, „FRONT“ oder Abschnittsnummern beziehen sich auf die Archivfassungen. Bei Widerspruch gilt dieser Plan, insbesondere §1 (sechs Reiter, einheitliche Bedienung je Art) und §3. Die früheren Abschnitte F0–F6 sind durch §1–§4 dieses Plans und den Backend-Plan ersetzt und liegen im Archiv.
 
+**Überholte Stellen im Anhang (inline mit [17.11.] markiert):**
+- fünf Hauptreiter → **sechs** (zusätzlich Einstellungen, S1);
+- Trainingsordner `local/character/photos/` → `local/characters/<kürzel>/photos/` (B1);
+- Telegram-Sofatest B5.5 → Kundentest **T1/T2**;
+- Wallet-Abnahme mit BTC/USDT → Startwege PayPal und Amazon-Gutschein (E6), Krypto nur zugeschaltet;
+- KI-Studio-Klickprototyp `Darkfluenzer_KI_Studio_Klickprototyp.html` liegt **nicht** im Repository; bis er vorliegt, gelten §3.4 und F7.9 ohne Prototyp-Vergleich.
+
+
 ### A.0 F7 — Abgenommene klickbare Cockpit-Referenz (Betreiberfreigabe 15.11.2026)
 
 **Verbindliche Datei:** [Darkfluenzer_Cockpit_Interaktiv.html](design/Darkfluenzer_Cockpit_Interaktiv.html) — eigenständige HTML/CSS/JavaScript-Datei; im Browser öffnen, ohne Build, Backend oder Netzwerkzugriff. **Diese F7-Vereinbarung ist die Designreferenz für die nächste GUI-Anpassung; die noch nicht implementierten Funktionen bleiben fachlich F4/F3c/F5.** Designgetreue Umsetzung bedeutet insbesondere: keine neuen Menüs, künstlichen Status-Kacheln, Formularvorschauen oder Werbetexte. Screenshots der vom Betreiber freigegebenen Astra-Ansichten vom 14.11.2026 sind die visuelle Vergleichsgrundlage. Der HTML-Prototyp enthält bewusst nur stilisierte Bild-/Video-Platzhalter, niemals vorgetäuschte ComfyUI-Ergebnisse.
@@ -172,7 +182,7 @@ Wörtlich aus dem archivierten `PHASENPLAN_FRONT_V1.md` (F7, Betreiberfreigabe 1
 
 #### F7.1 Verbindliche Position und Gestaltung
 
-- **App-Kopfzeile:** Pinkes C links, Hauptnavigation **Übersicht · Nachrichten · ComfyUI · Dateien · Wallet** in derselben Zeile; rechts nur tatsächlich vom Backend bestätigter Status. Keine weiteren Hauptreiter (Wallet seit V1.12, F7.8).
+- **App-Kopfzeile:** Pinkes C links, Hauptnavigation **Übersicht · Nachrichten · ComfyUI · Dateien · Wallet · Einstellungen** in derselben Zeile; rechts nur tatsächlich vom Backend bestätigter Status. Keine weiteren Hauptreiter (Wallet seit V1.12, F7.8; **[17.11.]** Einstellungen seit S1).
 - **Übersicht:** Titel, knappe Unterzeile, die drei im freigegebenen Screenshot sichtbaren Informationskarten *Kundenakten*, *GPU-Warteschlange*, *Freigaben ausstehend*; darunter *Aktuelle Kunden · anklicken zum Öffnen*. Werte ausschließlich aus echtem Backendzustand. Klick auf einen Kunden öffnet seine vorhandene Kundenakte im Reiter Nachrichten und nicht eine zweite Kundenansicht.
 - **Nachrichten — drei feste Desktop-Spalten:** **Links** Kundenliste mit Suchfeld, Einträgen und Kanalkennzeichen; **Mitte** offene Kundenregisterkarten, Kontakttitel/-ID, Unterregister *Gesamter Verlauf / Instagram / Telegram / WhatsApp*, Chronologie und kanalgebundenes Antwortfeld; **rechts am äußersten Rand** die vollständige und scrollbare **Kundensteuerung**. Kein Verschieben der Steuerung in die Mitte. Stil: Graphite-Dunkelgrau, dezente Trennlinien und pinke Marke/Auswahl. Screenshot-Abmessungen als proportionale Leitlinie; responsives Verhalten darf Elemente umordnen, die fachliche Zuweisung jedoch nicht.
 - **ComfyUI — drei feste Desktop-Spalten:** **Links ausschließlich Workflows** der jeweiligen Instanz/Registry (keine "Aufträge & Workflows"); **Mitte** Prompt-/Quellbild-/Masken-/Trainings-Arbeitsfläche und echte Ergebnisse; **rechts äußerster Rand** **Steuerung**, erweiterte Workflow-Einstellungen (**initial geschlossen**), **Generieren**, darunter persistente **Warteschlange und Instanzstatus**.
@@ -227,7 +237,7 @@ Der äußerste rechte Rand enthält **reale Bedienelemente und reale Akteninform
 
 #### F7.5 ComfyUI — jedes Feld und die beiden Instanzen
 
-**Ergänzung mit Vorrang für die KI-Ansicht (Betreiberfreigabe 16.11.2026):** Die konkrete Anordnung und Interaktion des KI-Studios ist in **F7.9** verbindlich. Sie erweitert F7.5 innerhalb von **ComfyUI → KI**, ohne das bestehende Drei-Spalten-Layout, die Medienfunktionen, das Graphite-Design oder die fünf Hauptreiter zu verändern. Der vom Betreiber am 16.11.2026 ausdrücklich freigegebene klickbare HTML-Prototyp `Darkfluenzer_KI_Studio_Klickprototyp.html` ist die exakte visuelle und interaktive Designreferenz; F7.9 fixiert dessen bedienbare Elemente, Zustände und den produktiven End-to-End-Vertrag. **DEMO-Daten sind niemals produktive Daten.**
+**Ergänzung mit Vorrang für die KI-Ansicht (Betreiberfreigabe 16.11.2026):** Die konkrete Anordnung und Interaktion des KI-Studios ist in **F7.9** verbindlich. Sie erweitert F7.5 innerhalb von **ComfyUI → KI**, ohne das bestehende Drei-Spalten-Layout, die Medienfunktionen, das Graphite-Design oder die Hauptreiter (**[17.11.]** sechs) zu verändern. Der vom Betreiber am 16.11.2026 ausdrücklich freigegebene klickbare HTML-Prototyp `Darkfluenzer_KI_Studio_Klickprototyp.html` ist die exakte visuelle und interaktive Designreferenz; F7.9 fixiert dessen bedienbare Elemente, Zustände und den produktiven End-to-End-Vertrag. **DEMO-Daten sind niemals produktive Daten.**
 
 | Element | Exakte Funktion / Einschränkung |
 |---|---|
@@ -241,7 +251,7 @@ Der äußerste rechte Rand enthält **reale Bedienelemente und reale Akteninform
 | **Rechte Steuerung – Charakter** | Auswahl der vorhandenen, versionierten synthetischen Influencerin; nachgewiesene Modell-/Identitätsbindung Voraussetzung für produktive Charakterläufe. |
 | **Rechte Steuerung – Workflow** | Nur Anzeige des links ausgewählten konkreten Graphen/Version; keine zweite, widersprüchliche Auswahl. |
 | **Erweiterte Workflow-Einstellungen** | **Initial zugeklappt**. Dynamisch **alle tatsächlich exponierten Eingänge** des gewählten Workflows anzeigen und serverseitig prüfen: seed, steps, cfg, width, height, denoise, mask_grow sowie künftig checkpoint, sampler, scheduler, guidance, batch, LoRA/Adapter, Frames/FPS/Dauer, Kamera-/Bewegungssteuerung, Refinement/Output, soweit die Nodes sie tatsächlich unterstützen. Keine Attrappen und keine erfundenen „Qualität“-Slider. |
-| **Trainingsdatenordner** | Für registrierten Trainingsworkflow Standard \`local/character/photos/\`. Sämtliche geeigneten Bilddateien im Verzeichnis werden gescannt, dedupliziert, zu einem versionierten Datensatz zusammengefasst und nach Bestätigung trainiert. Originale nicht löschen. Zunächst \`CHAIN-00/01\` OFFEN; kein Trainer-PASS ohne echten ComfyUI-1-/MPS-Trainingsnachweis. |
+| **Trainingsdatenordner** | Für registrierten Trainingsworkflow Standard **[17.11.]** \`local/characters/<kürzel>/photos/\` (B1). Sämtliche geeigneten Bilddateien im Verzeichnis werden gescannt, dedupliziert, zu einem versionierten Datensatz zusammengefasst und nach Bestätigung trainiert. Originale nicht löschen. Zunächst \`CHAIN-00/01\` OFFEN; kein Trainer-PASS ohne echten ComfyUI-1-/MPS-Trainingsnachweis. |
 | **Generieren / Training starten** | Typisierter Protobuf-Befehl an genau den ausgewählten geprüften Workflow, persistenter Auftrag mit FIFO-/Status-/Artefaktbezug. Bei gesperrten/fehlenden Modellen deaktiviert. |
 | **Warteschlange (rechts unter Steuerung)** | Persistente globale Medien-GPU-FIFO, echte Position/Status/Progress nur mit Backendquelle; ComfyUI 2 hat separate KI-Queue. Wartende Betreiberentscheidungen blockieren keinen anderen ausführbaren Medienjob. |
 | **Instanzen** | Medien-ComfyUI 1 Default \`127.0.0.1:8188\`, KI-ComfyUI 2 \`127.0.0.1:8189\`; eigenständige Prozesse/Queue, gemeinsamer GPU-Speicher. Keine fiktiven Health-Zustände. |
@@ -257,7 +267,7 @@ Bestehende React-Bedienung und Sicherheitsbedingungen bleiben: In \`Files.tsx\` 
 
 Die freigegebene **Übersicht** und **Nachrichtenansicht** sind im Betreiber-Chat durch zwei Original-Screenshots vom **14.11.2026** dokumentiert: dunkelgrauer Graphite-Hintergrund, pinkes C, kompakte Registerleiste, drei KPI-Karten bei Übersicht; bei Nachrichten **Kunden links, mittig Kundenregisterkarten und kanalgefilterte Zeitleiste, am rechten äußersten Rand die detaillierte Kundensteuerung**. Diese Screenshots sind die verbindliche visuelle Prüfreferenz; der HTML-Prototyp stellt die Layoutstrukturen und die Bedienwege zusätzlich interaktiv bereit. Originalbilder sind weder automatisch Git-Assets noch ComfyUI-Ausgaben und dürfen nicht als solche ausgegeben werden.
 
-**Testfälle:** Hauptnavigation (fünf Reiter), Kundenliste/Öffnen/Schließen, Kanalfilter und Gesamt-Leseschutz, wechselnde rechte Steuerung, Default-Kontakt nur als interne Identität, einklappbare KI-Felder, ComfyUI-Workflowtypen und zielgenaue Parameter, initial geschlossenes Expertenmenü, Trainingsordner, rechts Warteschlange, Dateien-Markierung und Löschbestätigung, Weiterverarbeiten. Ein eigenständiger HTML-Klicktest belegt nur UI-Verhalten. F3/F4/CHAIN-00–06 benötigen jeweils echte Backend-/Mac-/Plattform-Abnahme.
+**Testfälle:** Hauptnavigation (**[17.11.]** sechs Reiter), Kundenliste/Öffnen/Schließen, Kanalfilter und Gesamt-Leseschutz, wechselnde rechte Steuerung, Default-Kontakt nur als interne Identität, einklappbare KI-Felder, ComfyUI-Workflowtypen und zielgenaue Parameter, initial geschlossenes Expertenmenü, Trainingsordner, rechts Warteschlange, Dateien-Markierung und Löschbestätigung, Weiterverarbeiten. Ein eigenständiger HTML-Klicktest belegt nur UI-Verhalten. F3/F4/CHAIN-00–06 benötigen jeweils echte Backend-/Mac-/Plattform-Abnahme.
 
 **Umsetzungsauftrag an Claude:** Die HTML-Referenz und **diesen** Abschnitt F7 als genaue visuelle/bedienlogische Abnahmequelle lesen, mit dem bestehenden React-Code abgleichen und nur die tatsächlich fehlenden Funktionen ändern. Kein Repo-Rewrite, keine neue UI-Bibliothek, keine neue Persistenz- oder Render-Engine. Vor jedem Layout-Umbau Ausgangsscreenshot und vorhandene Komponenten vergleichen. Vor Implementierung technische Abweichungen zur Registry bzw. zum Graph ausdrücklich benennen. Nach Anpassung echte Mac-Screenshots gegen die Betreiber-Screenshots und HTML-Referenz prüfen.
 
@@ -276,7 +286,7 @@ Die freigegebene **Übersicht** und **Nachrichtenansicht** sind im Betreiber-Cha
 | **Monatsliste** | Download je Monat (`GET /api/v1/payment-export/{monat}`) mit Euro-Wert und Kurs beim Eingang. |
 | **Technische Details** (Schublade) | Datenquellen (Kursquelle, BTC-Schnittstelle, BSC-RPC, PayPal), letzte erfolgreiche Abfrage, Fehler. |
 
-**Abnahme:** echte Adressen aus `config.toml` mit QR; eine echte kleine BTC- und USDT-Zahlung erscheint live per Push und wechselt nach den Bestätigungen auf *Bestätigt* mit Kundenzuordnung; ein falscher Betrag steht unter *Nicht zugeordnet* → Zuordnen mit Receipt; ein Gutschein wird erst nach Betragseintrag bestätigt; Reconnect ohne Dubletten; kein Sende-Element im DOM; Build- und Stylesheet-Wächter grün.
+**Abnahme:** **[17.11.]** zuerst PayPal und Amazon-Gutschein (E6); Krypto nur, wenn zugeschaltet: echte Adressen aus `config.toml` mit QR; eine echte kleine BTC- und USDT-Zahlung erscheint live per Push und wechselt nach den Bestätigungen auf *Bestätigt* mit Kundenzuordnung; ein falscher Betrag steht unter *Nicht zugeordnet* → Zuordnen mit Receipt; ein Gutschein wird erst nach Betragseintrag bestätigt; Reconnect ohne Dubletten; kein Sende-Element im DOM; Build- und Stylesheet-Wächter grün.
 
 
 ---
@@ -340,8 +350,8 @@ Alle **wirklich ausführbaren** KI-Stufen laufen als versionierte, im echten **C
 4. Antwortprüfung: harte Regelverletzung **vor externem Versand** abgefangen, Entwurf/Manuell möglich, Admin-Eskalation als echte Ereigniskarte; Anweisungen aus Kundentext ersetzen keine serverseitigen Fakten-, Zahlungs- oder Freigabestatus.
 5. Gleicher registrierter Dialog-Workflow wird nach bestandener Studioabnahme in **Nachrichten/Telegram** für Claras Persona verwendet, nicht parallel neu implementiert. Kundentext → Wunsch → Preis aus Preisliste → vorbereiteter Prompt → echte Zahlung oder isolierter Testbetrieb → echter ComfyUI-1-Bildauftrag → Freigabe → Datei-Rückversand, keine fiktiven Bild- oder Zahlungsnachweise.
 6. Trainings-/ASR-/TTS-Bereiche werden erst dann als **bereit** gezählt, wenn Modell, Graph, Backend, Frontend, wirklicher Job, Ergebnis und M4-Abnahme vorhanden sind; bis dahin sichtbar **OFFEN**, nicht ein irreführendes \`KI 6\`.
-7. Vor dem produktiven Deploy: Vergleich mit dem **freigegebenen KI-Studio-Klickprototyp vom 16.11.2026** auf Desktopbreite, Werkzeuge/Panelpositionen, kompakten Abstand, Graphite-Farben, Texte, Start-/Leer-/Fehlerzustände und Interaktionen; Abweichungen begründen, nicht stillschweigend neu gestalten.
+7. Vor dem produktiven Deploy: Vergleich mit dem **freigegebenen KI-Studio-Klickprototyp vom 16.11.2026** (**[17.11.]** Datei nicht im Repository; entfällt, bis sie vorliegt) auf Desktopbreite, Werkzeuge/Panelpositionen, kompakten Abstand, Graphite-Farben, Texte, Start-/Leer-/Fehlerzustände und Interaktionen; Abweichungen begründen, nicht stillschweigend neu gestalten.
 
-**Reihenfolge:** **B5.1 Melody direkt testbar → B5.2 Chat-/Persona-/Parameter-Studio → B5.3 Langzeitgedächtnis → B5.4 Wunsch/Angebot/Prompt → B5.5 isolierter Telegram-Sofatest mit realem Bild**. Bildverständnis danach; Text-LoRA und ASR/TTS nur nach gesonderter späterer Freigabe. Dieser UX-Vertrag ergänzt die technischen Abhängigkeiten von V0 B5/C5, ohne deren Zahlungs-, Absender- und Sicherheitsgates für Live-Kunden aufzuheben.
+**Reihenfolge:** **B5.1 Melody direkt testbar → B5.2 Chat-/Persona-/Parameter-Studio → B5.3 Langzeitgedächtnis → B5.4 Wunsch/Angebot/Prompt → B5.5 isolierter Telegram-Sofatest mit realem Bild** (**[17.11.]** ersetzt durch Kundentest T1/T2). Bildverständnis danach; Text-LoRA und ASR/TTS nur nach gesonderter späterer Freigabe. Dieser UX-Vertrag ergänzt die technischen Abhängigkeiten von V0 B5/C5, ohne deren Zahlungs-, Absender- und Sicherheitsgates für Live-Kunden aufzuheben.
 
-**Ergänzung 16.11.2026 (verbindliche Betreiberentscheidung B5, Details in V0 „B5 – Detailplan Clara-Chat-KI“):** Erstes und einziges freigegebenes Chatmodell ist **Melody1437 v2.0 (Gemma 4 MoE) GGUF Q6_K**. Kopfzeile „Textdialog · …“, linke Workflowliste und Auswahl **MODELL & FIGUR** zeigen den Modellnamen **aus der Registry**, nicht fest verdrahtet; „Vergleich“ (B) bleibt gesperrt bis zu einer neuen Modellfreigabe. Reihenfolge damit: P0 aus `docs/bugs_v1.md` → **B5.1 Melody1437 direkt testbar** → B5.2 Studio → B5.3 Gedächtnis (vier Ebenen, FTS5) → B5.4 Wunsch/Angebot/Prompt → B5.5 Telegram-Sofatest (`Cash` nur im isolierten Testbetrieb) → B5.6 VLM, B5.7 Text-LoRA, B5.8 STT/TTS später.
+**Ergänzung 16.11.2026 (verbindliche Betreiberentscheidung B5, Details in V0 „B5 – Detailplan Clara-Chat-KI“):** Erstes und einziges freigegebenes Chatmodell ist **Melody1437 v2.0 (Gemma 4 MoE) GGUF Q6_K**. Kopfzeile „Textdialog · …“, linke Workflowliste und Auswahl **MODELL & FIGUR** zeigen den Modellnamen **aus der Registry**, nicht fest verdrahtet; „Vergleich“ (B) bleibt gesperrt bis zu einer neuen Modellfreigabe. Reihenfolge damit: P0 aus `docs/bugs_v1.md` → **B5.1 Melody1437 direkt testbar** → B5.2 Studio → B5.3 Gedächtnis (vier Ebenen, FTS5) → B5.4 Wunsch/Angebot/Prompt → B5.5 Telegram-Sofatest (**[17.11.]** ersetzt durch T1/T2; `Cash` als Testwort in T2) → B5.6 VLM, B5.7 Text-LoRA, B5.8 STT/TTS später.

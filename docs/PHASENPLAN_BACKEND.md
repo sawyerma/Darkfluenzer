@@ -1,10 +1,10 @@
 # Darkfluenzer – PHASENPLAN_BACKEND.md
 
-**Stand:** 17.11.2026 (mit Änderungsblatt Einstellungen/Kundentest/Vollautomatik) · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
-**Prüfbasis:** `main` `7a49b6a` (17.11.2026) und die echten Läufe vom 16./17.11. auf dem Mac (§5).
+**Stand:** 17.11.2026 (Änderungsblätter Einstellungen/Kundentest/Vollautomatik und B1, Korrektur nach den Prüfberichten von ChatGPT und Fable) · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
+**Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; echte Läufe vom 16./17.11. auf dem Mac (§5).
 **Verbindlich sind genau drei Dateien:** diese, `docs/PHASENPLAN_FRONTEND.md` und `docs/bugs_v1.md` (Befundregister).
 **Archiv (nicht verbindlich):** `docs/archiv/` mit `PHASENPLAN_V0.md`, `PHASENPLAN_BACK_V1.md`, `PHASENPLAN_FRONT_V1.md`, `ki_modelle.md`, `bugs_v1_20261117_vor_neufassung.md`. Code-Kommentare mit Verweisen auf V0/V1-Abschnitte beziehen sich auf diese Archivfassungen.
-**Quellen dieser Fassung:** die bisherigen Pläne, die Konsolidierungen von ChatGPT (BACK/FRONT V2) und Fable, die Betreiberantworten E1–E10 vom 17.11.2026 und der Code.
+**Quellen dieser Fassung:** die bisherigen Pläne, die Konsolidierungen und Prüfberichte von ChatGPT und Fable, die Betreiberantworten E1–E16 vom 17.11.2026 und der Code.
 **Wahrheit für Details:** Code auf `main`, `protocol/schemas/darkfluenzer/v1/*.proto` (Vertrag), `workflows/manifest.toml` (Modelle, Workflows), `config.example.toml` (Konfiguration).
 
 ---
@@ -58,7 +58,9 @@ Video läuft genauso: erst das Bild, dann die Animation. Der Betreiber gibt die 
 | E11 | Kundenkette vollautomatisch: Wunsch, Angebot, Zahlung, Produktion, Prüfung, Freigabe und Zustellung ohne Klick. Ausnahme: Amazon-Gutscheine bestätigt der Betreiber. | entschieden |
 | E12 | Der Default ist der Admin. Sein Chat hat drei Betriebsarten: Produktion, Kundentest, Aus. | entschieden |
 | E13 | Zugangsdaten und Einstellungen werden im Cockpit im Reiter „Einstellungen“ gepflegt (S1). | entschieden |
-| E14 | Auf welcher Bild-Engine laufen Kundenbilder? Dafür wird die zweite LoRA je Charakter trainiert. Bis zur Entscheidung gilt B1 nur für die vorhandene Trainings-Engine (SDXL/LUSTIFY, Inhaltsstufe `explizit`, also nur Default-Produktion). | **offen**, Betreiberantwort fehlt |
+| E14 | Auf welcher Bild-Engine laufen Kundenbilder? Dafür wird die zweite LoRA je Charakter trainiert. B1 beginnt mit LUSTIFY SDXL (`explizit`, nur Default-Produktion). Die Kunden-Engine wird erst nach echtem Training, Bildtests mit Clara, Identitätswerten, geprüfter Einstufung `standard` und Laufzeit festgelegt; Kandidat mit registriertem Trainingsworkflow: Krea 2 Raw (nie gelaufen, BUG-023). Bis dahin ist kein Produkt lieferbar (C5.5). | **offen** |
+| E15 | Chat neben Video: Erreicht B5.1 die Antwortziele unter Medienlast nicht, gilt bis zur Entscheidung: die KI-Bahn hat Vorrang; ein neuer Medienjob startet nur, wenn danach Melody-Bedarf plus Reserve frei bleiben; laufende Renders werden nicht abgebrochen; wartende Kunden erhalten eine Vertröstung (C5.4). Zur Wahl: feste Renderfenster (z. B. nachts) oder Video nur ohne aktives Kundengespräch. | **offen**, Voreinstellung gilt |
+| E16 | Prüfmodell für die Inhaltsstufe (C5.6a): noch nicht gewählt; Download nur nach Freigabe. Bis dahin keine automatische Freigabe, Freigabeart steht fest auf „Betreiber“. | **offen**, Voreinstellung gilt |
 
 ---
 
@@ -95,7 +97,7 @@ Wörtlich aus V0 §2.1, ergänzt um die Betreiberregeln vom 14.–17.11.:
 - **NO DUPLICATION:** vorhandene Funktionen wiederverwenden, keine doppelte Architektur.
 - **MAIN ONLY:** keine Branches oder Worktrees. **MAX 2 AGENTS.**
 - **GIT:** je abgeschlossenem Paket Tests, Commit, Push auf `main`.
-- **Geheimnisse nur im macOS-Schlüsselbund** (Konto `darkfluenzer`): `darkfluenzer.telegram.api_id`, `darkfluenzer.telegram.api_hash`, `darkfluenzer.telegram.db_key`, Instagram-Token, Meta-App-Secret, PayPal-Zugang. Nie in `.env`, TOML, Git, Logs, Protobuf oder LLM-Kontext. Eingabe über `darkfluenzer secret set` (verdeckt bzw. stdin, Übergabe an `security -i` über stdin); vorhandene Einträge nur nach ausdrücklicher Bestätigung ersetzen. Telegram-Code und 2FA-Passwort gehen nur temporär an TDLib.
+- **Geheimnisse nur im macOS-Schlüsselbund** (Konto `darkfluenzer`): `darkfluenzer.telegram.api_id`, `darkfluenzer.telegram.api_hash`, `darkfluenzer.telegram.db_key`, Instagram-Token, Meta-App-Secret, PayPal-Zugang. Nie in `.env`, TOML, Git, Logs, gespeicherten oder gesendeten Protobuf-Nachrichten (STATE, EVENT, Receipt, Befehlsjournal) oder LLM-Kontext. Einzige Ausnahme ist der flüchtige Eingabeweg von Befehl 60 `secret_set` (S1): der Wert geht über die angemeldete lokale Cockpit-Verbindung (Sitzung + CSRF) direkt in den Schlüsselbund; im Journal steht nur der Hash ohne Wert. Eingabe über `darkfluenzer secret set` (verdeckt bzw. stdin, Übergabe an `security -i` über stdin); vorhandene Einträge nur nach ausdrücklicher Bestätigung ersetzen. Telegram-Code und 2FA-Passwort gehen nur temporär an TDLib.
 - **Ein Stylesheet:** `frontend/src/shared/graphite.css`, keine Datei je Seite (FRONTEND §1).
 - **Datenbank-Migrationen** nur mit vorheriger Sicherung (`darkfluenzer.sqlite3.bak-<Zeit>-vor-migrationNN`), danach `PRAGMA integrity_check` und Fremdschlüsselprüfung.
 - **Echte Kettenprüfung (Betreiberregel 17.11.):** Eine Kette gilt erst als funktionierend nach einem Lauf vom echten Eingang bis zum Ergebnis im Chat (Handy → Telegram → Cockpit → ComfyUI → Rückversand). Voraussetzungen (Workflows, Influencerin, Charakter) werden vorher eingerichtet oder offen als fehlend gemeldet. Jede Ablehnung wird im Chat beantwortet, aus dem sie kam, nicht nur als Cockpit-Karte.
@@ -152,7 +154,7 @@ flowchart LR
   KL <-- "freie Anweisung" --> C2
   PR <-- "Bild · Video · Training" --> C1["ComfyUI 1 · Medien · 8188"]
   ST --> SR
-  SR -- "ein WebSocket · Protobuf" --> UI["React-Cockpit<br/>5 Reiter"]
+  SR -- "ein WebSocket · Protobuf" --> UI["React-Cockpit<br/>6 Reiter"]
   UI -- "Protobuf-Befehle" --> CMD --> ST
 ```
 
@@ -170,7 +172,8 @@ flowchart LR
 - **ComfyUI 1 (127.0.0.1:8188, Medien):** Bilder, Inpaint, Refine, Pose/Tiefe, LoRA-Training, Video, Hochskalieren.
 - **ComfyUI 2 (127.0.0.1:8189, KI):** Melody (Dialog, freie Anweisungen, Prompts), später Bildverständnis, Inhaltsprüfung, Sprache.
 - Beide nutzen dieselbe Installation `local/ComfyUI` (ComfyUI 0.45.3, eigene venv), eigene Ordner und eigene Warteschlangen. Modelle liegen nur unter `local/models` (`extra_model_paths.yaml`, erzeugt von `launcher/setup_comfyui.sh`).
-- Die Zulassung (`server._admit`) prüft vor jedem Medienjob den gemessenen freien Speicher gegen die Reserve aus der Konfiguration. Die KI-Bahn hat Vorrang: Kundenantworten dürfen nicht hinter einem Videorender warten (B5.1 misst das).
+- Die Zulassung (`server._admit`) prüft vor jedem Medienjob den gemessenen freien Speicher gegen die Reserve aus der Konfiguration. Die KI-Bahn hat Vorrang: Kundenantworten dürfen nicht hinter einem Videorender warten; B5.1 misst das, die Regel für den Fall, dass es nicht reicht, ist E15.
+- **Vorrang auf ComfyUI 1** (Klassen und Reihenfolge in der Konfiguration): (1) bezahlte Kundenaufträge, (2) Default-Produktion und Kundentest, (3) Training. Innerhalb einer Klasse gilt FIFO. Ein Training startet nur, wenn keine Aufträge der Klassen 1–2 warten, und wird nicht unterbrochen; währenddessen eingehende Kundenaufträge warten mit Lieferzeit-Hinweis; der Betreiber kann das Training abbrechen.
 
 ### 3.3 Protobuf-Rundweg (gilt für jede Funktion im selben Paket)
 
@@ -189,7 +192,7 @@ React-Bedienung → Protobuf-Befehl (request_id, Scope, erwartete Revision)
 
 - `influencers`/`characters` → Fotos, Datensätze, LoRA-Versionen, Persona; `customers` → `channel_identities` → `channel_conversations` → `channel_messages` (Anhänge, Status); `orders` → `order_stages` → `jobs` → `media` → Freigaben → Zustellungen → Zahlungen.
 - **Default** ist `customers.kind = internal`, kein Kunde, nie in Verkaufszahlen.
-- **Auftrag:** `created → producing → candidates/selected → approved → delivered → (complaint → closed)`; bezahlte Aufträge tragen `order_id` von der Anlage bis zur Zustellung.
+- **Kundenauftrag (Code):** `draft → offered → accepted → paid → producing → review → approved → delivered`, Endzustände `cancelled`, `refunded`. **Betreiber-/Kloner-Auftrag (Code):** `producing → review → approved`, `cancelled`. **Geplant:** `expired` aus `offered` (C5.5), `awaiting_operator` aus `review` bei gescheiterter Prüfung (C5.6a), `complaint` und `closed` nach `delivered` (C5.8), Quelle `test` mit `producing → review → approved → delivered` ohne Zahlungszustände und nur an die Default-Testidentität (T2). Bezahlte Aufträge tragen `order_id` von der Anlage bis zur Zustellung. Der Medienwunsch gehört zur Konversation; Angebot und Auftrag verweisen auf ihn.
 - **Job:** `queued → running → done | failed | cancelled`; Pause der Warteschlange ist dauerhaft (SQLite). Nach Absturz wird anhand der gespeicherten `prompt_id` abgeholt statt neu gerendert.
 - **Zustellung:** `queued → sending → sent | failed | unknown`; `unknown` wird abgeglichen, nie blind wiederholt.
 
@@ -211,7 +214,7 @@ flowchart TD
   X -- nein --> K{"Kaufbereitschaft ≥ 2?<br/>B5.4"}
   K -- nein --> C
   K -- ja --> W["Medienwunsch-Datensatz<br/>über mehrere Gespräche"]
-  W --> O["Zusammenfassung + Angebot<br/>Preis aus Liste · Zahlungsweg"]
+  W --> O["Zusammenfassung + Angebot<br/>nur lieferbare Preisposition · Zahlungsweg"]
   O --> P{"Zahlung bestätigt?<br/>PayPal automatisch · Gutschein vom Betreiber"}
   P -- nein/abgelaufen --> C
   P -- ja --> R["Prompt aus Wunsch<br/>Render mit Claras LoRA (ComfyUI 1)"]
@@ -300,8 +303,8 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 ## 6. Reihenfolge (nach Freigabe)
 
 1. **DOK-1** – mit dieser Fassung erledigt (Pläne neu, Altdokumente im Archiv).
-2. **Block H: H0 bis H6** – innerhalb des Blocks die Default-Kette zuerst: H0 → H4 → H5 → H6a → H1 → H2 → H3.
-3. **S1 Einstellungen.**
+2. **Block H: H0 bis H6** in der Folge H0 → H4 → H5 → H2 → H1 → H6a → H3. Alle P0-Befunde und BUG-014/079 (Reihenfolge, Alben) sind vor H6a behoben.
+3. **S1 Einstellungen und Kanalkonten als Liste.**
 4. **B5.1 bis B5.4** – nach B5.1 zuerst B5.4a (freie Default-Anweisungen), dann B5.2, B5.3, B5.4.
 5. **C5.1, C5.2, C5.3, C5.4**, dann **T1**.
 6. **C5a, C5.5, C5.6, C5.6a, C5.7**, dann **T2**.
@@ -319,21 +322,21 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 **H0 Rückverfolgung.** CLI `darkfluenzer trace --message <id>` bzw. `--order <nr>` (nur lesend): Eingangsnachricht, Kanalidentität, Default-Zuordnung, Schalter, erkannter Befehl, Referenzen, Workflow, Vorprüfung, Auftrag, Stufen, Jobs mit `prompt_id` und Fehler, Medien, Rückversand; die erste Unterbrechungsstelle wird benannt. Abnahme: Ausgabe für den gescheiterten Auftrag vom 17.11. (§4.3) und für einen bestandenen.
 
 **H4 Default-Kette reparieren.** BUG-052, 053, 054, 055, 056, 057, 075. Dateien: `server.py` (`_cloner`, `_cloner_plan`, `_cloner_order`, `_cloner_delivery`), `cloner.py`, `pipeline.py` (`advance_order`), `config.py`.
-- **Referenz:** Anhang, beantwortete Nachricht oder die letzten Medien desselben Absenders innerhalb `cloner.reference_window_s` (Konfiguration); mehrere Referenzen an alle Vorlagen-Parameter des Workflows, überzählige sichtbar melden.
+- **Referenz:** Anhang, beantwortete Nachricht oder die letzten Medien desselben Absenders innerhalb `cloner.reference_window_s` (Konfiguration). Telegram-Alben (mehrere Nachrichten mit gleicher `media_album_id`) werden je Konto, Chat, Absender und Album dauerhaft zusammengeführt, bevor Aufträge entstehen; Neustart und Dubletten erzeugen keinen zweiten Auftrag (BUG-079).
 - **Vorprüfung** wie beim Render-Befehl (aktiviert, nicht gesperrt, Modelle vorhanden, Parameter gültig), bevor ein Auftrag entsteht.
-- **Bindung:** Auftrag trägt Influencerin, Charakterprofil und aktive LoRA-Version; bis B1 fertig ist, zeigt die Karte „ohne Charakter-LoRA“.
-- **Kandidaten:** Bild aus `production.candidates_default`, Video aus `production.video_candidates_default` (Vorgabe 1). Genau ein erfolgreicher Kandidat wird automatisch gewählt.
+- **Bindung:** Auftrag trägt Influencerin, Charakterprofil und LoRA-Version. Default-Aufträge laufen ohne aktive LoRA nur mit Kennzeichnung „ohne Charakter-LoRA“ (bis B1, oder wenn der Betreiber „ohne“ wählt); Kundenaufträge nie (B1.4).
+- **Kandidaten:** Default-Produktion je Bild `production.default_candidates_per_image` (Vorgabe 1); Kundenaufträge Bild `production.candidates_default`, Video `production.video_candidates_default` (Vorgabe 1). Genau ein erfolgreicher Kandidat wird automatisch gewählt.
 - **Zustände:** Jede Default-Nachricht endet in genau einem Zustand: gestartet · wartet auf Start · abgelehnt mit Grund · zurückgesendet · Rückversand gesperrt. Jeder Zustand erzeugt eine Karte **und** eine Antwort im selben Chat.
 - **Einrichtung:** Default-Medien-Workflow und Befehlszuordnung erhalten sinnvolle, im Cockpit sichtbare Vorschläge aus der Registry (keine leeren Pflichtfelder ohne Hinweis).
 - **Betriebsart** des Default-Chats je Kanalidentität: Produktion, Kundentest, Aus. Umschalten im Cockpit und per Chat-Wort; die Wörter stehen im Default-Kontakt.
 - **Produktion:** Bild mit Befehl oder freier Anweisung ergibt ein bearbeitetes Bild. Freie Anweisungen deutet die KI ab B5.4 (B5.4a); bis dahin gelten die sechs Befehle.
-- **Stapel:** Mehrere Bilder in einer Nachricht ergeben je Bild einen Auftrag. Hat der Workflow mehrere Vorlagen-Parameter, werden die Bilder gemeinsam verwendet.
-- **Ausgabeprofil** je Befehl oder per Anweisung, zum Beispiel Story 9:16.
+- **Stapel:** Workflow mit einem Vorlagen-Parameter: je Bild ein Auftrag. Workflow mit n Vorlagen-Parametern: die Bilder in Eingangsreihenfolge auf die Parameter verteilt, ein Auftrag; mehr Bilder als Parameter → Ablehnung mit Grund im Chat, nie stilles Abschneiden.
+- **Ausgabeprofil** je Befehl oder per Anweisung, z. B. Story 9:16: generative Befehle (`clone`, `pose`, `style`, `remix`) erzeugen nativ im Zielformat über die Formatwahl des Workflows; Bearbeitungen und `animate` erhalten das Profil über den Export-Workflow `output_instagram` (1080×1920), der dafür in H6a qualifiziert wird. Das Original bleibt erhalten.
 - **Rückversand** an den Default über Telegram als Datei in voller Qualität, Bilder und Videos.
 
 **H5 Video-Parametervertrag.** BUG-058. Alle Video-Workflows haben dieselben fachlichen Parameter: `duration_s` (Gesamtlänge), `fps`, `width`, `height`, optional `segment_s`. Das Backend übersetzt je Engine (Wan/Remix in Abschnitte mit letztem Bild als nächstem Start; LTX in Sekunden bzw. Frames, bis zur Engine-Grenze in einem Lauf, darüber Abschnitte). Grenzen je Engine stehen im Manifest und im STATE der Workflows. Abnahme: `ltx25_i2v`, `wan22_i2v`, `wan22_remix_v30_i2v` nehmen dieselben Eingaben an und erzeugen die erwartete Frame-Zahl; das Cockpit zeigt dieselben Felder an derselben Stelle.
 
-**H6 Abnahme der Default-Kette am echten System.** H6a (ohne LoRA, nach H4/H5): Foto + `clone`, Foto + `animate`, Foto und Befehl als zwei Nachrichten, **fünf Bilder in einer Nachricht mit Story-Profil kommen als fünf Dateien im Format 9:16 zurück**, Rückversand in denselben Chat, Zuordnung in Dateien, Abbruch während des Laufs, Neustart mitten im Lauf; danach `pose`, `style`, `remix`, `edit`. H6b (nach B1): dieselben Läufe mit Claras LoRA. Abnahme nach §2.3, Protokoll in `bugs_v1.md` §7.
+**H6 Abnahme der Default-Kette am echten System.** H6a ist die **technische Kettenabnahme** ohne Charakterbindung (kein Auftrags-PASS nach §2.3), nach H4, H5, H2, H1: Foto + `clone`, Foto + `animate`, Foto und Befehl als zwei Nachrichten, **fünf Bilder in einer Nachricht mit Story-Profil kommen als fünf Dateien im Format 9:16 zurück**, Rückversand in denselben Chat, Zuordnung in Dateien, Abbruch während des Laufs, Neustart mitten im Lauf; danach `pose`, `style`, `remix`, `edit`. H6b (nach B1 und B1.7): dieselben Läufe mit Claras LoRA – erst H6b ist der Auftrags-PASS der Default-Kette. Abnahme nach §2.3, Protokoll in `bugs_v1.md` §7.
 
 **H1 Inhaltsstufe schließen.** BUG-047. Stufe = höchste Stufe aus Workflow und allen Eingabebildern (Upload, Vorlage, Galerie, Eltern). Uploads per SHA-256 gegen `media`; unbekanntes Eingabebild in einem abgeleiteten Workflow = `explizit`. Abnahme: explizites Bild über alle Wege, Ergebnis `explizit`, Liefer-Gate sperrt, auch bei manipuliertem Befehl.
 
@@ -355,13 +358,14 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
   - KI und Render: Instanzen, Speicherreserve, Hugging-Face-Zugang, falls ein Modell ihn verlangt.
   - Admin und Test: Default-Identität, Betriebsart, Chat-Wörter.
   - Betrieb: Autostart, Sicherung, Ruhezustand.
-- **Abnahme:** PayPal-Zugang im Cockpit eintragen, Verbindungsprüfung besteht, der Wert ist danach nirgends lesbar; falsches Format wird abgewiesen.
+- **Kanalkonten als Liste** (statt je Plattform ein Abschnitt in `config.toml`): SQLite `channel_accounts` (Plattform, Konto-ID, Anzeigename, Datenordner, Status); Geheimnisse je Konto im Schlüsselbund mit Konto-Kennung; je Konto ein eigener Adapter (eigene TDLib-Instanz und Sitzung, eigener Instagram-Token), Webhook-Routing nach Empfänger-ID, Versand-IDs je Konto; Migration der heutigen Einzelkonten; der Fix für BUG-049 wird gleich mehrkontenfähig gebaut. Befehl 66 `channel_account_update` (anlegen, umbenennen, entfernen).
+- **Abnahme:** PayPal-Zugang im Cockpit eintragen, Verbindungsprüfung besteht, der Wert ist danach nirgends lesbar; falsches Format wird abgewiesen; zwei Telegram-Konten laufen nebeneinander, jede Nachricht landet beim richtigen Konto.
 
 ### 7.3 Block B5 – Chat-KI (Melody)
 
 **Verbindliche Modellentscheidung (16.11.2026):** einziges Chatmodell ist **ReadyArt Melody1437-26B-A4B-v2.0, GGUF Q6_K**: Datei `Melody1437-26B-A4B-v2.0-Q6_K.gguf`, Revision `b22520a5c83db6ff0d12aef1fd461c932ba86fbf`, 22.638.399.456 Byte, SHA-256 `07a3b8b756a212926900b42927e51a3b116c105f878eb5c2b272d689a9a710dc`, Ablage `local/models/llm/melody1437-26b-a4b-v2.0/` (geladen und geprüft 17.11.2026 01:14). Keine weiteren Chatmodelle oder Quantisierungen ohne neue Freigabe. Anforderungen: Flirt ohne Verweigerung im zulässigen Rahmen (E1), TTFT ≤ 2 s und kurze Antwort ≤ 5 s (p50/p95, auch unter Medienlast), natürliches Deutsch, Gedächtnis (B5.3), stabile versionierte Persona, nur ComfyUI 2, später Training und Sprache.
 
-**B5.1 Modell-Laufzeit.** Knotenpaket **ComfyUI-LLM-Session** (kantan-kanto, gepinnt `ec2b293c`, Gemma4-26B-A4B laut Kompatibilitätsliste bestätigt; Code am 17.11. auf Netzwerk-/Prozess-/eval-Aufrufe geprüft: keine) mit `llama-cpp-python==0.3.37` als Metal-Build; Skript `launcher/setup_llm_session.sh`, Modellpfad `LLM: llm` in `setup_comfyui.sh` (BUG-036). Registry-Art `text`, Engine auf Instanz `ai`, Melody als Datei im Manifest, Workflow `clara_chat_melody`. KI-Bahn mit Vorrang; Starter und Backend halten Instanz 2 geladen (BUG-061). Messwerte je Antwort in SQLite. Abnahme: 20 zusammenhängende deutsche Nachrichten, kalt und warm, mit und ohne laufenden Medienrender; p50/p95 von TTFT und Gesamtzeit, Tokens/s, Swap.
+**B5.1 Modell-Laufzeit.** Knotenpaket **ComfyUI-LLM-Session** (kantan-kanto, gepinnt `ec2b293c`, Gemma4-26B-A4B laut Kompatibilitätsliste bestätigt; Code am 17.11. auf Netzwerk-/Prozess-/eval-Aufrufe geprüft: keine) mit `llama-cpp-python==0.3.37` als Metal-Build; Skript `launcher/setup_llm_session.sh`, Modellpfad `LLM: llm` in `setup_comfyui.sh` (BUG-036). Registry-Art `text`, Engine auf Instanz `ai`, Melody als Datei im Manifest, Workflow `clara_chat_melody`. KI-Bahn mit Vorrang; Starter und Backend halten Instanz 2 geladen (BUG-061). Messwerte je Antwort in SQLite. Abnahme: 20 zusammenhängende deutsche Nachrichten, kalt und warm, mit und ohne laufenden Medienrender; p50/p95 von TTFT und Gesamtzeit, Tokens/s, Swap. Werden die Ziele unter Medienlast verfehlt, gilt E15.
 
 **B5.4a Freie Default-Anweisungen (vorgezogen, Pflicht).** Melody deutet eine freie Anweisung des Defaults („mach daraus ein Reel“, „Nr. 2 in 4K“) in Befehl, Workflow, Prompt und Referenzen als geprüftes Schema; ungültige Ausgabe hat keinen Effekt und erzeugt genau eine Rückfrage im Chat. Folgeanweisungen beziehen sich auf den letzten Auftrag. Abnahme: 30 echte Anweisungen vom Handy mit notierter Trefferquote.
 
@@ -369,7 +373,7 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 
 **B5.3 Gedächtnis.** Vier Ebenen (Kurzzeit, Fakten/Vorlieben, Gesprächsmemos, Langzeit) in SQLite mit FTS5, Quelle und Zeit je Erinnerung, Korrektur mit Protokoll, strikte Kundentrennung; gelöschte Nachrichten entfernen ihre Erinnerungen. Abnahme: 100–200 Gesprächsschritte mit Widerspruch, zwei Kunden, Neustart.
 
-**B5.4 Strukturierte KI-Funktionen.** Kaufbereitschaft (Stufe 0–3 mit Beleg), Medienwunsch mit Quellnachrichten, Prompt je Workflow. Jede Funktion liefert ein geprüftes Schema. Abnahme: je Funktion ≥ 50 deutsche Testfälle mit Trefferquote.
+**B5.4 Strukturierte KI-Funktionen.** Kaufbereitschaft (Stufe 0–3 mit Beleg), Medienwunsch mit Quellnachrichten, Prompt je Workflow, **Hinweis auf Minderjährigkeit** und **expliziter Wunsch** (je mit Beleg und Unsicherheit). Jede Funktion liefert ein geprüftes Schema; ungültige Ausgabe hat keinen Effekt. Abnahme: je Funktion ≥ 50 deutsche Testfälle mit Trefferquote; bei Minderjährigkeit zusätzlich Fehlalarme und Verfehlungen getrennt notiert (Verfehlungen 0 im Testsatz).
 
 **B5.5** entfällt; ersetzt durch den Kundentest T1 und T2 (§7.4).
 
@@ -380,8 +384,8 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 ### 7.4 Block C5 – Kundenbetrieb und Kundentest
 
 **C5.1 Influencerin vollständig** (BUG-020). Influencerin je Kanalkonto und je Akte; Schalter Text-KI, automatische Antworten, Bildautomatik, Freigabeart (automatisch · Betreiber), Zahlungswege; nie `influencers[0]`.
-- Kanalkonten als Liste statt je Plattform ein Abschnitt in der Konfiguration: mehrere Telegram- und Instagram-Konten nebeneinander (z. B. Clara, Lucy, Ken), je Konto eigener Datenordner und eigene Zugangsdaten (Einstellungen, S1).
-- Zuordnung: Kanalkonto gehört zu genau einer Influencerin, Influencerin zu genau einem Charakter, Kundenakte zu genau einem Kanalkonto.
+- Die Kanalkonten aus S1 werden Influencerinnen zugeordnet (Cockpit, Influencerin-Block).
+- Zuordnung: Kanalkonto gehört zu genau einer Influencerin, Influencerin zu genau einem Charakter. Eine Kundenakte gehört zu genau einer Influencerin und kann mehrere verifizierte Kanalidentitäten auf Konten dieser Influencerin haben (z. B. Claras Instagram und Claras Telegram, C5.9). Dieselbe Person bei zwei Influencerinnen ergibt zwei getrennte Akten.
 - Persona, Preise, Verhalten, Gedächtnis und LoRA gelten je Influencerin und werden nie über Figuren hinweg verwendet.
 - Jede Kundenakte trägt Kanalkonto und Influencerin ab dem ersten Eingang; `CustomerSummary` und die Kundenseiten liefern Influencerin (ID, Name, Farbe) und Konto mit, die Kundenliste ist serverseitig nach Influencerin filterbar (FRONTEND §3.2).
 - Abnahme: zwei Figuren auf zwei Konten ohne Vermischung; je eine Nachricht an Clara und an Lucy erscheint mit der richtigen Figur, der Filter zeigt nur die eigene.
@@ -389,23 +393,24 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 **C5.2 Erstkontakt** (BUG-077).
 - KI-Hinweis automatisch und genau einmal je Kanalidentität.
 - Keine Altersfrage. Die Bedingung „Altersangabe“ vor dem Angebot entfällt (`server._create_offer`).
-- Hinweise auf Minderjährigkeit sperren Flirt und Angebote sofort und zeigen eine Karte.
+- Hinweise auf Minderjährigkeit (Erkennung B5.4) sperren Flirt und Angebote sofort und zeigen eine Karte. Aufheben nur durch den Betreiber im Cockpit, protokolliert: Befehl 44 wird dafür umgewidmet (Werte `none`/`suspected`, Migration aus `unclear`/`under_18`/`self_declared_adult`).
 - Explizite Wünsche: Verweis auf Fansly aus der Vorlage, kein Auftrag.
 - Testbetrieb: die KI antwortet nur freigegebenen Test-Chats.
 - Abnahme: Hinweis nie doppelt, auch nach Neustart; Angebot ohne Altersangabe möglich; Sperre greift im Testfall.
 
 **C5.3 Dialogbetrieb.** Antwortmodus je Gespräch: Automatisch · Entwürfe prüfen · Manuell; neue Kundennachricht oder Betreiberantwort macht Entwürfe ungültig; Handy-Übergabe schaltet auf Manuell. Instagram-Antworten über 1000 Byte werden geteilt, KI-Antworten nie mit Human-Agent-Kennzeichnung. Kanalfähigkeiten (Eingang, Ausgang, Gelesen, Tippen, Grenzen, Medienarten) je Adapter beschrieben, damit WhatsApp und Fansly später passen. Abnahme: drei Kunden gleichzeitig ohne Vermischung; überholter Entwurf wird nie gesendet.
 
-**C5.4 Verhalten** (E3/E4). Verhaltensprofil je Influencerin in SQLite, versioniert; ersetzt `reply_delay_*`/`typing_chars_per_s` der Konfiguration. Startwerte (im Profil änderbar): Gesprächsfluss 10–90 s plus Tippzeit; Erstkontakt, nach Pause, zufällig 30 s–30 min; Nacht 30–60 min oder am Morgen; Kaufbereitschaft ab Stufe 2 wie Gesprächsfluss, auch nachts. `scheduled_at` je Antwort, Storno bei neuer Nachricht oder Handoff; Gelesen und Online-Status nach Profil; Tippanzeige nach Antwortlänge; mehrere Kundennachrichten ergeben eine Antwort, lange Antworten gehen als mehrere Nachrichten; Vertrösten aus Vorlagen mit Höchstzahl je Gespräch und Tag. Abnahme: 50 Testnachrichten ergeben die eingestellte Verteilung; zwei Chats bremsen sich nicht; nach Neustart nichts doppelt.
+**C5.4 Verhalten** (E3/E4). Verhaltensprofil je Influencerin in SQLite, versioniert; ersetzt `reply_delay_*`/`typing_chars_per_s` der Konfiguration. Startwerte (im Profil änderbar): Gesprächsfluss 10–90 s plus Tippzeit; Erstkontakt, nach Pause, zufällig 30 s–30 min; Nacht 30–60 min oder am Morgen; Kaufbereitschaft ab Stufe 2 wie Gesprächsfluss, auch nachts. `scheduled_at` je Antwort, Storno bei neuer Nachricht oder Handoff; Gelesen frühestens nach dauerhafter Verarbeitung, spätestens mit dem Senden der Antwort, dazwischen nach Profil (E3); Online-Status nach Profil; Tippanzeige nach Antwortlänge; mehrere Kundennachrichten ergeben eine Antwort, lange Antworten gehen als mehrere Nachrichten; Vertrösten aus Vorlagen mit Höchstzahl je Gespräch und Tag. Abnahme: 50 Testnachrichten ergeben die eingestellte Verteilung; zwei Chats bremsen sich nicht; nach Neustart nichts doppelt.
 
 **T1 Kundentest Chat** (braucht C5.4).
-- In der Betriebsart Kundentest wird der Default wie ein Kunde behandelt: eigene Testakte (Art `test`), eigenes Gedächtnis, zurücksetzbar.
+- In der Betriebsart Kundentest wird der Default wie ein Kunde behandelt: Nachrichten der Default-Identität landen in einer eigenen Testakte (Art `test`) mit eigener Konversation und eigenem Gedächtnis; Produktionsverlauf, Kundengedächtnis, Aufträge und Geldfluss bleiben getrennt; jeder Wechsel der Betriebsart erzeugt eine Karte in beiden Verläufen. Der KI-Hinweis wird wie bei Kunden einmal je Testsitzung gesendet; Zurücksetzen startet eine neue Testsitzung.
 - Schalter „Verzögerung wie Kunde“ an oder aus.
 - Messwerte je Antwort: Wartezeit in der KI-Bahn, Erzeugungszeit, Zeichen je Sekunde, geplante und tatsächliche Sendezeit.
 - Abnahme: 20 Nachrichten im Test, Messwerte je Antwort gespeichert, Zurücksetzen leert das Testgedächtnis.
 
 **C5.5 Wunsch und Angebot** (BUG-012, 019, 060).
-- Der Wunsch entsteht über mehrere Gespräche als Datensatz am Auftrag; jede Angabe trägt ihre Quellnachricht; höchstens eine Rückfrage oder ein Vorschlag.
+- Der Wunsch entsteht über mehrere Gespräche als Datensatz an der Konversation; jede Angabe trägt ihre Quellnachricht; höchstens eine Rückfrage oder ein Vorschlag. Angebot und Auftrag verweisen auf diesen Datensatz.
+- Angeboten werden nur **lieferbare** Preispositionen: Engine mit allen Gates (E14), aktive LoRA der Figur, Inhaltsstufe `standard` geprüft und Zustellweg getestet.
 - Vor dem Angebot fasst Clara den Wunsch in einem Satz zusammen. Das Angebot geht automatisch raus: Faktenblock aus dem Backend (Produkt-ID, Preislistenrevision, Betrag, Frist), Formulierung aus der Vorlage, Zahlungswege aus der Liste der Influencerin.
 - Nicht aufdringlich: nach Ablehnung Sperrzeit aus dem Profil, begrenzte Zahl von Verkaufsimpulsen je Tag.
 - Zusatzleistungen als Preispositionen: Originaldatei, selbstlöschend. Video: Höchstlänge je Preisposition, vom Admin gesetzt.
@@ -418,8 +423,12 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
   1. Identität: Ähnlichkeit zum Referenzsatz über der Schwelle (`identity.py`, Schwelle aus der Konfiguration).
   2. Inhaltsstufe: Ein lokaler Bildklassifikator bestätigt „nicht explizit“; sonst wird die Stufe angehoben und der Kandidat gesperrt. Das Modell dafür braucht die Freigabe des Betreibers.
   3. Technik: Auflösung, Format, nicht leer; bei Video Frame-Zahl und Dauer.
-- Auswahl: bester Identitätswert unter den bestandenen Kandidaten.
-- Systemfreigabe: Eintrag mit Freigeber „system“ und den Prüfwerten. Der SQLite-Trigger lässt ihn nur zu, wenn alle Prüfwerte gespeichert und bestanden sind. Das Liefer-Gate bleibt sonst unverändert.
+  4. Qualität: Anatomie und Bildfehler sowie Treue zum Wunsch und Prompt, bewertet in ComfyUI 2 (Modell mit B5.6 qualifiziert); bei Video zusätzlich zeitliche Konsistenz.
+- Video wird an Stichprobenbildern geprüft: erstes, letztes und jedes n-te Bild (n aus der Konfiguration), Identität und Qualität je Stichprobe.
+- Schwellen sind kalibriert (B2.1), nicht geschätzt.
+- Auswahl: unter den Kandidaten, die alle Pflichtprüfungen bestehen, der beste Gesamtwert aus Identität und Qualität (Gewichte in der Konfiguration), nicht allein Identität.
+- Fehlt ein Prüfmodell (Inhaltsstufe E16, Qualität B5.6), gibt es keine automatische Freigabe; die Freigabeart steht dann auf „Betreiber“.
+- Systemfreigabe in **einer** Transaktion: Prüfwerte, SHA-256 des geprüften Kandidaten und Freigabe mit Freigeber „system“. Der SQLite-Trigger lässt sie nur zu, wenn alle Pflichtprüfungen gespeichert und bestanden sind und der SHA übereinstimmt. Vor dem Versand prüft das Liefer-Gate (`approval.py`) erneut: Zahlung bestätigt (bzw. Quelle `test` an die Default-Testidentität), Inhaltsstufe `standard`, Zustellkopie aus genau diesem SHA abgeleitet.
 - Fehlschlag: automatisch neu erzeugen bis zur Obergrenze aus der Konfiguration, dann Zustand „wartet auf Betreiber“ und Meldung nach C5.10.
 - Schalter je Influencerin: Freigabeart „automatisch“ oder „Betreiber“.
 - Abnahme: 20 Testaufträge ohne Klick zugestellt; ein Bild mit fremdem Gesicht und ein explizites Testbild werden nie zugestellt.
@@ -429,17 +438,18 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 **T2 Kundentest mit Bild ohne Zahlung** (braucht C5.7).
 - Das Angebot entsteht normal. Statt der Zahlung gilt die Testfreigabe, automatisch oder per Wort (Startwert „Cash“, im Default-Kontakt änderbar).
 - Der Auftrag hat die Quelle `test`: kein Zahlungsdatensatz, nicht im Wallet, nicht in der Monatsliste.
-- Zustellung nur an die verifizierte Default-Identität. Das Liefer-Gate und ein SQLite-Trigger erlauben Quelle `test` nur für dieses Ziel.
+- Zustellung nur an die verifizierte Default-Identität. Migration: Auftragsquelle `test` (Erweiterung von `ORDER_SOURCES` und Prüfbedingung), eigenes Test-Liefer-Gate als SQLite-Trigger, das Quelle `test` nur an dieses Ziel lässt; der bestehende Zahlungs-Trigger für Kundenaufträge bleibt unverändert. Keine künstliche Zahlung.
 - Messwerte je Auftrag: Prompt, Wartezeit, Renderzeit, Prüfung, Zustellung.
 - Abnahme: ganze Kette ohne Zahlung; ein Testauftrag lässt sich nicht an eine Kundenidentität zustellen; das Wallet bleibt leer.
 
-**C5.8 Nachlauf** (BUG-051). Reklamation als Karte, Neuauflage als abgeleiteter Auftrag, Erstattung als protokollierter Befehl mit Provider-Beleg (`refund_requested` ist keine Erstattung), Abschluss mit Eintrag ins Gedächtnis. Abnahme: Erstattung sperrt jede weitere Zustellung.
+**C5.8 Nachlauf** (BUG-051). Reklamation als Karte, Neuauflage als abgeleiteter Auftrag, Erstattung als protokollierter Befehl mit Provider-Beleg (`refund_requested` ist keine Erstattung; bei Gutschein-Zahlung erstattet der Betreiber manuell, z. B. per neuem Gutschein oder PayPal, Status erst mit seinem Beleg), Abschluss mit Eintrag ins Gedächtnis. Abnahme: Erstattung sperrt jede weitere Zustellung.
 
 **C5.9 Wechsel Instagram zu Telegram.** Einmal-Code mit Ablauf, Prüfung im Backend, gleiche Akte. Abnahme: zwei Plattformen, eine Akte.
 
 **C5.10 Freigabe vom Handy** (Ausnahmeweg, E8).
 - Scheitert die automatische Prüfung, erhält der Default über Telegram die Vorschau und antwortet mit Freigeben, Neu oder Erstatten.
 - Nur von der verifizierten Default-Identität; dieselben Gates wie im Cockpit.
+- „Freigeben“ wirkt nur bei technischen oder qualitativen Fehlschlägen. Harte Gates – Inhaltsstufe `explizit` oder unbekannt, fehlende Zahlung, gesperrter Kanal, LoRA einer fremden Figur – lassen sich nie per Freigabe umgehen, weder vom Handy noch im Cockpit.
 - Abnahme in C6: Entscheidung vom Handy wirkt genau einmal; fremde Absender haben keine Wirkung.
 
 ### 7.5 Block C5a – Zahlungen
@@ -452,7 +462,7 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 ### 7.6 Medienlinie (parallel)
 
 - **B1 Charakter-LoRA** – ausgeschrieben in §7.6.1.
-- **B2 Bildidentität und Ausgabe:** Identitätsprofil mit Referenzsatz, A/B-Vergleich, 2K/4K (Hochskalieren nie als nativ ausgeben), Instagram-Profile 1080×1440, Reels 1080×1920.
+- **B2 Bildidentität und Ausgabe:** Identitätsprofil mit Referenzsatz, A/B-Vergleich, 2K/4K (Hochskalieren nie als nativ ausgeben), Instagram-Profile 1080×1440, Reels 1080×1920. **B2.1 Kalibrierung** der Identitätsschwelle je Charakter: ≥ 50 eigene Kandidaten und ≥ 50 fremde Gesichter, Verteilung der Werte, Schwelle so, dass fremde Gesichter im Testsatz nie bestehen; Abnahme: Fehlannahmen 0, Fehlablehnungen notiert.
 - **B4 Video** (FL-2, FL-4): Wan-Abnahme, Vergleich LTX/Wan mit Messwerten, Registry gegen Platte (BUG-028, 029, 030). **Zeitachse:** Schlüsselbilder je Zeitpunkt (z. B. 0/5/10/15 s) mit Referenzbild aus Dateien, Prompt des folgenden Abschnitts, Kamera/Bewegung, Übergangsstärke. Bis zur Engine-Grenze ein LTX-Lauf mit `LTXVAddGuide` je Schlüsselbild (im ComfyUI-Kern vorhanden; `LTXVContextWindows` für Prompt je Fenster), darüber eine Abschnittskette mit `WanFirstLastFrameToVideo` (Start- und Endbild je Abschnitt) und Zusammensetzen mit Ton/FPS-Prüfung. Bewegungsübertragung mit Wan Animate 2 (Node vorhanden, Modell vor Nutzung qualifizieren). Abnahme: 15-s-Video mit vier Schlüsselbildern, Bilder zu diesen Zeitpunkten entsprechen den Referenzen, Übergänge ohne Sprung, Neustart mitten im Lauf.
 - **C1/C3 Rest:** Vorlagenbibliothek mit Analyse (B5.6); alle sechs Befehle und freie Anweisungen bis zum Rückversand (H6).
 
@@ -470,7 +480,7 @@ BUG-052, 068, 069, 078. Braucht H3 (Zeitlimit je Workflow, BUG-007).
 
 **Vorher zu wissen:**
 - Auf dem Mac lief noch kein Training. Der erste Lauf ist der Nachweis; Dauer und Speicherbedarf sind offen.
-- Eine LoRA passt nur zu einer Bild-Engine. Trainieren lässt sich heute nur SDXL (LUSTIFY), eingestuft als `explizit`, also nur für die Default-Produktion. Für Kundenbilder braucht es die Engine-Entscheidung E14 und ein zweites Training; ob es auf dem Mac läuft, ist offen.
+- Eine LoRA passt nur zu einer Bild-Engine. Registriert sind zwei Trainingsworkflows, LUSTIFY SDXL und Krea 2 Raw; keiner lief je. LUSTIFY ist `explizit` (nur Default-Produktion); Krea 2 ist Kandidat für Kundenbilder (E14), seine Einstufung ist ungeprüft (BUG-023). Ob das Training auf dem Mac läuft, zeigt erst der erste Lauf.
 - Video braucht zunächst kein eigenes Modell, weil es aus dem fertigen Bild entsteht.
 - Ein Training belegt den Mac über Stunden und blockiert die Warteschlange: Start nur per Knopf, nie automatisch.
 
@@ -486,7 +496,7 @@ local/models/loras/characters/<kürzel>/<engine>/v001.safetensors
 ```
 
 - Kürzel in Kleinbuchstaben, fest ab Anlage (`clara`, `lucy`, `ken`). Der Anzeigename bleibt frei änderbar.
-- Migration: Profil 1 aus `local/character/` und Profile aus `local/characters/<nr>/` in dieses Schema verschieben; die alten Pfade entfallen (BUG-078).
+- Migration (BUG-078): Datenbank sichern, Dateien in das neue Schema kopieren mit Hash-Abgleich je Datei, alle gespeicherten Pfade aktualisieren (Charakterprofile, Datensätze, Herkunft), Rückfalltest; die alten Ordner werden erst nach bestandener Prüfung entfernt.
 - Liegt neben einem Foto eine gleichnamige `.txt`, ist sie dessen Beschreibung. Sonst gilt „photo of <trigger> <klasse>“.
 
 **B1.2 Charakterprofil (SQLite)**
@@ -508,10 +518,20 @@ Kein automatischer Start beim Ablegen von Fotos.
 
 - Registry: neuer Parametertyp `lora` (Lader-Knoten und Stärke). Die Prüfung „Workflow lädt nur Engine-Dateien“ lässt diesen Laufzeitwert zu, wenn Datei, Engine und SHA zu `lora_versions` passen.
 - Ohne LoRA (Betreiberwahl im Cockpit) entfernt das Backend den Lader und reicht dessen Eingänge durch, wie bei „umgangen“ in `comfy.ui_to_api`.
-- Auftrag: Influencerin, Charakter, aktive LoRA der Engine des Workflows. Kunden- und Default-Aufträge ohne aktive LoRA werden mit Grund abgelehnt.
+- Auftrag: Influencerin, Charakter, aktive LoRA der Engine des Workflows. Kundenaufträge ohne aktive LoRA werden mit Grund abgelehnt; Default-Aufträge laufen ohne aktive LoRA nur mit Kennzeichnung „ohne Charakter-LoRA“.
+- Je Architektur (SDXL; Krea 2) ein Lader-Knoten im UI- und API-Graph jedes betroffenen Workflows, registriert mit 0 Abweichungen; echter Render mit und ohne LoRA bei festem Seed.
 - Eine LoRA, die nicht zum Charakter des Auftrags gehört, weist das Backend ab.
 - Die Herkunft jedes Mediums nennt LoRA-Version und SHA.
 - Start mit einer Bild-LoRA je Charakter. Video entsteht aus dem Bild; eine Video-LoRA kommt später.
+
+**B1.7 LoRA-Workflows je Befehl** (Voraussetzung für H6b; für Kundenbilder dieselbe Tabelle auf der Engine aus E14)
+
+| Befehl | Workflow mit Charakter-LoRA (LUSTIFY SDXL) | Stand |
+|---|---|---|
+| `clone`, `pose` | Bild mit LoRA und Pose-/Tiefensteuerung aus der Vorlage (SDPose/DA3 vorhanden; SDXL-Steuermodell braucht Download-Freigabe) | neu zu bauen |
+| `style`, `remix` | Bild zu Bild mit LoRA (Basis `lustify_sdxl_refine`) | zu erweitern |
+| `edit` | SAM 3.1 Inpaint mit LoRA (Basis `lustify_sam31_edit`, OFFEN) | zu erweitern |
+| `animate` | LTX 2.5 aus dem eigenen Bild, keine LoRA nötig | vorhanden |
 
 **B1.5 Aufräumen**
 
@@ -527,7 +547,7 @@ Alter diffusers-Trainer und CLI `character train-sdxl` entfallen. `dfchar` und `
 
 ### 7.7 Block D und Abnahme
 
-- **D1 Recht** (Sperre vor dem ersten zahlenden Kunden): KI-Offenlegung, Jugendschutz ohne Altersfrage (E2), Verbraucherrecht für digitale Inhalte, Impressum/Datenschutz, Steuer, Plattformbedingungen für Flirt und Verkauf, Fansly für synthetische Personen. Produktteile: Pflichttexte im Profil, Auskunft und Löschung je Akte (Befehl `customer_erase`).
+- **D1 Recht** (Sperre vor dem ersten zahlenden Kunden): KI-Offenlegung, Jugendschutz ohne Altersfrage (E2), Verbraucherrecht für digitale Inhalte, Impressum/Datenschutz, Steuer, Plattformbedingungen für Flirt und Verkauf, Fansly für synthetische Personen, Nutzungsbedingungen der Zahlungswege (PayPal bei digitalen Inhalten mit Erotikbezug, Amazon-Gutscheine als Zahlungsmittel). Produktteile: Pflichttexte im Profil, Auskunft und Löschung je Akte (Befehl `customer_erase`).
 - **D2 Betrieb** (BUG-035, 061, 065, 066): Autostart, beide Instanzen, kein Ruhezustand im Betrieb, verschlüsselte Sicherung, Rückfallweg bei gesperrtem Konto.
 - **D3 Release-Einheit:** Backend, Frontend und Protokoll zusammen; geöffnete Cockpits laden nach einem Schema-Wechsel automatisch neu (BUG-076); altes Release bleibt startbar.
 - **C4 Default über Instagram-DM:** geteilter Beitrag/Reel als Referenz, sofern Meta die Datei liefert; sonst ehrliche Meldung. Kein Scraping.
@@ -551,7 +571,7 @@ Alter diffusers-Trainer und CLI `character train-sdxl` entfallen. `dfchar` und `
 ## 8. Datenmodell (additiv, je Paket mit Migration und Sicherung)
 
 - **Neue Tabellen:** Persona-Versionen, Verhaltensprofile, Erinnerungen (FTS5), KI-Läufe mit Messwerten, Medienwünsche, `lora_versions` (B1.3), Prüfwerte je Kandidat, Zeitachsen-Schlüsselbilder.
-- **Charakterprofil:** Kürzel (fest), Name, Trigger, Klasse, Mindestzahl Fotos, Probe-Prompts, aktive LoRA je Engine; Kanalkonten als Liste mit Zuordnung Konto → Influencerin → Charakter (C5.1).
+- **Charakterprofil:** Kürzel (fest), Name, Trigger, Klasse, Mindestzahl Fotos, Probe-Prompts, aktive LoRA je Engine. **Kanalkonten:** `channel_accounts` (S1) mit Zuordnung Konto → Influencerin → Charakter (C5.1); Kundenakte → Influencerin, mehrere Identitäten je Akte. **Medienwunsch** an der Konversation.
 - **Neue Spalten:** Influencerin je Akte und Kanalkonto, Antwortmodus und Kaufbereitschaft je Konversation, stabile ID je Preisposition, Zahlungswege je Influencerin, Trigger und Klasse je Charakter, Influencerin und LoRA-Version je Auftrag, `scheduled_at` je ausgehender Nachricht.
 - **Neue Zustände:** Nachricht „Entwurf“; Auftrag „abgelaufen“, „reklamiert“, „abgeschlossen“, „wartet auf Betreiber“.
 - **Default und Test:** Betriebsart und Chat-Wörter am Default-Kontakt, Ausgabeprofil je Befehl, Auftragsquelle `test`, Testakte (Art `test`), Prüfwerte je Kandidat, Freigeber `system`, Höchstlänge je Preisposition.
@@ -561,6 +581,8 @@ Alter diffusers-Trainer und CLI `character train-sdxl` entfallen. `dfchar` und `
 ### 9.1 Modellpolitik
 
 Nur Modelle aus `workflows/manifest.toml` mit Quelle, Revision, SHA-256 und Ablage. Kandidaten werden nach Qualität, Deutsch/Flirt (Chat), Latenz, Identitätstreue und M4-Eignung gewählt (Regel 1, 6). Neue Downloads nur nach Betreiberfreigabe; Löschen nur nach ausdrücklicher Bestätigung. Die bisherige Modell- und Downloadliste liegt im Archiv (`ki_modelle.md`).
+
+Engine-Gates im Code: `load`, `render`, `quality`, `license_pass`. `license_pass` bedeutet: Quelle und Nutzungsbedingungen sind im Manifest dokumentiert; der Betreiber setzt das Gate über die Registry (Regel 6: kein Auswahlkriterium). Kundenproduktion verlangt alle vier Gates (BUG-022).
 
 ### 9.2 Registrierte Workflows (17.11.2026)
 
@@ -597,10 +619,11 @@ Frei laut `stream.proto` und `commands.proto` am 17.11.2026: Befehle 31–33, 36
 | C5.8 | – | – | 56 `order_aftercare` |
 | C5.9 | – | – | 36 `link_identity` |
 | D1 | – | – | 57 `customer_erase` |
-| S1 | 12 Einstellungen | – | 60 `secret_set`, 61 `config_update`, 62 `connection_test` |
+| S1 | 12 Einstellungen | – | 60 `secret_set` (Wert nur flüchtig, §2.2), 61 `config_update`, 62 `connection_test`, 66 `channel_account_update` |
 | T1, T2 | – | 31 additiv | 37 additiv, 63 `test_reset` |
 | C5.6a | 4 additiv | 23 additiv | 35 additiv |
-| B1 | 5 additiv | – | 25 additiv, 64 `lora_activate`, 65 `reveal_folder` |
+| B1 | 5 additiv | – | 25 additiv, 64 `lora_activate`, 65 `reveal_folder`, 67 `character_photos_add` (Ziehen/Ablegen im Cockpit) |
+| C5.2 | – | – | 44 umgewidmet (Sperre „minderjährig vermutet“ setzen/aufheben) |
 
 ## 11. Kanäle und Zustellung (Kurzvertrag)
 

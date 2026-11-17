@@ -2,13 +2,13 @@
 
 **Stand:** 17.11.2026 · Befundregister zu `docs/PHASENPLAN_BACKEND.md` (B) und `docs/PHASENPLAN_FRONTEND.md` (F); kein dritter Plan.
 **Vorfassung:** `docs/archiv/bugs_v1_20261117_vor_neufassung.md` (dort die vollständigen Prüfprotokolle zu BUG-001 bis 006 und die Erstfassungen von BUG-007 bis 046). IDs werden nie neu vergeben oder umnummeriert.
-**Prüfbasis:** `main` `7a49b6a`; Backend- und Frontend-Quelltext, Tests, Starter; dazu die Prüfberichte von ChatGPT und Fable (17.11.) und die Läufe am Mac vom 16./17.11. Kein Befund gilt durch diese Liste als reproduziert oder behoben.
+**Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur der Prüfberichte; Backend- und Frontend-Quelltext, Tests, Starter; dazu die Prüfberichte von ChatGPT und Fable (17.11.) und die Läufe am Mac vom 16./17.11. Kein Befund gilt durch diese Liste als reproduziert oder behoben.
 
 ## 0. Regeln
 
 1. **Ablauf je Befund:** gegen den aktuellen Code prüfen; Test schreiben, der den Fehler zeigt (rot); korrigieren; Test grün; Normalfall, Fehlerfall und Neustart prüfen; Lauf auf dem echten Mac; Protokollzeile (§6).
 2. **Belegstufen:** **CODE** im Quelltext gelesen, kein Lauf · **TEST** durch vorhandenen Test belegt · **LIVE** am laufenden System gesehen · **FREMD** Fremdmeldung, vor der Korrektur im Code bestätigen · **HYPOTHESE** nur ein Lauf entscheidet.
-3. **Priorität:** **P0** vor jedem KI-Kanaltest bzw. vor der Default-Abnahme H6 · **P1** vor dem ersten echten Kunden · **P2** danach gezielt · **P3** Pflege.
+3. **Priorität:** **P0** vor jedem KI-Kanaltest und vor der Default-Abnahme H6a (Backend §6: H0 → H4 → H5 → H2 → H1 → H6a) · **P1** vor dem ersten echten Kunden · **P2** danach gezielt · **P3** Pflege.
 4. **Status:** OFFEN · BEHOBEN (Code korrigiert, Mac-Nachweis fehlt) · TEIL (Teil am Mac belegt) · PASS (Mac-Nachweis liegt vor) · WIDERLEGT.
 5. Tests mit Ersatzobjekten (FakeTd, FakeComfy, Testinstanz) sind Regression, kein Nachweis. Keine künstlichen Daten in der echten Datenbank.
 6. Regressionstests: Backend `backend/tests/test_bugs_v1.py` als `test_bugNNN_…` oder im fachlichen Testmodul, Frontend `frontend/tests/`.
@@ -28,6 +28,8 @@
 | BUG-057 | **Default-Nachricht endet still.** Live 17.11.: „Clone“ → nur Cockpit-Karte „Kein Workflow für clone im Default-Kontakt gewählt“, keine Antwort in Telegram. Dazu: „wartet auf Start“ ohne Chat-Antwort, stiller Rücksprung bei abgeschalteten Befehlen, Rückversand je Freigabeart unklar. | LIVE, TEST | Jede Default-Nachricht endet in genau einem Zustand (gestartet · wartet auf Start · abgelehnt mit Grund · zurückgesendet · Rückversand gesperrt) mit Karte **und** Antwort im selben Chat. | B H4, F H4 |
 | BUG-075 | **Referenz aus vorheriger Nachricht wird nicht gefunden.** Live 17.11.: Foto und „Clone“ als zwei Nachrichten (4 s Abstand); `_cloner_plan` nimmt Referenzen nur aus derselben oder einer beantworteten Nachricht und hätte nach dem Bild gefragt. | LIVE, CODE | Letzte Medien desselben Absenders innerhalb `cloner.reference_window_s` (Konfiguration) gelten als Referenz; nie Medien anderer Absender. Abnahme: Foto, dann Befehl → genau ein Auftrag mit diesem Foto. | B H4 |
 | BUG-008 | **Render-Worker kann nach einem Job sterben** (`advance_order`, Kloner-Rückversand, Push außerhalb des Fehlerfangs). | CODE | Fehler in jeder Nachbearbeitung auslösen: Worker läuft weiter, kein Job verloren, kein Doppelversand. | B H2 |
+| BUG-014 | Telegram sichert die Reihenfolge je Chat nicht; ein Befehl kann die Foto-Nachricht überholen. | CODE | Verarbeitung je Chat nacheinander; Foto mit verzögertem Download, dann Befehl. | B H2 (vor H6a) |
+| BUG-079 | **Telegram-Alben werden nicht zusammengeführt.** Ein Album besteht aus mehreren Nachrichten mit gemeinsamer `media_album_id`; der Adapter verarbeitet jede einzeln, ein Stapel zerfällt. | CODE | Album je Konto, Chat, Absender und `media_album_id` dauerhaft zusammenführen, erst dann Aufträge; Neustart und Dubletten ohne zweiten Auftrag. Abnahme: fünf Bilder als Album → fünf Aufträge, fünf Dateien zurück. | B H4 |
 
 ## 2. P1
 
@@ -38,7 +40,6 @@
 | BUG-010 | BTC-Adresse in Großbuchstaben: Prüfung akzeptiert, Vergleich unterscheidet Groß/klein. | CODE | Für Vergleich und Abfrage normalisieren. | B C5a.1 |
 | BUG-011 | Zuordnung nach Erkennungszeit statt Blockzeit (`store._match_offer`). | CODE | Verspätet gescannte, rechtzeitig bestätigte Zahlung wird zugeordnet; nach Ablauf nicht. | B C5a.1 |
 | BUG-013 | Telegram-Anhang bleibt nach Absturz zwischen Speichern und Download `pending`. | CODE | Fortsetzung nach Neustart oder Fehlschlag mit Grund. | B H2 |
-| BUG-014 | Telegram sichert die Reihenfolge je Chat nicht; ein Befehl kann die Foto-Nachricht überholen. | CODE | Verarbeitung je Chat nacheinander; Foto mit verzögertem Download, dann Befehl. | B H2 |
 | BUG-015 | Telegram-Dienstkonto 777000 kann als Kunde landen. | OFFEN | Keine Akte, kein KI-Dialog, Code nie im Gedächtnis. | B H2 |
 | BUG-016 | Versand mit Status `unknown` bleibt hängen; Instagram klärt ihn nur im Speicher, nach Neustart entsteht fälschlich „ÜBERGABE AN BETREIBER“. | CODE | Abgleich dauerhaft über Verlauf/Echo, nie blind zweimal senden, eigene Nachricht nie als Übergabe. | B H2 |
 | BUG-017 | Instagram lehnt Bilder über 8 MB ab; keine Zustellkopie; Texte über 1000 Byte nicht geteilt. | CODE | Zustellkopie je Kanalgrenze, nie unter 1K; Text teilen; genau einmal zugestellt. | B C5.7, C5.3 |
@@ -94,7 +95,7 @@
 | BUG-035 | `config.toml.vor-instagram` lokal mit Rechten 644. | Auf dem Mac prüfen, auf 600 setzen oder nach Rückfrage löschen. | B D2 |
 | BUG-036 | `setup_comfyui.sh` trägt keinen Ordner für Bildinterpolation (FILM) ein; Ordner `LLM` und Knotenpaket für das Chatmodell fehlen (vorbereitet: `launcher/setup_llm_session.sh`, `LLM: llm`, noch nicht committet). | Skripte ergänzen, am Mac prüfen. | B B5.1 |
 | BUG-037 | Lokale, nicht committete Zeile `enabled = true` in `workflows/manifest.toml`. | Bewusst lokal; nie mit Fachänderungen committen. | – |
-| BUG-074 | Dokumente veraltet und widersprüchlich (schließt BUG-034 ein). | Mit DOK-1 am 17.11. erledigt: zwei Pläne + diese Liste, Altdokumente im Archiv. | B DOK-1 |
+| BUG-074 | Dokumente veraltet und widersprüchlich (schließt BUG-034 ein). | Konsolidierung am 17.11. erledigt (zwei Pläne + diese Liste, Altdokumente im Archiv); Widersprüche aus den Prüfberichten von ChatGPT und Fable am 17.11. korrigiert (SPEC-001 bis 007). Abschluss mit der Betreiberfreigabe. | B DOK-1 |
 
 ## 5. Erledigt oder widerlegt
 
@@ -117,10 +118,21 @@
 | BUG-012 | Kernaussage WIDERLEGT (Zeitfilter vorhanden); Rest §3 | – |
 | BUG-018 | WIDERLEGT: Fensterprüfung im Versandmoment vorhanden (`test_reply_window_refuses_and_human_agent_override`) | echter 24-h-Grenzfall |
 | BUG-034 | in BUG-074 aufgegangen | – |
+| BUG-073 | nicht vergeben (Lücke aus Fables Nummerierung) | – |
 
 ### 5a. Widersprüche Plan ↔ Code (SPEC)
 
-(keine offenen)
+Im Plan entschieden; die Umsetzung schließt sie im genannten Paket.
+
+| ID | Code heute | Plan | Paket |
+|---|---|---|---|
+| SPEC-001 | `ORDER_SOURCES = (operator, cloner, customer)`; Liefer-Trigger verlangt bestätigte Zahlung | Quelle `test` mit eigenem Test-Liefer-Gate nur an die Default-Testidentität, ohne künstliche Zahlung | T2 |
+| SPEC-002 | ein Konto je Plattform (`server.telegram`, `server.instagram`, `[telegram_account]`, `[instagram]`) | Kanalkonten als Liste mit eigenem Adapter je Konto | S1 |
+| SPEC-003 | Freigabe nur durch den Betreiber (`approval.py`) | Systemfreigabe mit Prüfwerten in einer Transaktion, Liefer-Gate prüft vor dem Versand erneut | C5.6a |
+| SPEC-004 | Angebot verlangt `self_declared_adult` (`server._create_offer`) | keine Altersfrage (E2); Befehl 44 nur noch Sperre „minderjährig vermutet“ | C5.2 (BUG-077) |
+| SPEC-005 | Engine-Gate `license_pass` im Code | Betreiber setzt es nach Dokumentation im Manifest; kein Auswahlkriterium (Regel 6) | Backend §9.1 |
+| SPEC-006 | zwei Ordnerschemata für Charaktere | ein Schema `local/characters/<kürzel>/` mit sicherer Migration | B1 (BUG-078) |
+| SPEC-007 | Anhang A (F7) enthält überholte Aussagen | im Kopf des Anhangs gelistet und inline mit [17.11.] markiert | DOK-1 |
 
 ## 6. Protokollzeile je Befund
 
