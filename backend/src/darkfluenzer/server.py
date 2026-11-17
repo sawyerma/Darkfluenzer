@@ -154,6 +154,9 @@ class Cockpit:
         # Inhaltsstufe für Jobs/Medien vor Migration 14 (Regel 13, fail-closed)
         store.backfill_content_tiers({k: w.content for k, w in self.manifest.workflows.items()})
         self.lanes = {inst.name: _Lane(inst) for inst in cfg.instances}
+        for name, lane in self.lanes.items():  # Pause übersteht den Neustart (BUG-046)
+            if self.store.adapter_get("comfyui", name, "paused") == "1":
+                lane.resume.clear()
         self._memory: dict = {}  # letzte Messung: ram_total, ram_free (Bytes), swap (MB)
         self._cancelled: set[int] = set()  # laufende Jobs mit Abbruchwunsch des Betreibers
         self._seen_media = store.media_paths()  # bereits geprüfte Dateien des Galerie-Index
@@ -291,6 +294,14 @@ class Cockpit:
             except Exception as exc:  # im Journal als fehlgeschlagen festgehalten
                 log.error("Renderjob %s fehlgeschlagen: %s", job_id, exc)
             lane.engine, lane.running_job = lane.engine if modelfree else engine, 0
+            if job_id in self._cancelled:  # abgebrochen: Modelle entladen, Speicher frei
+                self._cancelled.discard(job_id)
+                client = comfy.ComfyClient(lane.inst.url, timeout=self.cfg.server.timeout_s)
+                try:
+                    await asyncio.to_thread(client.free)
+                    lane.engine = ""
+                except comfy.ComfyError as exc:
+                    log.warning("Speicherfreigabe nach Abbruch von Job %s: %s", job_id, exc)
             pipeline.advance_order(self.store, job_id)  # Stufe vollständig? (SQLite im Loop)
             if (stage_id := self.store.job(job_id).get("stage_id")) is not None:
                 self._cloner_delivery(self.store.stage(stage_id).order_id)
@@ -1960,14 +1971,15 @@ class Cockpit:
             return ""
         if job["status"] != "running":
             return "Auftrag ist bereits abgeschlossen."
-        lane = self._lane_of_job(msg.job_id)
-        prompt = next((p for j, _, p in lane.queue if j == msg.job_id), "")
-        if not prompt:
-            return "Auftrag startet gerade – gleich erneut versuchen."
+        # gilt ab dem Klick (BUG-043): vor der Übermittlung verwirft die Pipeline den Start,
+        # bei der Übermittlung bricht sie sofort ab, ein trotzdem fertiges Ergebnis wird verworfen
         self._cancelled.add(msg.job_id)
-        client = comfy.ComfyClient(lane.inst.url, timeout=self.cfg.server.timeout_s)
-        await asyncio.to_thread(client.cancel, prompt)
-        log.info("Job %s (prompt %s) abgebrochen", msg.job_id, prompt)
+        lane = self._lane_of_job(msg.job_id)
+        prompt = next((p for j, _, p in lane.queue if j == msg.job_id), "") or job["prompt_id"]
+        if prompt:
+            client = comfy.ComfyClient(lane.inst.url, timeout=self.cfg.server.timeout_s)
+            await asyncio.to_thread(client.cancel, prompt)
+        log.info("Job %s abgebrochen (prompt %s)", msg.job_id, prompt or "noch nicht übermittelt")
         return ""
 
     async def _pause(self, msg: commands_pb2.PauseQueue, call: _Call) -> str:
@@ -1980,6 +1992,7 @@ class Cockpit:
             lane.resume.clear()
         else:
             lane.resume.set()
+        self.store.adapter_set("comfyui", name, "paused", "1" if msg.paused else "0")  # BUG-046
         log.info("Warteschlange %s %s", name, "angehalten" if msg.paused else "fortgesetzt")
         return ""
 

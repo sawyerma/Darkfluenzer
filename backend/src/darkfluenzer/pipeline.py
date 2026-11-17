@@ -452,6 +452,8 @@ def run_render(
                 if n in wf.params and wf.params[n].upload
             }
             values = {n: v for n, v in params.items() if n not in uploads and n in wf.params}
+            if is_cancelled():  # vor der Übermittlung abgebrochen: nichts starten
+                raise PipelineError("Vom Betreiber abgebrochen.")
             if job["status"] != "running":
                 store.set_job_status(job_id, "running", pid=os.getpid())
 
@@ -460,6 +462,9 @@ def run_render(
                 store.set_job_submitted(
                     job_id, prompt_id, graph, hashlib.sha256(api.read_bytes()).hexdigest()
                 )
+                if is_cancelled():  # Abbruch kam während der Übermittlung
+                    inst = comfy.instance_of(cfg, man, wf)
+                    comfy.ComfyClient(inst.url, timeout=cfg.server.timeout_s).cancel(prompt_id)
 
             plan = params.get("video") if wf.video else None
             if plan and len(plan["frames"]) > 1:  # Langvideo: Abschnitte, dann zusammensetzen
@@ -486,6 +491,10 @@ def run_render(
                     if plan and wf.video
                     else None,
                 )
+            if is_cancelled():  # fertig, obwohl abgebrochen: Ergebnis verwerfen (BUG-043)
+                for out in outputs:
+                    (cfg.local / out["path"]).unlink(missing_ok=True)
+                raise PipelineError("Vom Betreiber abgebrochen – Ergebnis verworfen.")
         except BaseException as exc:
             if is_cancelled():
                 store.set_job_status(

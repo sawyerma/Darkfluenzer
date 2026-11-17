@@ -352,6 +352,7 @@ def test_workflow_commands_enable_render_fifo_and_delete(cfg):
         assert (await answer(render())).status == commands_pb2.COMMAND_STATUS_ACCEPTED
         held = Store(cfg.local)
         (queued_id, _), *rest = held.queued_jobs()
+        assert held.adapter_get("comfyui", "media", "paused") == "1"  # übersteht Neustart
         held.close()
         assert rest == []
         cancel = commands_pb2.CancelJob(job_id=queued_id)

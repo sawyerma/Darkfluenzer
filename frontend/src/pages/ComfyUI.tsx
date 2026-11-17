@@ -846,7 +846,8 @@ function Workbench({
   const awaiting = ordersState?.awaitingProduction ?? [];
   const [chosenOrder, setChosenOrder] = useState(customerOrder ?? "");
   const forOrder = wf.content === "standard" && awaiting.some((o) => o.orderNo === chosenOrder) ? chosenOrder : "";
-  const candidates = count === "" ? (ordersState?.candidatesDefault ?? 1) : Number(count);
+  // Video: ein Kandidat, solange nicht bewusst mehr gewählt (ein LTX-Lauf ~19 min, BUG-044)
+  const candidates = count === "" ? (wf.kind === "video" ? 1 : (ordersState?.candidatesDefault ?? 1)) : Number(count);
   const titles = Object.fromEntries(workflows.map((w) => [w.key, w.title]));
   const mine = (useStateTopic(Topic.JOBS_ACTIVE)?.value.jobs ?? []).filter((j) => j.workflow === wf.key);
   const running = mine.find((j) => j.running);

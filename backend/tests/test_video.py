@@ -237,3 +237,34 @@ def test_graph_default_must_be_valid_for_every_registered_workflow(video_cfg):
     probs = models.graph_problems(wf, graph, set())
     assert any("params.seed" in p and "außerhalb" in p for p in probs)
     assert any("params.fps" in p and "Auswahl" in p for p in probs)
+
+
+def test_cancel_before_submit_and_result_after_cancel_are_never_done(video_cfg):
+    """BUG-043: Abbruch vor der Übermittlung startet nichts; ein trotz Abbruch fertiges Ergebnis
+    wird verworfen (keine Datei, kein Medium) und der Job bleibt abgebrochen."""
+    cfg, fake = video_cfg
+    man = models.load_manifest(cfg.root)
+    store = Store(cfg.local)
+    start = pipeline.store_input(cfg, _png(), "start.png")
+
+    def job() -> int:
+        _, (jid,) = pipeline.create_order(
+            store, man, "wan22_i2v", {"prompt": "Strand"}, {"image": start}, count=1,
+            video_max_s=120.0,
+        )  # fmt: skip
+        return jid
+
+    early = job()
+    with pytest.raises(pipeline.PipelineError, match="abgebrochen"):
+        pipeline.run_render(cfg, man, early, is_cancelled=lambda: True)
+    assert fake.prompts == {} and store.job(early)["status"] == "failed"
+    late = job()  # Abbruch kommt mit der Übermittlung, ComfyUI liefert trotzdem fertig
+    with pytest.raises(pipeline.PipelineError, match="verworfen"):
+        pipeline.run_render(cfg, man, late, is_cancelled=lambda: bool(fake.prompts))
+    row = store.job(late)
+    assert row["status"] == "failed" and "abgebrochen" in row["error"]
+    assert (
+        store.db.execute("SELECT count(*) FROM media WHERE job_id = ?", (late,)).fetchone()[0] == 0
+    )
+    assert not list((cfg.local / "evaluation").rglob("*.mp4"))
+    store.close()
