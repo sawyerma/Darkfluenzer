@@ -213,3 +213,21 @@ def test_mask_output_must_be_a_save_node_of_the_graph(tmp_path):
     _with_workflow(root2, graph, 'mask_output = "2"\n' + image)
     with pytest.raises(models.ManifestError, match="kein SaveImage"):
         models.load_manifest(root2)
+
+
+def test_engine_formats_must_fit_every_workflow(tmp_path):
+    """BUG-093: Wan hat benannte Formate wie LTX; ein Format außerhalb der Grenzen oder des Rasters
+    eines Workflows wird bei der Registrierung abgewiesen."""
+    import shutil
+
+    from darkfluenzer.config import project_root
+
+    shutil.copytree(project_root() / "workflows", tmp_path / "workflows")
+    man = models.load_manifest(tmp_path)
+    for engine in ("wan22_i2v", "wan22_remix_v30"):
+        assert set(man.engines[engine].formats) == set(man.engines["ltx25"].formats)
+    wf = man.workflows["wan22_i2v"]
+    assert models.format_problems(wf, man.engines["wan22_i2v"].formats) == []
+    probs = models.format_problems(wf, {"zu breit": (1296, 720), "schief": (1000, 720)})
+    assert any("zu breit" in p and "außerhalb" in p for p in probs)
+    assert any("schief" in p and "Vielfaches" in p for p in probs)

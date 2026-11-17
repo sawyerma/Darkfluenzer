@@ -275,6 +275,24 @@ def _video(t: object, params: dict[str, Param], w: str) -> VideoSpec | None:
     return spec
 
 
+def format_problems(wf: Workflow, formats: dict[str, tuple[int, int]]) -> list[str]:
+    """Benannte Formate der Engine müssen für jeden Workflow mit Breite und Höhe gültige Werte sein
+    (Grenzen und Raster, BUG-093)."""
+    if not {"width", "height"} <= set(wf.params):
+        return []
+    problems = []
+    for name, size in formats.items():
+        for param, value in zip(("width", "height"), size, strict=True):
+            p = wf.params[param]
+            if (p.min is not None and value < p.min) or (p.max is not None and value > p.max):
+                problems.append(f"formats.{name}: {param} {value} außerhalb {p.min}…{p.max}.")
+            elif p.multiple_of and value % p.multiple_of:
+                problems.append(
+                    f"formats.{name}: {param} {value} kein Vielfaches von {p.multiple_of}."
+                )
+    return problems
+
+
 def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = None) -> Manifest:
     """Lädt und validiert die Registry. ``require_ui=False`` nur für das Erzeugen der UI-Exporte;
     ``text`` prüft einen geänderten Manifest-Inhalt, bevor er gespeichert wird."""
@@ -469,6 +487,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
                 raise ManifestError(f"Manifest: {w} verweist auf fehlende Datei workflows/{rel}.")
         graph = json.loads((root / "workflows" / wf.api).read_text(encoding="utf-8"))
         problems = graph_problems(wf, graph, engine_model_names(files, engines, loras, wf.engine))
+        problems += format_problems(wf, engines[wf.engine].formats)
         if problems:
             raise ManifestError(f"Manifest: {w}: {problems[0]}")
         workflows[key] = wf

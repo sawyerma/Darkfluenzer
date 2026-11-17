@@ -199,6 +199,7 @@ files = ["wan22_i2v_high_fp16", "wan22_i2v_low_fp16", "umt5_xxl_fp16", "wan21_va
 license = "Apache-2.0"
 usage = "evaluation"
 gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+formats = { "16:9" = [1280, 720], "9:16" = [720, 1280], "1:1" = [960, 960], "3:4" = [832, 1104], "4:5" = [864, 1072] }
 note = "High-/Low-Noise-Paar."
 
 [engines.wan22_remix_v30]
@@ -212,6 +213,7 @@ files = ["wan22_remix_i2v_high_v30_fp8", "wan22_remix_i2v_low_v30_fp8", "umt5_xx
 license = "unbekannt (Repo: license other)"
 usage = "evaluation"
 gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+formats = { "16:9" = [1280, 720], "9:16" = [720, 1280], "1:1" = [960, 960], "3:4" = [832, 1104], "4:5" = [864, 1072] }
 note = "v3.0 existiert nur als FP8; FP8-Tensoren sind auf MPS nicht nativ nutzbar (geprüft 14.11.2026). Autorvorgabe Lightning: 4+4 Schritte, CFG 1, euler/simple, Shift 8 (Workflow seit 15.11.2026); Negativ-Prompt bei CFG 1 ohne Wirkung."
 
 [engines.ltx25]

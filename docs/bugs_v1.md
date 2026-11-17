@@ -196,6 +196,16 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-093 (Etappe A)
+Commit: siehe git log „BUG-093“ / workflows/manifest.toml (Wan-Formate), media.models.format_problems
+Behauptung: BESTÄTIGT (Wan-Engines ohne formats)
+Nachweis: tests/test_models.py::test_engine_formats_must_fit_every_workflow (gleiche Namen wie LTX, Grenzen/Raster geprüft)
+Mac-Lauf 17.11.2026: Cockpit zeigt bei Wan 2.2 und Remix 16:9 · 1280 × 720, 9:16 · 720 × 1280, 1:1, 3:4, 4:5
+Ergebnis: PASS (Implementierung); Render in 720p gehört zur Modellqualifikation
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-064 (Etappe A)
 Commit: siehe git log „BUG-064“ / media.pipeline.register_outputs, store.orders.stage_jobs, Migration 19 (jobs.media_id)
 Behauptung: BESTÄTIGT (alter Weg: zweiter, bitgleicher Kandidat ohne Ergebnis [1, None])
