@@ -257,10 +257,10 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 
 | # | Stelle in 4.2 | Ursache | Paket |
 |---|---|---|---|
-| 1 | Vorprüfung | Medien-Workflow und Befehlszuordnung waren leer; niemand hatte sie eingerichtet, die Kette wurde nie vom Handy getestet. | H4, H6 |
-| 2 | Antwort im Chat | Die Ablehnung ging nur auf eine Cockpit-Karte, nicht zurück nach Telegram. | H4 (BUG-057) |
-| 3 | Referenz finden | Foto und Befehl kamen als zwei Nachrichten im Abstand von 4 s. Der Kloner nimmt Referenzen nur aus derselben oder einer beantworteten Nachricht. | H4 (BUG-075) |
-| 4 | Charakter | Influencerin nicht gesetzt, „Charakter 01“ hat 0 Bilder, kein Workflow lädt eine Charakter-LoRA. Ein „clone“ hätte die fremde Person nachgebildet, nicht Clara. | B1, H4 (BUG-052) |
+| 1 | Vorprüfung | Medien-Workflow und Befehlszuordnung waren leer; niemand hatte sie eingerichtet, die Kette wurde nie vom Handy getestet. | SP1 |
+| 2 | Antwort im Chat | Die Ablehnung ging nur auf eine Cockpit-Karte, nicht zurück nach Telegram. | SP1 (BUG-057) |
+| 3 | Referenz finden | Foto und Befehl kamen als zwei Nachrichten im Abstand von 4 s. Der Kloner nimmt Referenzen nur aus derselben oder einer beantworteten Nachricht. | SP1 (BUG-075) |
+| 4 | Charakter | Influencerin nicht gesetzt, „Charakter 01“ hat 0 Bilder, kein Workflow lädt eine Charakter-LoRA. Ein „clone“ hätte die fremde Person nachgebildet, nicht Clara. | SP3, SP1 (BUG-052) |
 
 ---
 
@@ -269,19 +269,19 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 | Bereich | Stand | Beleg | Offen |
 |---|---|---|---|
 | Cockpit-Server, Stream, Befehlsjournal, Receipts | PASS | A1 15.11. (`d13e258`) | BUG-024 Zeitlimit |
-| ComfyUI-Reiter, Workflow-Übernahme (0 Abweichungen) | PASS | A2 15.11. | einheitliche Videosteuerung (H5) |
+| ComfyUI-Reiter, Workflow-Übernahme (0 Abweichungen) | PASS | A2 15.11. | einheitliche Videosteuerung (SP1) |
 | Zwei Instanzen, Zulassung | TEIL | A3 15.11. | echter KI-Lauf (B5.1); Starter startet Instanz 2 nicht (BUG-061) |
 | Dateien, Herkunft, Weiterverarbeiten | PASS | A4 15.11. | Video-Vorschau im echten Chrome geprüft (BUG-045 widerlegt) |
 | Bildworkflows | TEIL | je ein echter Lauf (§9.2) | keine Engine für Kunden freigegeben; kein LoRA-Lader |
-| Video LTX 2.5 | TEIL | Job 63 (960×1280, 121 Frames, 24 fps, Ton, 1128 s, Swap ≤ 44,8 GB); **Job 64 aus dem Cockpit** (3:4, 5 s, 1 Kandidat, 780,9 s, Swap ≤ 42,7 GB) | einheitliche Bedienung (H5), Zeitachse (B4), Vergleich mit Wan |
+| Video LTX 2.5 | TEIL | Job 63 (960×1280, 121 Frames, 24 fps, Ton, 1128 s, Swap ≤ 44,8 GB); **Job 64 aus dem Cockpit** (3:4, 5 s, 1 Kandidat, 780,9 s, Swap ≤ 42,7 GB) | einheitliche Bedienung (SP1), Zeitachse (B4), Vergleich mit Wan |
 | Video Wan 2.2 / Remix | OFFEN | Wan-FP16 2408 s (A2); Langvideo nur mit Ersatz-ComfyUI | Abnahme, Langvideo real |
-| Abbrechen, Pause | TEIL | 17.11. am Mac: Abbruch in der Startphase (Job 65) und im Lauf (Job 66) → Status abgebrochen, 0 Medien, ComfyUI-Queue leer, Speicher der Instanz 2,9 → 1,9 GB; Pause übersteht Neustart | Auftrag als Ganzes abbrechen (H3) |
+| Abbrechen, Pause | TEIL | 17.11. am Mac: Abbruch in der Startphase (Job 65) und im Lauf (Job 66) → Status abgebrochen, 0 Medien, ComfyUI-Queue leer, Speicher der Instanz 2,9 → 1,9 GB; Pause übersteht Neustart | Auftrag als Ganzes abbrechen (SP1) |
 | Seed-Grenzen | PASS | 17.11.: „Generieren“ war bei LTX, FLUX-Vorlage, Qwen ×2 still blockiert; behoben `932c9ec`, Job 64 danach | – |
 | Charakter-LoRA | OFFEN | Trainingsworkflows registriert, nie gelaufen; 0 Charakterfotos; zwei Ordnerschemata (BUG-078) | B1 (§7.6.1), E14 |
-| Telegram (TDLib) | TEIL | 17.11.: Anmeldung, Neustart ohne Code, Eingang vom Zweitkonto, Register, Name, Default per Klick, manuelle Antwort gesendet (ID 5006950400), Default „Hey“ → Rückfrage im Chat | Handoff vom Handy, Datei > 50 MB, H2-Befunde |
-| Default-Kette (Kloner) | TEIL | Code für sechs Befehle, Befehl→Workflow-Zuordnung (`7a49b6a`); Live-Lauf 17.11. gescheitert (§4.3) | H4 (Betriebsarten, Stapel, Ausgabeprofil), H6, B1, T1/T2 |
+| Telegram (TDLib) | TEIL | 17.11.: Anmeldung, Neustart ohne Code, Eingang vom Zweitkonto, Register, Name, Default per Klick, manuelle Antwort gesendet (ID 5006950400), Default „Hey“ → Rückfrage im Chat | Handoff vom Handy, Datei > 50 MB, Befunde in SP1/SP2 |
+| Default-Kette (Kloner) | TEIL | Code für sechs Befehle, Befehl→Workflow-Zuordnung (`7a49b6a`); Live-Lauf 17.11. gescheitert (§4.3) | SP1, SP3 (H6b), T1/T2 |
 | Instagram | CODE | Adapter + Tests | Meta-App, Tunnel |
-| Zahlungen | CODE | Krypto-Beobachter, Gutschein-Erkennung, Zuordnung, Monatsliste | PayPal, echte Zahlung, H2/C5a |
+| Zahlungen | CODE | Krypto-Beobachter, Gutschein-Erkennung, Zuordnung, Monatsliste | PayPal, echte Zahlung, SP2/C5a |
 | Kundenauftrag von Hand | CODE | Hinweis, Alter, Angebot, Produktion, Freigabe, Zustellung | kein echter Kunde |
 | Einstellungen (Reiter) | OFFEN | Geheimnisse bisher nur per CLI `darkfluenzer secret set` (Telegram) | S1 |
 | Chat-KI | OFFEN | Melody Q6_K geladen und SHA-geprüft (17.11. 01:14); Node ComfyUI-LLM-Session geprüft, Setup-Skript vorbereitet (nicht installiert) | B5.1 ff. |
@@ -300,49 +300,88 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 
 ---
 
-## 6. Reihenfolge (nach Freigabe)
+## 6. Reihenfolge (nach Freigabe): sechs Sammelpakete
 
-1. **DOK-1** – mit dieser Fassung erledigt (Pläne neu, Altdokumente im Archiv).
-2. **Block H: H0 bis H6** in der Folge H0 → H4 → H5 → H2 → H1 → H6a → H3. Alle P0-Befunde und BUG-014/079 (Reihenfolge, Alben) sind vor H6a behoben.
-3. **S1 Einstellungen und Kanalkonten als Liste.**
-4. **B5.1 bis B5.4** – nach B5.1 zuerst B5.4a (freie Default-Anweisungen), dann B5.2, B5.3, B5.4.
-5. **C5.1, C5.2, C5.3, C5.4**, dann **T1**.
-6. **C5a, C5.5, C5.6, C5.6a, C5.7**, dann **T2**.
-7. **C5.8 bis C5.10, C4, Block D.**
-8. **C6** Probephase und Gesamtabnahme.
+| Paket | Inhalt (bisherige Nummern) | Steht am Ende |
+|---|---|---|
+| **SP1 Default-Kette** (§7.1, ausgeschrieben) | H0, H4, H5, H6a; aus H2 BUG-008/013/014; aus H3 Zeitlimit, Auftrag abbrechen, BUG-064 | Bild mit Befehl vom Handy, Datei kommt zurück |
+| **SP2 Fundament** | H1, H2-Rest, H3-Rest, S1 mit Kanalkonten als Liste, Frontend-Härtung | alle P0 zu, Einstellungen im Cockpit |
+| **SP3 Charakter und Medien** | B1, B1.7, B2, H6b, B4, B5.6 | „clone“ liefert Clara, Video mit Zeitachse |
+| **SP4 Clara chattet** | B5.1–B5.4 (mit B5.4a), C5.1–C5.4, T1; BUG-085 | Kundentest-Chat mit Latenzen |
+| **SP5 Verkauf automatisch** | C5a, C5.5–C5.10 mit C5.6a, T2 | Zahlung rein, Bild raus, ohne Klick |
+| **SP6 Betrieb und Abnahme** | D1–D3, C4, C6 | Probephase bestanden |
 
-**Medienlinie parallel**, sobald Charakterfotos vorliegen: B1 (Voraussetzung für H6b und jeden Kundenauftrag), B2, B4, B5.6. Höchstens zwei Agenten, keine gleichzeitigen schweren GPU-Läufe.
+- **DOK-1** ist erledigt (Pläne neu, Altdokumente im Archiv).
+- SP2 bis SP6 werden wie SP1 in Code-Tiefe ausgeschrieben, bevor sie beginnen; bis dahin gelten die bisherigen Paketbeschreibungen in §7.
+- SP3 läuft parallel, sobald Charakterfotos vorliegen. Höchstens zwei Agenten, keine gleichzeitigen schweren GPU-Läufe.
+- **P0-Regel:** Die P0-Befunde auf dem Default-Pfad schließt SP1 vor seiner Abnahme; alle übrigen P0 sind vor dem ersten KI-Kanaltest mit Kunden (SP4) behoben.
 
 ---
 
 ## 7. Pakete
 
-### 7.1 Block H – Härtung und Default-Kette
+### 7.1 SP1 Default-Kette lauffähig
 
-**H0 Rückverfolgung.** CLI `darkfluenzer trace --message <id>` bzw. `--order <nr>` (nur lesend): Eingangsnachricht, Kanalidentität, Default-Zuordnung, Schalter, erkannter Befehl, Referenzen, Workflow, Vorprüfung, Auftrag, Stufen, Jobs mit `prompt_id` und Fehler, Medien, Rückversand; die erste Unterbrechungsstelle wird benannt. Abnahme: Ausgabe für den gescheiterten Auftrag vom 17.11. (§4.3) und für einen bestandenen.
+Ersetzt H0, H4, H5, H6a sowie aus H2 BUG-008/013/014 und aus H3 Zeitlimit, Auftrag abbrechen und BUG-064. Grundlage: Code-Vergleich von Fable (17.11.) mit `cloner.py`, `pipeline.py`, `telegram.py` und der Cockpit-Klasse in `server.py`.
 
-**H4 Default-Kette reparieren.** BUG-052, 053, 054, 055, 056, 057, 075. Dateien: `server.py` (`_cloner`, `_cloner_plan`, `_cloner_order`, `_cloner_delivery`), `cloner.py`, `pipeline.py` (`advance_order`), `config.py`.
-- **Referenz:** Anhang, beantwortete Nachricht oder die letzten Medien desselben Absenders innerhalb `cloner.reference_window_s` (Konfiguration). Telegram-Alben (mehrere Nachrichten mit gleicher `media_album_id`) werden je Konto, Chat, Absender und Album dauerhaft zusammengeführt, bevor Aufträge entstehen; Neustart und Dubletten erzeugen keinen zweiten Auftrag (BUG-079).
-- **Vorprüfung** wie beim Render-Befehl (aktiviert, nicht gesperrt, Modelle vorhanden, Parameter gültig), bevor ein Auftrag entsteht.
-- **Bindung:** Auftrag trägt Influencerin, Charakterprofil und LoRA-Version. Default-Aufträge laufen ohne aktive LoRA nur mit Kennzeichnung „ohne Charakter-LoRA“ (bis B1, oder wenn der Betreiber „ohne“ wählt); Kundenaufträge nie (B1.4).
-- **Kandidaten:** Default-Produktion je Bild `production.default_candidates_per_image` (Vorgabe 1); Kundenaufträge Bild `production.candidates_default`, Video `production.video_candidates_default` (Vorgabe 1). Genau ein erfolgreicher Kandidat wird automatisch gewählt.
-- **Zustände:** Jede Default-Nachricht endet in genau einem Zustand: gestartet · wartet auf Start · abgelehnt mit Grund · zurückgesendet · Rückversand gesperrt. Jeder Zustand erzeugt eine Karte **und** eine Antwort im selben Chat.
-- **Einrichtung:** Default-Medien-Workflow und Befehlszuordnung erhalten sinnvolle, im Cockpit sichtbare Vorschläge aus der Registry (keine leeren Pflichtfelder ohne Hinweis).
-- **Betriebsart** des Default-Chats je Kanalidentität: Produktion, Kundentest, Aus. Umschalten im Cockpit und per Chat-Wort; die Wörter stehen im Default-Kontakt.
-- **Produktion:** Bild mit Befehl oder freier Anweisung ergibt ein bearbeitetes Bild. Freie Anweisungen deutet die KI ab B5.4 (B5.4a); bis dahin gelten die sechs Befehle.
-- **Stapel:** Workflow mit einem Vorlagen-Parameter: je Bild ein Auftrag. Workflow mit n Vorlagen-Parametern: die Bilder in Eingangsreihenfolge auf die Parameter verteilt, ein Auftrag; mehr Bilder als Parameter → Ablehnung mit Grund im Chat, nie stilles Abschneiden.
-- **Ausgabeprofil** je Befehl oder per Anweisung, z. B. Story 9:16: generative Befehle (`clone`, `pose`, `style`, `remix`) erzeugen nativ im Zielformat über die Formatwahl des Workflows; Bearbeitungen und `animate` erhalten das Profil über den Export-Workflow `output_instagram` (1080×1920), der dafür in H6a qualifiziert wird. Das Original bleibt erhalten.
-- **Rückversand** an den Default über Telegram als Datei in voller Qualität, Bilder und Videos.
+**Ziel:** Der Betreiber schickt per Telegram Bilder mit Befehl und bekommt die Ergebnisse als Datei in denselben Chat zurück. Jede Nachricht endet sichtbar, auch im Fehlerfall.
+**Schließt:** BUG-007, 008, 013, 014, 053 bis 058, 064, 075, 079 bis 083, 086; BUG-052 bis auf die LoRA (SP3).
+**Dateien:** `server.py`, `cloner.py`, `pipeline.py`, `models.py`, `channels/telegram.py`, `store.py`, `config.py`, `app.py`, `workflows/manifest.toml`, `commands.proto`, `channel.proto`, `comfy.proto`.
+**Vorgaben (Betreiber kann ändern):** In der Default-Produktion entsteht ein Kandidat je Bild. Im Modus „Direkt“ mit mehreren Kandidaten kommen alle zurück, und der Auftrag ist danach geschlossen.
 
-**H5 Video-Parametervertrag.** BUG-058. Alle Video-Workflows haben dieselben fachlichen Parameter: `duration_s` (Gesamtlänge), `fps`, `width`, `height`, optional `segment_s`. Das Backend übersetzt je Engine (Wan/Remix in Abschnitte mit letztem Bild als nächstem Start; LTX in Sekunden bzw. Frames, bis zur Engine-Grenze in einem Lauf, darüber Abschnitte). Grenzen je Engine stehen im Manifest und im STATE der Workflows. Abnahme: `ltx25_i2v`, `wan22_i2v`, `wan22_remix_v30_i2v` nehmen dieselben Eingaben an und erzeugen die erwartete Frame-Zahl; das Cockpit zeigt dieselben Felder an derselben Stelle.
+**Umsetzung in dieser Reihenfolge**
 
-**H6 Abnahme der Default-Kette am echten System.** H6a ist die **technische Kettenabnahme** ohne Charakterbindung (kein Auftrags-PASS nach §2.3), nach H4, H5, H2, H1: Foto + `clone`, Foto + `animate`, Foto und Befehl als zwei Nachrichten, **fünf Bilder in einer Nachricht mit Story-Profil kommen als fünf Dateien im Format 9:16 zurück**, Rückversand in denselben Chat, Zuordnung in Dateien, Abbruch während des Laufs, Neustart mitten im Lauf; danach `pose`, `style`, `remix`, `edit`. H6b (nach B1 und B1.7): dieselben Läufe mit Claras LoRA – erst H6b ist der Auftrags-PASS der Default-Kette. Abnahme nach §2.3, Protokoll in `bugs_v1.md` §7.
+1. **Rückverfolgung (`app.py`).** CLI `darkfluenzer trace --message <id>` und `--order <nr>`, nur lesend: Nachricht, Identität, Default-Zuordnung, Schalter, Befehl, Referenzen, Workflow, Vorprüfung, Auftrag, Stufen, Jobs mit `prompt_id` und Fehler, Medien, Rückversand. Die erste Unterbrechung wird benannt.
+2. **Render-Worker absichern (`server.render_worker`).**
+   - Heute: `advance_order`, `_cloner_delivery`, die Pushes und `_admit` laufen ungeschützt. Ein Fehler beendet die Schleife der Instanz.
+   - Neu: ganzer Schleifenkörper in `try/except Exception` mit Log; Nachbearbeitung in eigener Funktion `_after_job`. Zeitlimit je Workflow (`timeout_s` im Manifest, Vorgabe `production.render_timeout_s`) wird an `pipeline.run_render` übergeben.
+   - Test: `_cloner_delivery` wirft, der nächste Job läuft trotzdem.
+3. **Telegram-Eingang der Reihe nach (`telegram._on_update`, `_message`).**
+   - Heute: je Nachricht eine eigene Aufgabe. Ein Befehl überholt das Foto, dessen Download noch läuft.
+   - Neu: eine Warteschlange und ein Arbeiter je `chat_id`; `_reconcile` nutzt sie mit. `media_album_id` wird als `album_id` an der Nachricht gespeichert (Migration). Anhänge mit Status `pending` werden nach dem Start erneut geladen, nach drei Fehlversuchen `failed` mit Grund.
+   - Test: Foto mit verzögertem Download, dann Befehl; Neustart mit `pending`.
+4. **Referenzen sammeln (neu: `server._cloner_refs`).** Reihenfolge: eigene Anhänge samt Album; beantwortete Nachricht samt Album; sonst Medien desselben Absenders in dieser Konversation aus den letzten `cloner.reference_window_s`, die noch keinem Auftrag zugeordnet sind. Nachrichten mit `album_id` werden erst ausgewertet, wenn das Album `cloner.album_settle_s` ruhig ist. Nie Medien anderer Absender.
+5. **Plan, Vorprüfung, Antwort (`server._cloner`, `_cloner_plan`, `_on_inbound`).**
+   - Heute: Befehle aus → stiller Rücksprung. Fehlender Workflow, „edit nur für eigene Bilder“ und „wartet auf Start“ → nur Karte. Keine Prüfung, ob der Workflow startbar ist.
+   - Neu: `_cloner_plan` prüft zusätzlich `_lane_of(wf)` und `_not_startable(wf)`. Jeder Ausgang läuft über eine Funktion `_cloner_state`, die Karte **und** Chat-Antwort schreibt. Zustände: `started`, `waiting_start`, `rejected`, `returned`, `return_blocked`, `failed`, `cancelled`. `_on_inbound` fängt jede Ausnahme und meldet `failed`. Der Hinweis „Befehle sind aus“ kommt höchstens einmal je `cloner.notice_interval_s`.
+6. **Optionen aus dem Wunsch (neu: `cloner.options`).** Liest einen Formatnamen der Engine (`Engine.formats`, z. B. `9:16`) und eine Dauer (`8s`); der Rest bleibt Wunsch. Vorgabe ist das Ausgabeprofil je Befehl im Default-Kontakt. Format setzt `width` und `height`, wenn der Workflow beide hat, sonst Ablehnung mit Grund. Dauer setzt `duration_s`.
+7. **Aufträge anlegen (`server._cloner_order`).**
+   - Heute: nur `refs[0]`, immer `production.candidates_default`, kein Eltern-Medium, keine Figur.
+   - Neu: bei einem Upload-Parameter je Referenz ein Auftrag (Stapel), bei mehreren Vorlagen-Parametern gemeinsam (mehr Bilder als Parameter → Ablehnung mit Grund). Kandidaten aus `production.cloner_candidates` (Vorgabe 1), Video aus `production.video_candidates_default` (1), immer 1 bei Workflows ohne Seed. Ist die Referenz ein eigenes Medium (`media_by_sha`), wird sie als `parent_media_id` übergeben. Der Auftrag speichert Influencerin und Charakter des Default-Kontakts; die Karte sagt „ohne Charakter-LoRA“ bis SP3. Video als Referenz: Ablehnung mit Grund bis B4.
+8. **Abschluss und Rückversand (`pipeline.advance_order`, `server._cloner_delivery`).**
+   - Heute: die Stufe wartet immer auf Auswahl; im Modus Direkt bleibt der Auftrag offen; eine Wiederholung sendet alles erneut.
+   - Neu: genau ein erfolgreicher Kandidat wird automatisch gewählt. Modus Direkt mit mehreren: alle senden, Stufe ohne Auswahl schließen, Auftrag auf `review`. Rückversand je Auftrag und Medium genau einmal (Tabelle `cloner_returns`). Fehlschlag oder Abbruch melden `failed` oder `cancelled` mit Grund. Ein bitgleiches Ergebnis zählt als Kandidat.
+9. **Postausgang (`telegram.outbox_worker`, `_pace`).** Sendungen an den Default gehen ohne Verzögerung und ohne Tippanzeige raus, vor wartenden Kundensendungen. Der Takt je Gespräch folgt in SP4.
+10. **Video-Vertrag (`models.py`, `pipeline.video_plan`, `server._workflows`, Manifest).**
+    - Heute: Wan und Remix haben einen `video`-Abschnitt und bekommen `duration_s` und `segment_s` vom Backend. LTX hat einen eigenen Parameter `duration`.
+    - Neu: `VideoSpec.mode` mit `frames` (wie heute) und `seconds` (LTX: `duration_s` wird auf den Sekunden-Eingang geschrieben, ein Lauf bis zur Engine-Grenze). LTX bekommt einen `video`-Abschnitt, sein Parameter `duration` entfällt. `segment_s` erscheint nur bei `frames`. Damit zeigen alle Video-Workflows dieselben Felder an derselben Stelle (FRONTEND `VideoSettings`).
+11. **Auftrag abbrechen (neu: Befehl 59 `order_cancel`).** Bricht alle wartenden und laufenden Jobs eines Auftrags ab, mit der Logik aus `_cancel`. Ein Chat-Wort im Default-Kontakt bricht den laufenden Auftrag dieses Chats ab.
+12. **Betriebsart (Default-Kontakt, Befehl 37 additiv).** `production`, `test`, `off` je Kanalidentität. `off`: nur anzeigen. `test`: bis SP4 die Antwort „Kundentest noch nicht verfügbar“.
 
-**H1 Inhaltsstufe schließen.** BUG-047. Stufe = höchste Stufe aus Workflow und allen Eingabebildern (Upload, Vorlage, Galerie, Eltern). Uploads per SHA-256 gegen `media`; unbekanntes Eingabebild in einem abgeleiteten Workflow = `explizit`. Abnahme: explizites Bild über alle Wege, Ergebnis `explizit`, Liefer-Gate sperrt, auch bei manipuliertem Befehl.
+**Einrichtung vor der Abnahme:** Der Default-Chat steht in `test_chat_ids`, sonst verwirft der Testbetrieb jede Nachricht (571334304 ist eingetragen). Je Befehl ist ein Workflow gesetzt. Für volle Auflösung Referenzen als Datei senden, denn Foto-Nachrichten liefert Telegram verkleinert.
 
-**H2 Fehler auf dem Kettenpfad.** BUG-008, 013, 014, 015, 016, 021, 031, 048, 049, 050, 062. Je Befund ein vorher roter Test plus Mac-Lauf, soweit Kanal und Tunnel vorhanden.
+**Frontend im selben Paket:** Karte je Zustand; Default-Kontakt mit Betriebsart, Kandidatenzahl, Ausgabeprofil je Befehl und Chat-Wörtern; `VideoSettings`; „Auftrag abbrechen“.
 
-**H3 Render-Betrieb.** BUG-007, 043 (Rest), 064. Zeitlimit je Workflow aus der Registry; Befehl „Auftrag abbrechen“ beendet alle Jobs eines Auftrags; Fortschritt langer Läufe (Schritt, Abschnitt) im STATE. Abnahme: laufender LTX-Auftrag mit mehreren Kandidaten abgebrochen; Lauf über 3600 s besteht.
+**Abnahme am echten System (ersetzt H6a; technische Kettenabnahme, kein Auftrags-PASS nach §2.3)**
+
+1. Foto mit „clone“: eine Datei kommt zurück.
+2. Foto, 4 s später „clone“: ein Auftrag mit diesem Foto.
+3. Album mit fünf Bildern und „style 9:16“: fünf Dateien im Format 9:16.
+4. Foto mit „animate 5s“: ein Video als Datei.
+5. „clone“ ohne Workflow, mit ausgeschalteten Befehlen und mit fehlendem Modell: je eine Antwort mit Grund.
+6. Abbruch im Lauf: Antwort „abgebrochen“, Warteschlange leer.
+7. Neustart im Lauf: der Auftrag läuft weiter, genau eine Datei kommt zurück.
+8. `trace` zeigt jeden dieser Läufe vollständig.
+
+### 7.1a Block H – Rest (wird mit SP2 bzw. SP3 ausgeschrieben)
+
+**H1 Inhaltsstufe schließen (→ SP2).** BUG-047. Stufe = höchste Stufe aus Workflow und allen Eingabebildern (Upload, Vorlage, Galerie, Eltern). Uploads per SHA-256 gegen `media`; unbekanntes Eingabebild in einem abgeleiteten Workflow = `explizit`. Abnahme: explizites Bild über alle Wege, Ergebnis `explizit`, Liefer-Gate sperrt, auch bei manipuliertem Befehl.
+
+**H2-Rest Fehler auf dem Kettenpfad (→ SP2).** BUG-015, 016, 021, 031, 048, 049, 050, 062. Je Befund ein vorher roter Test plus Mac-Lauf, soweit Kanal und Tunnel vorhanden.
+
+**H3-Rest Render-Betrieb (→ SP2).** Fortschritt langer Läufe (Schritt, Abschnitt) im STATE; ein Lauf über 3600 s besteht mit dem Zeitlimit aus SP1.
+
+**H6b Default-Kette mit Claras LoRA (→ SP3).** Dieselben Läufe wie die SP1-Abnahme, nach B1 und B1.7 mit Claras LoRA; erst H6b ist der Auftrags-PASS der Default-Kette.
 
 ### 7.2 S1 – Einstellungen (Reiter, Schlüsselbund)
 
@@ -464,11 +503,11 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 - **B1 Charakter-LoRA** – ausgeschrieben in §7.6.1.
 - **B2 Bildidentität und Ausgabe:** Identitätsprofil mit Referenzsatz, A/B-Vergleich, 2K/4K (Hochskalieren nie als nativ ausgeben), Instagram-Profile 1080×1440, Reels 1080×1920. **B2.1 Kalibrierung** der Identitätsschwelle je Charakter: ≥ 50 eigene Kandidaten und ≥ 50 fremde Gesichter, Verteilung der Werte, Schwelle so, dass fremde Gesichter im Testsatz nie bestehen; Abnahme: Fehlannahmen 0, Fehlablehnungen notiert.
 - **B4 Video** (FL-2, FL-4): Wan-Abnahme, Vergleich LTX/Wan mit Messwerten, Registry gegen Platte (BUG-028, 029, 030). **Zeitachse:** Schlüsselbilder je Zeitpunkt (z. B. 0/5/10/15 s) mit Referenzbild aus Dateien, Prompt des folgenden Abschnitts, Kamera/Bewegung, Übergangsstärke. Bis zur Engine-Grenze ein LTX-Lauf mit `LTXVAddGuide` je Schlüsselbild (im ComfyUI-Kern vorhanden; `LTXVContextWindows` für Prompt je Fenster), darüber eine Abschnittskette mit `WanFirstLastFrameToVideo` (Start- und Endbild je Abschnitt) und Zusammensetzen mit Ton/FPS-Prüfung. Bewegungsübertragung mit Wan Animate 2 (Node vorhanden, Modell vor Nutzung qualifizieren). Abnahme: 15-s-Video mit vier Schlüsselbildern, Bilder zu diesen Zeitpunkten entsprechen den Referenzen, Übergänge ohne Sprung, Neustart mitten im Lauf.
-- **C1/C3 Rest:** Vorlagenbibliothek mit Analyse (B5.6); alle sechs Befehle und freie Anweisungen bis zum Rückversand (H6).
+- **C1/C3 Rest:** Vorlagenbibliothek mit Analyse (B5.6); alle sechs Befehle und freie Anweisungen bis zum Rückversand (SP1, H6b).
 
 #### 7.6.1 B1 Charakter-LoRA (FL-3)
 
-BUG-052, 068, 069, 078. Braucht H3 (Zeitlimit je Workflow, BUG-007).
+BUG-052, 068, 069, 078. Braucht das Zeitlimit je Workflow aus SP1 (BUG-007).
 
 **Ziel:** Der Betreiber legt Fotos in einen Ordner, klickt „Trainieren“ und erhält eine LoRA, die alle Aufträge dieser Figur verwenden. Beliebig viele Figuren, strikt getrennt.
 
@@ -508,7 +547,7 @@ Felder: Kürzel, Name, Trigger (eindeutig, z. B. `dfclara`), Klasse (`woman`, `m
 1. Fotos ablegen. Der Beobachter prüft jede Datei (brauchbar, zu klein, Dublette, unlesbar, nicht unterstützt, noch im Kopieren) und meldet das im STATE 5.
 2. „Trainieren“ im Cockpit oder `darkfluenzer character train <kürzel> --engine <engine>`. Der Datensatz entsteht mit `training.build_dataset`; Originale bleiben unberührt, gleiche Fotos ergeben dieselbe Version.
 3. Das Training läuft als Job auf ComfyUI 1 über den Trainingsworkflow der Engine. Zeitlimit aus der Registry. Zwischenstände werden gesichert, soweit der Trainingsknoten das kann.
-4. Ergebnis: Datei nach `local/models/loras/characters/…`, SHA-256, Eintrag in `lora_versions` (Charakter, Engine, Version, Datensatz-ID, Trigger, Parameter, Job, Dauer, Status „trainiert“).
+4. Ergebnis: Datei nach `local/models/loras/characters/…`, SHA-256, Eintrag in die **vorhandene** LoRA-Registry im Manifest (`[loras.<key>]` über `pipeline._adopt_lora` → `models.register_lora`), erweitert um Charakter, Engine, Version, Datensatz-ID, Trigger, Parameter, Job, Dauer, Status „trainiert“; keine zweite Tabelle.
 5. Probebilder: die Probe-Prompts des Profils mit der neuen LoRA in drei Stärken, dazu der Identitätswert gegen `reference/`.
 6. „Aktiv setzen“: genau eine aktive Version je Charakter und Engine. Ältere Versionen bleiben wählbar.
 
@@ -516,7 +555,7 @@ Kein automatischer Start beim Ablegen von Fotos.
 
 **B1.4 Verwendung**
 
-- Registry: neuer Parametertyp `lora` (Lader-Knoten und Stärke). Die Prüfung „Workflow lädt nur Engine-Dateien“ lässt diesen Laufzeitwert zu, wenn Datei, Engine und SHA zu `lora_versions` passen.
+- Registry: neuer Parametertyp `lora` (Lader-Knoten und Stärke). Die Prüfung „Workflow lädt nur Engine-Dateien“ lässt diesen Laufzeitwert zu, wenn Datei, Engine und SHA zu einem Eintrag der LoRA-Registry passen.
 - Ohne LoRA (Betreiberwahl im Cockpit) entfernt das Backend den Lader und reicht dessen Eingänge durch, wie bei „umgangen“ in `comfy.ui_to_api`.
 - Auftrag: Influencerin, Charakter, aktive LoRA der Engine des Workflows. Kundenaufträge ohne aktive LoRA werden mit Grund abgelehnt; Default-Aufträge laufen ohne aktive LoRA nur mit Kennzeichnung „ohne Charakter-LoRA“.
 - Je Architektur (SDXL; Krea 2) ein Lader-Knoten im UI- und API-Graph jedes betroffenen Workflows, registriert mit 0 Abweichungen; echter Render mit und ohne LoRA bei festem Seed.
@@ -543,7 +582,7 @@ Alter diffusers-Trainer und CLI `character train-sdxl` entfallen. `dfchar` und `
 - Zweiter Charakter mit eigenem Ordner: Ein Auftrag für Figur A lädt nie die LoRA von Figur B (Test und Lauf).
 - Neue Fotos ergeben eine neue Datensatz- und LoRA-Version; die alte bleibt aktiv, bis umgeschaltet wird.
 - Abbruch und Neustart mitten im Training hinterlassen keinen halben Eintrag.
-- Der Default-Auftrag aus H6 läuft mit der LoRA; die Herkunft nennt die Version.
+- Der Default-Auftrag aus der SP1-Abnahme läuft mit der LoRA (H6b); die Herkunft nennt die Version.
 
 ### 7.7 Block D und Abnahme
 
@@ -558,20 +597,20 @@ Alter diffusers-Trainer und CLI `character train-sdxl` entfallen. `dfchar` und `
 
 | FL | Inhalt | Paket |
 |---|---|---|
-| FL-1 | Telegram-Eingang, Kundenregister, Antwort | großteils behoben 17.11.; Rest H2 |
-| FL-2 | LTX/Video manuell aus dem Cockpit | Job 64 PASS; einheitliche Bedienung H5 |
+| FL-1 | Telegram-Eingang, Kundenregister, Antwort | großteils behoben 17.11.; Rest SP1/SP2 |
+| FL-2 | LTX/Video manuell aus dem Cockpit | Job 64 PASS; einheitliche Bedienung SP1 |
 | FL-3 | Charakter-LoRA mit Referenzbildern | B1 |
 | FL-4 | Zeitgesteuerter Szenenverlauf | B4 |
 | FL-5 | Referenzanalyse → Prompt | B5.6 |
-| FL-6 | Default-Befehle per Telegram | H4, H6, B5.4a |
-| FL-7 | Abbrechen | großteils PASS 17.11.; Rest H3 |
+| FL-6 | Default-Befehle per Telegram | SP1, SP3, B5.4a |
+| FL-7 | Abbrechen | großteils PASS 17.11.; Rest SP1 (Auftrag abbrechen) |
 
 ---
 
 ## 8. Datenmodell (additiv, je Paket mit Migration und Sicherung)
 
-- **Neue Tabellen:** Persona-Versionen, Verhaltensprofile, Erinnerungen (FTS5), KI-Läufe mit Messwerten, Medienwünsche, `lora_versions` (B1.3), Prüfwerte je Kandidat, Zeitachsen-Schlüsselbilder.
-- **Charakterprofil:** Kürzel (fest), Name, Trigger, Klasse, Mindestzahl Fotos, Probe-Prompts, aktive LoRA je Engine. **Kanalkonten:** `channel_accounts` (S1) mit Zuordnung Konto → Influencerin → Charakter (C5.1); Kundenakte → Influencerin, mehrere Identitäten je Akte. **Medienwunsch** an der Konversation.
+- **Neue Tabellen:** Persona-Versionen, Verhaltensprofile, Erinnerungen (FTS5), KI-Läufe mit Messwerten, Medienwünsche, `cloner_returns` (SP1), Prüfwerte je Kandidat, Zeitachsen-Schlüsselbilder.
+- **Charakterprofil:** Kürzel (fest), Name, Trigger, Klasse, Mindestzahl Fotos, Probe-Prompts, aktive LoRA je Engine (Verweis auf die LoRA-Registry im Manifest, B1.3). **Nachricht:** `album_id` (SP1). **Kanalkonten:** `channel_accounts` (S1) mit Zuordnung Konto → Influencerin → Charakter (C5.1); Kundenakte → Influencerin, mehrere Identitäten je Akte. **Medienwunsch** an der Konversation.
 - **Neue Spalten:** Influencerin je Akte und Kanalkonto, Antwortmodus und Kaufbereitschaft je Konversation, stabile ID je Preisposition, Zahlungswege je Influencerin, Trigger und Klasse je Charakter, Influencerin und LoRA-Version je Auftrag, `scheduled_at` je ausgehender Nachricht.
 - **Neue Zustände:** Nachricht „Entwurf“; Auftrag „abgelaufen“, „reklamiert“, „abgeschlossen“, „wartet auf Betreiber“.
 - **Default und Test:** Betriebsart und Chat-Wörter am Default-Kontakt, Ausgabeprofil je Befehl, Auftragsquelle `test`, Testakte (Art `test`), Prüfwerte je Kandidat, Freigeber `system`, Höchstlänge je Preisposition.
@@ -608,8 +647,7 @@ Frei laut `stream.proto` und `commands.proto` am 17.11.2026: Befehle 31–33, 36
 
 | Paket | STATE | EVENT | Befehle |
 |---|---|---|---|
-| H3 | 2 additiv | – | 59 `order_cancel` |
-| H5 | 3 additiv | – | – |
+| SP1 | 2, 3 additiv | 27 additiv | 59 `order_cancel`, 37 additiv (Betriebsart, Kandidaten, Ausgabeprofil, Chat-Wörter) |
 | B5.1 | 11 KI-Status | 31 KI-Ergebnis | 49 `studio_chat`, 50 `studio_session_reset` |
 | B5.2 | 9 additiv | – | 35 additiv, 51 `llm_settings_update` |
 | B5.3 | – | 32 Gedächtnis geändert | 52 `memory_edit` |
