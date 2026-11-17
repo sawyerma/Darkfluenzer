@@ -192,7 +192,7 @@ class WalletWatcher:
                     changed |= await self._receipts(int(header["number"], 16), tokens, mine)
             self.store.adapter_set("wallet", addr, "bsc_cursor", str(end))
             start, rounds = end + 1, rounds + 1
-        changed |= self._confirm_bsc(latest)
+        changed |= await self._confirm_bsc(latest)
         calls = [
             ("eth_call", [{"to": t.contract, "data": "0x" + (BALANCE_OF + mine).hex()}, "latest"])
             for t in self.w.tokens
@@ -229,11 +229,34 @@ class WalletWatcher:
                 )  # fmt: skip
         return changed
 
-    def _confirm_bsc(self, latest: int) -> bool:
+    async def _confirm_bsc(self, latest: int) -> bool:
+        """Bestätigungen nach Blockhöhe. Bevor eine Zahlung als bestätigt gilt, wird ihre
+        Transaktion erneut abgefragt (FABLE-014): nicht mehr in der Kette (Reorganisation) oder
+        fehlgeschlagen -> bleibt offen; in einen anderen Block verschoben -> zählt ab dort."""
+        required = self.w.bsc_confirmations
+        payments = self.store.unconfirmed_payments("bsc")
+        due = [p for p in payments if latest - p["block"] + 1 >= required]
+        found = (
+            await self._rpc([("eth_getTransactionReceipt", [p["txid"]]) for p in due])
+            if due
+            else []
+        )
+        receipts = {p["id"]: r for p, r in zip(due, found, strict=True)}
         changed = False
-        for p in self.store.unconfirmed_payments("bsc"):
-            conf = latest - p["block"] + 1
-            changed |= self.store.update_confirmations(p["id"], conf, self.w.bsc_confirmations)
+        for p in payments:
+            block, conf = p["block"], latest - p["block"] + 1
+            if p["id"] in receipts:
+                receipt = receipts[p["id"]] or {}
+                if int(receipt.get("status") or "0x0", 16) != 1 or not receipt.get("blockNumber"):
+                    log.warning(
+                        "BSC-Zahlung %s: Transaktion %s nicht (mehr) erfolgreich in der Kette",
+                        p["id"], p["txid"],
+                    )  # fmt: skip
+                    conf = 0
+                else:
+                    block = int(receipt["blockNumber"], 16)
+                    conf = latest - block + 1
+            changed |= self.store.update_confirmations(p["id"], conf, required, block)
         return changed
 
     # ------------------------------------------------------------------ Eingänge

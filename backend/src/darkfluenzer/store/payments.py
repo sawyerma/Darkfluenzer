@@ -256,6 +256,7 @@ class PaymentsMixin:
         if row["status"] != "detected":
             return False  # bestätigt: unveränderlich (keine Ereignisse je Runde)
         status = "unassigned" if confirmations >= required else "detected"
+        block = row["block"] if block is None else block  # None: Block unverändert
         if (row["block"], row["confirmations"], status) == (block, confirmations, "detected"):
             return False
         db.execute(
@@ -277,9 +278,12 @@ class PaymentsMixin:
         )
         return [dict(r) for r in rows]
 
-    def update_confirmations(self, payment_id: int, confirmations: int, required: int) -> bool:
+    def update_confirmations(
+        self, payment_id: int, confirmations: int, required: int, block: int | None = None
+    ) -> bool:
+        """Bestätigungen fortschreiben; ``block``: Transaktion liegt inzwischen in diesem Block."""
         with self.tx() as db:
-            return self._advance(db, payment_id, None, confirmations, required)
+            return self._advance(db, payment_id, block, confirmations, required)
 
     def payment(self, payment_id: int) -> dict:
         row = self.db.execute(

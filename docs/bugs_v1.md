@@ -198,6 +198,19 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-014 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-122“) – Teil
+Commit: siehe git log „FABLE-014“ / payments.chain.WalletWatcher._confirm_bsc, store.update_confirmations
+Behauptung: BESTÄTIGT – BSC-Bestätigungen nur aus der aktuellen Blockhöhe minus Fundblock; eine aus der
+  Kette gefallene (Reorganisation) oder fehlgeschlagene Transaktion wäre bestätigt worden; nebenbei
+  schrieb jede Runde für jede offene Zahlung ein Ereignis (Block None ≠ gespeicherter Block)
+Korrektur: bei Erreichen der Bestätigungszahl eth_getTransactionReceipt: fehlt oder Status ≠ 1 → bleibt
+  offen (0 Bestätigungen, Warnung); anderer Block → Block übernommen, Zählung ab dort; unveränderte
+  Runden schreiben nichts mehr. Zweite unabhängige Quelle (zweiter RPC-Endpunkt) bleibt OFFEN
+Nachweis: tests/test_customer_orders.py::test_bsc_payment_confirmed_only_while_still_in_the_chain (vor
+  der Korrektur rot, danach grün); test_customer_orders, test_store, test_server grün
+Ergebnis: CODE (Tests rot/grün); zweite Quelle OFFEN
+Bearbeiter/Datum: Claude, 17.11.2026
+
 ID: FABLE-013 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-121“) – Teil
 Commit: siehe git log „FABLE-013“ / web.commands (_UNLOCKED_COMMANDS)
 Behauptung: BESTÄTIGT – der Registry-Lock umschließt jeden Befehl; ein langer Registry-Befehl (Workflow
@@ -208,7 +221,7 @@ Korrektur: cancel_job und pause_queue laufen ohne den Lock (lesen und ändern ke
 Nachweis: tests/test_server.py::test_cancel_and_pause_do_not_wait_for_the_registry_lock (vor der
   Korrektur Zeitüberschreitung, danach grün); test_server, test_orders, test_customer_orders,
   test_telegram, test_training, test_lora, test_checks grün
-Ergebnis: TEIL (Abbrechen/Anhalten CODE; übrige Befehle OFFEN)
+Ergebnis: CODE für Abbrechen/Anhalten (Tests rot/grün); Aufteilung der übrigen Befehle OFFEN
 Bearbeiter/Datum: Claude, 17.11.2026
 
 ID: FABLE-015 (Audit Fable 17.11., P3; im Auditblatt vorläufig „BUG-123“)

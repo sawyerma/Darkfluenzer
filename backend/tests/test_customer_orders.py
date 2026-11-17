@@ -340,3 +340,42 @@ def test_customer_order_chain(cfg, monkeypatch):
         assert (await client.get("/api/v1/payment-export/2026-13")).status == 400
 
     _run(cfg, scenario)
+
+
+def test_bsc_payment_confirmed_only_while_still_in_the_chain(cfg):
+    """FABLE-014: vor dem Bestätigen wird die Transaktion erneut abgefragt – aus der Kette
+    gefallen (Reorganisation) oder fehlgeschlagen bleibt sie offen; in einen anderen Block
+    verschoben zählen die Bestätigungen ab dort."""
+    cfg = dataclasses.replace(cfg, wallet=_wallet(cfg))
+    store = Store(cfg.local)
+    receipts = {
+        "0xgone": None,
+        "0xfailed": {"status": "0x0", "blockNumber": hex(100)},
+        "0xmoved": {"status": "0x1", "blockNumber": hex(110)},
+        "0xok": {"status": "0x1", "blockNumber": hex(100)},
+    }
+    try:
+        for n, txid in enumerate(receipts):
+            store.upsert_payment(
+                method="usdt", network="bsc", asset="USDT", amount=f"1.{n}", txid=txid,
+                position=0, block=100, confirmations=1, required=15, eur=1.0, rate=0.9, rate_ms=1,
+            )  # fmt: skip
+        ids = {p["txid"]: p["id"] for p in store.unconfirmed_payments("bsc")}
+
+        async def scenario():
+            watcher = WalletWatcher(cfg, store, lambda: None, lambda: None)
+
+            async def rpc(calls):
+                assert all(method == "eth_getTransactionReceipt" for method, _ in calls)
+                return [receipts[params[0]] for _, params in calls]
+
+            watcher._rpc = rpc
+            await watcher._confirm_bsc(120)  # Block 100: 21 Bestätigungen nach Höhe
+
+        asyncio.run(scenario())
+        status = {t: store.payment(i)["status"] for t, i in ids.items()}
+        assert status["0xok"] != "detected"
+        assert status["0xgone"] == status["0xfailed"] == status["0xmoved"] == "detected"
+        assert store.payment(ids["0xmoved"])["confirmations"] == 11  # ab Block 110
+    finally:
+        store.close()
