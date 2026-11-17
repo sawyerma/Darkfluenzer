@@ -560,6 +560,7 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
    - Neu: zusätzlich jede Eingabedatei eines Upload-Parameters. SHA-256 der Datei, Suche in `media`: Treffer ergibt dessen Stufe, kein Treffer `explizit`. Masken sind ausgenommen (Kennzeichen am Parameter im Manifest). „Wiederholen“ erbt die Stufe des Ursprungsjobs.
    - Folge: Ergebnisse aus fremden Vorlagen sind `explizit` und gehen nur über Telegram an den Default.
    - Test: explizites Bild als Upload, als Vorlage, als Medien-ID ohne Eltern und über „Wiederholen“.
+   - **Umgesetzt 17.11.2026:** `create_render` nimmt die höchste Stufe aus Workflow, Ausgangsmedium, jeder Eingabedatei (Galerie-Treffer über SHA-256, sonst `explizit`) und beim Wiederholen der Stufe des Ursprungsjobs; Masken über `tier_exempt` im Manifest ausgenommen. Test rot vor/grün nach der Änderung. Echter Lauf: LTX (standard) mit explizitem Galeriebild → Job 86 `explizit`.
 3. **Kundenereignisse (`store.customer_events`).**
    - Heute: nur `created`, `named`, `read`, `age`, `updated`. Ein Eingang schreibt ein Nachrichtenereignis.
    - Neu: die Abfrage liefert zusätzlich die Nachrichtenereignisse `added`, die `customer_id` tragen. Keine Datenbankänderung.

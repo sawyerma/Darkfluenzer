@@ -182,6 +182,12 @@ def video_plan(wf: Workflow, graph: dict, values: dict, max_s: float | None) -> 
     }
 
 
+def _input_tier(store: Store, rel: str) -> str | None:
+    """Inhaltsstufe einer Eingabedatei: Stufe des byte-gleichen Galerie-Mediums, sonst explizit."""
+    media = store.media_by_sha(sha256_file(store.local / rel))
+    return store.media_tier(media["id"]) if media else "explizit"
+
+
 def create_render(
     store: Store,
     man: Manifest,
@@ -194,6 +200,7 @@ def create_render(
     dataset: str | None = None,
     stage_id: int | None = None,
     video_max_s: float | None = None,
+    inherit_tier: str | None = None,
 ) -> int:
     """Prüft einen Renderauftrag gegen die Registry und legt ihn als Job (Status queued) an.
     ``dataset``: Datensatzversion eines Trainingsworkflows (beim Anlegen festgelegt).
@@ -221,9 +228,19 @@ def create_render(
         raise PipelineError(f"{workflow_key}: Datensatz nur und immer für Trainingsworkflows.")
     seeds = [values["seed"]] if "seed" in values else []
     prompt = str(values.get("prompt", ""))
-    # Inhaltsstufe (Regel 13): höhere Stufe aus Workflow und Ausgangsmedium, fail-closed
+    # Inhaltsstufe (Regel 13) an einer Stelle (SP2 Schritt 2, BUG-047): höchste Stufe aus
+    # Workflow, Ausgangsmedium, jeder Eingabedatei (Galerie-Treffer über SHA-256, sonst explizit;
+    # Masken ausgenommen) und beim Wiederholen der Stufe des Ursprungsjobs; fail-closed
     parent_tier = store.media_tier(parent_media_id) if parent_media_id is not None else "standard"
-    content_tier = models.higher_tier(wf.content, parent_tier)
+    upload_tiers = [
+        _input_tier(store, rel) for name, rel in inputs.items() if not wf.params[name].tier_exempt
+    ]
+    content_tier = models.higher_tier(
+        wf.content,
+        parent_tier,
+        *upload_tiers,
+        *([inherit_tier] if inherit_tier is not None else []),
+    )
     return store.create_job(
         None,
         wf.engine,

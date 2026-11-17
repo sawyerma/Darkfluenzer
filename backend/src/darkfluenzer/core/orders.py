@@ -224,6 +224,7 @@ def retry_stage(
                     parent_media_id=old["parent_media_id"],
                     stage_id=stage.id,
                     video_max_s=video_max_s,
+                    inherit_tier=old["content_tier"],  # „Wiederholen“ erbt die Stufe
                 )
             )
             store.copy_segments(j["id"], jobs[-1])  # Langvideo: fertige Abschnitte behalten

@@ -103,6 +103,7 @@ class Param:
     # weitere Ziele (Node, Eingang) mit demselben Wert, z. B. Schritte beider Wan-Sampler
     also: tuple[tuple[str, str], ...] = ()
     below: str = ""  # Wert muss kleiner sein als der dieses Parameters (Wechsel < Schritte)
+    tier_exempt: bool = False  # Maske: zählt nicht für die Inhaltsstufe (SP2 Schritt 2), nur Upload
 
     @property
     def is_expert(self) -> bool:
@@ -443,6 +444,8 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
                 raise ManifestError(f"Manifest: {w}.params.{name}: {exc}") from exc
             if params[name].reference and not params[name].upload:
                 raise ManifestError(f"Manifest: {w}.params.{name}: reference nur mit upload.")
+            if params[name].tier_exempt and not params[name].upload:
+                raise ManifestError(f"Manifest: {w}.params.{name}: tier_exempt nur mit upload.")
             if params[name].type not in PARAM_TYPES:
                 raise ManifestError(
                     f"Manifest: {w}.params.{name}.type muss {set(PARAM_TYPES)} sein."

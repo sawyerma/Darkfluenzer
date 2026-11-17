@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import shutil
 
 import pytest
@@ -168,3 +169,37 @@ def test_finish_stage_carries_its_own_values(setup):
     params = store.job(finish_job)["params"]
     assert params["prompt"] == "dreht sich" and params["video"]["length"] == 3
     assert params["image"].endswith(".png")
+
+
+def test_content_tier_from_every_input_file(setup):
+    """SP2 Schritt 2 (BUG-047): Upload, Vorlage oder Medien-ID ohne Eltern – die Stufe der
+    Eingabedatei zählt (Galerie-Treffer über SHA-256, sonst explizit); „Wiederholen“ erbt."""
+    cfg, store, man = setup
+
+    def gallery(name: str, color: int, tier: str) -> int:
+        rel = f"evaluation/t/{name}.png"
+        (cfg.local / rel).parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (32, 32), (color, 0, 0)).save(cfg.local / rel)
+        data = (cfg.local / rel).read_bytes()
+        mid = store.add_media(rel, hashlib.sha256(data).hexdigest(), len(data))
+        store.db.execute("UPDATE media SET content_tier = ? WHERE id = ?", (tier, mid))
+        return mid
+
+    def render(image_rel: str, **kw) -> str:
+        job = pipeline.create_render(
+            store, man, "ltx25_i2v", {"prompt": "p"}, {"image": image_rel}, video_max_s=120, **kw
+        )
+        return store.job(job)["content_tier"]
+
+    standard = gallery("standard", 10, "standard")
+    explicit = gallery("explizit", 200, "explizit")
+    # Medien-ID ohne Eltern: Kopie in inputs/ mit denselben Bytes
+    assert render(pipeline.input_from_media(cfg, standard)) == "standard"
+    assert render(pipeline.input_from_media(cfg, explicit)) == "explizit"
+    # fremder Upload (nicht in der Galerie) -> explizit
+    buf = io.BytesIO()
+    Image.new("RGB", (32, 32), (0, 99, 0)).save(buf, "PNG")
+    foreign = pipeline.store_input(cfg, buf.getvalue(), "fremd.png")
+    assert render(foreign) == "explizit"
+    # „Wiederholen“ erbt die Stufe des Ursprungsjobs, auch mit unverdächtiger Eingabe
+    assert render(pipeline.input_from_media(cfg, standard), inherit_tier="explizit") == "explizit"

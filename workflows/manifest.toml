@@ -556,7 +556,7 @@ title = "LUSTIFY · Maskiertes Inpainting"
 
 [workflows.lustify_sdxl_inpaint.params]
 image = { node = "2", input = "image", type = "str", required = true, upload = true }
-mask = { node = "3", input = "image", type = "str", required = true, upload = true }
+mask = { node = "3", input = "image", type = "str", required = true, upload = true, tier_exempt = true }
 prompt = { node = "5", input = "text", type = "str", required = true }
 negative_prompt = { node = "6", input = "text", type = "str" }
 seed = { node = "9", input = "seed", type = "int", min = 0, max = 4294967295 }
