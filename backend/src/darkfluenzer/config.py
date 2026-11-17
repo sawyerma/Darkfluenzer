@@ -198,6 +198,17 @@ class WalletConfig:
 
 
 @dataclass(frozen=True)
+class TrainingConfig:
+    """Trainingsfotos (SP3 Schritt 1): Prüfregeln für local/characters/<kürzel>/photos."""
+
+    min_side: int  # kurze Seite mindestens (px), sonst „zu klein“
+    recommended_side: int  # darunter Hinweis, aber verwendbar
+    min_images: int  # geeignete Bilder für einen Datensatz
+    settle_s: float  # Datei gilt erst als vollständig kopiert, wenn so lange unverändert
+    suffixes: tuple[str, ...]  # erlaubte Bildformate
+
+
+@dataclass(frozen=True)
 class ProductionConfig:
     """Aufträge mit Stufen (V0 §4.3): Kandidatenzahl und Wiederholungen je Stufe."""
 
@@ -233,6 +244,7 @@ class Config:
     server: ServerConfig
     identity: IdentityConfig
     production: ProductionConfig
+    training: TrainingConfig
     telegram: TelegramConfig | None  # None: Abschnitt fehlt (Kanal nicht eingerichtet)
     instagram: InstagramConfig | None  # None: Abschnitt fehlt (Kanal nicht eingerichtet)
     wallet: WalletConfig | None  # None: Abschnitt fehlt (Zahlungseingang nicht eingerichtet)
@@ -573,6 +585,20 @@ def _parse_server(t: dict) -> ServerConfig:
     )
 
 
+def _parse_training(t: dict) -> TrainingConfig:
+    w = "training"
+    suffixes = tuple(str(s).lower() for s in t.get("suffixes", (".jpg", ".jpeg", ".png", ".webp")))
+    if not suffixes or any(not s.startswith(".") for s in suffixes):
+        raise ConfigError('Konfiguration: training.suffixes braucht Endungen wie ".jpg".')
+    return TrainingConfig(
+        min_side=int(_positive(t, "min_side", 768, w)),
+        recommended_side=int(_positive(t, "recommended_side", 1024, w)),
+        min_images=int(_positive(t, "min_images", 15, w)),
+        settle_s=float(_positive(t, "settle_s", 10, w)),
+        suffixes=suffixes,
+    )
+
+
 PRIORITY_CLASSES = ("customer", "default", "cockpit", "training")
 
 
@@ -648,6 +674,7 @@ def load(root: Path | None = None) -> Config:
             min_face_px=int(_positive(ident, "min_face_px", 64, "identity")), min_score=score
         ),
         production=production,
+        training=_parse_training(data.get("training") or {}),
     )
 
 

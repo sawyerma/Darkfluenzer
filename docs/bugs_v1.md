@@ -196,6 +196,19 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-078 (SP3 Schritt 1)
+Commit: siehe git log „SP3 step 1“ / core.characters._migrate_character_folders, media.training.copy_verified, remove_moved
+Behauptung: BESTÄTIGT (zwei Ordnerschemata)
+Nachweis: tests/test_server.py::test_character_folder_migration_moves_files_with_hash_check (Umzug, Hash-Abgleich,
+  Konflikt stoppt ohne Festschreiben, alt = neu lässt den Ordner stehen)
+Mac-Lauf 17.11.2026: echte Datenbank 20 → 21, Sicherung vor-ordnerumzug; Clara → local/characters/clara/. Dabei
+  gefunden: der leere photos-Ordner (alt = neu) wurde als leerer alter Ordner entfernt – keine Daten betroffen
+  (nur leere Ordner werden entfernt), sofort behoben und mit Test abgesichert; Ordner wiederhergestellt
+Ergebnis: PASS
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-101 (SP5 Schritt 5, Etappe A)
 Commit: siehe git log „SP5 step 5“ / core.render._next_job, store.jobs.queued_jobs(order), Migration 20
 Behauptung: BESTÄTIGT (reines FIFO)

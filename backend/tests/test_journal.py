@@ -63,15 +63,14 @@ def test_scan_media_keeps_the_cursor_between_rounds(cfg):
     assert gallery.scan_media(cfg, set(), 0, folders=False) == 0  # Position gemerkt
 
 
-def test_migration_18_takes_counters_from_the_journal_and_never_reuses(tmp_path):
+def test_migration_18_takes_counters_from_the_journal_and_never_reuses(tmp_path, monkeypatch):
+    from darkfluenzer.store import db as store_db
+
     local = tmp_path / "local"
-    Store(local).close()  # aktuelles Schema, dann auf Version 17 zurück
+    monkeypatch.setattr(store_db, "SCHEMA_VERSION", 17)  # Datenbank im Stand von Version 17
+    Store(local).close()
+    monkeypatch.undo()
     db = sqlite3.connect(local / "darkfluenzer.sqlite3")
-    db.execute("DROP INDEX events_entity_event")  # Migration 18 zurück
-    db.execute("DROP TABLE counters")
-    db.execute("ALTER TABLE jobs DROP COLUMN media_id")  # Migration 19 zurück
-    db.execute("ALTER TABLE jobs DROP COLUMN priority")  # Migration 20 zurück
-    db.execute("PRAGMA user_version = 17")
     # Journal kennt Medium 7 (gelöscht, Nummer 5) und Medium 9 (vorhanden, Nummer 6)
     ev = "INSERT INTO events (entity, entity_id, event, data, created_at) VALUES (?,?,?,?,'t')"
     db.execute(ev, ("media", 7, "added", "{}"))

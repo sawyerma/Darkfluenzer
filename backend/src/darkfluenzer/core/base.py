@@ -138,6 +138,7 @@ class CockpitBase:
             adapter.on_change_message = self._message_changed
             adapter.gate = self._delivery_gate
         self._settle_deliveries()
+        self._migrate_character_folders()  # SP3 Schritt 1: ein Ordnerschema je Charakter
 
     def _adapter(self, platform: str):
         return {"telegram": self.telegram, "instagram": self.instagram}.get(platform)

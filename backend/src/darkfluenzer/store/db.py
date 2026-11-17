@@ -123,15 +123,15 @@ class StoreBase:
     def close(self) -> None:
         self.db.close()
 
-    def _backup(self, first_step: int) -> Path:
-        """Kopie der Datenbank über die SQLite-Sicherungsschnittstelle vor einer Migration
-        (SP0 Schritt 1, BUG-105); erst vollständig geschrieben, dann umbenannt."""
+    def backup(self, label: str) -> Path:
+        """Kopie der Datenbank über die SQLite-Sicherungsschnittstelle vor einer Migration oder
+        einem Ordnerumzug (SP0 Schritt 1, BUG-105); erst vollständig geschrieben, dann umbenannt."""
         stamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        target = self.path.with_name(f"{self.path.name}.bak-{stamp}-vor-migration{first_step}")
+        target = self.path.with_name(f"{self.path.name}.bak-{stamp}-{label}")
         n = 1
         while target.exists():
             n += 1
-            target = target.with_name(f"{self.path.name}.bak-{stamp}-{n}-vor-migration{first_step}")
+            target = target.with_name(f"{self.path.name}.bak-{stamp}-{n}-{label}")
         part = target.with_name(target.name + ".part")
         dest = sqlite3.connect(part)
         try:
@@ -155,7 +155,7 @@ class StoreBase:
         pending = self.db.execute("PRAGMA user_version").fetchone()[0]
         backup = None
         if 1 <= pending < SCHEMA_VERSION:  # bestehende Datenbank: vorher sichern
-            backup = self._backup(pending + 1)
+            backup = self.backup(f"vor-migration{pending + 1}")
             log.info("Sicherung vor Migration %d→%d: %s", pending, SCHEMA_VERSION, backup)
         rebuild = any(step in REBUILDS for step in range(max(pending, 1) + 1, SCHEMA_VERSION + 1))
         if rebuild:  # nur außerhalb einer Transaktion umschaltbar

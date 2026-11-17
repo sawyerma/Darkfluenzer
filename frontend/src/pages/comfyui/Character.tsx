@@ -1,5 +1,5 @@
 import type { Character } from "../../core/generated/darkfluenzer/v1/character_pb";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { PHOTO_STATUS, WORKFLOW_TONE } from "./common";
 import { Topic } from "../../core/generated/darkfluenzer/v1/stream_pb";
 import { useCommand } from "../../core/commands";
@@ -19,14 +19,28 @@ export function useCharacter() {
   return { list, current, choose };
 }
 
-/** Charakter (Steuerung, F7.5): Profil wählen, anlegen, umbenennen; bei Trainingsworkflows den
- *  Trainingsdatenordner übernehmen (Befehl 25, CAS über die Profilrevision). */
+/** Größte Summe je Befehl beim Ablegen (der Befehl selbst ist durch server.max_upload_mb begrenzt). */
+const PHOTO_BATCH_BYTES = 40 * 1024 * 1024;
+
+/** Charakter (Steuerung, F7.5, SP3 Schritt 1): Profil wählen, anlegen (Name, Kürzel, Trigger,
+ *  Klasse), bearbeiten; Ordner local/characters/<kürzel>/ zum Kopieren und im Finder, Fotos per
+ *  Ziehen/Ablegen (Befehle 25, 65, 67). */
 export function CharacterControl({ training, list, current, choose }: { training: boolean } & ReturnType<typeof useCharacter>) {
   const cmd = useCommand();
   const [editing, setEditing] = useState<"" | "new" | "edit">("");
   const [name, setName] = useState("");
-  const [path, setPath] = useState(current?.photosDir ?? "");
-  useEffect(() => setPath(current?.photosDir ?? ""), [current?.id, current?.photosDir]);
+  const [slug, setSlug] = useState("");
+  const [trigger, setTrigger] = useState("");
+  const [classWord, setClassWord] = useState("");
+  const [over, setOver] = useState<"" | "photos" | "reference">("");
+
+  function startEdit(mode: "new" | "edit") {
+    setName(mode === "edit" && current ? current.name : "");
+    setSlug("");
+    setTrigger(mode === "edit" && current ? current.trigger : "");
+    setClassWord(mode === "edit" && current ? current.classWord : "");
+    setEditing(mode);
+  }
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -38,22 +52,53 @@ export function CharacterControl({ training, list, current, choose }: { training
           characterId: create || !current ? 0n : BigInt(current.id),
           revision: create || !current ? 0n : current.revision,
           name: name.trim(),
-          photosDir: create ? "" : (current?.photosDir ?? ""),
+          trigger: trigger.trim(),
+          classWord: classWord.trim(),
+          slug: create ? slug.trim() : "",
         },
       },
-      { done: create ? "Charakter angelegt." : "Name übernommen." },
+      { done: create ? "Charakter angelegt." : "Übernommen." },
     );
     if (done) setEditing("");
   }
 
-  async function takePath() {
-    if (!current) return;
-    await cmd.run(
-      {
-        case: "characterUpdate",
-        value: { characterId: BigInt(current.id), revision: current.revision, name: current.name, photosDir: path.trim() },
-      },
-      { done: "Pfad übernommen." },
+  async function addPhotos(part: "photos" | "reference", files: File[]) {
+    if (!current || files.length === 0) return;
+    let batch: File[] = [];
+    let size = 0;
+    const send = async () => {
+      if (batch.length === 0) return;
+      const items = await Promise.all(batch.map(async (f) => ({ param: "", filename: f.name, data: new Uint8Array(await f.arrayBuffer()) })));
+      await cmd.run({ case: "characterPhotosAdd", value: { characterId: BigInt(current.id), part, files: items } }, { done: `${files.length} Datei(en) übernommen.` });
+      batch = [];
+      size = 0;
+    };
+    for (const f of files) {
+      if (size + f.size > PHOTO_BATCH_BYTES) await send();
+      batch.push(f);
+      size += f.size;
+    }
+    await send();
+  }
+
+  function dropZone(part: "photos" | "reference", label: string) {
+    return (
+      <div
+        className="g-drop"
+        data-over={over === part ? "" : undefined}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setOver(part);
+        }}
+        onDragLeave={() => setOver("")}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver("");
+          void addPhotos(part, Array.from(e.dataTransfer.files));
+        }}
+      >
+        <small>{label}</small>
+      </div>
     );
   }
 
@@ -68,8 +113,7 @@ export function CharacterControl({ training, list, current, choose }: { training
             value={editing === "new" ? "new" : (current?.id ?? "")}
             onChange={(e) => {
               if (e.target.value === "new") {
-                setName("");
-                setEditing("new");
+                startEdit("new");
               } else {
                 setEditing("");
                 choose(e.target.value);
@@ -84,46 +128,49 @@ export function CharacterControl({ training, list, current, choose }: { training
             <option value="new">Neuer Charakter …</option>
           </select>
           {current && editing === "" ? (
-            <button
-              type="button"
-              className="g-button"
-              onClick={() => {
-                setName(current.name);
-                setEditing("edit");
-              }}
-            >
+            <button type="button" className="g-button" onClick={() => startEdit("edit")}>
               Bearbeiten
             </button>
           ) : null}
         </span>
       </div>
       {editing ? (
-        <form className="g-actions" onSubmit={save}>
-          <input
-            className="g-input"
-            aria-label="Name des Charakters"
-            placeholder="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <button type="submit" className="g-button g-primary" disabled={cmd.pending || !name.trim()}>
-            {editing === "new" ? "Anlegen" : "Übernehmen"}
-          </button>
-          <button type="button" className="g-button" onClick={() => setEditing("")}>
-            Abbrechen
-          </button>
+        <form className="g-form" onSubmit={save}>
+          <input className="g-input" aria-label="Name des Charakters" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+          {editing === "new" ? (
+            <input className="g-input g-mono" aria-label="Kürzel" placeholder="Kürzel (leer: aus dem Namen)" value={slug} onChange={(e) => setSlug(e.target.value)} />
+          ) : null}
+          <input className="g-input g-mono" aria-label="Trigger" placeholder="Trigger (z. B. clara01)" value={trigger} onChange={(e) => setTrigger(e.target.value)} />
+          <input className="g-input" aria-label="Klasse" placeholder="Klasse (z. B. woman)" value={classWord} onChange={(e) => setClassWord(e.target.value)} />
+          <span className="g-actions">
+            <button type="submit" className="g-button g-primary" disabled={cmd.pending || !name.trim() || !trigger.trim() || !classWord.trim()}>
+              {editing === "new" ? "Anlegen" : "Übernehmen"}
+            </button>
+            <button type="button" className="g-button" onClick={() => setEditing("")}>
+              Abbrechen
+            </button>
+          </span>
         </form>
       ) : null}
       {training && current ? (
         <div className="g-field">
-          <label htmlFor="cf-trainpath">Trainingsdatenordner</label>
-          <input id="cf-trainpath" className="g-input g-mono" value={path} onChange={(e) => setPath(e.target.value)} />
+          <label>Trainingsfotos</label>
+          <code className="g-mono">{current.photosDir}</code>
           <span className="g-between">
-            <button type="button" className="g-button" disabled={cmd.pending || !path.trim() || path.trim() === current.photosDir} onClick={() => void takePath()}>
-              Pfad übernehmen
+            <button type="button" className="g-button" onClick={() => void navigator.clipboard.writeText(current.folder)}>
+              Pfad kopieren
             </button>
-            <small>Alle geeigneten Bilder</small>
+            <button
+              type="button"
+              className="g-button"
+              disabled={cmd.pending}
+              onClick={() => void cmd.run({ case: "revealFolder", value: { characterId: BigInt(current.id), part: "photos" } })}
+            >
+              Im Finder öffnen
+            </button>
           </span>
+          {dropZone("photos", "Trainingsfotos hierher ziehen")}
+          {dropZone("reference", "Referenzfotos (Gesicht, 5–10) hierher ziehen")}
           {current.photosMissing ? <small className="g-error">Ordner existiert nicht.</small> : null}
         </div>
       ) : null}

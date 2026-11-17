@@ -9,6 +9,7 @@ Gleiche Bildmenge ergibt dieselbe Datensatzversion (Hash), neue Bilder eine neue
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import logging
 import math
@@ -23,13 +24,10 @@ from pathlib import Path
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from ..config import TrainingConfig
+
 log = logging.getLogger("darkfluenzer.training")
 
-IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
-SETTLE_S = 10.0  # Datei gilt erst als vollständig kopiert, wenn so lange unverändert
-MIN_SIDE = 768
-RECOMMENDED_SIDE = 1024
-MIN_IMAGES = 15
 # SDXL-Trainingsformate (≈1 MP), Bilder werden dem nächstgelegenen Seitenverhältnis zugeordnet
 BUCKETS = [
     (1024, 1024),
@@ -66,17 +64,114 @@ class Photo:
 
 @dataclass(frozen=True)
 class Folders:
-    """Ordner eines Charakterprofils: Trainingsfotos (nur gelesen) und Datensatzversionen."""
+    """Ordner eines Charakters (SP3 Schritt 1): ``local/characters/<kürzel>/`` mit Trainingsfotos
+    (nur gelesen), Referenzfotos für die Gesichtsprüfung, Datensatzversionen und Trainingsstände."""
 
     photos: Path
+    reference: Path
     datasets: Path
+    training: Path
+
+    @property
+    def root(self) -> Path:
+        return self.photos.parent
 
 
-def profile_folders(project: Path, data_dir: str, photos_dir: str) -> Folders:
-    """Ordner eines Profils: Datensätze im Projektordner, Fotos relativ zum Projekt oder absolut."""
-    photos = Path(photos_dir).expanduser()
-    photos = photos if photos.is_absolute() else project / photos
-    return Folders(photos, project / data_dir / "dataset")
+def character_folders(local: Path, slug: str) -> Folders:
+    """Das eine Ordnerschema je Charakter (BUG-078)."""
+    root = local / "characters" / slug
+    return Folders(root / "photos", root / "reference", root / "datasets", root / "training")
+
+
+def copy_verified(src: Path, dst: Path) -> list[Path]:
+    """Alle Dateien unter ``src`` nach ``dst`` (gleiche relative Pfade), jede per SHA-256
+    geprüft; eine vorhandene gleiche Datei bleibt, eine abweichende bricht ab, bevor etwas
+    festgeschrieben wird. Liefert die Quelldateien, die jetzt sicher am Ziel liegen."""
+    if not src.is_dir() or src.resolve() == dst.resolve():
+        return []
+    done = []
+    for path in sorted(p for p in src.rglob("*") if p.is_file()):
+        target = dst / path.relative_to(src)
+        sha = _sha256(path)
+        if target.exists():
+            if _sha256(target) != sha:
+                raise TrainingError(
+                    f"{target} existiert schon mit anderem Inhalt – Umzug gestoppt."
+                )
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, target)
+            if _sha256(target) != sha:
+                raise TrainingError(f"{target}: Kopie weicht ab – Umzug gestoppt.")
+        done.append(path)
+    return done
+
+
+def remove_moved(moved: list[Path], roots: list[Path]) -> None:
+    """Nach dem Festschreiben: umgezogene Quelldateien löschen, danach nur leere Ordner unter den
+    alten Wurzeln (keine fremden Dateien)."""
+    for path in moved:
+        path.unlink(missing_ok=True)
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for folder in sorted((p for p in root.rglob("*") if p.is_dir()), reverse=True):
+            if not any(folder.iterdir()):
+                folder.rmdir()
+        if not any(root.iterdir()):
+            root.rmdir()
+
+
+def add_photos(target: Path, files: list[tuple[str, bytes]], rules: TrainingConfig) -> int:
+    """Fotos aus dem Cockpit ablegen (Befehl 67): erst alle prüfen, dann schreiben. Gleiche Bytes
+    schon vorhanden -> übersprungen; gleicher Name, anderer Inhalt -> Name mit Nummer. Liefert die
+    Zahl neu abgelegter Dateien."""
+    checked = []
+    for filename, data in files:
+        name = Path(filename).name
+        suffix = Path(name).suffix.lower()
+        if not name or name.startswith(".") or suffix not in rules.suffixes:
+            raise TrainingError(f"{filename or 'Datei'}: nur {', '.join(rules.suffixes)}.")
+        try:
+            with Image.open(io.BytesIO(data)) as im:
+                im.verify()
+        except (UnidentifiedImageError, OSError, SyntaxError) as exc:
+            raise TrainingError(f"{name}: kein lesbares Bild ({str(exc)[:80]}).") from exc
+        checked.append((name, data))
+    target.mkdir(parents=True, exist_ok=True)
+    present = {_sha256(p) for p in target.iterdir() if p.is_file()}
+    added = 0
+    for name, data in checked:
+        sha = hashlib.sha256(data).hexdigest()
+        if sha in present:
+            continue
+        dest, n = target / name, 1
+        while dest.exists():
+            n += 1
+            dest = target / f"{Path(name).stem}-{n}{Path(name).suffix}"
+        tmp = dest.with_name(f".{dest.name}.tmp")
+        tmp.write_bytes(data)
+        os.replace(tmp, dest)
+        present.add(sha)
+        added += 1
+    return added
+
+
+_UMLAUTS = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"}
+
+
+def slugify(name: str) -> str:
+    """Kürzel aus dem Namen: Kleinbuchstaben, Ziffern und Bindestriche (Ordnername)."""
+    text = "".join(_UMLAUTS.get(c, c) for c in name.strip().lower())
+    out, dash = [], False
+    for c in text:
+        if c.isascii() and c.isalnum():
+            out.append(c)
+            dash = False
+        elif not dash and out:
+            out.append("-")
+            dash = True
+    return "".join(out).strip("-") or "charakter"
 
 
 def _sha256(path: Path) -> str:
@@ -87,7 +182,7 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def scan(folder: Path, now: float | None = None) -> list[Photo]:
+def scan(folder: Path, rules: TrainingConfig, now: float | None = None) -> list[Photo]:
     """Prüft alle Dateien im Trainingsdatenordner ``folder``, ohne sie zu verändern."""
     now = time.time() if now is None else now
     seen: dict[str, str] = {}
@@ -95,10 +190,10 @@ def scan(folder: Path, now: float | None = None) -> list[Photo]:
     for path in sorted(folder.iterdir()) if folder.is_dir() else []:
         if path.name.startswith(".") or not path.is_file():
             continue
-        if path.suffix.lower() not in IMAGE_EXT:
-            result.append(Photo(path.name, "unsupported", note="nur JPG, PNG, WebP"))
+        if path.suffix.lower() not in rules.suffixes:
+            result.append(Photo(path.name, "unsupported", note="nur " + ", ".join(rules.suffixes)))
             continue
-        if now - path.stat().st_mtime < SETTLE_S:
+        if now - path.stat().st_mtime < rules.settle_s:
             result.append(Photo(path.name, "incomplete", note="Kopiervorgang läuft noch"))
             continue
         try:
@@ -114,17 +209,17 @@ def scan(folder: Path, now: float | None = None) -> list[Photo]:
             result.append(Photo(path.name, "duplicate", sha, width, height, f"= {seen[sha]}"))
             continue
         seen[sha] = path.name
-        if min(width, height) < MIN_SIDE:
-            result.append(
-                Photo(path.name, "too_small", sha, width, height, f"< {MIN_SIDE} px kurze Seite")
-            )
+        if min(width, height) < rules.min_side:
+            note = f"< {rules.min_side} px kurze Seite"
+            result.append(Photo(path.name, "too_small", sha, width, height, note))
             continue
-        note = "" if min(width, height) >= RECOMMENDED_SIDE else f"< {RECOMMENDED_SIDE} px"
+        good = min(width, height) >= rules.recommended_side
+        note = "" if good else f"< {rules.recommended_side} px"
         result.append(Photo(path.name, "ok", sha, width, height, note))
     return result
 
 
-def signature(folders: Folders, now: float | None = None) -> tuple:
+def signature(folders: Folders, rules: TrainingConfig, now: float | None = None) -> tuple:
     """Günstiger Änderungsstempel von Trainingsordner und Datensätzen (Name, Größe, mtime) ohne
     Hashen. Solange eine Datei noch kopiert wird, ändert er sich mit der Zeit (erneut prüfen)."""
     now = time.time() if now is None else now
@@ -133,7 +228,7 @@ def signature(folders: Folders, now: float | None = None) -> tuple:
         for path in sorted(folder.iterdir()) if folder.is_dir() else []:
             stat = path.stat()
             entries.append((folder.name, path.name, stat.st_size, stat.st_mtime_ns))
-            if now - stat.st_mtime < SETTLE_S:
+            if now - stat.st_mtime < rules.settle_s:
                 entries.append(("settling", int(now)))
     return tuple(entries)
 
@@ -203,12 +298,13 @@ def _fit(im: Image.Image, size: tuple[int, int]) -> tuple[Image.Image, int, int]
 
 def build_dataset(
     folders: Folders,
-    trigger: str = "dfchar",
-    class_word: str = "woman",
-    min_images: int = MIN_IMAGES,
+    rules: TrainingConfig,
+    trigger: str,
+    class_word: str,
 ) -> Path:
     """Erzeugt (oder findet) die Datensatzversion zur aktuellen geprüften Bildmenge."""
-    ok = [p for p in scan(folders.photos) if p.status == "ok"]
+    ok = [p for p in scan(folders.photos, rules) if p.status == "ok"]
+    min_images = rules.min_images
     if len(ok) < min_images:
         raise DatasetIncomplete(
             f"{len(ok)} geeignete Bilder in {folders.photos}, mindestens {min_images} nötig."

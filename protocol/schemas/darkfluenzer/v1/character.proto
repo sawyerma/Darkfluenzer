@@ -42,7 +42,7 @@ message Character {
   // Profil-ID (Zahl als Text)
   string id = 1;
   string name = 2;
-  // Trainingsdatenordner, relativ zum Projekt oder absolut (wird nie verändert)
+  // Trainingsfotos: local/characters/<slug>/photos (relativ zum Projekt, SP3 Schritt 1)
   string photos_dir = 3;
   repeated TrainingPhoto photos = 4;
   // geeignete Bilder und Mindestzahl für einen Datensatz
@@ -54,6 +54,13 @@ message Character {
   uint64 revision = 9;
   // Trainingsdatenordner existiert nicht (Pfad prüfen)
   bool photos_missing = 10;
+  // Kürzel = Ordnername unter local/characters/ (fest nach dem Anlegen)
+  string slug = 11;
+  // Trigger und Klasse für Datensatz und Prompt (SP3 Schritt 2)
+  string trigger = 12;
+  string class_word = 13;
+  // Absoluter Ordner des Charakters zum Kopieren bzw. „Im Finder öffnen“
+  string folder = 14;
 }
 
 // STATE characters

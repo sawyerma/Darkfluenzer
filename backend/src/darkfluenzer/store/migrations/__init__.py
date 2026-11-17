@@ -459,6 +459,14 @@ ALTER TABLE jobs ADD COLUMN media_id INTEGER;
 ALTER TABLE jobs ADD COLUMN priority TEXT NOT NULL DEFAULT 'cockpit'
     CHECK (priority IN ('customer', 'default', 'cockpit', 'training'));
 """,
+    21: """
+-- Ein Ordnerschema je Charakter (SP3 Schritt 1, BUG-078): local/characters/<slug>/; Trigger und
+-- Klasse für Datensatz und Prompt. slug füllt der Ordnerumzug beim Start (mit Hash-Abgleich).
+ALTER TABLE characters ADD COLUMN slug TEXT;
+ALTER TABLE characters ADD COLUMN trigger TEXT NOT NULL DEFAULT 'dfchar';
+ALTER TABLE characters ADD COLUMN class_word TEXT NOT NULL DEFAULT 'woman';
+CREATE UNIQUE INDEX characters_slug ON characters(slug) WHERE slug IS NOT NULL;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

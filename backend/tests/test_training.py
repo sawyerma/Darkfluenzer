@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import time
@@ -11,6 +12,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from darkfluenzer.config import TrainingConfig
 from darkfluenzer.media import training
 
 
@@ -29,8 +31,15 @@ def photos(tmp_path: Path) -> Path:
     return folder
 
 
+RULES = TrainingConfig(
+    min_side=768, recommended_side=1024, min_images=15, settle_s=10.0,
+    suffixes=(".jpg", ".jpeg", ".png", ".webp"),
+)  # fmt: skip
+
+
 def _folders(photos: Path) -> training.Folders:
-    return training.Folders(photos, photos.parent / "dataset")
+    root = photos.parent
+    return training.Folders(photos, root / "reference", root / "dataset", root / "training")
 
 
 def test_scan_classifies_every_file(tmp_path, photos):
@@ -43,7 +52,7 @@ def test_scan_classifies_every_file(tmp_path, photos):
     os.utime(photos / "kaputt.png", (time.time() - 60,) * 2)
     (photos / "notiz.txt").write_text("x")
     Image.new("RGB", (1024, 1024)).save(photos / "frisch.png")  # gerade erst kopiert
-    status = {p.name: p.status for p in training.scan(photos)}
+    status = {p.name: p.status for p in training.scan(photos, RULES)}
     assert status == {
         "a.png": "ok",
         "b.jpg": "ok",
@@ -58,14 +67,16 @@ def test_scan_classifies_every_file(tmp_path, photos):
 def test_dataset_requires_minimum(tmp_path, photos):
     _img(photos / "a.png", 1024, 1024, 1)
     with pytest.raises(training.DatasetIncomplete, match="1 geeignete"):
-        training.build_dataset(_folders(photos))
+        training.build_dataset(_folders(photos), RULES, "dfchar", "woman")
 
 
 def test_dataset_is_versioned_and_leaves_originals_untouched(tmp_path, photos):
     srcs = [_img(photos / f"{i}.png", 1200 + 40 * i, 1600, i) for i in range(4)]
     before = {p.name: p.read_bytes() for p in srcs}
     folders = _folders(photos)
-    ds = training.build_dataset(folders, min_images=4)
+    ds = training.build_dataset(
+        folders, dataclasses.replace(RULES, min_images=4), "dfchar", "woman"
+    )
     meta = json.loads((ds / "dataset.json").read_text())
     assert len(meta["items"]) == 4 and ds.name == f"ds_{meta['id']}"
     for item in meta["items"]:
@@ -73,9 +84,15 @@ def test_dataset_is_versioned_and_leaves_originals_untouched(tmp_path, photos):
         assert (w, h) == tuple(reversed(item["target_size"])) and (w, h) in training.BUCKETS
         assert item["caption"] == "photo of dfchar woman"
     assert {p.name: p.read_bytes() for p in srcs} == before, "Originale dürfen sich nie ändern"
-    assert training.build_dataset(folders, min_images=4) == ds, "gleiche Menge = gleiche Version"
+    assert (
+        training.build_dataset(folders, dataclasses.replace(RULES, min_images=4), "dfchar", "woman")
+        == ds
+    ), "gleiche Menge = gleiche Version"
     _img(photos / "neu.png", 1024, 1024, 99)
-    assert training.build_dataset(folders, min_images=4) != ds, "neue Bilder = neue Version"
+    assert (
+        training.build_dataset(folders, dataclasses.replace(RULES, min_images=4), "dfchar", "woman")
+        != ds
+    ), "neue Bilder = neue Version"
 
 
 def test_bucket_picks_nearest_aspect():

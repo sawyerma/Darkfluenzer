@@ -547,7 +547,14 @@ class RenderMixin:
             if not msg.character_id:
                 return "Für ein Training einen Charakter wählen."
             folders = self._folders(self.store.character(msg.character_id))
-            path = await asyncio.to_thread(training.build_dataset, folders)
+            row = self.store.character(msg.character_id)
+            path = await asyncio.to_thread(
+                training.build_dataset,
+                folders,
+                self.cfg.training,
+                row["trigger"],
+                row["class_word"],
+            )
             dataset = path.relative_to(self.cfg.local).as_posix()
         job_id = pipeline.create_render(
             self.store,

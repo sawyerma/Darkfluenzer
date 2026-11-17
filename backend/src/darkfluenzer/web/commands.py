@@ -118,6 +118,8 @@ class CommandsMixin:
             "create_workflow": self._create,
             "cancel_job": self._cancel,
             "order_cancel": self._order_cancel,
+            "reveal_folder": self._reveal_folder,
+            "character_photos_add": self._character_photos_add,
             "pause_queue": self._pause,
             "delete_media": self._delete_media,
         }

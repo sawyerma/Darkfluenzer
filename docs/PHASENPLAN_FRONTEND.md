@@ -84,6 +84,7 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
 - **B1 Charakter (Bereich Charakter, FL-3; Paket SP3):**
   - Liste der Charaktere; „Neuer Charakter“ mit Name, Kürzel, Klasse und Trigger.
   - Je Charakter: Ordnerpfad zum Kopieren und „Im Finder öffnen“; Fotos auch per Ziehen/Ablegen hinzufügen (kopiert nach `photos/`); Fotoliste mit Status und Grund; Zähler „x von y brauchbar“; Auswahl der Referenzfotos.
+  - **Umgesetzt 17.11.2026:** Pfad (nur lesbar), „Pfad kopieren“, „Im Finder öffnen“, Ablageflächen für Trainings- und Referenzfotos (`.g-drop` in `graphite.css`), Formular mit Name, Kürzel (beim Anlegen), Trigger, Klasse.
   - Training: Engine-Auswahl, Knopf „Trainieren“ (gesperrt mit Grund, solange Fotos fehlen oder ein Training läuft), Fortschritt, Abbrechen. **[17.11.]** Trainingsweg Krea 2 oder LUSTIFY/SDXL wählbar (E14 offen); dieselben Fotos, Versionen und aktive LoRA je Architektur getrennt.
   - Versionen: Tabelle mit Datum, Datensatz, Dauer und Identitätswert; Probebilder als Vergleichsraster; „Aktiv setzen“.
   - Influencerin-Block: zugeordneter Charakter und aktive LoRA je Engine.

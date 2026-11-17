@@ -91,6 +91,14 @@ stall_notice_s = 900   # Hinweis im Cockpit und beim Default, wenn ein Lauf so l
 estimate_runs = 5   # bisherige Läufe je Workflow für die geschätzte Dauer (Median)
 priority = ["customer", "default", "cockpit", "training"]   # Vorrang auf der Renderbahn: bezahlter Kundenauftrag, Default/Kundentest, Cockpit, Training; je Klasse FIFO
 
+# Trainingsfotos je Charakter (SP3 Schritt 1): Ordner local/characters/<kürzel>/photos
+[training]
+min_side = 768          # kurze Seite mindestens (px)
+recommended_side = 1024 # darunter nur ein Hinweis
+min_images = 15         # geeignete Bilder für einen Datensatz
+settle_s = 10           # Datei gilt erst als vollständig kopiert, wenn so lange unverändert
+suffixes = [".jpg", ".jpeg", ".png", ".webp"]
+
 # Claras Telegram-Konto (PHASENPLAN_V0 §6.1, C2d): Darkfluenzer meldet sich über TDLib als normales
 # Nutzerkonto an (kein Bot). TDLib bauen: launcher/setup_tdlib.sh. api_id/api_hash von
 # my.telegram.org (API development tools) liegen ausschließlich im macOS-Schlüsselbund:

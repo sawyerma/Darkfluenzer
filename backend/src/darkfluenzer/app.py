@@ -240,19 +240,24 @@ def _character(args: argparse.Namespace) -> tuple[dict, int]:
         row = store.character(args.character)
     finally:
         store.close()
-    folders = training.profile_folders(cfg.root, row["data_dir"], row["photos_dir"])
+    folders = training.character_folders(cfg.local, row["slug"])
     if args.action == "scan":
-        photos = training.scan(folders.photos)
+        photos = training.scan(folders.photos, cfg.training)
         usable = sum(p.status == "ok" for p in photos)
         return {
             "ok": True,
             "photos": [asdict(p) for p in photos],
             "usable": usable,
-            "min_images": training.MIN_IMAGES,
+            "min_images": cfg.training.min_images,
             "folder": str(folders.photos),
         }, 0
     if args.action == "dataset":
-        path = training.build_dataset(folders, args.trigger, args.class_word)
+        path = training.build_dataset(
+            folders,
+            cfg.training,
+            args.trigger or row["trigger"],
+            args.class_word or row["class_word"],
+        )
         meta = json.loads((path / "dataset.json").read_text())
         return {"ok": True, "dataset": path.name, "images": len(meta["items"])}, 0
     # train-sdxl: Architekturbindung – nur SDXL-Basismodelle
@@ -374,8 +379,8 @@ def main(argv: list[str] | None = None) -> int:
     chp = sub.add_parser("character", help="Charakter-LoRA: Bilder prüfen, Datensatz, Training")
     chp.add_argument("action", choices=["scan", "dataset", "train-sdxl"])
     chp.add_argument("--character", type=int, default=1, help="Charakterprofil (ID)")
-    chp.add_argument("--trigger", default="dfchar")
-    chp.add_argument("--class-word", default="woman")
+    chp.add_argument("--trigger", default="")  # leer: Trigger des Profils
+    chp.add_argument("--class-word", default="")  # leer: Klasse des Profils
     chp.add_argument("--dataset")
     chp.add_argument("--engine", default="lustify_sdxl")
     chp.add_argument("--steps", type=int, default=1500)

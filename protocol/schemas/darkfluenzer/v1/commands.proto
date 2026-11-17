@@ -91,6 +91,23 @@ message OrderCancel {
   string order_no = 1;
 }
 
+// Ordner eines Charakters im Finder öffnen (SP3 Schritt 1): nur das Schema
+// local/characters/<kürzel>/, kein freier Pfad. part: photos | reference | datasets | training,
+// leer = Charakterordner.
+message RevealFolder {
+  uint64 character_id = 1;
+  string part = 2;
+}
+
+// Fotos per Ziehen/Ablegen (SP3 Schritt 1, FL-3): Kopie nach photos/ bzw. reference/ des
+// Charakters; Format, Größe und Lesbarkeit geprüft, gleiche Bytes nicht doppelt.
+message CharacterPhotosAdd {
+  uint64 character_id = 1;
+  repeated InputFile files = 2;
+  // photos | reference
+  string part = 3;
+}
+
 message CancelJob {
   uint64 job_id = 1;
 }
@@ -144,7 +161,13 @@ message CharacterUpdate {
   uint64 character_id = 1;
   uint64 revision = 2;
   string name = 3;
-  string photos_dir = 4;
+  // Ordner kommt aus dem Kürzel (SP3 Schritt 1); frei wählbarer Pfad entfällt
+  reserved 4;
+  reserved "photos_dir";
+  string trigger = 5;
+  string class_word = 6;
+  // Nur beim Anlegen; leer: aus dem Namen
+  string slug = 7;
 }
 
 // Anmeldeschritt eines Kanalkontos (Telegram über TDLib): step phone | code | password. Der Wert
@@ -333,6 +356,8 @@ message CommandRequest {
     PaymentAssign payment_assign = 41;
     GiftCardConfirm gift_card_confirm = 42;
     OrderCancel order_cancel = 59;
+    RevealFolder reveal_folder = 65;
+    CharacterPhotosAdd character_photos_add = 67;
   }
 }
 

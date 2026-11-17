@@ -77,21 +77,30 @@ class ProfilesMixin:
             raise StoreError(f"Charakter {character_id} unbekannt.")
         return dict(row)
 
-    def save_character(self, character_id: int, revision: int, name: str, photos_dir: str) -> dict:
-        """Profil anlegen (``character_id`` 0: eigener Ordner ``local/characters/<id>``) oder
-        Name/Trainingsdatenordner ändern (CAS auf die Revision)."""
-        name = name.strip()
-        if not name:
-            raise StoreError("Name des Charakters fehlt.")
+    def save_character(
+        self, character_id: int, revision: int, name: str, trigger: str, class_word: str, slug: str
+    ) -> dict:
+        """Profil anlegen (``character_id`` 0: Ordner ``local/characters/<slug>``) oder Name,
+        Trigger und Klasse ändern (CAS auf die Revision); das Kürzel bleibt danach fest."""
+        name, trigger, class_word = name.strip(), trigger.strip(), class_word.strip()
+        if not name or not trigger or not class_word:
+            raise StoreError("Name, Trigger und Klasse des Charakters sind Pflicht.")
         with self.tx() as db:
             ts = now()
             if character_id == 0:
+                taken = {
+                    r[0] for r in db.execute("SELECT slug FROM characters WHERE slug IS NOT NULL")
+                }
+                unique, n = slug, 1
+                while unique in taken:
+                    n += 1
+                    unique = f"{slug}-{n}"
                 new_id = db.execute("SELECT coalesce(max(id), 0) + 1 FROM characters").fetchone()[0]
-                data_dir = f"local/characters/{new_id}"
+                folder = f"local/characters/{unique}"
                 db.execute(
-                    "INSERT INTO characters (id, name, data_dir, photos_dir, created_at,"
-                    " updated_at) VALUES (?,?,?,?,?,?)",
-                    (new_id, name, data_dir, photos_dir or f"{data_dir}/photos", ts, ts),
+                    "INSERT INTO characters (id, name, data_dir, photos_dir, slug, trigger,"
+                    " class_word, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                    (new_id, name, folder, f"{folder}/photos", unique, trigger, class_word, ts, ts),
                 )
                 character_id = new_id
             else:
@@ -99,12 +108,24 @@ class ProfilesMixin:
                 if current["revision"] != revision:
                     raise StoreError("Charakter wurde inzwischen geändert – Ansicht ist aktuell.")
                 db.execute(
-                    "UPDATE characters SET name = ?, photos_dir = ?, revision = revision + 1,"
-                    " updated_at = ? WHERE id = ?",
-                    (name, photos_dir or current["photos_dir"], ts, character_id),
+                    "UPDATE characters SET name = ?, trigger = ?, class_word = ?,"
+                    " revision = revision + 1, updated_at = ? WHERE id = ?",
+                    (name, trigger, class_word, ts, character_id),
                 )
             self._event("character", character_id, "saved", name=name)
             return self.character(character_id)
+
+    def set_character_slug(self, character_id: int, slug: str) -> dict:
+        """Kürzel und Ordner nach dem Umzug in das Schema festschreiben (SP3 Schritt 1)."""
+        folder = f"local/characters/{slug}"
+        with self.tx() as db:
+            db.execute(
+                "UPDATE characters SET slug = ?, data_dir = ?, photos_dir = ?,"
+                " revision = revision + 1, updated_at = ? WHERE id = ?",
+                (slug, folder, f"{folder}/photos", now(), character_id),
+            )
+            self._event("character", character_id, "moved", slug=slug)
+        return self.character(character_id)
 
     def _move_identity(self, identity_id: int, old: int, new: int) -> None:
         """Identität samt Verlauf einer anderen Akte zuordnen (ausdrückliche Betreiberzuordnung,

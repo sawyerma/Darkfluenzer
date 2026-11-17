@@ -7,8 +7,10 @@ import dataclasses
 import hashlib
 import os
 import shutil
+import types
 import uuid
 
+import pytest
 from aiohttp import WSServerHandshakeError
 from aiohttp.test_utils import TestClient, TestServer
 
@@ -469,8 +471,7 @@ def test_characters_state_pushes_training_folder_changes(cfg):
     from PIL import Image
 
     cfg = dataclasses.replace(cfg, server=dataclasses.replace(cfg.server, observe_s=0.1))
-    photos = cfg.local / "character" / "photos"
-    photos.mkdir(parents=True)
+    photos = cfg.local / "characters" / "charakter-01" / "photos"  # Schema seit SP3 Schritt 1
 
     async def scenario(client, app, origin):
         await _csrf(client)
@@ -482,7 +483,8 @@ def test_characters_state_pushes_training_folder_changes(cfg):
         await ws.send_bytes(pb.ClientMessage(subscribe=sub).SerializeToString())
         first = character_pb2.Characters.FromString((await _frame(ws)).state_full.payload)
         (char,) = first.characters
-        assert char.photos_dir == "local/character/photos" and not char.photos
+        assert char.photos_dir == "local/characters/charakter-01/photos" and not char.photos
+        assert char.slug == "charakter-01" and char.folder == str(photos.parent)
         assert char.usable == 0 and char.min_images > 0
 
         for name, side in (("gross.png", 1024), ("klein.png", 512)):
@@ -501,8 +503,8 @@ def test_characters_state_pushes_training_folder_changes(cfg):
 
 
 def test_character_profiles_command(cfg):
-    """Befehl 25: Profil 1 = local/character; neues Profil mit eigenem Ordner; CAS; nur
-    existierende Trainingsdatenordner; Influencerin des Default-Kontakts = Profil."""
+    """Befehl 25: Profil 1 nach dem Umzug unter local/characters/<kürzel>; neues Profil mit
+    Kürzel, Trigger und Klasse und eigenem Ordnerschema; CAS; Pflichtangaben."""
 
     async def scenario(client, app, origin):
         csrf = await _csrf(client)
@@ -515,19 +517,28 @@ def test_character_profiles_command(cfg):
             return commands_pb2.CommandResponse.FromString(body).detail
 
         (first,) = store.characters()
-        assert (first["name"], first["photos_dir"]) == ("Charakter 01", "local/character/photos")
-        new = commands_pb2.CharacterUpdate(name="Charakter 02")
+        assert (first["name"], first["slug"]) == ("Charakter 01", "charakter-01")
+        assert first["photos_dir"] == "local/characters/charakter-01/photos"
+        assert "Pflicht" in await send(character_update=commands_pb2.CharacterUpdate(name="Mia"))
+        new = commands_pb2.CharacterUpdate(name="Mia Lü", trigger="miax", class_word="woman")
         assert await send(character_update=new) == ""
         second = store.characters()[1]
-        assert second["data_dir"] == "local/characters/2"
-        assert (cfg.root / "local/characters/2/photos").is_dir()  # eigener Ordner angelegt
-        upd = commands_pb2.CharacterUpdate(character_id=2, revision=5, name="X")
+        assert (second["slug"], second["trigger"]) == ("mia-lue", "miax")
+        for sub in ("photos", "reference", "datasets", "training"):
+            assert (cfg.local / "characters" / "mia-lue" / sub).is_dir()
+        upd = commands_pb2.CharacterUpdate(
+            character_id=2, revision=5, name="X", trigger="t", class_word="c"
+        )
         assert "geändert" in await send(character_update=upd)  # CAS
-        upd = commands_pb2.CharacterUpdate(character_id=2, name="Mia", photos_dir="gibt/es/nicht")
-        assert "existiert nicht" in await send(character_update=upd)
-        upd = commands_pb2.CharacterUpdate(character_id=2, name="Mia", photos_dir=str(cfg.root))
+        upd = commands_pb2.CharacterUpdate(
+            character_id=2,
+            revision=second["revision"],
+            name="Mia",
+            trigger="mia2",
+            class_word="girl",
+        )
         assert await send(character_update=upd) == ""
-        assert store.character(2)["photos_dir"] == str(cfg.root)
+        assert store.character(2)["slug"] == "mia-lue"  # Kürzel bleibt nach dem Anlegen fest
         await app[server.COCKPIT_KEY].refresh_characters()
 
     _run(cfg, scenario)
@@ -653,7 +664,6 @@ def test_render_worker_survives_a_failing_after_job(cfg, monkeypatch):
     """SP1 Schritt 2: wirft die Nachbearbeitung (hier der Kloner-Rückversand), protokolliert die
     Bahn den Fehler, schickt die Pushes trotzdem und führt den nächsten Job aus."""
     import asyncio
-    import types
 
     from darkfluenzer.core import orders as core_orders
     from darkfluenzer.core import render as core_render
@@ -807,5 +817,120 @@ def test_command_status_endpoint(cfg):
         )
         del cockpit._inflight[running]
         assert (await client.get(f"/api/v1/command/{uuid.uuid4()}")).status == 404
+
+    _run(cfg, scenario)
+
+
+def test_character_folder_migration_moves_files_with_hash_check(cfg):
+    """SP3 Schritt 1 (BUG-078): Profil ohne Kürzel zieht beim Start nach local/characters/<kürzel>/
+    um – Datenbanksicherung, Kopie mit Hash-Abgleich, alte Dateien und leere Ordner danach weg;
+    eine abweichende Zieldatei stoppt den Umzug, bevor etwas festgeschrieben ist."""
+    from darkfluenzer.core.characters import CharactersMixin
+    from darkfluenzer.media import training
+
+    class _Chars(CharactersMixin):  # nur der Charakterteil des Cockpits
+        def __init__(self, cfg, store):
+            self.cfg, self.store = cfg, store
+
+    legacy = cfg.local / "character"
+    (legacy / "photos").mkdir(parents=True)
+    (legacy / "dataset" / "ds1").mkdir(parents=True)
+    (legacy / "previews").mkdir()
+    (legacy / "photos" / "a.png").write_bytes(b"A")
+    (legacy / "dataset" / "ds1" / "dataset.json").write_text("{}")
+    store = Store(cfg.local)
+    try:
+        row = store.characters()[0]
+        assert row["slug"] is None and row["data_dir"] == "local/character"
+        cockpit = _Chars(cfg, store)
+        cockpit._migrate_character_folders()
+        moved = store.characters()[0]
+        new = training.character_folders(cfg.local, "charakter-01")
+        assert moved["slug"] == "charakter-01"
+        assert (new.photos / "a.png").read_bytes() == b"A"
+        assert (new.datasets / "ds1" / "dataset.json").read_text() == "{}"
+        assert not legacy.exists()  # alte Dateien und leere Ordner entfernt
+        # alt = neu (Fotos schon im Schema): der leere neue Ordner bleibt bestehen
+        store.db.execute(
+            "UPDATE characters SET slug = NULL, photos_dir = 'local/characters/charakter-01/photos'"
+        )
+        for f in (new.photos / "a.png",):
+            f.unlink()
+        cockpit._migrate_character_folders()
+        assert new.photos.is_dir() and new.reference.is_dir()
+        assert list(cfg.local.glob("darkfluenzer.sqlite3.bak-*-vor-ordnerumzug"))
+        # Konflikt: abweichende Zieldatei -> Abbruch ohne Festschreiben
+        store.db.execute("UPDATE characters SET slug = NULL WHERE id = 1")
+        (new.photos / "a.png").write_bytes(b"A")  # Ziel hat a.png mit anderem Inhalt
+        old = cfg.root / "alt" / "photos"
+        old.mkdir(parents=True)
+        (old / "a.png").write_bytes(b"ANDERS")
+        store.db.execute("UPDATE characters SET photos_dir = ? WHERE id = 1", (str(old),))
+        with pytest.raises(training.TrainingError, match="anderem Inhalt"):
+            cockpit._migrate_character_folders()
+        assert store.characters()[0]["slug"] is None and (old / "a.png").exists()
+    finally:
+        store.close()
+
+
+def test_character_photos_add_and_reveal_folder(cfg, monkeypatch):
+    """SP3 Schritt 1 (Befehle 65, 67): Fotos per Ziehen/Ablegen nach photos/ bzw. reference/
+    (geprüft, ohne Duplikate); Finder nur für Ordner des Charakterschemas."""
+    import io
+
+    from PIL import Image
+
+    from darkfluenzer.core import characters as core_characters
+
+    def png(color: int) -> bytes:
+        buf = io.BytesIO()
+        Image.new("RGB", (8, 8), (color, 0, 0)).save(buf, "PNG")
+        return buf.getvalue()
+
+    opened = []
+
+    class Proc:
+        async def wait(self):
+            return 0
+
+    async def fake_exec(*args):
+        opened.append(args)
+        return Proc()
+
+    monkeypatch.setattr(core_characters.asyncio, "create_subprocess_exec", fake_exec)
+
+    async def scenario(client, app, origin):
+        csrf = await _csrf(client)
+
+        async def send(**kw):
+            req = commands_pb2.CommandRequest(request_id=str(uuid.uuid4()), **kw)
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body).detail
+
+        photos = cfg.local / "characters" / "charakter-01" / "photos"
+
+        def add(part, *files):
+            msg = commands_pb2.CharacterPhotosAdd(
+                character_id=1,
+                part=part,
+                files=[commands_pb2.InputFile(filename=n, data=d) for n, d in files],
+            )
+            return send(character_photos_add=msg)
+
+        assert await add("photos", ("a.png", png(1)), ("b.png", png(2))) == ""
+        assert await add("photos", ("a.png", png(1))) == ""  # gleiche Bytes: nichts Neues
+        assert await add("photos", ("a.png", png(3))) == ""  # gleicher Name, anderer Inhalt
+        assert sorted(p.name for p in photos.iterdir()) == ["a-2.png", "a.png", "b.png"]
+        assert "nur" in await add("photos", ("x.gif", png(4)))
+        assert "kein lesbares Bild" in await add("photos", ("kaputt.png", b"nicht"))
+        assert await add("reference", ("gesicht.png", png(5))) == ""
+        assert (photos.parent / "reference" / "gesicht.png").is_file()
+        assert "photos oder reference" in await add("datasets", ("a.png", png(6)))
+        reveal = commands_pb2.RevealFolder(character_id=1, part="reference")
+        assert await send(reveal_folder=reveal) == ""
+        assert opened == [("open", str(photos.parent / "reference"))]
+        bad = commands_pb2.RevealFolder(character_id=1, part="../../etc")
+        assert "gibt es beim Charakter nicht" in await send(reveal_folder=bad)
 
     _run(cfg, scenario)
