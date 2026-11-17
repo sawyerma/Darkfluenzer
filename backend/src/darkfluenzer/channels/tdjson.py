@@ -12,9 +12,12 @@ import asyncio
 import ctypes
 import itertools
 import json
+import logging
 import threading
 from collections.abc import Callable
 from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 
 class TdError(Exception):
@@ -82,10 +85,14 @@ class TdJson:
 
     def _receive(self) -> None:
         while not self._stop.is_set():
-            raw = self._lib.td_receive(1.0)
-            if not raw:
+            try:
+                raw = self._lib.td_receive(1.0)
+                if not raw:
+                    continue
+                event = json.loads(raw)
+            except Exception:  # ein kaputtes Ereignis beendet den Empfang nie stumm
+                log.exception("TDLib: Ereignis nicht lesbar")
                 continue
-            event = json.loads(raw)
             if event.get("@client_id") not in (None, self.client):
                 continue
             self._loop.call_soon_threadsafe(self._dispatch, event)
@@ -97,4 +104,7 @@ class TdJson:
             if future is not None and not future.done():
                 future.set_result(event)
             return
-        self.on_update(event)
+        try:
+            self.on_update(event)
+        except Exception:
+            log.exception("TDLib: Update %s nicht verarbeitet", event.get("@type"))

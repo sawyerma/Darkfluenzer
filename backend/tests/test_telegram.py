@@ -243,3 +243,39 @@ def test_reconcile_after_restart_fetches_missed_messages(cfg, tmp_path):
 
     asyncio.run(scenario())
     store.close()
+
+
+def test_released_test_chat_fetches_its_last_messages(cfg, tmp_path):
+    """Testpartner schrieb vor der Freigabe: nach dem Neustart erscheinen seine letzten
+    FIRST_IMPORT Nachrichten genau einmal (live 17.11.: Chat freigegeben, nichts kam an)."""
+    store = Store(cfg.local)
+    acc, inbound, _ = _account(cfg, tmp_path, store)
+    acc._td.history = [_msg(TEST_CHAT, i, text=f"m{i}") for i in range(1, 26)]
+    asyncio.run(acc._reconcile())
+    items, _ = store.conversation_items(inbound[0].customer.id, 0, 50)
+    assert [i["text"] for i in items] == [f"m{i}" for i in range(6, 26)]
+    asyncio.run(acc._reconcile())  # Position gespeichert: nichts doppelt
+    assert len(store.conversation_items(inbound[0].customer.id, 0, 50)[0]) == 20
+    store.close()
+
+
+def test_unread_chat_without_position_is_fetched_after_downtime(cfg, tmp_path):
+    """Kunde schrieb erstmals, während Darkfluenzer aus war: ab der zuletzt gelesenen Nachricht
+    nachholen; Chats ohne Ungelesenes bleiben unberührt."""
+    store = Store(cfg.local)
+    acc, inbound, _ = _account(cfg, tmp_path, store)
+    acc.tg = dataclasses.replace(acc.tg, test_mode=False, test_chat_ids=())
+    chat = lambda cid, unread: {  # noqa: E731
+        "@type": "updateNewChat",
+        "chat": {"id": cid, "type": {"@type": "chatTypePrivate"}, "unread_count": unread,
+                 "last_read_inbox_message_id": 3},
+    }  # fmt: skip
+    acc._on_update(chat(77, 2))
+    acc._on_update(chat(88, 0))
+    acc._td.history = [_msg(77, i, text=f"k{i}") for i in range(1, 6)]
+    asyncio.run(acc._reconcile())
+    items, _ = store.conversation_items(inbound[0].customer.id, 0, 20)
+    assert [i["text"] for i in items] == ["k4", "k5"]
+    fetched = {c["chat_id"] for c in acc._td.calls if c["@type"] == "getChatHistory"}
+    assert fetched == {77}
+    store.close()
