@@ -25,6 +25,19 @@ video_i2v = ""
 
 # ------------------------------------------------------------------------------------ Engines
 
+# Prüfkette E16/E17 (SP5 Schritt 7): das Backend setzt diese Knoten beim Einreichen zwischen
+# Dekodieren und jeden SaveImage-Knoten der Bild-Workflows; sie liefern nur Messwerte.
+[checks.content]
+node = "DarkfluenzerContentRating"
+engine = "content_check"
+inputs = { detector = "nudenet/640m.onnx", classifier = "freepik_nsfw/model.safetensors", min_region_score = 0.2 }
+
+[checks.identity]
+node = "DarkfluenzerFaceIdentity"
+engine = "identity"
+character = true
+inputs = { detector = "opencv/face_detection_yunet_2023mar.onnx", recognizer = "opencv/face_recognition_sface_2021dec.onnx", arcface = "auraface/glintr100.onnx" }
+
 [engines.qwen_image_2512]
 title = "Qwen-Image 2512 (BF16) – Foto"
 kind = "image"
@@ -91,6 +104,19 @@ license = "Apache 2.0 (OpenCV YuNet und SFace, AuraFace-v1)"
 usage = "evaluation"
 gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
 note = "Eigener Knoten DarkfluenzerFaceIdentity (comfy_nodes/darkfluenzer, SP3 Schritt 7): misst die Identität gegen reference/ der Figur; Schwellen und Entscheidung im Backend (SP5 Schritt 7)."
+
+[engines.content_check]
+title = "Inhaltsprüfung (NudeNet 640m · Freepik EVA02) – Prüfknoten"
+kind = "image"
+role = "analysis"
+arch = "content"
+precision = "fp32"
+wave = 2
+files = ["nudenet_640m", "freepik_nsfw", "freepik_nsfw_config"]
+license = "laut Modellkarte"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Eigener Knoten DarkfluenzerContentRating (comfy_nodes/darkfluenzer, E16): Stufe neutral/low/medium/high (EVA02) und Körperstellen (NudeNet); Schwellen und Entscheidung im Backend (SP5 Schritt 7)."
 
 [engines.krea2_turbo]
 title = "Krea 2 Turbo (BF16) – Foto"
@@ -525,6 +551,33 @@ source = "glintr100.onnx"
 target = "face/auraface/glintr100.onnx"
 size = 260694151
 sha256 = "a7933ea5330113b01c9b60351d8f4c33003f145d8470ac5f0e52ee2effe25c60"
+
+[files.nudenet_640m]
+# NudeNet v3.4 640m (YOLOv8m). Original: GitHub-Release notAI-tech/NudeNet v3.4-weights/640m.onnx
+# (103538690 Byte, ohne Hash; Download verlangt dort eine Anmeldung). Zwei unabhängige HF-Spiegel
+# (SimonJoz/nudenet, Kalashnikov/NudeNet) haben dieselbe Größe und denselben SHA-256.
+repo = "SimonJoz/nudenet"
+revision = "2b20805bd4ab2a9edbbb99fa862f68411c00286a"
+source = "640m.onnx"
+target = "checks/nudenet/640m.onnx"
+size = 103538690
+sha256 = "04fe3d77980780c1f8297dc6d7f942fd5b3abe6942a188f742a85241e4f634eb"
+
+[files.freepik_nsfw]
+repo = "Freepik/nsfw_image_detector"
+revision = "15b85477e4fd2000db76ae9aae0f89a72f95e2e3"
+source = "model.safetensors"
+target = "checks/freepik_nsfw/model.safetensors"
+size = 172725672
+sha256 = "024a9d4818fae2656403bf626c9f8c9e7789c2da274749fbebb1060d8fdaa7ab"
+
+[files.freepik_nsfw_config]
+repo = "Freepik/nsfw_image_detector"
+revision = "15b85477e4fd2000db76ae9aae0f89a72f95e2e3"
+source = "config.json"
+target = "checks/freepik_nsfw/config.json"
+size = 989
+sha256 = "39f53e86cc4868e0e11396b523c906f376621f54c1025ffc9ee2ee840542a41b"
 
 [files.sam31_multiplex_fp16]
 repo = "Comfy-Org/sam3.1"

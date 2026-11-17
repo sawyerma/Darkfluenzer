@@ -196,6 +196,18 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: E16 Teil 1 / SP5 Schritt 7 (Prüfkette messen, Inhaltsprüfung)
+Commit: siehe git log „check chain“ / comfy_nodes/darkfluenzer/content.py; nodes.comfy.inject_checks, check_targets;
+  media.pipeline.check_plan, _check_media; media.models.CheckSpec; web.mappers._flat
+Nachweis: tests/test_checks.py (Einsetzen vor jedem SaveImage außer Maske, Bildweg unverändert; Plan nur mit
+  Modellen, Identität nur mit Figur, keine Analyse/Training; Werte am geprüften Ausgabemedium, values/labels)
+Mac-Lauf 17.11.2026: timm 1.0.31 in der ComfyUI-venv (nur dieses Paket), Modelle geladen und SHA geprüft,
+  ComfyUI 1 neu gestartet; LUSTIFY Job 95 → Knoten 8 an Ausgang 7, Medium 98: low 0,88, Körperstellen gemessen
+Ergebnis: Implementierung PASS (messen); Schwellen, Entscheidung, weitere Prüfer OFFEN
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: SP3 Schritt 3 (Training mit Wiederaufnahme-Checkpoints)
 Commit: siehe git log „SP3 step 3 checkpoints“ / comfy_nodes/darkfluenzer/train.py (DarkfluenzerTrainLora);
   media.pipeline.checkpoint_dir; core.characters (Character.checkpoints); core.render (Datensatz beim Wiederholen)

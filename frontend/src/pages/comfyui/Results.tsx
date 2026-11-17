@@ -1,4 +1,4 @@
-import { type ActiveJob, JobResult, type WorkflowInfo } from "../../core/generated/darkfluenzer/v1/comfy_pb";
+import { type ActiveJob, JobResult, type MediaCheck, type WorkflowInfo } from "../../core/generated/darkfluenzer/v1/comfy_pb";
 import { IMAGE, RESULT_BADGE, VIDEO, clock } from "./common";
 import { JobParams, LoadDraft, Progress } from "./Queue";
 import type { ReferenceItem } from "../../core/generated/darkfluenzer/v1/reference_pb";
@@ -15,6 +15,24 @@ const CHECK_STATUS: Record<string, string> = {
   kein_gesicht: "nicht prüfbar (kein ausreichend großes Gesicht)",
   keine_referenz: "keine Referenzfotos der Figur",
 };
+
+const CHECK_NAME: Record<string, string> = { identity: "Identität", content: "Inhalt" };
+
+/** Kurztext eines Messwerts; Schwellen und Entscheidung liegen im Backend (SP5 Schritt 7). */
+function checkText(c: MediaCheck): string {
+  if (c.status !== "ok") return CHECK_STATUS[c.status] ?? c.status;
+  if (c.check === "identity") return `SFace ${c.sface.toFixed(3)} · AuraFace ${c.auraface.toFixed(3)} · ${c.references} Referenzen`;
+  if (c.check === "content") {
+    const rating = c.labels.rating ?? "";
+    const exposed = Object.entries(c.values)
+      .filter(([k]) => k.startsWith("regions.") && k.endsWith("_EXPOSED"))
+      .map(([k, v]) => `${k.slice(8)} ${v.toFixed(2)}`);
+    return [`${rating} ${(c.values[rating] ?? 0).toFixed(2)}`, ...exposed].join(" · ");
+  }
+  return Object.entries(c.values)
+    .map(([k, v]) => `${k} ${v.toFixed(3)}`)
+    .join(" · ");
+}
 
 export function WorkflowResults({
   wf,
@@ -90,12 +108,8 @@ export function WorkflowResults({
                 {job.result === JobResult.FAILED && job.error ? <p className="g-note g-error">{job.error}</p> : null}
                 {job.checks.map((c, i) => (
                   <small key={i} className="g-line">
-                    <span>Identität</span>
-                    <span className="g-value">
-                      {c.status === "ok"
-                        ? `SFace ${c.sface.toFixed(3)} · AuraFace ${c.auraface.toFixed(3)} · ${c.references} Referenzen`
-                        : (CHECK_STATUS[c.status] ?? c.status)}
-                    </span>
+                    <span>{CHECK_NAME[c.check] ?? c.check}</span>
+                    <span className="g-value">{checkText(c)}</span>
                   </small>
                 ))}
                 {outs

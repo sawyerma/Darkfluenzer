@@ -63,6 +63,7 @@ darkfluenzer:
   controlnet: controlnet
   geometry_estimation: geometry_estimation
   face: face
+  checks: checks
 EOF
 
 # Eigene Prüfknoten (SP3 Schritt 7): im Repository gepinnt, als Link in custom_nodes.

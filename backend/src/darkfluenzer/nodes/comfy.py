@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..config import ComfyConfig, Config
-from ..media.models import Lora, Manifest, Workflow
+from ..media.models import CheckSpec, Lora, Manifest, Workflow
 from .base import node_for
 
 log = logging.getLogger("darkfluenzer.comfy")
@@ -392,6 +392,45 @@ def bind_lora(graph: dict, wf: Workflow, use: LoraUse | None, values: dict) -> d
     return out
 
 
+CHECK_TARGET = "darkfluenzer_save"  # _meta der eingesetzten Prüfknoten: geprüfter SaveImage-Knoten
+
+
+def inject_checks(graph: dict, wf: Workflow, checks: list[tuple[CheckSpec, dict]]) -> dict:
+    """Setzt die Prüfknoten zwischen Dekodieren und jeden SaveImage-Knoten (außer der Maske):
+    Eingang ``image`` = Eingang ``images`` des SaveImage. Das gespeicherte Bild bleibt gleich."""
+    if not checks:
+        return graph
+    out = copy.deepcopy(graph)
+    saves = [
+        nid for nid, n in graph.items()
+        if n.get("class_type") == "SaveImage" and nid != wf.mask_output
+        and _is_link(n.get("inputs", {}).get("images"))
+    ]  # fmt: skip
+    next_id = max((int(k) for k in out if str(k).isdigit()), default=0) + 1
+    for save in saves:
+        for spec, runtime in checks:
+            out[str(next_id)] = {
+                "class_type": spec.node,
+                "inputs": {
+                    "image": list(graph[save]["inputs"]["images"]),
+                    **spec.inputs,
+                    **runtime,
+                },
+                "_meta": {"title": f"Prüfung {spec.name}", CHECK_TARGET: save},
+            }
+            next_id += 1
+    return out
+
+
+def check_targets(graph: dict) -> dict[str, str]:
+    """Eingesetzter Prüfknoten -> geprüfter SaveImage-Knoten (aus dem eingereichten Graphen)."""
+    return {
+        nid: n["_meta"][CHECK_TARGET]
+        for nid, n in graph.items()
+        if CHECK_TARGET in (n.get("_meta") or {})
+    }
+
+
 def with_trigger(wf: Workflow, values: dict, use: LoraUse | None) -> dict:
     """Stellt dem Prompt Trigger und Klasse voran, wenn er den Trigger nicht schon enthält."""
     if use is None or wf.lora is None or not use.trigger:
@@ -469,6 +508,7 @@ def run_workflow(
     overrides: dict[tuple[str, str], object] | None = None,
     extra: dict | None = None,
     lora: LoraUse | None = None,
+    checks: list[tuple[CheckSpec, dict]] | None = None,
 ) -> RenderResult:
     """Server sicherstellen, Workflow ausführen, alle Ausgabedateien unter ``dest`` sichern.
     ``overrides``: (Node, Eingang) -> Wert, die das Backend selbst setzt (z. B. Trainingsdaten).
@@ -489,6 +529,7 @@ def run_workflow(
     for (node, name), value in (overrides or {}).items():
         graph[node]["inputs"][name] = value
     graph.update(extra or {})
+    graph = inject_checks(graph, wf, checks or [])  # Prüfkette E16/E17 (SP5 Schritt 7)
     graph = unique_outputs(graph, tag)
     inst = instance_of(cfg, man, wf)
     node_for(cfg, inst).start()  # einzige Startlogik; idempotent

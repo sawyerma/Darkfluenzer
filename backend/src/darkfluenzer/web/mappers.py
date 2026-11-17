@@ -131,6 +131,17 @@ def memory_fields(memory: dict) -> dict:
     return {k: float(v) for k, v in memory.items() if k in names}
 
 
+def _flat(values: dict, prefix: str = "") -> dict:
+    """Verschachtelte Messwerte flach (``regions.FEMALE_BREAST_EXPOSED``)."""
+    out: dict = {}
+    for key, value in values.items():
+        if isinstance(value, dict):
+            out |= _flat(value, f"{prefix}{key}.")
+        else:
+            out[f"{prefix}{key}"] = value
+    return out
+
+
 def _job_completed(row: dict, indexed: dict[str, str]) -> bytes:
     """Abgeschlossener Job; Ausgaben verweisen auf die indizierte Datei gleichen Inhalts (eine
     bitgleiche Wiederholung zeigt auf das vorhandene Medium), gelöschte entfallen."""
@@ -155,7 +166,7 @@ def _job_completed(row: dict, indexed: dict[str, str]) -> bytes:
         msg.outputs.add(path=path, sha256=out["sha256"], size=out["size"])
     msg.params.update({k: str(v) for k, v in (row.get("params") or {}).items()})
     for c in data.get("checks") or []:
-        msg.checks.add(
+        check = msg.checks.add(
             check=str(c.get("check", "")),
             status=str(c.get("status", "")),
             sface=float(c.get("sface", 0.0)),
@@ -164,6 +175,13 @@ def _job_completed(row: dict, indexed: dict[str, str]) -> bytes:
             face_px=int(c.get("face_px", 0)),
             score=float(c.get("score", 0.0)),
         )
+        for key, value in _flat(c).items():
+            if isinstance(value, bool) or key in ("check", "status"):
+                continue
+            if isinstance(value, (int, float)):
+                check.values[key] = float(value)
+            elif isinstance(value, str):
+                check.labels[key] = value
     return msg.SerializeToString()
 
 

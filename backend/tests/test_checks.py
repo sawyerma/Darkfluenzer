@@ -159,3 +159,86 @@ def test_face_node_with_the_real_models(tmp_path):
     if value["status"] == "keine_referenz":
         pytest.skip("im erzeugten Bild ist kein Gesicht erkennbar")
     assert value["status"] == "ok" and value["sface"] > 0.99 and value["auraface"] > 0.99
+
+
+def test_check_chain_is_injected_before_every_saved_image_but_the_mask(setup):
+    """E16/E17: Prüfknoten zwischen Dekodieren und SaveImage; die Maske wird nicht geprüft, das
+    gespeicherte Bild bleibt unverändert."""
+    _, _, man = setup
+    spec = man.checks["content"]
+    for key in ("lustify_sdxl_t2i", "lustify_sam31_edit"):
+        wf = man.workflows[key]
+        graph = comfy.load_graph(man, wf)
+        out = comfy.inject_checks(graph, wf, [(spec, {})])
+        added = {k: v for k, v in out.items() if k not in graph}
+        saves = [
+            k for k, n in graph.items() if n["class_type"] == "SaveImage" and k != wf.mask_output
+        ]
+        assert sorted(comfy.check_targets(out).values()) == sorted(saves)
+        for node in added.values():
+            target = node["_meta"][comfy.CHECK_TARGET]
+            assert node["class_type"] == "DarkfluenzerContentRating"
+            assert node["inputs"]["image"] == graph[target]["inputs"]["images"]
+            assert node["inputs"]["detector"] == "nudenet/640m.onnx"
+        assert all(out[k] == graph[k] for k in graph)  # nichts am Bildweg geändert
+
+
+def test_check_plan_needs_models_and_a_figure_for_identity(setup, monkeypatch):
+    cfg, _, man = setup
+    wf = man.workflows["lustify_sdxl_t2i"]
+    assert pipeline.check_plan(cfg, man, wf, None) == []  # Modelldateien fehlen im Testprojekt
+    monkeypatch.setattr(models, "file_state", lambda mf, base: "present")
+    assert [s.name for s, _ in pipeline.check_plan(cfg, man, wf, None)] == ["content"]
+    lora = models.Lora(
+        key="k", target="loras/characters/clara/k.safetensors", size=1, sha256="a" * 64,
+        base_engine="lustify_sdxl", base_file=man.engines["lustify_sdxl"].files[0], dataset="d",
+        trigger="dfchar", steps=1, rank=4, learning_rate=1e-4, strength=1.0, status="OFFEN",
+        created_at="t", trainer="t", character="clara",
+    )  # fmt: skip
+    plan = dict((s.name, r) for s, r in pipeline.check_plan(cfg, man, wf, comfy.LoraUse(lora, "")))
+    assert plan["identity"]["reference_dir"] == str(
+        cfg.local / "characters" / "clara" / "reference"
+    )
+    for key in ("identity_check", "lustify_sdxl_lora_train", "sdpose_pose"):
+        assert pipeline.check_plan(cfg, man, man.workflows[key], None) == []  # Analyse, Training
+
+
+def test_check_values_land_on_the_checked_output(setup, monkeypatch):
+    cfg, store, man = setup
+    job = pipeline.create_render(store, man, "lustify_sdxl_t2i", {"prompt": "p"}, {})
+    content = {
+        "check": "content",
+        "status": "ok",
+        "rating": "medium",
+        "neutral": 0.01,
+        "low": 0.02,
+        "medium": 0.9,
+        "high": 0.07,
+        "regions": {"FEMALE_BREAST_EXPOSED": 0.36},
+    }
+
+    def run_workflow(cfg_, man_, key, values, dest, **kw):
+        dest.mkdir(parents=True, exist_ok=True)
+        image = dest / "out.png"
+        Image.new("RGB", (40, 30), (1, 2, 3)).save(image)
+        check_node = {"class_type": "X", "inputs": {}, "_meta": {comfy.CHECK_TARGET: "7"}}
+        kw["on_submit"]("p1", {"7": {"class_type": "SaveImage", "inputs": {}}, "20": check_node})
+        sha = pipeline.sha256_file(image)
+        out = comfy.OutputFile(node="7", path=image, sha256=sha, size=image.stat().st_size)
+        return comfy.RenderResult(
+            prompt_id="p1", workflow=key, engine="lustify_sdxl", params=values, outputs=[out],
+            checks=[{**content, "node": "20"}],
+        )  # fmt: skip
+
+    monkeypatch.setattr(comfy, "run_workflow", run_workflow)
+    pipeline.run_render(cfg, man, job)
+    media = store.job(job)["media_id"]
+    (row,) = store.media_checks(media)
+    assert (row["check_name"], row["data"]["save_node"], row["data"]["regions"]) == (
+        "content", "7", {"FEMALE_BREAST_EXPOSED": 0.36},
+    )  # fmt: skip
+    rows, _ = store.finished_jobs(0, 10)
+    msg = comfy_pb2.JobCompleted.FromString(_job_completed(rows[-1], {}))
+    check = msg.checks[0]
+    assert check.labels["rating"] == "medium" and round(check.values["medium"], 2) == 0.9
+    assert round(check.values["regions.FEMALE_BREAST_EXPOSED"], 2) == 0.36

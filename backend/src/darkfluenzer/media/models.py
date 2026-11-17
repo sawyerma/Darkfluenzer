@@ -255,6 +255,19 @@ class Lora:
 
 
 @dataclass(frozen=True)
+class CheckSpec:
+    """Prüfknoten der Prüfkette (E16/E17, SP5 Schritt 7): das Backend setzt ihn beim Einreichen
+    zwischen Dekodieren und jeden SaveImage-Knoten eines Bild-Workflows (Eingang ``image``); er
+    liefert Messwerte (``ui.darkfluenzer_checks``), das gespeicherte Bild bleibt unverändert."""
+
+    name: str
+    node: str  # Knotenklasse in ComfyUI (comfy_nodes/darkfluenzer)
+    engine: str  # Engine mit den Modelldateien (Bereitschaft)
+    inputs: dict  # feste Eingänge (Modelldateien, Grenzen)
+    character: bool = False  # nur mit Figur (Referenzsatz, z. B. Gesichtsidentität)
+
+
+@dataclass(frozen=True)
 class Manifest:
     root: Path
     reserve_gb: float
@@ -263,6 +276,7 @@ class Manifest:
     engines: dict[str, Engine]
     workflows: dict[str, Workflow]
     loras: dict[str, Lora]
+    checks: dict[str, CheckSpec] = field(default_factory=dict)
 
     def engine_files(self, engine: str) -> list[ModelFile]:
         return [self.files[k] for k in self.engines[engine].files]
@@ -603,6 +617,20 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             raise ManifestError(f"Manifest: {w}: {problems[0]}")
         workflows[key] = wf
 
+    checks: dict[str, CheckSpec] = {}
+    for name, t in (data.get("checks") or {}).items():
+        w = f"checks.{name}"
+        spec = CheckSpec(
+            name=name,
+            node=_str(t, "node", w),
+            engine=_str(t, "engine", w),
+            inputs=dict(t.get("inputs") or {}),
+            character=bool(t.get("character", False)),
+        )
+        if spec.engine not in engines:
+            raise ManifestError(f"Manifest: {w}.engine '{spec.engine}' unbekannt.")
+        checks[name] = spec
+
     return Manifest(
         root=root,
         reserve_gb=float(data.get("reserve_gb", 30)),
@@ -611,6 +639,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
         engines=engines,
         workflows=workflows,
         loras=loras,
+        checks=checks,
     )
 
 

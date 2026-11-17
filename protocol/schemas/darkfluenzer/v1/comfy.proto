@@ -228,4 +228,8 @@ message MediaCheck {
   uint32 references = 5;
   uint32 face_px = 6;
   double score = 7;
+  // alle Zahlenwerte des Prüfknotens (z. B. Inhalt: neutral, low, medium, high,
+  // region.FEMALE_BREAST_EXPOSED); dazu Text-Werte (z. B. rating)
+  map<string, double> values = 8;
+  map<string, string> labels = 9;
 }

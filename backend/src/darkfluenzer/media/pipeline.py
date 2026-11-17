@@ -217,6 +217,52 @@ def checkpoint_dir(cfg: Config, man: Manifest, wf: Workflow, dataset: str, value
     return training.character_folders(cfg.local, parts[1]).training / f"{parts[3]}_{tag}"
 
 
+def check_plan(
+    cfg: Config, man: Manifest, wf: Workflow, lora: comfy.LoraUse | None
+) -> list[tuple[models.CheckSpec, dict]]:
+    """Prüfknoten der Prüfkette für diesen Lauf (E16/E17): nur Bild-Workflows, die Bilder erzeugen
+    (keine Analyse, kein Training), nur Prüfungen mit vorhandenen Modelldateien; Prüfungen mit
+    Figur (Gesichtsidentität) nur, wenn der Auftrag die LoRA einer Figur trägt."""
+    eng = man.engines[wf.engine]
+    if wf.training or eng.kind != "image" or eng.role == "analysis":
+        return []
+    base = models.models_dir(cfg.root)
+    plan = []
+    for spec in man.checks.values():
+        files = man.engines[spec.engine].files
+        if any(models.file_state(man.files[f], base) != "present" for f in files):
+            log.info("Prüfung %s übersprungen: Modelldateien fehlen", spec.name)
+            continue
+        runtime: dict = {}
+        if spec.character:
+            if lora is None or not lora.lora.character:
+                continue
+            folder = training.character_folders(cfg.local, lora.lora.character).reference
+            runtime = {
+                "reference_dir": str(folder),
+                "min_face_px": cfg.identity.min_face_px,
+                "min_score": cfg.identity.min_score,
+            }
+        plan.append((spec, runtime))
+    return plan
+
+
+def _check_media(store: Store, checks: list[dict], targets: dict, outputs: list[dict]) -> dict:
+    """Messwerte je geprüftem Medium: Prüfknoten -> SaveImage-Knoten -> Ausgabe -> Medium."""
+    by_node = {}
+    for out in outputs:
+        row = store.media_by_sha(out["sha256"])
+        if row is not None:
+            by_node.setdefault(str(out.get("node", "")), int(row["id"]))
+    grouped: dict[int | None, list[dict]] = {}
+    for c in checks:
+        save = targets.get(str(c.get("node", "")))
+        if save is not None:
+            c = {**c, "save_node": save}
+        grouped.setdefault(by_node.get(save) if save is not None else None, []).append(c)
+    return grouped
+
+
 def identity_overrides(cfg: Config, wf: Workflow, character: str) -> dict[tuple[str, str], object]:
     """Eingänge des Prüfknotens Gesichtsidentität (SP3 Schritt 7): Referenzordner ``reference/``
     der Figur, Mindestgröße und -sicherheit aus der Konfiguration ``[identity]``."""
@@ -401,7 +447,11 @@ def run_render(
             if job["status"] != "running":
                 store.set_job_status(job_id, "running", pid=os.getpid())
 
+            sent: dict = dict(job.get("graph") or {})  # Wiederanlauf: der eingereichte Graph
+
             def submitted(prompt_id: str, graph: dict) -> None:
+                sent.clear()
+                sent.update(graph)
                 api = man.root / "workflows" / wf.api
                 store.set_job_submitted(
                     job_id, prompt_id, graph, hashlib.sha256(api.read_bytes()).hexdigest()
@@ -455,11 +505,16 @@ def run_render(
             store, job_id, outputs, local=cfg.local, parent=job["parent_media_id"],
             resized=man.engines[wf.engine].role in RESIZING_ROLES,
         )  # fmt: skip
-        if result.checks:  # Messwerte gehören zum Ergebnis, sonst zum geprüften Eingabebild
-            checked = first or job["parent_media_id"] or _input_media(store, uploads)
-            store.add_media_checks(
-                job_id, checked, str(params.get(CHARACTER_KEY) or ""), result.checks
-            )
+        if result.checks:  # Messwerte je geprüftem Medium (Prüfkette), sonst Eingabebild
+            reference = str(params.get(CHARACTER_KEY) or "")
+            if not reference and (lora := params.get(LORA_KEY)) and lora in man.loras:
+                reference = man.loras[lora].character
+            grouped = _check_media(store, result.checks, comfy.check_targets(sent), outputs)
+            for media_id, entries in grouped.items():
+                checked = (
+                    media_id or first or job["parent_media_id"] or _input_media(store, uploads)
+                )
+                store.add_media_checks(job_id, checked, reference, entries)
         store.set_job_status(
             job_id,
             "done",
@@ -624,6 +679,7 @@ def _render(
             unload_first=unload_first,
             overrides=overrides,
             lora=lora,
+            checks=check_plan(cfg, man, wf, lora),
         )
     checks: dict = {}
     masked: tuple[Path, int, list] | None = None  # (Maske, Randerweiterung, geprüfte Ausgaben)
