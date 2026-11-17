@@ -117,6 +117,7 @@ class CommandsMixin:
             "delete_workflow": self._delete,
             "create_workflow": self._create,
             "cancel_job": self._cancel,
+            "order_cancel": self._order_cancel,
             "pause_queue": self._pause,
             "delete_media": self._delete_media,
         }

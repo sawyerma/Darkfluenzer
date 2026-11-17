@@ -737,3 +737,40 @@ def test_queue_shows_unknown_stall_and_estimate_and_notifies_once(cfg, monkeypat
         assert store.job(job)["status"] == "running"  # nichts automatisch beendet
 
     _run(cfg, scenario)
+
+
+def test_order_cancel_stops_all_jobs_of_the_order(cfg):
+    """SP1 Schritt 11 (Befehl 59): alle wartenden Jobs eines Auftrags werden entfernt, der
+    Betreiber-Auftrag geht auf abgebrochen; ein Auftrag ohne offene Jobs wird abgewiesen."""
+
+    async def scenario(client, app, origin):
+        csrf = await _csrf(client)
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+        await cockpit.lanes["media"].resume.wait()
+        for lane in cockpit.lanes.values():  # nichts soll die Jobs vorher starten
+            lane.resume.clear()
+        order = store.create_production_order("operator", "image", "Test")
+        stage = store.add_stage(order.id, "candidates", "wf", {}, 2)
+        jobs = [
+            store.create_job(order.order_no, "e", "wf", "p", {}, [], stage_id=stage.id)
+            for _ in range(2)
+        ]
+        other = store.create_job(None, "e", "wf", "p", {}, [])
+
+        async def answer(**kw):
+            req = commands_pb2.CommandRequest(request_id=str(uuid.uuid4()), **kw)
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body)
+
+        cancel = commands_pb2.OrderCancel(order_no=order.order_no)
+        assert (await answer(order_cancel=cancel)).detail == ""
+        assert [store.job(j)["status"] for j in jobs] == ["failed", "failed"]
+        assert store.job(other)["status"] == "queued"  # fremde Jobs bleiben
+        assert store.order(order.order_no).status == "cancelled"
+        again = await answer(order_cancel=cancel)
+        assert again.status == commands_pb2.COMMAND_STATUS_REJECTED
+        assert "keine wartenden oder laufenden" in again.detail
+
+    _run(cfg, scenario)

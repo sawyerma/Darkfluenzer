@@ -27,6 +27,18 @@ export function Candidates({
       {heading ? <h2>Kandidaten</h2> : null}
       {orders.map((order) => (
         <div key={order.orderNo} className="g-order">
+          {order.stages.some((st) => st.jobs.some((j) => j.status === "queued" || j.status === "running")) ? (
+            <div className="g-actions">
+              <button
+                type="button"
+                className="g-button g-danger"
+                disabled={cmd.pending}
+                onClick={() => cmd.run({ case: "orderCancel", value: { orderNo: order.orderNo } })}
+              >
+                Auftrag abbrechen
+              </button>
+            </div>
+          ) : null}
           {order.stages.map((stage) => {
             const [label, tone] = STAGE_LABEL[stage.status] ?? [stage.status, "neutral"];
             const failed = stage.jobs.some((j) => j.status === "failed");

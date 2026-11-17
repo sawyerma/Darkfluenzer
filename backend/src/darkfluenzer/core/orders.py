@@ -11,6 +11,7 @@ from ..media.models import Manifest
 from ..media.pipeline import VIDEO_KEYS, PipelineError, create_render, input_from_media
 from ..nodes import comfy
 from ..store import Store
+from ..store.schema import OPERATOR_TRANSITIONS
 from ..v1 import commands_pb2, order_pb2
 from ..v1 import stream_pb2 as spb
 from .base import _Call, _unix_ms, log
@@ -339,6 +340,31 @@ class OrdersMixin:
         if not jobs:  # ohne Fertigstellen: das Gewählte geht ggf. an den Default-Nutzer
             await self._cloner_delivery(self.store.order(msg.order_no).id, selected=msg.media_id)
         self._enqueue(jobs)
+        self._orders_changed()
+        return ""
+
+    async def _order_cancel(self, msg: commands_pb2.OrderCancel, call: _Call) -> str:
+        """Auftrag als Ganzes abbrechen (Befehl 59, SP1 Schritt 11): alle wartenden und laufenden
+        Jobs mit der Logik von ``_cancel``; Betreiber- und Kloner-Aufträge gehen auf abgebrochen,
+        bezahlte Kundenaufträge bleiben offen (Neuauflage oder Erstattung entscheidet der
+        Betreiber)."""
+        call.entity = f"order:{msg.order_no}"
+        order = self.store.order(msg.order_no)
+        jobs = [
+            j["id"]
+            for stage in self.store.stages(order.id)
+            for j in self.store.stage_jobs(stage.id)
+            if j["status"] in ("queued", "running")
+        ]
+        if not jobs:
+            return f"{msg.order_no} hat keine wartenden oder laufenden Jobs."
+        for job_id in jobs:
+            await self._cancel_job(job_id)
+        order = self.store.order(msg.order_no)
+        if order.source != "customer" and "cancelled" in OPERATOR_TRANSITIONS.get(order.status, ()):
+            self.store.transition(order.order_no, "cancelled", reason="Betreiber")
+        self._card(order, f"ABGEBROCHEN · {order.order_no} · {len(jobs)} Job(s)")
+        log.info("Auftrag %s abgebrochen (%d Jobs)", order.order_no, len(jobs))
         self._orders_changed()
         return ""
 

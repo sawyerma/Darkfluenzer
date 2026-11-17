@@ -85,6 +85,12 @@ message CreateWorkflow {
 }
 
 // Wartenden Auftrag aus der Warteschlange entfernen bzw. laufenden gezielt abbrechen.
+// Auftrag als Ganzes abbrechen (SP1 Schritt 11): alle wartenden und laufenden Jobs; Betreiber- und
+// Kloner-Aufträge gehen auf abgebrochen, bezahlte Kundenaufträge bleiben offen.
+message OrderCancel {
+  string order_no = 1;
+}
+
 message CancelJob {
   uint64 job_id = 1;
 }
@@ -323,6 +329,7 @@ message CommandRequest {
     RetryDelivery retry_delivery = 47;
     PaymentAssign payment_assign = 41;
     GiftCardConfirm gift_card_confirm = 42;
+    OrderCancel order_cancel = 59;
   }
 }
 

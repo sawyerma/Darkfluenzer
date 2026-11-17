@@ -426,26 +426,30 @@ class RenderMixin:
 
     async def _cancel(self, msg: commands_pb2.CancelJob, call: _Call) -> str:
         call.entity = f"job:{msg.job_id}"
-        job = self.store.job(msg.job_id)
+        return await self._cancel_job(msg.job_id)
+
+    async def _cancel_job(self, job_id: int) -> str:
+        """Einen Job abbrechen: wartend -> entfernt, laufend -> ab sofort abgebrochen; leer = ok."""
+        job = self.store.job(job_id)
         if job["status"] == "queued":
             self.store.set_job_status(
-                msg.job_id, "failed", error="Aus der Warteschlange entfernt.", cancelled=True
+                job_id, "failed", error="Aus der Warteschlange entfernt.", cancelled=True
             )
-            log.info("Job %s aus der Warteschlange entfernt", msg.job_id)
-            orders.advance_order(self.store, msg.job_id)
+            log.info("Job %s aus der Warteschlange entfernt", job_id)
+            orders.advance_order(self.store, job_id)
             self._orders_changed()
             return ""
         if job["status"] != "running":
             return "Auftrag ist bereits abgeschlossen."
         # gilt ab dem Klick (BUG-043): vor der Übermittlung verwirft die Pipeline den Start,
         # bei der Übermittlung bricht sie sofort ab, ein trotzdem fertiges Ergebnis wird verworfen
-        self._cancelled.add(msg.job_id)
-        lane = self._lane_of_job(msg.job_id)
-        prompt = next((p for j, _, p in lane.queue if j == msg.job_id), "") or job["prompt_id"]
+        self._cancelled.add(job_id)
+        lane = self._lane_of_job(job_id)
+        prompt = next((p for j, _, p in lane.queue if j == job_id), "") or job["prompt_id"]
         if prompt:
             client = comfy.ComfyClient(lane.inst.url, timeout=self.cfg.server.timeout_s)
             await asyncio.to_thread(client.cancel, prompt)
-        log.info("Job %s abgebrochen (prompt %s)", msg.job_id, prompt or "noch nicht übermittelt")
+        log.info("Job %s abgebrochen (prompt %s)", job_id, prompt or "noch nicht übermittelt")
         return ""
 
     async def _pause(self, msg: commands_pb2.PauseQueue, call: _Call) -> str:
