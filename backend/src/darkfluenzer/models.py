@@ -479,6 +479,16 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
         for node, key in ((p.node, p.input), *p.also)
         if key not in (graph.get(node) or {}).get("inputs", {})
     ]
+    for name, p in wf.params.items():  # Standardwert aus dem Graph muss gültig sein (live 17.11.)
+        value = (graph.get(p.node) or {}).get("inputs", {}).get(p.input)
+        if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+            continue
+        if isinstance(value, (int, float)) and (
+            (p.min is not None and value < p.min) or (p.max is not None and value > p.max)
+        ):
+            problems.append(f"params.{name}: Graph-Wert {value} außerhalb {p.min}…{p.max}.")
+        if p.choices and value not in p.choices:
+            problems.append(f"params.{name}: Graph-Wert {value} nicht in der Auswahl.")
     if wf.video:
         v = wf.video
         if v.length_input not in (graph.get(v.length_node) or {}).get("inputs", {}):

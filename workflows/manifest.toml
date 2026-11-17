@@ -596,7 +596,7 @@ content = "standard"
 [workflows.flux3_klein_reference.params]
 prompt = { node = "4", input = "text", type = "str", required = true, label = "Bildbeschreibung (Vorlage = <ref_image_0>)" }
 reference = { node = "54", input = "image", type = "str", required = true, upload = true, reference = true }
-seed = { node = "7", input = "seed", type = "int", min = 0, max = 4294967295 }
+seed = { node = "7", input = "seed", type = "int", min = 0, max = 9223372036854775807 }
 steps = { node = "7", input = "steps", type = "int", min = 16, max = 80 }
 cfg = { node = "7", input = "cfg", type = "float", min = 1.0, max = 8.0 }
 width = { node = "44", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
@@ -616,7 +616,7 @@ content = "standard"
 [workflows.qwen_image_2512_t2i.params]
 prompt = { node = "238:227", input = "text", type = "str", required = true }
 negative_prompt = { node = "238:228", input = "text", type = "str" }
-seed = { node = "238:230", input = "seed", type = "int", min = 0, max = 4294967295 }
+seed = { node = "238:230", input = "seed", type = "int", min = 0, max = 9223372036854775807 }
 steps = { node = "238:224", input = "value", type = "int", min = 16, max = 80 }
 cfg = { node = "238:223", input = "value", type = "float", min = 1.0, max = 8.0 }
 width = { node = "238:232", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
@@ -636,7 +636,7 @@ content = "standard"
 [workflows.qwen_image_21_t2i.params]
 prompt = { node = "459:452", input = "prompt", type = "str", required = true }
 negative_prompt = { node = "459:452", input = "negative_prompt", type = "str" }
-seed = { node = "459:458", input = "seed", type = "int", min = 0, max = 4294967295 }
+seed = { node = "459:458", input = "seed", type = "int", min = 0, max = 9223372036854775807 }
 steps = { node = "459:458", input = "steps", type = "int", min = 8, max = 80 }
 cfg = { node = "459:458", input = "cfg", type = "float", min = 1.0, max = 8.0 }
 width = { node = "459:456", input = "width", type = "int", min = 512, max = 2048, multiple_of = 16 }
@@ -713,7 +713,7 @@ negative_prompt = { node = "398:373", input = "text", type = "str" }
 duration = { node = "398:362", input = "value", type = "int", min = 1, max = 20, expert = false, label = "Länge (s)" }
 width = { node = "398:372", input = "value", type = "int", min = 256, max = 1920, multiple_of = 64 }
 height = { node = "398:360", input = "value", type = "int", min = 256, max = 1920, multiple_of = 64 }
-seed = { node = "398:339", input = "noise_seed", type = "int", min = 0, max = 4294967295 }
+seed = { node = "398:339", input = "noise_seed", type = "int", min = 0, max = 9223372036854775807 }
 fps = { node = "398:361", input = "value", type = "int", choices = [16, 24], label = "Bildrate (fps)" }
 start_strength = { node = "398:357", input = "strength", type = "float", min = 0.3, max = 1.0, label = "Startbild-Stärke (Stufe 1)" }
 lora_strength = { node = "398:405", input = "strength_model", type = "float", min = 0.5, max = 1.0, label = "Distilled-LoRA-Stärke" }

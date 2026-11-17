@@ -214,3 +214,26 @@ def test_ltx25_registration_binds_subgraph_nodes(video_cfg):
     assert out["398:388"]["inputs"]["model"] == ["398:405", 0] == out["398:391"]["inputs"]["model"]
     with pytest.raises(comfy.ComfyError, match="nicht in"):
         comfy.apply_params(comfy.load_graph(man, wf), wf, {"image": "x", "prompt": "p", "fps": 25})
+
+
+def test_graph_default_must_be_valid_for_every_registered_workflow(video_cfg):
+    """Live 17.11.: LTX/FLUX/Qwen trugen einen Seed > 2^32 im Graph, das Manifest erlaubte nur
+    2^32 – „Generieren“ scheiterte still an der Eingabeprüfung. Jetzt weist die Registrierung
+    das ab; alle registrierten Workflows haben gültige Standardwerte."""
+    cfg, _ = video_cfg
+    man = models.load_manifest(cfg.root)
+    for key, wf in man.workflows.items():
+        graph = comfy.load_graph(man, wf)
+        for name, p in wf.params.items():
+            value = graph[p.node]["inputs"][p.input]
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                assert p.min is None or value >= p.min, (key, name)
+                assert p.max is None or value <= p.max, (key, name)
+            assert not p.choices or value in p.choices, (key, name)
+    wf = man.workflows["ltx25_i2v"]
+    graph = comfy.load_graph(man, wf)
+    graph["398:339"]["inputs"]["noise_seed"] = 2**63
+    graph["398:361"]["inputs"]["value"] = 25
+    probs = models.graph_problems(wf, graph, set())
+    assert any("params.seed" in p and "außerhalb" in p for p in probs)
+    assert any("params.fps" in p and "Auswahl" in p for p in probs)

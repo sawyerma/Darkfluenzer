@@ -1194,6 +1194,11 @@ function Workbench({
           {wf.training ? "Training starten" : "Generieren"}
         </button>
         {blocked ? <small>{blocked}</small> : null}
+        {checked && wf.params.some((p) => errors[p.name]) ? (
+          <small className="g-error" role="alert">
+            Prüfen: {wf.params.filter((p) => errors[p.name]).map((p) => `${paramLabel(p, wf.kind)} – ${errors[p.name]}`).join(" · ")}
+          </small>
+        ) : null}
         {cmd.notice ? (
           <p className="g-note" role="alert">
             {cmd.notice}
