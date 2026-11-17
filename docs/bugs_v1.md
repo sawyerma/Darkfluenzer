@@ -113,6 +113,7 @@
 | BUG-103 | Plattenverbrauch: jede Ausgabe liegt in ComfyUIs `output/` und in `local/evaluation/`; `darkfluenzer_work/job<id>` und hochgeladene Eingaben werden nie aufgeräumt. | CODE | Aufräumen nach Übernahme und Frist. | B SP6 |
 | BUG-106 | Schwere Arbeit im Hauptstrang: `_reply_internal` hasht und kennzeichnet Dateien synchron; lange Datenbankabfragen laufen dort ebenfalls. | CODE | Arbeiter-Threads; Messwert für die Verzögerung. | B SP0 |
 | BUG-107 | `pipeline.media_candidates` liest je Beobachterrunde alle abgeschlossenen Jobs (`finished_jobs(0, 1_000_000)`); `add_media` bildet je Eintrag das Maximum über das Journal. (In Fables Blatt als „BUG-105“ geführt; 105 ist bereits vergeben.) | CODE | Position merken, Index, Zählertabelle. | B SP0 |
+| BUG-108 | `comfy.ui_to_api` bricht bei offiziellen Vorlagen aus älteren Knotenfassungen ab (dynamische Auswahl mit weniger gespeicherten Werten, z. B. `SaveVideo` in `video_ltx2_5_flf2v`: „pop from empty list“), setzt sonst fehlende Werte auf `None`; `check_graph` meldet wachsende Eingänge (`values.a` von `ComfyMathExpression`) als unbekannt, auch im abgenommenen `ltx25_i2v`. | CODE | Standard bzw. erste Option wie im Frontend; Autogrow-Unterreingänge anerkennen. | A (Zeitachse B4) |
 
 ## 4. P3
 
@@ -194,6 +195,17 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 **Abschluss:** PASS erst, wenn der Test grün ist, die Änderung auf `main` liegt und der Mac-Lauf belegt ist.
 
 ## 7. Prüfprotokoll (ab 17.11.2026)
+
+```text
+ID: BUG-108
+Commit: siehe git log „BUG-108“ / nodes.comfy._take_dynamic, _default, _is_autogrow, check_graph
+Behauptung: BESTÄTIGT (Vorlage video_ltx2_5_flf2v nicht übernehmbar; ltx25_i2v mit 5 Scheinfehlern)
+Nachweis: tests/test_workflows.py::test_template_import_defaults_missing_dynamic_values_and_accepts_autogrow
+Mac-Lauf 17.11.2026: Vorlage video_ltx2_5_flf2v → 42 Knoten, SaveVideo codec „auto“, Prüfung nur noch
+  fehlende Modelldateien (Zuordnung folgt); ltx25_i2v Prüfung ohne Befund
+Ergebnis: PASS
+Bearbeiter/Datum: Claude, 17.11.2026
+```
 
 ```text
 ID: E16 Teil 1 / SP5 Schritt 7 (Prüfkette messen, Inhaltsprüfung)

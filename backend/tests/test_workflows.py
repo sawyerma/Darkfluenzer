@@ -166,3 +166,33 @@ def test_unmasked_difference_detects_changes_outside_mask(tmp_path):
     _png(tmp_path / "small.png", master[:32])
     with pytest.raises(pipeline.PipelineError, match="Formate"):
         pipeline.unmasked_difference(m, tmp_path / "small.png", k, grow=4)
+
+
+def test_template_import_defaults_missing_dynamic_values_and_accepts_autogrow():
+    """Offizielle Vorlage aus älterer Knotenfassung (17.11.): fehlende Werte einer dynamischen
+    Auswahl werden wie im Frontend mit dem Standard bzw. der ersten Option gefüllt; wachsende
+    Eingänge (``values.a``) gelten in der Prüfung als bekannt."""
+    sub = {"codec": ["COMBO", {"options": ["auto", "h264"]}]}
+    dyn = ["COMFY_DYNAMICCOMBO_V3", {"options": [
+        {"key": "auto", "inputs": {"required": sub}}, {"key": "mp4", "inputs": {"required": {}}},
+    ]}]  # fmt: skip
+    codec = ["COMFY_DYNAMICCOMBO_V3", {"options": [{"key": "auto", "inputs": {"required": {}}}]}]
+    info = {
+        "Out": {"input": {"required": {"prefix": ["STRING", {}], "format": dyn, "codec": codec}},
+                "output": [], "output_node": True},
+        "Math": {"input": {"required": {"values": ["COMFY_AUTOGROW_V3", {"template": {
+            "input": {"required": {"value": ["INT", {}]}}, "names": ["a", "b"]}}]}},
+                 "output": ["INT"], "output_node": False},
+    }  # fmt: skip
+    inputs: dict = {}
+    values = ["out", "auto"]  # nur zwei von vier Werten gespeichert
+    for name, spec in info["Out"]["input"]["required"].items():
+        if comfy._is_dynamic_combo(spec):
+            comfy._take_dynamic(name, spec, values, inputs)
+        else:
+            inputs[name] = values.pop(0)
+    assert inputs == {"prefix": "out", "format": "auto", "format.codec": "auto", "codec": "auto"}
+    graph = {"1": {"class_type": "Math", "inputs": {"values.a": 1, "values.b": 2}}}
+    assert comfy.check_graph(graph, info, set()) == []
+    graph["1"]["inputs"]["values.z"] = 3  # nicht in der Namensliste
+    assert comfy.check_graph(graph, info, set()) == ["1 Math: unbekannter Eingang 'values.z'"]

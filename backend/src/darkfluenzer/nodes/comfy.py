@@ -751,8 +751,21 @@ def _default(spec: list) -> object:
     opts = _spec_options(spec)
     if "default" in opts:
         return opts["default"]
+    if _is_dynamic_combo(spec):  # dynamische Auswahl: erste Option wie im Frontend
+        keys = [o.get("key") for o in opts.get("options", [])]
+        return keys[0] if keys else None
     values = _combo_values(spec)
     return values[0] if values else None
+
+
+def _is_autogrow(spec: list | None, name: str) -> bool:
+    """``name`` ist ein Unterreingang eines wachsenden Eingangs (COMFY_AUTOGROW, z. B. values.a)."""
+    if not spec or not isinstance(spec[0], str) or not spec[0].startswith("COMFY_AUTOGROW"):
+        return False
+    template = _spec_options(spec).get("template", {})
+    names = template.get("names") or []
+    sub = name.split(".", 1)[1] if "." in name else ""
+    return bool(sub) and (not names or sub in names)
 
 
 def _is_dynamic_combo(spec: list) -> bool:
@@ -808,6 +821,8 @@ def check_graph(graph: dict, object_info: dict, runtime_inputs: set[tuple[str, s
                 problems.append(f"{nid} {node['class_type']}: Pflichteingang '{name}' fehlt")
         for name, value in node["inputs"].items():
             base = name.split(".")[0]
+            if name not in spec and _is_autogrow(spec.get(base), name):
+                continue  # wachsender Eingang (z. B. values.a), ComfyUI legt ihn selbst an
             if name not in spec and not (base in spec and _is_dynamic_combo(spec[base])):
                 problems.append(f"{nid} {node['class_type']}: unbekannter Eingang '{name}'")
                 continue
@@ -946,8 +961,9 @@ _NOTE_NODES = {"Note", "MarkdownNote"}
 
 
 def _take_dynamic(name: str, spec: list, values: list, inputs: dict) -> None:
-    """Umkehrung von ``_dynamic_widgets``: Wert und Unterwerte aus der Widget-Liste lesen."""
-    value = values.pop(0)
+    """Umkehrung von ``_dynamic_widgets``: Wert und Unterwerte aus der Widget-Liste lesen. Fehlen
+    Werte (Vorlage aus einer älteren Knotenfassung), gilt wie im ComfyUI-Frontend der Standard."""
+    value = values.pop(0) if values else _default(spec)
     inputs[name] = value
     option = next((o for o in _spec_options(spec).get("options", []) if o.get("key") == value), {})
     sub_specs = {
@@ -958,7 +974,7 @@ def _take_dynamic(name: str, spec: list, values: list, inputs: dict) -> None:
         if _is_dynamic_combo(sub_spec):
             _take_dynamic(f"{name}.{sub}", sub_spec, values, inputs)
         elif _is_widget(sub_spec):
-            inputs[f"{name}.{sub}"] = values.pop(0)
+            inputs[f"{name}.{sub}"] = values.pop(0) if values else _default(sub_spec)
 
 
 # Virtuelle Editor-Nodes: werden nicht ausgeführt, nur durchgereicht bzw. als Wert eingesetzt
