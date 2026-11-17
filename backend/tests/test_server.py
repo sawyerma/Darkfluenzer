@@ -14,8 +14,8 @@ from aiohttp.test_utils import TestClient, TestServer
 
 from darkfluenzer.config import project_root
 from darkfluenzer.media import models
-from darkfluenzer.nodes import comfy
 from darkfluenzer.nodes import local as runtime
+from darkfluenzer.nodes.base import node_for
 from darkfluenzer.store import Store
 from darkfluenzer.v1 import (
     character_pb2,
@@ -377,7 +377,7 @@ def test_workflow_commands_enable_render_fifo_and_delete(cfg):
         created = models.load_manifest(cfg.root).workflows["portraet_neu"]
         assert created.engine == "lustify_sdxl" and created.status == "OFFEN"
         assert set(created.params) == set(man.workflows[t2i].params)
-        assert comfy.editor_file(cfg.comfyui, "portraet_neu").is_file()
+        assert node_for(cfg, cfg.comfyui).editor_file("portraet_neu").is_file()
         assert "vergeben" in (await answer(cmd(create_workflow=new))).detail
         edit = commands_pb2.CreateWorkflow(source="lustify_sam31_edit", title="Ausziehen Neu")
         assert (await answer(cmd(create_workflow=edit))).detail == ""
@@ -390,7 +390,7 @@ def test_workflow_commands_enable_render_fifo_and_delete(cfg):
         ).detail == ""
         assert gone not in models.load_manifest(cfg.root).workflows
         assert not any(f.exists() for f in files)
-        assert not comfy.editor_file(cfg.comfyui, gone).exists()
+        assert not node_for(cfg, cfg.comfyui).editor_file(gone).exists()
         assert all(
             (models.models_dir(cfg.root) / mf.target).exists()
             for mf in man.engine_files("lustify_sdxl")

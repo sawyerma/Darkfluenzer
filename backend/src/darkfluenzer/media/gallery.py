@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from ..config import Config
+from ..nodes.base import node_for
 from ..store import MEDIA_KINDS, Store, sha256_file
 from .pipeline import WORK_PREFIX
 
@@ -30,7 +31,11 @@ def _gallery_files(cfg: Config) -> Iterator[tuple[int, Path, str]]:
     local = cfg.local.resolve()
     for prio, root, skip in (
         (1, cfg.local / "evaluation", "inputs"),
-        (2, cfg.comfyui.path / "output", WORK_PREFIX),  # Zwischenstände der Videoabschnitte
+        (
+            2,
+            node_for(cfg, cfg.comfyui).output_dir(),
+            WORK_PREFIX,
+        ),  # Zwischenstände der Videoabschnitte
     ):
         if not root.is_dir() or not root.resolve().is_relative_to(local):
             continue

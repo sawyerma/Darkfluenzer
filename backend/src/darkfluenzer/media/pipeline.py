@@ -24,8 +24,9 @@ from PIL import Image
 
 from ..config import ComfyConfig, Config
 from ..nodes import comfy
+from ..nodes.base import node_for
 from ..store import MEDIA_KINDS, Store, sha256_file
-from . import models, training
+from . import models
 from .models import Lora, Manifest, Workflow
 
 log = logging.getLogger("darkfluenzer.pipeline")
@@ -364,16 +365,16 @@ def _render(
     overrides: dict[tuple[str, str], object] | None = None,
 ) -> tuple[comfy.RenderResult, list[dict]]:
     workflow_key = wf.key
-    from ..nodes import local as runtime
 
     inst = comfy.instance_of(cfg, man, wf)
-    runtime.start(cfg, inst.name)
+    node = node_for(cfg, inst)
+    node.start()
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     dest = evaluation_dir(cfg, wf.engine)
     overrides = dict(overrides or {})
     lora_prefix = f"loras/darkfluenzer/job{job_id}"  # SaveLoRA-Ziel unter ComfyUIs Ausgabe
     if wf.training:  # Datensatz in den ComfyUI-Eingang, Ziel der LoRA festlegen
-        folder = training.stage_dataset(cfg.local / str(dataset), inst.folder("input"))
+        folder = node.stage_dataset(cfg.local / str(dataset))
         overrides |= {(wf.train_dataset, "folder"): folder, (wf.train_lora, "prefix"): lora_prefix}
     if resume:  # vor einem Neustart eingereicht: nur abholen, nie ein zweites Mal rendern
         if comfy.prompt_state(inst, resume) == "unknown":
@@ -475,12 +476,12 @@ def _render_video(
     """Langvideo (V0 §10): Abschnitte nacheinander, jeder Folgeabschnitt startet mit dem letzten
     Bild des vorigen; danach in ComfyUI zusammengesetzt (doppeltes Übergangsbild entfernt). Fertige
     Abschnitte überstehen einen Neustart; fortgesetzt wird nur der unfertige."""
-    from ..nodes import local as runtime
 
     spec = wf.video
     assert spec is not None
     inst = comfy.instance_of(cfg, man, wf)
-    runtime.start(cfg, inst.name)
+    node = node_for(cfg, inst)
+    node.start()
     client = comfy.ComfyClient(inst.url, client_id=client_id)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     work = cfg.local / WORK_PREFIX / f"job{job_id}"
@@ -638,7 +639,7 @@ def _adopt_lora(
 ) -> dict:
     """Trainierte LoRA aus ComfyUIs Ausgabe in die Modellablage übernehmen und registrieren
     (Basis, Datensatz, Trigger, Einstellungen; Status OFFEN bis zur Freigabe)."""
-    src = training.take_lora(inst.folder("output"), prefix)
+    src = node_for(cfg, inst).take_lora(prefix)
     graph = comfy.load_graph(man, wf)
 
     def value(name: str) -> object:  # gewählter oder im Graphen hinterlegter Wert

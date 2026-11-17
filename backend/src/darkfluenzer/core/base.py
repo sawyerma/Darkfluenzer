@@ -13,6 +13,7 @@ from ..channels.instagram import InstagramAccount
 from ..channels.telegram import TelegramAccount
 from ..config import ComfyConfig, Config
 from ..media import models
+from ..nodes.base import Node, node_for
 from ..payments.chain import WalletWatcher
 from ..store import Store
 
@@ -43,6 +44,7 @@ class _Lane:
     Fortschritt, FIFO der Backend-Renderjobs, Anhalten und zuletzt geladene Engine."""
 
     inst: ComfyConfig
+    node: Node  # Prozess- und Ordnerzugriffe der Instanz (SP0 Schritt 3)
     client_id: str = field(default_factory=lambda: uuid.uuid4().hex)  # Fortschritt nur an uns
     status: dict = field(default_factory=dict)
     queue: list[tuple[int, bool, str]] = field(default_factory=list)  # (Job, läuft?, prompt_id)
@@ -75,7 +77,7 @@ class CockpitBase:
         self.manifest = models.load_manifest(cfg.root)
         # Inhaltsstufe für Jobs/Medien vor Migration 14 (Regel 13, fail-closed)
         store.backfill_content_tiers({k: w.content for k, w in self.manifest.workflows.items()})
-        self.lanes = {inst.name: _Lane(inst) for inst in cfg.instances}
+        self.lanes = {inst.name: _Lane(inst, node_for(cfg, inst)) for inst in cfg.instances}
         for name, lane in self.lanes.items():  # Pause übersteht den Neustart (BUG-046)
             if self.store.adapter_get("comfyui", name, "paused") == "1":
                 lane.resume.clear()

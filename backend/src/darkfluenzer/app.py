@@ -30,6 +30,7 @@ from .media import models, pipeline, training
 from .media.identity import FaceIdentity, IdentityError
 from .nodes import comfy
 from .nodes import local as runtime
+from .nodes.base import node_for
 from .store import Store
 
 log = logging.getLogger("darkfluenzer.app")
@@ -116,11 +117,12 @@ def _emit(payload: dict, as_json: bool, labels: dict[str, str] = _HUMAN) -> None
 def _comfy(action: str, instance: str) -> tuple[dict, int]:
     cfg = load()
     setup_logging(cfg)
+    node = node_for(cfg, cfg.instance(instance))
     if action == "start":
-        return {"ok": True, **runtime.start(cfg, instance)}, 0
+        return {"ok": True, **node.start()}, 0
     if action == "stop":
-        return {"ok": True, **runtime.stop(cfg, instance)}, 0
-    st = runtime.status(cfg, instance)
+        return {"ok": True, **node.stop()}, 0
+    st = node.status()
     if action == "status":
         return {"ok": True, **st}, 0
     if st["state"] == "running":
@@ -176,7 +178,7 @@ def _workflows(action: str) -> tuple[dict, int]:
             (legacy / f"{key}.json").unlink(missing_ok=True)
         if legacy.is_dir() and not any(legacy.iterdir()):
             legacy.rmdir()
-    runtime.start(cfg)
+    node_for(cfg, cfg.comfyui).start()
     object_info = comfy.ComfyClient(cfg.comfyui.url, timeout=120).object_info()
     report: dict[str, list[str]] = {}
     for key, wf in man.workflows.items():
@@ -265,7 +267,7 @@ def _character(args: argparse.Namespace) -> tuple[dict, int]:
     dataset = folders.datasets / args.dataset
     if not (dataset / "dataset.json").is_file():
         raise training.DatasetIncomplete(f"Datensatz {args.dataset} existiert nicht.")
-    if runtime.status(cfg)["state"] == "running":  # keine parallelen GPU-Jobs
+    if node_for(cfg, cfg.comfyui).status()["state"] == "running":  # keine parallelen GPU-Jobs
         queue = comfy.ComfyClient(cfg.comfyui.url).queue()
         if queue.get("queue_running") or queue.get("queue_pending"):
             raise training.TrainingError("ComfyUI rendert gerade – Training erst danach starten.")

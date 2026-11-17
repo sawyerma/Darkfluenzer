@@ -161,17 +161,11 @@ class RenderMixin:
         for lane in self.lanes.values():
             if lane.status.get("health"):
                 try:
-                    stats = comfy.ComfyClient(lane.inst.url, timeout=self.cfg.server.observe_s)
-                    system = stats._json("GET", "/system_stats").get("system") or {}
+                    self._memory = lane.node.memory(self.cfg.server.observe_s)
                 except comfy.ComfyError:
                     continue
-                self._memory = {
-                    "ram_total": int(system.get("ram_total") or 0),
-                    "ram_free": int(system.get("ram_free") or 0),
-                    "swap": comfy.swap_used_mb(),
-                }
                 return self._memory
-        self._memory = {"swap": comfy.swap_used_mb()}
+        self._memory = {"swap": next(iter(self.lanes.values())).node.swap_mb()}
         return self._memory
 
     async def observe(self) -> None:
@@ -314,7 +308,7 @@ class RenderMixin:
     async def refresh_comfy(self) -> None:
         for lane in self.lanes.values():
             try:
-                lane.status = await asyncio.to_thread(runtime.status, self.cfg, lane.inst.name)
+                lane.status = await asyncio.to_thread(lane.node.status)
             except runtime.RuntimeFailure as exc:
                 lane.status = {"state": "error", "managed": False}
                 lane.error = str(exc)
@@ -384,9 +378,9 @@ class RenderMixin:
         return ""
 
     async def _run(self, lane: _Lane, action: str, request_id: str) -> None:
-        fn = runtime.start if action == "start" else runtime.stop
+        fn = lane.node.start if action == "start" else lane.node.stop
         try:
-            await asyncio.to_thread(fn, self.cfg, lane.inst.name)
+            await asyncio.to_thread(fn)
         except runtime.RuntimeFailure as exc:
             log.error("ComfyUI %s %s fehlgeschlagen: %s", lane.inst.name, action, exc)
             lane.error = str(exc)

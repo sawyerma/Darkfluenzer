@@ -62,7 +62,7 @@ class RegistryMixin:
             eng, ready = self.manifest.engines[wf.engine], engines[wf.engine]
             lane = self._lane_of(wf)
             registry_ui = self.manifest.root / "workflows" / wf.ui
-            editor = comfy.editor_file(lane.inst, key) if lane else None
+            editor = lane.node.editor_file(key) if lane else None
             info = msg.workflows.add(
                 key=key,
                 engine=wf.engine,
@@ -155,7 +155,7 @@ class RegistryMixin:
 
         def adopt() -> models.Manifest:
             info = comfy.ComfyClient(lane.inst.url, timeout=120).object_info()
-            edited = json.loads(comfy.editor_file(lane.inst, wf.key).read_text(encoding="utf-8"))
+            edited = json.loads(lane.node.editor_file(wf.key).read_text(encoding="utf-8"))
             registry_ui = json.loads((self.manifest.root / "workflows" / wf.ui).read_text())
             api = comfy.ui_to_api(edited, info)
             uploads = {(p.node, p.input) for p in wf.params.values() if p.upload}
@@ -192,7 +192,7 @@ class RegistryMixin:
         lane = self._lane_of(wf)
         self.manifest = await asyncio.to_thread(models.delete_workflow, self.cfg.root, wf.key)
         if lane is not None:
-            await asyncio.to_thread(comfy.remove_editor_copy, lane.inst, wf.key)
+            await asyncio.to_thread(lane.node.remove_editor_copy, wf.key)
         log.info("Workflow %s gelöscht (Registrierung, UI/API, Editor-Kopie)", wf.key)
         return ""
 

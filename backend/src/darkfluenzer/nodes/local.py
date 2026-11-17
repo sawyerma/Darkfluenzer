@@ -29,6 +29,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from ..config import DATA_DIR_ARGS, ComfyConfig, Config
+from .base import Node
 
 log = logging.getLogger("darkfluenzer.runtime")
 
@@ -646,3 +647,64 @@ def cockpit_down(cfg: Config) -> dict:
         "cockpit_pids": own,
         "comfyui": stopped,
     }
+
+
+class LocalNode(Node):
+    """Rechenknoten auf diesem Mac: Prozesse über ``start``/``stop``/``status`` dieses Moduls,
+    Ordner der Instanz direkt im Dateisystem (SP0 Schritt 3)."""
+
+    def start(self) -> dict:
+        return start(self.cfg, self.inst.name)
+
+    def stop(self) -> dict:
+        return stop(self.cfg, self.inst.name)
+
+    def status(self) -> dict:
+        return status(self.cfg, self.inst.name)
+
+    def memory(self, timeout: float) -> dict:
+        from .comfy import ComfyClient, swap_used_mb
+
+        system = ComfyClient(self.url, timeout=timeout)._json("GET", "/system_stats").get("system")
+        system = system or {}
+        return {
+            "ram_total": int(system.get("ram_total") or 0),
+            "ram_free": int(system.get("ram_free") or 0),
+            "swap": swap_used_mb(),
+        }
+
+    def swap_mb(self) -> float:
+        from .comfy import swap_used_mb
+
+        return swap_used_mb()
+
+    def stage_dataset(self, dataset_dir: Path) -> str:
+        from ..media import training
+
+        return training.stage_dataset(dataset_dir, self.inst.folder("input"))
+
+    def take_lora(self, prefix: str) -> Path:
+        from ..media import training
+
+        return training.take_lora(self.inst.folder("output"), prefix)
+
+    def output_dir(self) -> Path:
+        return self.inst.folder("output")
+
+    def editor_file(self, key: str) -> Path:
+        """Je Workflow ein eigener Ordner der ComfyUI-Seitenleiste, damit ``/?workflows=<key>``
+        genau diesen Graphen lädt."""
+        return self.inst.folder("user") / "default" / "workflows" / key / f"{key}.json"
+
+    def install_editor_copy(self, ui_file: Path, key: str, *, replace: bool = False) -> Path:
+        target = self.editor_file(key)
+        if replace or not target.is_file():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(ui_file.read_bytes())
+        return target
+
+    def remove_editor_copy(self, key: str) -> None:
+        target = self.editor_file(key)
+        target.unlink(missing_ok=True)
+        if target.parent.is_dir() and not any(target.parent.iterdir()):
+            target.parent.rmdir()

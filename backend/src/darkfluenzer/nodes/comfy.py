@@ -2,7 +2,7 @@
 
 Nur Workflows aus ``workflows/manifest.toml`` sind ausführbar, und nur ihre dort deklarierten
 Parameter dürfen gesetzt werden. Keine Browser-Automation. Die Serverbereitschaft wird über die
-einzige Startlogik (``runtime.start``) hergestellt.
+einzige Startlogik (``Node.start``) hergestellt.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from pathlib import Path
 
 from ..config import ComfyConfig, Config
 from ..media.models import Manifest, Workflow
-from . import local as runtime
+from .base import node_for
 
 log = logging.getLogger("darkfluenzer.comfy")
 
@@ -442,7 +442,7 @@ def run_workflow(
     graph.update(extra or {})
     graph = unique_outputs(graph, tag)
     inst = instance_of(cfg, man, wf)
-    runtime.start(cfg, inst.name)  # einzige Startlogik; idempotent
+    node_for(cfg, inst).start()  # einzige Startlogik; idempotent
     client = ComfyClient(inst.url, client_id=client_id)
     if unload_first:  # andere Engine als zuletzt: deren Modelle vorher kontrolliert entladen
         client.free()
@@ -1005,28 +1005,14 @@ def ui_to_api(ui: dict, object_info: dict) -> dict:
     return graph
 
 
-def editor_file(inst: ComfyConfig, key: str) -> Path:
-    """Editor-Kopie eines Workflows in der ausführenden Instanz: je Workflow ein eigener Ordner der
-    ComfyUI-Seitenleiste, damit ``/?workflows=<key>`` genau diesen Graphen lädt."""
-    return inst.folder("user") / "default" / "workflows" / key / f"{key}.json"
-
-
 def install_editor_copy(cfg: Config, man: Manifest, key: str, *, replace: bool = False) -> Path:
     """Legt die Editor-Kopie aus dem registrierten UI-Export an, falls sie fehlt; vorhandene
     (ggf. bearbeitete, noch nicht übernommene) Kopien bleiben unangetastet, außer ``replace``
     (nach einer Übernahme: Kopie = registrierte Fassung)."""
-    target = editor_file(instance_of(cfg, man, man.workflows[key]), key)
-    if replace or not target.is_file():
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes((man.root / "workflows" / man.workflows[key].ui).read_bytes())
-    return target
-
-
-def remove_editor_copy(inst: ComfyConfig, key: str) -> None:
-    target = editor_file(inst, key)
-    target.unlink(missing_ok=True)
-    if target.parent.is_dir() and not any(target.parent.iterdir()):
-        target.parent.rmdir()
+    node = node_for(cfg, instance_of(cfg, man, man.workflows[key]))
+    return node.install_editor_copy(
+        man.root / "workflows" / man.workflows[key].ui, key, replace=replace
+    )
 
 
 async def progress_events(url: str, client_id: str) -> AsyncIterator[tuple[str, int, int]]:
