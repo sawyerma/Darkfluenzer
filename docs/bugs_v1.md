@@ -45,7 +45,7 @@
 | BUG-013 | Telegram-Anhang bleibt nach Absturz zwischen Speichern und Download `pending`. | CODE | Fortsetzung nach Neustart oder Fehlschlag mit Grund. | B SP1 |
 | BUG-015 | Telegram-Dienstkonto 777000 kann als Kunde landen. | OFFEN | Keine Akte, kein KI-Dialog, Code nie im Gedächtnis. | B SP2 |
 | BUG-016 | Versand mit Status `unknown` bleibt hängen; Instagram klärt ihn nur im Speicher, nach Neustart entsteht fälschlich „ÜBERGABE AN BETREIBER“. | CODE | Abgleich dauerhaft über Verlauf/Echo, nie blind zweimal senden, eigene Nachricht nie als Übergabe. | B SP2 |
-| BUG-017 | Instagram lehnt Bilder über 8 MB ab; keine Zustellkopie; Texte über 1000 Byte nicht geteilt. | CODE | Zustellkopie je Kanalgrenze, nie unter 1K; Text teilen; genau einmal zugestellt. | B C5.7, C5.3 |
+| BUG-017 | Instagram lehnt Bilder über 8 MB ab; keine Zustellkopie; Texte über 1000 Byte nicht geteilt: `instagram._parts` lehnt Text über `max_text_bytes` ganz ab. | CODE | Zustellkopie je Kanalgrenze, nie unter 1K; Text teilen; genau einmal zugestellt. | B C5.7 (Datei), SP4 (Text) |
 | BUG-019 | Angebot wählt das Produkt über den Listenindex. | CODE | Stabile ID je Preisposition, Revisionsprüfung. | B C5.5 |
 | BUG-020 | Kundenakte nimmt `influencers[0]` statt der Influencerin des Kontos. | CODE | Influencerin je Kanalkonto und Akte. | B C5.1 |
 | BUG-021 | KI-Hinweis nach fehlgeschlagenem oder ungeklärtem Versand nicht fortsetzbar. | CODE: `queue_ai_notice` sperrt, sobald eine Hinweisnachricht verknüpft ist, auch wenn sie fehlgeschlagen ist | Erneuter Versuch möglich, nie doppelt. | B SP2 |
@@ -60,14 +60,18 @@
 | BUG-058 | **Video-Parameter uneinheitlich:** LTX `duration` („Länge (s)“) aus dem Manifest, Wan/Remix `duration_s` („Gesamtlänge“) aus dem Backend; das Feld steht je Workflow an anderer Stelle. Betreiber beanstandet 17.11. | TEST, LIVE | Ein Parametervertrag und eine Bedienkomponente für alle Video-Workflows. | B SP1, F SP1 |
 | BUG-059 | KI-Kennzeichnung nur in Metadaten; Plattform-Neukodierung entfernt sie vermutlich; WebP/WebM nicht kennzeichenbar. | CODE, HYPOTHESE | Kennzeichnung muss beim Empfänger ankommen (Begleittext oder Marke); je Kanal real prüfen. | B C5.7 |
 | BUG-060 | Angebot setzt ein Krypto-Wallet voraus; Angebotstext fest im Code. | CODE | Zahlungswege als Liste je Influencerin, Text als Vorlage im Profil. | B C5.5, C5a |
-| BUG-061 | Starter startet nur die Medien-Instanz; kein Autostart, kein Schutz vor Ruhezustand. | CODE | Beide Instanzen, Autostart, kein Ruhezustand im Betrieb. | B B5.1, D2 |
+| BUG-061 | Starter startet nur die Medien-Instanz; kein Autostart, kein Schutz vor Ruhezustand. | CODE | Beide Instanzen, Autostart, kein Ruhezustand im Betrieb. | B SP4, D2 |
 | BUG-090 | Die Fertigstellen-Stufe trägt keine Parameter (`pipeline.select_candidate` ruft `create_render` mit leeren Werten). Die Höhe für das Story-Format lässt sich so nicht setzen. | CODE | Werte für die Fertigstellen-Stufe am Auftrag. | B SP1 |
 | BUG-094 | LoRA nur in Workflows mit demselben Engine-Eintrag ladbar (`models.engine_model_names` vergleicht `base_engine`). `lustify_sam31_edit` nutzt dasselbe Modell unter anderem Eintrag und dürfte die Charakter-LoRA nicht laden. (In Fables SP3-Blatt als „BUG-089“ geführt; 089 ist bereits vergeben.) | CODE | Bindung an die Architektur (`arch`). | B SP3 |
+| BUG-095 | Jeder Workflow-Lauf prüft die Instanz über `runtime.start`, ruft zweimal `git` auf (`comfy.provenance`), fragt im Sekundentakt ab und schreibt eine Herkunftsdatei. Für Chat-Antworten ist das zu schwer. | CODE | Leichter Weg ohne diese Schritte (`llm.generate`). | B SP4 |
+| BUG-096 | Telegram: Tippanzeige nur einmal gesendet, Online-Status nie gesetzt, Gelesen sofort nach dem Speichern. | CODE | Verhalten nach Profil. | B SP4 |
+| BUG-097 | Eine eingereihte Antwort lässt sich nicht stornieren: `channel_messages.status` kennt weder `draft` noch `cancelled`, der Postausgang kennt keine Sendezeit. | CODE | Tabellenumbau, `scheduled_at`, Storno bei neuem Eingang. | B SP4 |
+| BUG-098 | `comfy.collect_graph` kennt nur Datei-Ausgaben; ein Textergebnis endet mit „keine Ausgabedatei“. (In Fables SP4-Blatt als „BUG-094“ geführt; 094 ist bereits vergeben.) | CODE | Eigener Textweg in `llm.py`. | B SP4 |
 | BUG-080 | Kloner im Modus „Direkt“: nach dem Rückversand wartet die Stufe weiter auf Auswahl, der Auftrag bleibt offen; „Stufe wiederholen“ sendet alle Dateien erneut. | CODE | Auftrag schließt nach dem Rückversand; Rückversand je Medium genau einmal (`cloner_returns`). | B SP1 |
 | BUG-081 | Kloner verlangt immer `candidates_default` Kandidaten; Workflows ohne Seed lehnt `create_order` dann ab (z. B. Export). | CODE | Ein Kandidat bei Workflows ohne Seed; Default-Produktion `production.cloner_candidates` (Vorgabe 1). | B SP1 |
 | BUG-082 | Rückversand an den Default wartet Antwortverzögerung und Tippzeit ab (`telegram._pace`) und steht hinter Kundensendungen. | CODE | Interne Sendungen sofort und zuerst. | B SP1 |
 | BUG-085 | Die Zulassung (`_admit`) entlädt für jeden Medienjob die ruhende andere Instanz, also auch Melody. | CODE | Instanz als „bleibt geladen“ markierbar; Regel für Chat neben Video (E15). | B SP4 |
-| BUG-077 | Angebot verlangt die Altersangabe: `server._create_offer` weist ohne `self_declared_adult` ab. Laut E2 entfällt die Altersfrage. (Im Änderungsblatt vom 17.11. als „BUG-075“ geführt; 075 ist bereits vergeben.) | TEST | Bedingung entfernen; die Sperre bei Hinweisen auf Minderjährigkeit bleibt: `customers.age_mark` kennt bereits `under_18`, dieser Wert trägt die Sperre, `_create_offer` prüft künftig nur noch darauf. Test `test_customer_orders` anpassen. | B C5.2 |
+| BUG-077 | Angebot verlangt die Altersangabe: `server._create_offer` weist ohne `self_declared_adult` ab. Laut E2 entfällt die Altersfrage. (Im Änderungsblatt vom 17.11. als „BUG-075“ geführt; 075 ist bereits vergeben.) | TEST | Bedingung entfernen; die Sperre bei Hinweisen auf Minderjährigkeit bleibt: `customers.age_mark` kennt bereits `under_18`, dieser Wert trägt die Sperre, `_create_offer` prüft künftig nur noch darauf. Test `test_customer_orders` anpassen. | B SP4 |
 
 ## 3. P2
 
@@ -107,7 +111,7 @@
 | ID | Befund | Soll | Paket |
 |---|---|---|---|
 | BUG-035 | `config.toml.vor-instagram` lokal mit Rechten 644. | Auf dem Mac prüfen, auf 600 setzen oder nach Rückfrage löschen. | B D2 |
-| BUG-036 | `setup_comfyui.sh` trägt keinen Ordner für Bildinterpolation (FILM) ein; Ordner `LLM` und Knotenpaket für das Chatmodell fehlen (vorbereitet: `launcher/setup_llm_session.sh`, `LLM: llm`, noch nicht committet). | Skripte ergänzen, am Mac prüfen. | B B5.1 |
+| BUG-036 | `setup_comfyui.sh` trägt keinen Ordner für Bildinterpolation (FILM) ein; Ordner `LLM` und Knotenpaket für das Chatmodell fehlen (vorbereitet: `launcher/setup_llm_session.sh`, `LLM: llm`, noch nicht committet). | Skripte ergänzen, am Mac prüfen. | B SP4 |
 | BUG-037 | Lokale, nicht committete Zeile `enabled = true` in `workflows/manifest.toml`. | Bewusst lokal; nie mit Fachänderungen committen. Ursache: BUG-092 (lokaler Zustand im versionierten Manifest). | B SP3 |
 | BUG-074 | Dokumente veraltet und widersprüchlich (schließt BUG-034 ein). | Konsolidierung am 17.11. erledigt (zwei Pläne + diese Liste, Altdokumente im Archiv); Widersprüche aus den Prüfberichten von ChatGPT und Fable am 17.11. korrigiert (SPEC-001 bis 007). Abschluss mit der Betreiberfreigabe. | B DOK-1 |
 

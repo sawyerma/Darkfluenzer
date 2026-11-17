@@ -100,7 +100,7 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
 
 ### 3.4 ComfyUI → KI (KI-Studio, B5)
 
-Links die KI-Workflows aus der Registry; Mitte Tabs **Chat-Test · Persona · Gedächtnis · Vergleich**; rechts Modell & Figur (Melody1437 v2.0 Q6_K aus der Registry), Sampling (nur Werte, die der Graph wirklich nutzt), Kontext, KI-Warteschlange. Chat-Test mit Sitzung, „Nachricht an Clara …“, Enter sendet, Shift+Enter Zeilenumbruch, Messwerte je Antwort (TTFT, Gesamtzeit, Tokens/s); Testdaten getrennt von Kundendaten. Persona-Editor mit Versionen, Beispieldialogen, Regeln, Vorlagentexten (B5.2); Gedächtnisliste mit Quelle und Zeit (B5.3); Prüfansicht für Kaufbereitschaft, Wunsch und Prompt (B5.4); Vergleich nur mit freigegebenem zweitem Profil. Anzeige „bereit“ nur für wirklich registrierte und geprüfte KI-Workflows.
+Links die KI-Workflows aus der Registry; Mitte Tabs **Chat-Test · Persona · Gedächtnis · Vergleich**; rechts Modell & Figur (Melody1437 v2.0 Q6_K aus der Registry), Sampling (nur Werte, die der Graph wirklich nutzt), Kontext, KI-Warteschlange. Chat-Test mit Sitzung, „Nachricht an Clara …“, Enter sendet, Shift+Enter Zeilenumbruch, Messwerte je Antwort (Gesamtzeit, Wartezeit, Persona-Version; die Zeit bis zum ersten Token nur, wenn der Knoten sie liefert); Testdaten getrennt von Kundendaten. Persona-Editor mit Versionen, Beispieldialogen, Regeln, Vorlagentexten (B5.2); Gedächtnisliste mit Quelle und Zeit (B5.3); Prüfansicht für Kaufbereitschaft, Wunsch und Prompt (B5.4); Vergleich nur mit freigegebenem zweitem Profil. Anzeige „bereit“ nur für wirklich registrierte und geprüfte KI-Workflows.
 
 ### 3.5 Dateien
 
@@ -137,10 +137,9 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 |---|---|---|
 | **SP2 Fundament** | Frontend-Teil nach §4.1 (Befehle mit Zeitlimit und Statusabfrage, begrenzte Ereignislisten, Kundenliste/Übersicht per EVENT 26, Kanalstatus je Konto, Figur-Filter, Reiter Einstellungen mit Kanalkonten, kleinere Punkte) | je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet und Einstellungen; Smoke klickt alle sechs Reiter; Verbindungsabbruch während eines Befehls gibt den Knopf wieder frei |
 | **SP1 Default-Kette** | Karte je Zustand (gestartet, wartet auf Start mit Startknopf, abgelehnt mit Grund, zurückgesendet, Rückversand gesperrt, fehlgeschlagen, abgebrochen); Default-Kontakt mit Betriebsart, Kandidatenzahl, Ausgabeprofil je Befehl (z. B. Story 9:16) und Chat-Wörtern, ausgeschaltete Schalter und fehlende Workflows sichtbar; Stapel mit einer Karte je Bild und gemeinsamem Fortschritt; Auftragskarte nennt Influencerin, Workflow, Zahl der Referenzen, „ohne Charakter-LoRA“; `VideoSettings` für alle Video-Workflows; „Auftrag abbrechen“ an der Auftragskarte mit Abbruchzustand bis zur Quittung | Browser-Test für jeden Zustand; LTX, Wan, Remix mit denselben Feldern an derselben Stelle (Screenshot-Vergleich); echter Lauf vom Handy nach Backend SP1 |
-| **B5.1–B5.4** | KI-Studio §3.4 | 20 echte Testnachrichten im Chat-Test, Messwerte sichtbar |
-| **B5.4a** | Default-Verlauf zeigt die Deutung einer freien Anweisung (Befehl, Workflow, Prompt) in der Karte | 30 Anweisungen vom Handy |
-| **C5.1–C5.10** | rechte Kundensteuerung §3.2 je Paket; C5.1: Figur-Filter und Influencerin-Kennzeichen in Liste, Register und Aktenkopf, sichtbare Sortierung; C5.2: Status des KI-Hinweises, Karte und Sperre „minderjährig vermutet“, kein Altersblock; C5.6a: Prüfwerte je Kandidat (Identität, Inhaltsstufe, Technik, Qualität; bei Video Stichprobenbilder), Hinweis „keine automatische Freigabe“, solange ein Prüfmodell fehlt (E16), Karte „wartet auf Betreiber“ (Freigeben, Neu, Erstatten; „Freigeben“ nur bei technischem oder qualitativem Fehlschlag, harte Gates bleiben gesperrt), Schalter Freigabeart im Influencerin-Block; C5.10: Auftragskarte zeigt, ob System oder Betreiber freigegeben hat und über welchen Weg | je Paket echter Lauf mit Testkunden |
-| **T1, T2** | Kundentest §3.8 | Browser-Test Umschalten, Messwerte, Zurücksetzen; Testauftrag nie im Wallet |
+| **SP4 Clara chattet** | Frontend-Teil nach §4.2 (KI-Studio mit Messwerten, Modus je Konversation, Entwürfe, geplante und stornierte Antworten, Kaufbereitschaft, Sperre „minderjährig vermutet“, Verhaltensprofil, Automatik je Konto, Kundentest, KI-Instanz „bleibt geladen“; Deutung freier Default-Anweisungen in der Karte) | 20 echte Testnachrichten im Kundentest mit Messwerten; Browser-Test für Modus, Entwurf, Storno, Sperre |
+| **C5.1, C5.5–C5.10** | rechte Kundensteuerung §3.2 je Paket; C5.1: Figur-Filter und Influencerin-Kennzeichen in Liste, Register und Aktenkopf, sichtbare Sortierung; C5.6a: Prüfwerte je Kandidat (Identität, Inhaltsstufe, Technik, Qualität; bei Video Stichprobenbilder), Hinweis „keine automatische Freigabe“, solange ein Prüfmodell fehlt (E16), Karte „wartet auf Betreiber“ (Freigeben, Neu, Erstatten; „Freigeben“ nur bei technischem oder qualitativem Fehlschlag, harte Gates bleiben gesperrt), Schalter Freigabeart im Influencerin-Block; C5.10: Auftragskarte zeigt, ob System oder Betreiber freigegeben hat und über welchen Weg | je Paket echter Lauf mit Testkunden |
+| **T2** (SP5) | Kundentest mit Bild ohne Zahlung §3.8 | Testauftrag nie im Wallet, nie an eine Kundenidentität |
 | **C5a** | Wallet §3.6 | echte Zahlung je Weg |
 | **SP3 (B1)** | Bereich Charakter §3.3 (Liste, Fotostatus, Training, Versionen, Aktiv setzen, LoRA-Auswahl im Formular) | echter Ordner → Training → LoRA → Bild; Browser-Test Anlegen, Fotostatus, gesperrter Start, Umschalten |
 | **B4** | Zeitachse §3.3 | 15 s mit vier Marken → ein Auftrag mit vier Schlüsselbildern |
@@ -159,6 +158,15 @@ Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`,
 - **Kleinere Punkte:** Ganzzahlprüfung (BUG-025), mitlaufende Fristen (BUG-026), Video in der Auftragskarte (BUG-027), Wallet-Maskierung und Bestätigungen (BUG-032, 033), Neuladen nach Schemawechsel (BUG-076).
 - **Reiter Einstellungen** nach §3.7, zusätzlich Kanalkonten anlegen, zuordnen und entfernen.
 - **Abnahme:** je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet und Einstellungen; der Smoke-Test klickt alle sechs Reiter; ein Test trennt die Verbindung während eines Befehls und prüft, dass der Knopf wieder frei wird.
+
+### 4.2 SP4 Clara chattet (Frontend-Teil)
+
+- **KI-Studio (§3.4):** Chat-Test mit Gesamtzeit, Wartezeit und Persona-Version je Antwort; die Zeit bis zum ersten Token nur, wenn sie geliefert wird. Persona-Editor mit Versionen und Vorlagen. Gedächtnisliste. Prüfansicht für die strukturierten Funktionen.
+- **Nachrichten, Kundenakte:** Umschalter für den Modus der Konversation; Entwurf als bearbeitbare Karte mit Senden und Verwerfen; geplante Antwort mit Sendezeit, „Jetzt senden“ und „Zurückhalten“; stornierte Antworten bleiben als Karte sichtbar. Kaufbereitschaft mit Beleg. Karte und Sperre „minderjährig vermutet“ mit „Sperre aufheben“. Status des KI-Hinweises; kein Altersblock.
+- **Influencerin-Block:** Schalter Text-KI; Editor fürs Verhaltensprofil.
+- **Kanalstatus:** Schalter „Automatik“ je Konto mit sichtbarer Wirkung.
+- **Kundentest (§3.8):** wie beschrieben; die Latenztafel liest `ai_runs`.
+- **Instanzen:** KI-Instanz zeigt „bleibt geladen“ und das geladene Modell.
 
 ---
 

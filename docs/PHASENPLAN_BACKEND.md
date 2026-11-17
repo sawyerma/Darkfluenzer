@@ -39,7 +39,7 @@ Video läuft genauso: erst das Bild, dann die Animation. Der Betreiber gibt die 
 - Ohne Charakterfotos und das Training (B1) sieht kein Bild verlässlich nach Clara aus.
 - Ohne menschliche Kontrolle geht gelegentlich ein fehlerhaftes Bild raus. Dafür gibt es die Reklamation mit kostenloser Neuauflage (C5.8).
 - Video ist langsam: LTX 2.5 braucht für 5 s rund 13 bis 19 min (Jobs 63/64). Es läuft immer nur ein Render auf der Medien-Instanz.
-- Ob Clara flüssig antwortet, während ein Video rendert, ist nicht gemessen. Das klärt B5.1.
+- Ob Clara flüssig antwortet, während ein Video rendert, ist nicht gemessen. Das klärt SP4 (Schritt 1).
 
 ### 1.2 Betreiberentscheidungen (Stand 17.11.2026)
 
@@ -59,7 +59,7 @@ Video läuft genauso: erst das Bild, dann die Animation. Der Betreiber gibt die 
 | E12 | Der Default ist der Admin. Sein Chat hat drei Betriebsarten: Produktion, Kundentest, Aus. | entschieden |
 | E13 | Zugangsdaten und Einstellungen werden im Cockpit im Reiter „Einstellungen“ gepflegt (S1). | entschieden |
 | E14 | Vorschlag: Kundenbilder entstehen mit `krea2_raw_turbo_lora_t2i` (Krea 2 Raw + Turbo-LoRA + Charakter-LoRA, Inhaltsstufe `standard`, 234 s je Bild gemessen). Die Charakter-LoRA wird mit `krea2_raw_lora_train` trainiert (gemessen 23,9 s je Schritt bei 768 px, 1500 Schritte ≈ 10 h). Vorbehalt: BUG-023 und der erste vollständige Trainingslauf. Bis zur Entscheidung ist kein Produkt lieferbar (C5.5). | **offen**, Betreiberantwort fehlt |
-| E15 | Chat neben Video: Erreicht B5.1 die Antwortziele unter Medienlast nicht, gilt bis zur Entscheidung: die KI-Bahn hat Vorrang; ein neuer Medienjob startet nur, wenn danach Melody-Bedarf plus Reserve frei bleiben; laufende Renders werden nicht abgebrochen; wartende Kunden erhalten eine Vertröstung (C5.4). Zur Wahl: feste Renderfenster (z. B. nachts) oder Video nur ohne aktives Kundengespräch. | **offen**, Voreinstellung gilt |
+| E15 | Chat neben Video: Melody bleibt immer geladen. Ein Videojob startet nur, wenn er daneben in den Speicher passt; sonst wartet er auf ein Videofenster, in dem Clara ohnehin langsam antwortet. Die Regel wird nach der Messung in SP4 (Schritt 1) festgelegt. | **offen**, nach Messung |
 | E16 | Prüfmodell für die Inhaltsstufe (C5.6a): noch nicht gewählt; Download nur nach Freigabe. Bis dahin keine automatische Freigabe, Freigabeart steht fest auf „Betreiber“. | **offen**, Voreinstellung gilt |
 
 ---
@@ -211,7 +211,7 @@ flowchart TD
   M -- ja --> MX["Akte gesperrt<br/>kein Flirt, kein Angebot"]
   M -- nein --> X{"expliziter Wunsch?"}
   X -- ja --> XF["Verweis auf Fansly"] --> C
-  X -- nein --> K{"Kaufbereitschaft ≥ 2?<br/>B5.4"}
+  X -- nein --> K{"Kaufbereitschaft ≥ 2?<br/>SP4"}
   K -- nein --> C
   K -- ja --> W["Medienwunsch-Datensatz<br/>über mehrere Gespräche"]
   W --> O["Zusammenfassung + Angebot<br/>nur lieferbare Preisposition · Zahlungsweg"]
@@ -270,7 +270,7 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 |---|---|---|---|
 | Cockpit-Server, Stream, Befehlsjournal, Receipts | PASS | A1 15.11. (`d13e258`) | BUG-024 Zeitlimit |
 | ComfyUI-Reiter, Workflow-Übernahme (0 Abweichungen) | PASS | A2 15.11. | einheitliche Videosteuerung (SP1) |
-| Zwei Instanzen, Zulassung | TEIL | A3 15.11. | echter KI-Lauf (B5.1); Starter startet Instanz 2 nicht (BUG-061) |
+| Zwei Instanzen, Zulassung | TEIL | A3 15.11. | echter KI-Lauf (SP4); Starter startet Instanz 2 nicht (BUG-061) |
 | Dateien, Herkunft, Weiterverarbeiten | PASS | A4 15.11. | Video-Vorschau im echten Chrome geprüft (BUG-045 widerlegt) |
 | Bildworkflows | TEIL | je ein echter Lauf (§9.2) | keine Engine für Kunden freigegeben; kein LoRA-Lader |
 | Video LTX 2.5 | TEIL | Job 63 (960×1280, 121 Frames, 24 fps, Ton, 1128 s, Swap ≤ 44,8 GB); **Job 64 aus dem Cockpit** (3:4, 5 s, 1 Kandidat, 780,9 s, Swap ≤ 42,7 GB) | einheitliche Bedienung (SP1), Zeitachse (B4), Vergleich mit Wan |
@@ -284,7 +284,7 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 | Zahlungen | CODE | Krypto-Beobachter, Gutschein-Erkennung, Zuordnung, Monatsliste | PayPal, echte Zahlung, SP2/C5a |
 | Kundenauftrag von Hand | CODE | Hinweis, Alter, Angebot, Produktion, Freigabe, Zustellung | kein echter Kunde |
 | Einstellungen (Reiter) | OFFEN | Geheimnisse bisher nur per CLI `darkfluenzer secret set` (Telegram) | SP2 (S1) |
-| Chat-KI | OFFEN | Melody Q6_K geladen und SHA-geprüft (17.11. 01:14); Node ComfyUI-LLM-Session geprüft, Setup-Skript vorbereitet (nicht installiert) | B5.1 ff. |
+| Chat-KI | OFFEN | Melody Q6_K geladen und SHA-geprüft (17.11. 01:14); Node ComfyUI-LLM-Session geprüft, Setup-Skript vorbereitet (nicht installiert) | SP4 |
 
 ### 5.1 Nachweise der abgenommenen Pakete (aus V0, gekürzt; Volltext im Archiv)
 
@@ -307,7 +307,7 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 | **SP1 Default-Kette** (§7.1, ausgeschrieben) | H0, H4, H5, H6a; aus H2 BUG-008/013/014; aus H3 Zeitlimit, Auftrag abbrechen, BUG-064 | Bild mit Befehl vom Handy, Datei kommt zurück |
 | **SP2 Fundament** (§7.2, ausgeschrieben) | H1, H2-Rest, S1 mit Kanalkonten als Liste, Kontenteil von C5.1, Frontend-Härtung | kein stiller Stillstand, alle P0 zu, mehrere Konten, Einstellungen im Cockpit |
 | **SP3 Charakter und Medien** (§7.6, ausgeschrieben) | B1, B2, H6b, C1/C3-Rest; dazu unverändert B4 (mit H3-Rest) und B5.6 | „clone“ liefert Clara mit Prüfwert, Video mit Zeitachse |
-| **SP4 Clara chattet** | B5.1–B5.4 (mit B5.4a), C5.1–C5.4, T1; BUG-085 | Kundentest-Chat mit Latenzen |
+| **SP4 Clara chattet** (§7.3, ausgeschrieben) | B5.1–B5.4, B5.4a, C5.2–C5.4, T1; C5.1 (Influencerin-Block) | Kundentest-Chat mit Messwerten, Clara antwortet Kunden selbst |
 | **SP5 Verkauf automatisch** | C5a, C5.5–C5.10 mit C5.6a, T2 | Zahlung rein, Bild raus, ohne Klick |
 | **SP6 Betrieb und Abnahme** | D1–D3, C4, C6 | Probephase bestanden |
 
@@ -443,51 +443,88 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
 6. PayPal-Zugang im Cockpit eingetragen und geprüft; der Wert ist nirgends lesbar; ein Wert mit Sonderzeichen funktioniert oder wird klar abgewiesen.
 7. 20 normale Sätze mit Zahlen bleiben unverändert; ein abgelehnter Fehltreffer wird wiederhergestellt.
 
-### 7.3 Block B5 – Chat-KI (Melody)
+### 7.3 SP4 Clara chattet
 
-**Verbindliche Modellentscheidung (16.11.2026):** einziges Chatmodell ist **ReadyArt Melody1437-26B-A4B-v2.0, GGUF Q6_K**: Datei `Melody1437-26B-A4B-v2.0-Q6_K.gguf`, Revision `b22520a5c83db6ff0d12aef1fd461c932ba86fbf`, 22.638.399.456 Byte, SHA-256 `07a3b8b756a212926900b42927e51a3b116c105f878eb5c2b272d689a9a710dc`, Ablage `local/models/llm/melody1437-26b-a4b-v2.0/` (geladen und geprüft 17.11.2026 01:14). Keine weiteren Chatmodelle oder Quantisierungen ohne neue Freigabe. Anforderungen: Flirt ohne Verweigerung im zulässigen Rahmen (E1), TTFT ≤ 2 s und kurze Antwort ≤ 5 s (p50/p95, auch unter Medienlast), natürliches Deutsch, Gedächtnis (B5.3), stabile versionierte Persona, nur ComfyUI 2, später Training und Sprache.
+**Verbindliche Modellentscheidung (16.11.2026):** einziges Chatmodell ist **ReadyArt Melody1437-26B-A4B-v2.0, GGUF Q6_K**: Datei `Melody1437-26B-A4B-v2.0-Q6_K.gguf`, Revision `b22520a5c83db6ff0d12aef1fd461c932ba86fbf`, 22.638.399.456 Byte, SHA-256 `07a3b8b756a212926900b42927e51a3b116c105f878eb5c2b272d689a9a710dc`, Ablage `local/models/llm/melody1437-26b-a4b-v2.0/` (geladen und geprüft 17.11.2026 01:14). Keine weiteren Chatmodelle oder Quantisierungen ohne neue Freigabe. Anforderungen (**[17.11.] geändert auf Vorschlag aus dem SP4-Code-Vergleich**; ersetzt „erstes Token ≤ 2 s, kurze Antwort ≤ 5 s“ vom 16.11., weil ComfyUI Text erst am Ende liefert und Clara ohnehin verzögert antwortet): Flirt ohne Verweigerung im zulässigen Rahmen (E1); die Antwort ist vor der geplanten Sendezeit fertig (Gesamtzeit p95, Startwert 20 s, auch bei laufendem Bildrender); natürliches Deutsch; Gedächtnis; stabile versionierte Persona; nur ComfyUI 2. Die Zeit bis zum ersten Token wird nur gemessen, wenn der Knoten sie liefert. Laufzeit-Knoten: **ComfyUI-LLM-Session** (kantan-kanto, gepinnt `ec2b293c`, Gemma4-26B-A4B laut Kompatibilitätsliste bestätigt; Code am 17.11. auf Netzwerk-/Prozess-/eval-Aufrufe geprüft: keine) mit `llama-cpp-python==0.3.37` als Metal-Build; Skript `launcher/setup_llm_session.sh`, Modellpfad `LLM: llm` in `setup_comfyui.sh` (BUG-036).
 
-**B5.1 Modell-Laufzeit.** Knotenpaket **ComfyUI-LLM-Session** (kantan-kanto, gepinnt `ec2b293c`, Gemma4-26B-A4B laut Kompatibilitätsliste bestätigt; Code am 17.11. auf Netzwerk-/Prozess-/eval-Aufrufe geprüft: keine) mit `llama-cpp-python==0.3.37` als Metal-Build; Skript `launcher/setup_llm_session.sh`, Modellpfad `LLM: llm` in `setup_comfyui.sh` (BUG-036). Registry-Art `text`, Engine auf Instanz `ai`, Melody als Datei im Manifest, Workflow `clara_chat_melody`. KI-Bahn mit Vorrang; Starter und Backend halten Instanz 2 geladen (BUG-061). Messwerte je Antwort in SQLite. Abnahme: 20 zusammenhängende deutsche Nachrichten, kalt und warm, mit und ohne laufenden Medienrender; p50/p95 von TTFT und Gesamtzeit, Tokens/s, Swap. Werden die Ziele unter Medienlast verfehlt, gilt E15.
+Ersetzt B5.1 bis B5.4, B5.4a, C5.2, C5.3, C5.4 und T1. Grundlage: Code-Vergleich von Fable (17.11.) mit `comfy.py` und `instagram.py`.
 
-**B5.4a Freie Default-Anweisungen (vorgezogen, Pflicht).** Melody deutet eine freie Anweisung des Defaults („mach daraus ein Reel“, „Nr. 2 in 4K“) in Befehl, Workflow, Prompt und Referenzen als geprüftes Schema; ungültige Ausgabe hat keinen Effekt und erzeugt genau eine Rückfrage im Chat. Folgeanweisungen beziehen sich auf den letzten Auftrag. Abnahme: 30 echte Anweisungen vom Handy mit notierter Trefferquote.
+**Ziel:** Clara beantwortet Kunden selbst, mit Persona, Gedächtnis und menschlichem Tempo. Der Betreiber kann als Testkunde mit ihr schreiben und sieht die Messwerte.
+**Schließt:** BUG-017 (Textteil), 061 (KI-Instanz), 077, 085, 095 bis 098.
+**Braucht:** SP2 (Kanalkonten, Aufsicht, Kundenereignisse).
+**Dateien:** neue `llm.py`, `dialog.py`, `persona.py`, `memory.py`, `behavior.py`; `server.py`, `store.py`, `comfy.py`, `models.py`, `channels/telegram.py`, `channels/instagram.py`, `config.py`, `launcher/*`, `workflows/manifest.toml`, neue `ai.proto`, `channel.proto`, `commands.proto`.
 
-**B5.2 Persona und Verkaufsführung.** Versionierte Persona je Influencerin (Charaktertext, Beispieldialoge, Gesprächsstufen neutral/flirtend, Vorlagen für Hinweis, Angebot, Vertrösten, Fansly-Verweis). Flirt weckt Interesse und lenkt auf Bildwünsche; kein Preis ohne Wunsch oder Kaufabsicht (E5). Regelprüfung im Backend vor jedem Versand: Regel 12 c, Minderjährigkeit, keine Aussagen zu Preis, Zahlung oder Freigabe außerhalb der Fakten. Abnahme: Persona-Änderung → neue Revision und andere Antwort; Regelverstoß wird abgefangen.
+**Umsetzung in dieser Reihenfolge**
 
-**B5.3 Gedächtnis.** Vier Ebenen (Kurzzeit, Fakten/Vorlieben, Gesprächsmemos, Langzeit) in SQLite mit FTS5, Quelle und Zeit je Erinnerung, Korrektur mit Protokoll, strikte Kundentrennung; gelöschte Nachrichten entfernen ihre Erinnerungen. Abnahme: 100–200 Gesprächsschritte mit Widerspruch, zwei Kunden, Neustart.
+1. **KI-Laufzeit (`models.py`, Manifest, `llm.py`, `server._admit`).**
+   - Registry: Engine-Art `text`, Instanz `ai`; Melody als Datei mit Revision und SHA-256; Workflow `clara_chat_melody` mit den Parametern, die der Graph wirklich hat.
+   - Eigener Weg `llm.generate(workflow, werte)`: reicht den Graphen bei ComfyUI 2 ein und liest das Textergebnis aus dem Verlauf. Kein Eintrag in `jobs`, keine Herkunftsdatei, kein `git`-Aufruf, kein `runtime.start` je Nachricht (BUG-095, 098).
+   - Heute kennt `comfy.collect_graph` nur Datei-Ausgaben und meldet sonst „keine Ausgabedatei“.
+   - Messwerte je Lauf in Tabelle `ai_runs`: Art, Workflow, Persona-Version, Wartezeit, Dauer, Fehler.
+   - `[comfyui_ai] keep_loaded`: `_admit` entlädt eine so gekennzeichnete Instanz nie und rechnet ihren Speicher bei Medienjobs mit (BUG-085).
+   - Starter und `up` starten beide Instanzen; nach dem Start ein Aufwärmlauf (BUG-061).
+   - STATE 11 KI-Status: geladenes Modell, Warteschlange, letzte Messwerte.
+   - Messung: 20 zusammenhängende deutsche Nachrichten, kalt und warm, ohne Last, bei laufendem Bildrender und bei laufendem Videorender. Das Ergebnis entscheidet E15.
+2. **Persona (`persona.py`, `store.py`).**
+   - Heute: `influencers.persona` ist ein Textfeld; eine Änderung überschreibt die alte Fassung.
+   - Neu: Tabelle `persona_versions` je Influencerin mit Charaktertext, Beispieldialogen, Regeln und Vorlagen (Hinweis, Wunsch-Zusammenfassung, Angebot, Vertrösten, Fansly-Verweis). Der vorhandene Text wird Version 1.
+   - Die Ehrlichkeitsregel (`HONESTY_RULE`) hängt das Backend immer an.
+   - Jeder Lauf speichert die verwendete Version.
+3. **Regelprüfung (`dialog.py`).**
+   - Vor jedem Versand: verbotene Wörter der Persona, Behauptung ein Mensch zu sein, Aussagen zu Preis, Zahlung oder Lieferung, die nicht aus den Fakten stammen.
+   - Verstoß: ein neuer Versuch mit Hinweis; danach Entwurf an den Betreiber mit Karte, kein Versand.
+4. **Strukturierte Funktionen (`llm.py`, `dialog.py`).**
+   - Ein Aufruf je eingehender Nachricht liefert ein geprüftes Schema: Kaufbereitschaft 0 bis 3 mit Beleg, Hinweis auf Minderjährigkeit mit Beleg, expliziter Wunsch, Medienwunsch-Felder mit Quellnachricht.
+   - Ungültige Ausgabe: ein neuer Versuch, danach keine Automatik für diese Nachricht (Entwurf).
+   - Hinweis auf Minderjährigkeit setzt `customers.age_mark = under_18`, sperrt Flirt und Angebote und zeigt eine Karte. Aufheben kann nur der Betreiber (Befehl 44, protokolliert).
+   - Expliziter Wunsch: Antwort aus der Vorlage „Fansly-Verweis“, kein Auftrag.
+   - Freie Default-Anweisungen (bisher B5.4a): Schema mit Befehl, Workflow, Prompt, Optionen und Bezug auf frühere Medien.
+   - Abnahme je Funktion: mindestens 50 deutsche Testfälle mit notierter Trefferquote; bei Minderjährigkeit Fehlalarme und Verfehlungen getrennt (Verfehlungen 0 im Testsatz).
+5. **Gedächtnis (`memory.py`, `store.py`).** Vier Ebenen mit FTS5, Quelle und Zeit je Eintrag, Kunden strikt getrennt, eigener Bereich für den Kundentest. Zusammenfassungen entstehen nachrangig, nie vor einer wartenden Antwort.
+6. **Dialogbetrieb (`server._on_inbound`, `dialog.py`, `store.py`).**
+   - Heute: für Kunden passiert nach dem Speichern nichts.
+   - Neu: der Kundenzweig ruft `dialog.on_inbound`. Automatisch geantwortet wird nur, wenn alle Bedingungen gelten: Automatik des Kontos an, Text-KI der Influencerin an, Modus der Konversation „automatisch“, KI-Hinweis gesendet, Akte nicht gesperrt, Instagram-Fenster offen.
+   - Fehlt der KI-Hinweis, geht er zuerst automatisch raus (genau einmal).
+   - `channel_conversations.mode`: `auto`, `draft`, `manual`. Eine Nachricht vom Handy schaltet auf `manual`.
+   - `channel_messages.status` bekommt `draft` und `cancelled`, dazu die Spalte `scheduled_at`. Das ist ein Tabellenumbau wie in Migration 7 (BUG-097).
+   - Die Altersbedingung in `_create_offer` entfällt; geprüft wird nur noch `under_18` (BUG-077).
+7. **Verhalten (`behavior.py`, `channels/telegram.py`, `channels/instagram.py`).**
+   - Verhaltensprofil je Influencerin in SQLite, versioniert. `reply_delay_min_s`, `reply_delay_max_s` und `typing_chars_per_s` entfallen aus der Konfiguration; `max_messages_per_minute` bleibt als Schutz.
+   - Bündeln: nach der letzten Kundennachricht ein Wartefenster aus dem Profil, erst dann eine Antwort für alle.
+   - Planung: Lesezeit, Bedenkzeit und Tippzeit ergeben `scheduled_at`. Die Erzeugung läuft in dieser Zeit im Hintergrund.
+   - Schreibt der Kunde vor dem Senden neu, wird die geplante Antwort `cancelled` und neu erzeugt.
+   - Ist die Antwort zur Sendezeit nicht fertig, wird gewartet; nach der Grenze aus dem Profil geht eine Vertröst-Vorlage raus (Höchstzahl je Gespräch und Tag).
+   - Telegram: `viewMessages` für Kunden erst zur geplanten Lesezeit; Online-Status ein beim Lesen und Tippen, sonst aus; Tippanzeige wird bis zum Senden erneuert (BUG-096).
+   - Instagram: Text über `max_text_bytes` wird an Satzgrenzen geteilt (BUG-017 Textteil); Gelesen- und Tippsignal, falls die API sie anbietet (am echten Konto prüfen).
+   - Postausgang: eine Sendeaufgabe je Konversation statt einer Schlange je Konto.
+   - Nacht und Kaufbereitschaft nach E3 und E4.
+8. **Kundentest Chat (bisher T1).** Betriebsart `test` des Default-Chats führt in denselben Dialog, mit eigenem Gedächtnisbereich und eigener Testakte. Schalter „Verzögerung wie Kunde“. „Zurücksetzen“ leert Gedächtnis und Hinweisstatus des Tests. Messwerte je Antwort aus `ai_runs`.
 
-**B5.4 Strukturierte KI-Funktionen.** Kaufbereitschaft (Stufe 0–3 mit Beleg), Medienwunsch mit Quellnachrichten, Prompt je Workflow, **Hinweis auf Minderjährigkeit** und **expliziter Wunsch** (je mit Beleg und Unsicherheit). Jede Funktion liefert ein geprüftes Schema; ungültige Ausgabe hat keinen Effekt. Abnahme: je Funktion ≥ 50 deutsche Testfälle mit Trefferquote; bei Minderjährigkeit zusätzlich Fehlalarme und Verfehlungen getrennt notiert (Verfehlungen 0 im Testsatz).
+**Frontend im selben Paket:** FRONTEND §4.2.
 
-**B5.5** entfällt; ersetzt durch den Kundentest T1 und T2 (§7.4).
+**Abnahme am echten System**
 
-**B5.6 Referenzanalyse (FL-5).** Bild oder Vorlage analysieren → bearbeitbarer Prompt (Motiv, Haltung, Perspektive, Kamera, Licht, Kleidung, Hintergrund, Komposition); Kern-Node `TextGenerate` mit Bildeingang ist in ComfyUI vorhanden, das Bildmodell wird vor Nutzung qualifiziert. Pose (SDPose) und Tiefe (DA3) sind bereits registriert.
+1. 20 Nachrichten im Kundentest vom Handy: jede Antwort hat Messwerte; Gesamtzeit p95 unter dem Startwert, auch bei laufendem Bildrender.
+2. Persona ändern: neue Version, andere Antwort; ein Regelverstoß wird nicht gesendet.
+3. Drei schnelle Nachrichten ergeben eine Antwort. Eine neue Nachricht vor der Sendezeit storniert die geplante Antwort.
+4. Die Tippanzeige ist bis zum Senden sichtbar; gelesen wird zur geplanten Zeit.
+5. Zwei Kunden gleichzeitig: keine Vermischung, keiner bremst den anderen.
+6. Testfall „ich bin 16“: Akte gesperrt, Karte sichtbar, keine weitere KI-Antwort.
+7. Testfall expliziter Wunsch: Antwort mit Fansly-Verweis, kein Auftrag.
+8. Neustart mitten in einer geplanten Antwort: nichts doppelt, nichts verloren.
+9. 100 bis 200 Gesprächsschritte mit Widerspruch: das Gedächtnis korrigiert sich; zwei Kunden bleiben getrennt.
 
-**B5.7, B5.8** Text-LoRA (nicht aus GGUF) und Sprache später. Spracherkennung (Kandidaten Whisper, Parakeet) und **Sprachausgabe (TTS): Modell noch nicht festgelegt** (Kandidat u. a. Qwen3-TTS); nichts davon ist zur Installation freigegeben. Sprachnachrichten kommen nach dem Textflirt (E1).
+**Weiter gültig, nicht Teil von SP4:**
+- **B5.6 Referenzanalyse (FL-5, Teil von SP3).** Bild oder Vorlage analysieren → bearbeitbarer Prompt (Motiv, Haltung, Perspektive, Kamera, Licht, Kleidung, Hintergrund, Komposition); Kern-Node `TextGenerate` mit Bildeingang ist in ComfyUI vorhanden, das Bildmodell wird vor Nutzung qualifiziert. Pose (SDPose) und Tiefe (DA3) sind bereits registriert.
+- **B5.7, B5.8** Text-LoRA (nicht aus GGUF) und Sprache später. Spracherkennung (Kandidaten Whisper, Parakeet) und **Sprachausgabe (TTS): Modell noch nicht festgelegt** (Kandidat u. a. Qwen3-TTS); nichts davon ist zur Installation freigegeben. Sprachnachrichten kommen nach dem Textflirt (E1).
 
-### 7.4 Block C5 – Kundenbetrieb und Kundentest
+### 7.4 Block C5 – Kundenbetrieb (C5.1 gehört zu SP4; C5.5 bis C5.10 und T2 bilden SP5, Ausschreibung folgt)
 
 **C5.1 Influencerin vollständig** (BUG-020). Influencerin je Kanalkonto und je Akte; Schalter Text-KI, automatische Antworten, Bildautomatik, Freigabeart (automatisch · Betreiber), Zahlungswege; nie `influencers[0]`.
 - Konten, Zuordnung Konto → Influencerin und die Akten-Regel liefert SP2 (Schritt 9); C5.1 ergänzt je Influencerin den Charakter und die Bedienung im Influencerin-Block.
 - Persona, Preise, Verhalten, Gedächtnis und LoRA gelten je Influencerin und werden nie über Figuren hinweg verwendet.
 - Jede Kundenakte trägt Kanalkonto und Influencerin ab dem ersten Eingang; `CustomerSummary` und die Kundenseiten liefern Influencerin (ID, Name, Farbe) und Konto mit, die Kundenliste ist serverseitig nach Influencerin filterbar (FRONTEND §3.2).
 - Abnahme: zwei Figuren auf zwei Konten ohne Vermischung; je eine Nachricht an Clara und an Lucy erscheint mit der richtigen Figur, der Filter zeigt nur die eigene.
-
-**C5.2 Erstkontakt** (BUG-077).
-- KI-Hinweis automatisch und genau einmal je Kanalidentität.
-- Keine Altersfrage. Die Bedingung „Altersangabe“ vor dem Angebot entfällt (`server._create_offer`).
-- Hinweise auf Minderjährigkeit (Erkennung B5.4) sperren Flirt und Angebote sofort und zeigen eine Karte. Aufheben nur durch den Betreiber im Cockpit, protokolliert: Befehl 44 wird dafür umgewidmet (Werte `none`/`suspected`, Migration aus `unclear`/`under_18`/`self_declared_adult`).
-- Explizite Wünsche: Verweis auf Fansly aus der Vorlage, kein Auftrag.
-- Testbetrieb: die KI antwortet nur freigegebenen Test-Chats.
-- Abnahme: Hinweis nie doppelt, auch nach Neustart; Angebot ohne Altersangabe möglich; Sperre greift im Testfall.
-
-**C5.3 Dialogbetrieb.** Antwortmodus je Gespräch: Automatisch · Entwürfe prüfen · Manuell; neue Kundennachricht oder Betreiberantwort macht Entwürfe ungültig; Handy-Übergabe schaltet auf Manuell. Instagram-Antworten über 1000 Byte werden geteilt, KI-Antworten nie mit Human-Agent-Kennzeichnung. Kanalfähigkeiten (Eingang, Ausgang, Gelesen, Tippen, Grenzen, Medienarten) je Adapter beschrieben, damit WhatsApp und Fansly später passen. Abnahme: drei Kunden gleichzeitig ohne Vermischung; überholter Entwurf wird nie gesendet.
-
-**C5.4 Verhalten** (E3/E4). Verhaltensprofil je Influencerin in SQLite, versioniert; ersetzt `reply_delay_*`/`typing_chars_per_s` der Konfiguration. Startwerte (im Profil änderbar): Gesprächsfluss 10–90 s plus Tippzeit; Erstkontakt, nach Pause, zufällig 30 s–30 min; Nacht 30–60 min oder am Morgen; Kaufbereitschaft ab Stufe 2 wie Gesprächsfluss, auch nachts. `scheduled_at` je Antwort, Storno bei neuer Nachricht oder Handoff; Gelesen frühestens nach dauerhafter Verarbeitung, spätestens mit dem Senden der Antwort, dazwischen nach Profil (E3); Online-Status nach Profil; Tippanzeige nach Antwortlänge; mehrere Kundennachrichten ergeben eine Antwort, lange Antworten gehen als mehrere Nachrichten; Vertrösten aus Vorlagen mit Höchstzahl je Gespräch und Tag. Abnahme: 50 Testnachrichten ergeben die eingestellte Verteilung; zwei Chats bremsen sich nicht; nach Neustart nichts doppelt.
-
-**T1 Kundentest Chat** (braucht C5.4).
-- In der Betriebsart Kundentest wird der Default wie ein Kunde behandelt: Nachrichten der Default-Identität landen in einer eigenen Testakte (Art `test`) mit eigener Konversation und eigenem Gedächtnis; Produktionsverlauf, Kundengedächtnis, Aufträge und Geldfluss bleiben getrennt; jeder Wechsel der Betriebsart erzeugt eine Karte in beiden Verläufen. Der KI-Hinweis wird wie bei Kunden einmal je Testsitzung gesendet; Zurücksetzen startet eine neue Testsitzung.
-- Schalter „Verzögerung wie Kunde“ an oder aus.
-- Messwerte je Antwort: Wartezeit in der KI-Bahn, Erzeugungszeit, Zeichen je Sekunde, geplante und tatsächliche Sendezeit.
-- Abnahme: 20 Nachrichten im Test, Messwerte je Antwort gespeichert, Zurücksetzen leert das Testgedächtnis.
 
 **C5.5 Wunsch und Angebot** (BUG-012, 019, 060).
 - Der Wunsch entsteht über mehrere Gespräche als Datensatz an der Konversation; jede Angabe trägt ihre Quellnachricht; höchstens eine Rückfrage oder ein Vorschlag. Angebot und Auftrag verweisen auf diesen Datensatz.
@@ -497,7 +534,7 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
 - Zusatzleistungen als Preispositionen: Originaldatei, selbstlöschend. Video: Höchstlänge je Preisposition, vom Admin gesetzt.
 - Abnahme: Preis immer aus der Liste; abgelaufenes Angebot nimmt keine Zahlung mehr automatisch an.
 
-**C5.6 Produktion nach Zahlung** (BUG-022, 023, 051). Dank und Lieferzeit aus gemessenen Laufzeiten; Prompt aus B5.4; Start automatisch; nur freigegebene Engines mit der LoRA der Figur; „Neu erzeugen“ als neue Kandidatenstufe ohne neue Zahlung, mit Obergrenze. Abnahme: bezahlter Testauftrag läuft ohne Klick bis zur Freigabe.
+**C5.6 Produktion nach Zahlung** (BUG-022, 023, 051). Dank und Lieferzeit aus gemessenen Laufzeiten; Prompt aus den strukturierten Funktionen (SP4); Start automatisch; nur freigegebene Engines mit der LoRA der Figur; „Neu erzeugen“ als neue Kandidatenstufe ohne neue Zahlung, mit Obergrenze. Abnahme: bezahlter Testauftrag läuft ohne Klick bis zur Freigabe.
 
 **C5.6a Automatische Prüfung und Freigabe** (E8, E11).
 - Prüfungen je Kandidat, Ergebnis gespeichert:
@@ -614,7 +651,7 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
 - **D3 Release-Einheit:** Backend, Frontend und Protokoll zusammen; geöffnete Cockpits laden nach einem Schema-Wechsel automatisch neu (BUG-076); altes Release bleibt startbar.
 - **C4 Default über Instagram-DM:** geteilter Beitrag/Reel als Referenz, sofern Meta die Datei liefert; sonst ehrliche Meldung. Kein Scraping.
 - **C6 Probephase und Gesamtabnahme:** ganze Kundenkette real mit Testkunden, automatische Prüfung und Freigabe, Freigabe vom Handy, Lasttest mit Render, zwei Chats und Zustellung.
-- **C8 Weitere Kanäle (später):** WhatsApp und Fansly über den Kanalvertrag aus C5.3, je mit eigener Freigabe.
+- **C8 Weitere Kanäle (später):** WhatsApp und Fansly über die Kanalfähigkeiten aus SP4 (Schritt 7), je mit eigener Freigabe.
 
 ### 7.8 Zuordnung der Funktionslücken FL-1 bis FL-7 (Betreibermeldung 17.11.)
 
@@ -632,10 +669,10 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
 
 ## 8. Datenmodell (additiv, je Paket mit Migration und Sicherung)
 
-- **Neue Tabellen:** Persona-Versionen, Verhaltensprofile, Erinnerungen (FTS5), KI-Läufe mit Messwerten, Medienwünsche, `cloner_returns` (SP1), Prüfwerte je Kandidat, Zeitachsen-Schlüsselbilder.
+- **Neue Tabellen:** `persona_versions`, Verhaltensprofile, Erinnerungen (FTS5), `ai_runs` (Messwerte je KI-Lauf), Medienwünsche, `cloner_returns` (SP1), Prüfwerte je Kandidat, Zeitachsen-Schlüsselbilder.
 - **Charakter (SP3):** `characters.slug`, `trigger`, `class_word`, Probe-Prompts; `character_loras` (genau eine aktive LoRA je Figur und Architektur); `media_checks` (Prüfwerte je Medium); LoRA-Einträge und lokale Schalter in der nicht versionierten `local/registry.toml`. **Nachricht:** `album_id` (SP1). **Gutschein:** `original_text` (SP2). **Kanalkonten:** `channel_accounts` mit Default-Identität und Betriebsart je Konto (SP2). **Kanalkonten:** `channel_accounts` (S1) mit Zuordnung Konto → Influencerin → Charakter (C5.1); Kundenakte → Influencerin, mehrere Identitäten je Akte. **Medienwunsch** an der Konversation.
-- **Neue Spalten:** Influencerin je Akte und Kanalkonto, Antwortmodus und Kaufbereitschaft je Konversation, stabile ID je Preisposition, Zahlungswege je Influencerin, Trigger und Klasse je Charakter, Influencerin und LoRA-Version je Auftrag, `scheduled_at` je ausgehender Nachricht.
-- **Neue Zustände:** Nachricht „Entwurf“; Auftrag „abgelaufen“, „reklamiert“, „abgeschlossen“, „wartet auf Betreiber“.
+- **Neue Spalten:** Influencerin je Akte und Kanalkonto, `channel_conversations.mode` (`auto`/`draft`/`manual`) und Kaufbereitschaft je Konversation, stabile ID je Preisposition, Zahlungswege je Influencerin, Trigger und Klasse je Charakter, Influencerin und LoRA-Version je Auftrag, `scheduled_at` je ausgehender Nachricht.
+- **Neue Zustände:** Nachricht `draft` und `cancelled` mit `scheduled_at` (Tabellenumbau, SP4); Auftrag „abgelaufen“, „reklamiert“, „abgeschlossen“, „wartet auf Betreiber“.
 - **Default und Test:** Betriebsart und Chat-Wörter am Default-Kontakt, Ausgabeprofil je Befehl, Auftragsquelle `test`, Testakte (Art `test`), Prüfwerte je Kandidat, Freigeber `system`, Höchstlänge je Preisposition.
 
 ## 9. Modelle, Workflows, Reproduzierbarkeit
@@ -656,7 +693,7 @@ Status `PASS` = ein echter Lauf mit Registrierungsprüfung; das ist **keine** Fr
 | Analyse | Pose (SDPose), Tiefe (Depth Anything 3) | – |
 | Video | LTX 2.5 Bild zu Video | Wan 2.2 Bild zu Video, Wan 2.2 Remix v3.0 |
 | Training | – | LUSTIFY Charakter-LoRA, Krea 2 Charakter-LoRA |
-| Text | – | `clara_chat_melody` (B5.1) |
+| Text | – | `clara_chat_melody` (SP4) |
 
 Die Registrierung weist seit 17.11. Graph-Standardwerte außerhalb der deklarierten Grenzen oder Auswahl ab (`models.graph_problems`).
 
@@ -671,20 +708,20 @@ Frei laut `stream.proto` und `commands.proto` am 17.11.2026: Befehle 31–33, 36
 | Paket | STATE | EVENT | Befehle |
 |---|---|---|---|
 | SP1 | 2, 3 additiv | 27 additiv | 59 `order_cancel`, 37 additiv (Betriebsart, Kandidaten, Ausgabeprofil, Chat-Wörter) |
-| B5.1 | 11 KI-Status | 31 KI-Ergebnis | 49 `studio_chat`, 50 `studio_session_reset` |
-| B5.2 | 9 additiv | – | 35 additiv, 51 `llm_settings_update` |
-| B5.3 | – | 32 Gedächtnis geändert | 52 `memory_edit` |
-| C5.3 | – | 27 additiv | 31, 32, 33; 30 additiv |
-| C5.4 | 9 additiv | – | 53 `behavior_update`, 54 `outbox_control` |
+| SP4 Laufzeit | 11 KI-Status | 31 KI-Ergebnis | 49 `studio_chat`, 50 `studio_session_reset` |
+| SP4 Persona | 9 additiv | – | 35 additiv, 51 `llm_settings_update` |
+| SP4 Gedächtnis | – | 32 Gedächtnis geändert | 52 `memory_edit` |
+| SP4 Dialog | – | 27 additiv | 31, 32, 33; 30 additiv |
+| SP4 Verhalten | 9 additiv | – | 53 `behavior_update`, 54 `outbox_control` |
 | C5.5, C5.6 | 4 additiv | 23 additiv | 55 `order_wish_update`, 58 `order_regenerate`; 46 additiv |
 | C5.8 | – | – | 56 `order_aftercare` |
 | C5.9 | – | – | 36 `link_identity` |
 | D1 | – | – | 57 `customer_erase` |
 | SP2 | 8 (alle Konten), 12 Einstellungen | 26 additiv | 60 `secret_set`, 61 `config_update`, 62 `connection_test`, 66 `channel_account_update`; HTTP `GET /api/v1/command/<request_id>` |
-| T1, T2 | – | 31 additiv | 37 additiv, 63 `test_reset` |
+| SP4/SP5 Kundentest | – | 31 additiv | 37 additiv, 63 `test_reset` |
 | C5.6a | 4 additiv | 23 additiv | 35 additiv |
 | SP3 | 5 additiv | – | 25 additiv, 64 `lora_activate`, 65 `reveal_folder`, 67 `character_photos_add` |
-| C5.2 | – | – | 44 umgewidmet (Sperre „minderjährig vermutet“ setzen/aufheben) |
+| SP4 | – | – | 44 umgewidmet (Sperre „minderjährig vermutet“ setzen/aufheben) |
 
 ## 11. Kanäle und Zustellung (Kurzvertrag)
 
