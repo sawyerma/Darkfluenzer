@@ -272,6 +272,13 @@ message DefaultContactUpdate {
   string video_workflow = 9;
 }
 
+// Kanalidentität einer Kundenakte als Absender des Default-Kontakts festlegen (Befehl 48, F7.4):
+// die Identität zieht samt Verlauf zum Default um, eine dadurch leere Kundenakte entfällt.
+message DefaultSenderAssign {
+  uint64 customer_id = 1;
+  uint64 identity_id = 2;
+}
+
 message CommandRequest {
   // UUID je Benutzeraktion. Dieselbe ID mit demselben Befehl liefert dieselbe Antwort
   // ohne zweite Ausführung; dieselbe ID mit anderem Befehl wird abgelehnt.
@@ -299,6 +306,7 @@ message CommandRequest {
     MarkRead mark_read = 29;
     SendReply send_reply = 30;
     DefaultContactUpdate default_contact_update = 37;
+    DefaultSenderAssign default_sender_assign = 48;
     CharacterUpdate character_update = 25;
     StartClonerOrder start_cloner_order = 38;
     ChannelAccountLogin channel_account_login = 39;

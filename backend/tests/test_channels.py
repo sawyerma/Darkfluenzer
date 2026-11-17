@@ -457,3 +457,38 @@ def _png() -> bytes:
     buf = io.BytesIO()
     Image.new("RGB", (8, 8), (1, 2, 3)).save(buf, "PNG")
     return buf.getvalue()
+
+
+def test_default_sender_by_click_moves_identity_and_history(cfg):
+    """Befehl 48 (live 17.11.: privates Zweitkonto landete als Kunde): Identität einer Kundenakte
+    per Klick zum Default – samt Verlauf, die leere Akte entfällt; fremde Identität abgewiesen."""
+
+    async def scenario(client, app, origin):
+        store = app[server.COCKPIT_KEY].store
+        inbound = store.record_inbound(
+            "telegram", "555", "7:1", sender_id="7", conversation_id="7",
+            platform_message_id="1", text="Hallo", sent_at="2026-11-17T00:00:00+00:00",
+        )  # fmt: skip
+        cust, default = inbound.customer.id, store.default_contact()["customer_id"]
+        ident = store.identities(cust)[0]["id"]
+        csrf = await _csrf(client)
+
+        async def assign(customer, identity):
+            req = commands_pb2.CommandRequest(
+                request_id=str(uuid.uuid4()),
+                default_sender_assign=commands_pb2.DefaultSenderAssign(
+                    customer_id=customer, identity_id=identity
+                ),
+            )
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body).detail
+
+        assert "gehört nicht" in await assign(cust, ident + 99)
+        assert await assign(cust, ident) == ""
+        assert store.default_contact()["sender_ids"]["telegram"] == "7"
+        assert [i["text"] for i in store.conversation_items(default, 0, 20)[0]] == ["Hallo"]
+        assert store.customers_overview(cust) == []
+        assert "bereits" in await assign(default, ident)
+
+    _run(cfg, scenario)

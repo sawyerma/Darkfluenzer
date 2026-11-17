@@ -828,6 +828,7 @@ function CustomerPanel({ customer, identities }: { customer: CustomerSummary; id
               {i.account ? ` · Konto ${i.account}` : ""}
             </small>
             <AiNotice customer={customer} identity={i} />
+            <MakeDefault customer={customer} identity={i} />
           </div>
         ))}
       </div>
@@ -1029,6 +1030,38 @@ function AiNotice({ customer, identity }: { customer: CustomerSummary; identity:
       )}
       {cmd.notice ? <small role="alert">{cmd.notice}</small> : null}
     </span>
+  );
+}
+
+/** Absender dieser Kanalidentität als Default festlegen (Befehl 48, F7.4): zieht samt Verlauf
+ *  zum Default um; die leere Kundenakte entfällt. Nur mit Bestätigung. */
+function MakeDefault({ customer, identity }: { customer: CustomerSummary; identity: ChannelIdentity }) {
+  const cmd = useCommand();
+  const [confirm, setConfirm] = useState(false);
+  if (identity.platform !== "telegram" && identity.platform !== "instagram") return null;
+  const assign = () =>
+    void cmd.run(
+      { case: "defaultSenderAssign", value: { customerId: customer.customerId, identityId: identity.identityId } },
+      { done: "Absender ist jetzt Default." },
+    );
+  return (
+    <div className="g-actions">
+      {confirm ? (
+        <>
+          <button type="button" className="g-button g-primary" disabled={cmd.pending} onClick={assign}>
+            Default bestätigen
+          </button>
+          <button type="button" className="g-button" onClick={() => setConfirm(false)}>
+            Abbrechen
+          </button>
+        </>
+      ) : (
+        <button type="button" className="g-button" onClick={() => setConfirm(true)}>
+          Als Default festlegen
+        </button>
+      )}
+      {cmd.notice ? <small role="alert">{cmd.notice}</small> : null}
+    </div>
   );
 }
 

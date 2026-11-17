@@ -698,6 +698,7 @@ class Cockpit:
             "mark_read": self._mark_read,
             "send_reply": self._send_reply,
             "default_contact_update": self._default_contact_update,
+            "default_sender_assign": self._default_sender_assign,
             "start_cloner_order": self._start_cloner_order,
             "character_update": self._character_update,
             "influencer_update": self._influencer_update,
@@ -1792,6 +1793,32 @@ class Cockpit:
             },
             senders,
         )
+        self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)
+        return ""
+
+    async def _default_sender_assign(
+        self, msg: commands_pb2.DefaultSenderAssign, call: _Call
+    ) -> str:
+        """Befehl 48: Absender aus einer Kundenakte zum Default machen – derselbe Weg wie die
+        Absender-ID im Default-Kontakt (Umzug samt Verlauf), nur per Klick an der Identität."""
+        call.entity = f"customer:{msg.customer_id}"
+        current = self.store.default_contact()
+        if msg.customer_id == current["customer_id"]:
+            return "Gehört bereits zum Default."
+        ident = next(
+            (i for i in self.store.identities(msg.customer_id) if i["id"] == msg.identity_id),
+            None,
+        )
+        if ident is None:
+            return "Kanalidentität gehört nicht zu dieser Kundenakte."
+        if ident["platform"] not in ("telegram", "instagram"):
+            return "Default-Absender nur für Telegram oder Instagram."
+        self.store.update_default_contact(
+            current["revision"],
+            {},
+            {(ident["platform"], ident["account"]): ident["platform_user_id"]},
+        )
+        log.info("Default-Absender %s aus Kundenakte %s", ident["platform"], msg.customer_id)
         self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)
         return ""
 
