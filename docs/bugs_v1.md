@@ -198,6 +198,19 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-013 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-121“) – Teil
+Commit: siehe git log „FABLE-013“ / web.commands (_UNLOCKED_COMMANDS)
+Behauptung: BESTÄTIGT – der Registry-Lock umschließt jeden Befehl; ein langer Registry-Befehl (Workflow
+  übernehmen, bis 120 s) hielt „Abbrechen“ und „Anhalten“ auf
+Korrektur: cancel_job und pause_queue laufen ohne den Lock (lesen und ändern keine Registry, danach
+  STATE der Warteschlange); alle übrigen Befehle bleiben unter dem Lock, weil er dort Prüfen-dann-Handeln
+  über await hinweg schützt – deren Aufteilung bleibt OFFEN (kein einfacher Umbau, Hinweis des Auditors)
+Nachweis: tests/test_server.py::test_cancel_and_pause_do_not_wait_for_the_registry_lock (vor der
+  Korrektur Zeitüberschreitung, danach grün); test_server, test_orders, test_customer_orders,
+  test_telegram, test_training, test_lora, test_checks grün
+Ergebnis: TEIL (Abbrechen/Anhalten CODE; übrige Befehle OFFEN)
+Bearbeiter/Datum: Claude, 17.11.2026
+
 ID: FABLE-015 (Audit Fable 17.11., P3; im Auditblatt vorläufig „BUG-123“)
 Commit: siehe git log „FABLE-015“ / store.request_cancel, core.render (enqueue_existing, _cancel_job),
   media.pipeline.run_render

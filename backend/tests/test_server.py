@@ -1045,3 +1045,30 @@ def test_cancel_wish_survives_restart(cfg):
         assert store.queued_jobs() == []
 
     _run(cfg, scenario)
+
+
+def test_cancel_and_pause_do_not_wait_for_the_registry_lock(cfg):
+    """FABLE-013: „Abbrechen“ und „Anhalten“ wirken auch, während ein langer Registry-Befehl
+    (z. B. Workflow übernehmen) den Lock hält."""
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        csrf = await _csrf(client)
+
+        async def send(**kw):
+            req = commands_pb2.CommandRequest(request_id=str(uuid.uuid4()), **kw)
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body)
+
+        async with cockpit._registry:  # langer Registry-Befehl läuft
+            paused = await asyncio.wait_for(
+                send(pause_queue=commands_pb2.PauseQueue(paused=True)), 2.0
+            )
+            assert paused.detail == "" and not cockpit.lanes["media"].resume.is_set()
+            gone = await asyncio.wait_for(send(cancel_job=commands_pb2.CancelJob(job_id=999)), 2.0)
+            assert gone.status == commands_pb2.COMMAND_STATUS_REJECTED
+        resumed = await send(pause_queue=commands_pb2.PauseQueue(paused=False))
+        assert resumed.detail == "" and cockpit.lanes["media"].resume.is_set()
+
+    _run(cfg, scenario)

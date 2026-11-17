@@ -33,6 +33,10 @@ _REGISTRY_EDITS = _REGISTRY_COMMANDS - {"render", "create_order", "open_workflow
 
 _ASYNC_COMMANDS = frozenset({"render", "comfy_start", "comfy_stop"})
 
+# Ohne Registry-Lock: lesen und ändern keine Registry und wirken sofort, auch während ein langer
+# Registry-Befehl (z. B. Workflow übernehmen) läuft (FABLE-013)
+_UNLOCKED_COMMANDS = frozenset({"cancel_job", "pause_queue"})
+
 
 # Befehle, deren Fehler als Ablehnungsgrund an den Betreiber gehen (Eingabe-/Registry-Prüfung)
 _COMMAND_ERRORS = (
@@ -126,22 +130,31 @@ class CommandsMixin:
         }
         version = 0
         crashed: BaseException | None = None  # unerwarteter Fehler im Befehl (FABLE-001)
+
+        async def handle() -> str:
+            nonlocal crashed
+            try:
+                return await handlers[which](getattr(req, which), call)
+            except _COMMAND_ERRORS as exc:
+                return str(exc)
+            except Exception as exc:  # nie ohne Journal: Wiederholung führte erneut aus
+                log.exception("Befehl %s (%s): interner Fehler", which, call.request_id)
+                crashed = exc
+                return ""
+
         if which in ("comfy_start", "comfy_stop"):
             reason = self._comfy_command(which, getattr(req, which).instance or "media", call)
         elif which not in handlers:
             reason = "Unbekannter Befehl"
+        elif which in _UNLOCKED_COMMANDS:
+            reason = await handle()
+            self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
         else:
             async with self._registry:
                 if which in _REGISTRY_COMMANDS and req.expected_version != self._registry_version:
                     reason = "Workflows wurden inzwischen geändert – Ansicht ist aktualisiert."
                 else:
-                    try:
-                        reason = await handlers[which](getattr(req, which), call)
-                    except _COMMAND_ERRORS as exc:
-                        reason = str(exc)
-                    except Exception as exc:  # nie ohne Journal: Wiederholung führte erneut aus
-                        log.exception("Befehl %s (%s): interner Fehler", which, call.request_id)
-                        crashed, reason = exc, ""
+                    reason = await handle()
                     if not reason and which in _REGISTRY_EDITS:
                         fingerprint = await asyncio.to_thread(self._fingerprint)
                         self._registry_version = self.store.bump("workflows", fingerprint)
