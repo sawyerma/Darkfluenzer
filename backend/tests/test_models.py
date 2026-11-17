@@ -278,3 +278,25 @@ def test_local_registry_holds_loras_and_switches(tmp_path):
     )
     with pytest.raises(models.ManifestError, match="gehört nach local/registry.toml"):
         models.load_manifest(tmp_path, text=text)
+
+
+def test_explicit_duplicate_file_is_allowed_and_copied(tmp_path):
+    """Gleiche Konfiguration in zwei Modellordnern: nur mit ``duplicate_of`` erlaubt; der Download
+    kopiert sie aus dem vorhandenen Ziel statt sie erneut zu laden."""
+    shutil.copytree(project_root() / "workflows", tmp_path / "workflows")
+    man = models.load_manifest(tmp_path)
+    dup = man.files["qwen3vl8b_preprocessor_config"]
+    twin = man.files[dup.duplicate_of]
+    base = tmp_path / "models"
+    src = base / twin.target
+    src.parent.mkdir(parents=True)
+    data = project_root() / "local" / "models" / twin.target
+    if not data.is_file():
+        pytest.skip("Vorlage der Datei fehlt (models download --engine quality_vlm)")
+    src.write_bytes(data.read_bytes())
+    assert models.download(man, base, [dup.key]) == {dup.key: "copied"}
+    assert (base / dup.target).read_bytes() == data.read_bytes()
+    text = (tmp_path / "workflows" / "manifest.toml").read_text()
+    text = text.replace('duplicate_of = "qrealign_preprocessor"\n', "", 1)
+    with pytest.raises(models.ManifestError, match="dieselbe Datei"):
+        models.load_manifest(tmp_path, text=text)

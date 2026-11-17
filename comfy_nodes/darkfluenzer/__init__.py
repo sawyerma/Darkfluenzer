@@ -9,6 +9,8 @@
 
 from .content import ContentRating
 from .face import FaceIdentity
+from .hands import HandCheck
+from .promptfidelity import PromptFidelity
 from .quality import ImageQuality
 from .qualityscore import QualityScore
 from .train import TrainLoraResumable
@@ -16,14 +18,18 @@ from .train import TrainLoraResumable
 NODE_CLASS_MAPPINGS = {
     "DarkfluenzerContentRating": ContentRating,
     "DarkfluenzerFaceIdentity": FaceIdentity,
+    "DarkfluenzerHandCheck": HandCheck,
     "DarkfluenzerImageQuality": ImageQuality,
+    "DarkfluenzerPromptFidelity": PromptFidelity,
     "DarkfluenzerQualityScore": QualityScore,
     "DarkfluenzerTrainLora": TrainLoraResumable,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "DarkfluenzerContentRating": "Darkfluenzer · Inhaltsprüfung",
     "DarkfluenzerFaceIdentity": "Darkfluenzer · Gesichtsidentität",
+    "DarkfluenzerHandCheck": "Darkfluenzer · Handprüfung",
     "DarkfluenzerImageQuality": "Darkfluenzer · Bildqualität (technisch)",
+    "DarkfluenzerPromptFidelity": "Darkfluenzer · Prompttreue (VQAScore)",
     "DarkfluenzerQualityScore": "Darkfluenzer · Bildqualität (Q-ReAlign)",
     "DarkfluenzerTrainLora": "Darkfluenzer · LoRA trainieren (Checkpoints)",
 }

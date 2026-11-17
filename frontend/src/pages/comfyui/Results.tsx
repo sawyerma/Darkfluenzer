@@ -14,9 +14,11 @@ const RECENT_RESULTS = 4;
 const CHECK_STATUS: Record<string, string> = {
   kein_gesicht: "nicht prüfbar (kein ausreichend großes Gesicht)",
   keine_referenz: "keine Referenzfotos der Figur",
+  kein_prompt: "kein Prompt",
+  keine_haende: "keine Hände erkannt",
 };
 
-const CHECK_NAME: Record<string, string> = { identity: "Identität", content: "Inhalt", quality: "Technik", quality_score: "Qualität" };
+const CHECK_NAME: Record<string, string> = { identity: "Identität", content: "Inhalt", quality: "Technik", quality_score: "Qualität", prompt_fidelity: "Prompttreue", hands: "Hände" };
 
 /** Kurztext eines Messwerts; Schwellen und Entscheidung liegen im Backend (SP5 Schritt 7). */
 function checkText(c: MediaCheck): string {
@@ -28,6 +30,13 @@ function checkText(c: MediaCheck): string {
       .filter(([k]) => k.startsWith("regions.") && k.endsWith("_EXPOSED"))
       .map(([k, v]) => `${k.slice(8)} ${v.toFixed(2)}`);
     return [`${rating} ${(c.values[rating] ?? 0).toFixed(2)}`, ...exposed].join(" · ");
+  }
+  if (c.check === "hands") {
+    return `${c.values.hands ?? 0} erkannt · zählbar min ${(c.values.countable_min ?? 0).toFixed(2)}`;
+  }
+  if (c.check === "prompt_fidelity") {
+    const parts = c.values.parts ?? 1;
+    return `VQAScore ${(c.values.score ?? 0).toFixed(2)}${parts > 1 ? ` · min ${(c.values.min ?? 0).toFixed(2)} · ${parts} Teile` : ""}`;
   }
   if (c.check === "quality_score") {
     const parts = [`Q-ReAlign ${(c.values.quality ?? 0).toFixed(2)}`];

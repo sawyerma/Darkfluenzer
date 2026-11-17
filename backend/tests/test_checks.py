@@ -194,8 +194,11 @@ def test_check_plan_needs_models_and_a_figure_for_identity(setup, monkeypatch):
     # ohne Modelldateien (Testprojekt) nur die modellfreie technische Qualitätsprüfung
     assert [s.name for s, _ in pipeline.check_plan(cfg, man, wf, None)] == ["quality"]
     monkeypatch.setattr(models, "file_state", lambda mf, base: "present")
-    names = [s.name for s, _ in pipeline.check_plan(cfg, man, wf, None)]
-    assert names == ["content", "quality", "quality_score"]
+    plan = pipeline.check_plan(cfg, man, wf, None, {"prompt": "woman in a garden"})
+    assert [s.name for s, _ in plan] == [
+        "content", "quality", "quality_score", "prompt_fidelity", "hands",
+    ]  # fmt: skip
+    assert dict((s.name, r) for s, r in plan)["prompt_fidelity"] == {"prompt": "woman in a garden"}
     lora = models.Lora(
         key="k", target="loras/characters/clara/k.safetensors", size=1, sha256="a" * 64,
         base_engine="lustify_sdxl", base_file=man.engines["lustify_sdxl"].files[0], dataset="d",
@@ -276,3 +279,72 @@ def test_quality_node_measures_blur_noise_and_clipping():
     clipped[64:96] = 255
     values = quality.measure_gray(clipped)
     assert values["clipped_dark"] == 0.25 and values["clipped_bright"] == 0.125
+
+
+def test_prompt_fidelity_splits_long_prompts():
+    """VQAScore je Teil: kurze Prompts bleiben ganz, lange werden an Satz-/Kommagrenzen geteilt."""
+    package = types.ModuleType("df_nodes")
+    package.__path__ = []
+    memory = types.ModuleType("df_nodes.memory")
+    memory.register = lambda cache: cache
+    fake = types.ModuleType("folder_paths")
+    fake.get_filename_list = lambda folder: []
+    mm = types.ModuleType("comfy.model_management")
+    comfy_pkg = types.ModuleType("comfy")
+    comfy_pkg.model_management = mm
+    sys.modules |= {"df_nodes": package, "df_nodes.memory": memory, "folder_paths": fake,
+                    "comfy": comfy_pkg, "comfy.model_management": mm}  # fmt: skip
+    try:
+        path = project_root() / "comfy_nodes" / "darkfluenzer" / "promptfidelity.py"
+        spec = importlib.util.spec_from_file_location("df_nodes.promptfidelity", path)
+        node = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(node)
+    finally:
+        for name in ("comfy", "comfy.model_management"):
+            sys.modules.pop(name, None)
+    assert node.parts_of("  a woman   in a garden ") == ["a woman in a garden"]
+    assert node.parts_of("") == []
+    long = ", ".join(f"detail number {i} of the scene" for i in range(20))
+    parts = node.parts_of(long)
+    assert len(parts) > 1 and all(len(p) <= node.MAX_PART_CHARS for p in parts)
+    assert " ".join(parts).replace(", ", ",").count("detail number") == 20
+
+
+def test_hand_node_anchors_and_crop_geometry():
+    """Handprüfung: 2016 berechnete Anker wie die MediaPipe-Tabelle (Anfang, Ende); der Ausschnitt
+    ist quadratisch, 2,6-mal die Handfläche und Richtung Finger verschoben, auch am Bildrand."""
+    import cv2  # noqa: F401  (Knoten braucht OpenCV)
+
+    package = types.ModuleType("df_nodes")
+    package.__path__ = []
+    memory = types.ModuleType("df_nodes.memory")
+    memory.register = lambda cache: cache
+    fake = types.ModuleType("folder_paths")
+    fake.get_filename_list = lambda folder: []
+    mm = types.ModuleType("comfy.model_management")
+    comfy_pkg = types.ModuleType("comfy")
+    comfy_pkg.model_management = mm
+    sys.modules |= {"df_nodes": package, "df_nodes.memory": memory, "folder_paths": fake,
+                    "comfy": comfy_pkg, "comfy.model_management": mm}  # fmt: skip
+    try:
+        pytest.importorskip("timm")
+        path = project_root() / "comfy_nodes" / "darkfluenzer" / "hands.py"
+        spec = importlib.util.spec_from_file_location("df_nodes.hands", path)
+        hands = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(hands)
+    finally:
+        for name in ("comfy", "comfy.model_management"):
+            sys.modules.pop(name, None)
+    anchors = hands.palm_anchors()
+    assert anchors.shape == (2016, 2)
+    assert np.allclose(anchors[0], [1 / 48, 1 / 48]) and np.allclose(
+        anchors[-1], [23 / 24, 23 / 24]
+    )
+    image = np.zeros((400, 600, 3), np.uint8)
+    box = np.array([100.0, 200.0, 140.0, 240.0])  # Handfläche 40 px
+    marks = np.zeros((7, 2))
+    marks[0], marks[2] = [120, 240], [120, 200]  # Finger zeigen nach oben
+    crop = hands.hand_crop(image, box, marks)
+    assert crop.shape[:2] == (104, 104)  # 2,6 × 40 px
+    edge = hands.hand_crop(image, np.array([0.0, 0.0, 40.0, 40.0]), marks)
+    assert edge.shape[:2] == (104, 104)  # am Rand mit Rand aufgefüllt

@@ -243,7 +243,11 @@ def checkpoint_dir(cfg: Config, man: Manifest, wf: Workflow, dataset: str, value
 
 
 def check_plan(
-    cfg: Config, man: Manifest, wf: Workflow, lora: comfy.LoraUse | None
+    cfg: Config,
+    man: Manifest,
+    wf: Workflow,
+    lora: comfy.LoraUse | None,
+    values: dict | None = None,
 ) -> list[tuple[models.CheckSpec, dict]]:
     """Prüfknoten der Prüfkette für diesen Lauf (E16/E17): nur Bild-Workflows, die Bilder erzeugen
     (keine Analyse, kein Training), nur Prüfungen mit vorhandenen Modelldateien; Prüfungen mit
@@ -268,6 +272,8 @@ def check_plan(
                 "min_face_px": cfg.identity.min_face_px,
                 "min_score": cfg.identity.min_score,
             }
+        if spec.prompt:  # Prompttreue: der Prompt des Auftrags (ohne vorangestellten Trigger)
+            runtime["prompt"] = str((values or {}).get("prompt", ""))
         plan.append((spec, runtime))
     return plan
 
@@ -737,7 +743,7 @@ def _render(
             unload_first=unload_first,
             overrides=overrides,
             lora=lora,
-            checks=check_plan(cfg, man, wf, lora),
+            checks=check_plan(cfg, man, wf, lora, values),
             keyframes=frames,
         )
     checks: dict = {}

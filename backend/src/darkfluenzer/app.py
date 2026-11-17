@@ -147,7 +147,7 @@ def _models(args: argparse.Namespace) -> tuple[dict, int]:
         return {"ok": not bad, "files": res}, 8 if bad else 0
     setup_logging(load(), "models.log")
     res = models.download(man, base, keys)
-    failed = {k: v for k, v in res.items() if v not in ("present", "downloaded")}
+    failed = {k: v for k, v in res.items() if v not in ("present", "downloaded", "copied")}
     return {"ok": not failed, "files": res, "failed": failed}, 8 if failed else 0
 
 

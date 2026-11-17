@@ -266,6 +266,9 @@ Mac-Lauf 17.11.2026: timm 1.0.31 in der ComfyUI-venv (nur dieses Paket), Modelle
   und Qualität (Knoten 9000/9001); Test tests/test_checks.py::test_quality_node_measures_blur_noise_and_clipping
   E17 Teil 2: Q-ReAlign-Pro-9B als Knoten (12 Dateien mit SHA-256, Download einmal hängen geblieben und neu
   gestartet); Job 99 → Medium 102 mit Inhalt, Technik und Qualität 0,998; Freigabe beim /free belegt (Log)
+  E17 Teil 3: Prompttreue (Qwen3-VL-8B, VQAScore) und Hände (MediaPipe + CountHallu) als Knoten; Job 100 →
+  Medium 103 mit fünf Prüfungen; Befund unterwegs: Qwen antwortet „yes“ klein, nur „Yes“ gezählt ergab 0,15 statt
+  1,0 – jetzt über alle Schreibweisen; Download-Status „copied“ galt als Fehler (Exit 8), behoben
 Ergebnis: Implementierung PASS (messen); Schwellen, Entscheidung, weitere Prüfer OFFEN
 Bearbeiter/Datum: Claude, 17.11.2026
 ```

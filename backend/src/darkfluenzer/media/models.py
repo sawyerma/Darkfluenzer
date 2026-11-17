@@ -55,6 +55,9 @@ class ModelFile:
     target: str
     size: int
     sha256: str
+    # dieselbe Datei wie ein anderer Eintrag (z. B. gleiche Konfiguration in zwei Modellordnern):
+    # ausdrücklich erlaubt, beim Laden wird sie aus dessen Ziel kopiert statt neu geladen
+    duplicate_of: str = ""
 
     @property
     def comfy_name(self) -> str:
@@ -281,6 +284,7 @@ class CheckSpec:
     engine: str  # Engine mit den Modelldateien (Bereitschaft)
     inputs: dict  # feste Eingänge (Modelldateien, Grenzen)
     character: bool = False  # nur mit Figur (Referenzsatz, z. B. Gesichtsidentität)
+    prompt: bool = False  # bekommt den Prompt des Auftrags (Prompttreue)
 
 
 @dataclass(frozen=True)
@@ -464,6 +468,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             target=_str(t, "target", w),
             size=t.get("size") if isinstance(t.get("size"), int) else -1,
             sha256=_str(t, "sha256", w),
+            duplicate_of=str(t.get("duplicate_of", "")),
         )
         if mf.size <= 0:
             raise ManifestError(f"Manifest: {w}.size muss eine positive Ganzzahl sein.")
@@ -480,6 +485,13 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
         files[key] = mf
     shas: dict[str, str] = {}
     for mf in files.values():
+        if mf.duplicate_of:
+            twin = files.get(mf.duplicate_of)
+            if twin is None or twin.sha256 != mf.sha256 or twin.size != mf.size:
+                raise ManifestError(
+                    f"Manifest: {mf.key}.duplicate_of passt nicht zu {mf.duplicate_of}."
+                )
+            continue
         if mf.sha256 in shas:
             raise ManifestError(f"Manifest: {mf.key} und {shas[mf.sha256]} sind dieselbe Datei.")
         shas[mf.sha256] = mf.key
@@ -657,6 +669,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             engine=_str(t, "engine", w),
             inputs=dict(t.get("inputs") or {}),
             character=bool(t.get("character", False)),
+            prompt=bool(t.get("prompt", False)),
         )
         if spec.engine not in engines:
             raise ManifestError(f"Manifest: {w}.engine '{spec.engine}' unbekannt.")
@@ -1044,6 +1057,18 @@ def download(man: Manifest, base: Path, keys: list[str]) -> dict[str, str]:
             f"Reserve {man.reserve_gb:.0f} GB."
         )
     results = {k: "present" for k in keys if man.files[k] not in todo}
+    for mf in list(todo):  # ausdrücklich gleiche Datei: aus dem vorhandenen Ziel kopieren
+        twin = man.files.get(mf.duplicate_of) if mf.duplicate_of else None
+        if twin is not None and file_state(twin, base) == "present":
+            target = base / mf.target
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(base / twin.target, target)
+            if sha256_of(target) != mf.sha256:
+                target.unlink(missing_ok=True)
+                results[mf.key] = "MISMATCH"
+            else:
+                results[mf.key] = "copied"
+            todo.remove(mf)
     for mf in todo:
         staging = base / STAGING / mf.key
         t0 = time.monotonic()
