@@ -198,6 +198,19 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: B4 Zeitachse (Teil 3): Schlüsselbild aus Dateien, Zeitleiste mit Marken
+Commit: f118978 (Workbench, graphite.css)
+Behauptung: Schlüsselbilder nur als Upload, keine Zeitleiste
+Korrektur: je Schlüsselbild „Aus Dateien“ (Galerie-Medium per ID, Backend prüft den SHA-256, Inhaltsstufe
+  zählt mit, FABLE-008); Zeitleiste über die Videodauer (SVG, Marken Start/Schlüsselbilder/Ende, rot =
+  außerhalb oder ohne Bild, Klick setzt ein Schlüsselbild)
+Nachweis: echter Lauf aus dem Cockpit 18.11. (Playwright mit Chrome, Job 102, LTX 2.5 FLF2V 512×320,
+  3 s, 73 Frames, 193,6 s): Start-, End- und Schlüsselbild (1,5 s) aus Dateien, Inhaltsstufe standard;
+  Frame 36 entspricht sichtbar dem Schlüsselbild, Frame 72 dem Endbild; Prüfkette: 10 Frames geprüft,
+  Inhalt neutral, zeitlich 0 Sprünge; npm run build und 14 Frontend-Tests grün
+Ergebnis: TEIL (Kette am Mac belegt; 15 s mit vier Schlüsselbildern = Modellqualifikation, OFFEN)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: E17 Teil 4 / SP5 Schritt 7 (Video: Frameprüfung und zeitliche Konsistenz)
 Commit: siehe git log „E17 part 4“ / comfy_nodes frames.py, temporal.py; comfy.inject_checks; Manifest
 Behauptung: Prüfkette lief nur vor SaveImage; Videos wurden nicht geprüft
