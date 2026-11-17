@@ -9,7 +9,7 @@
 1. **Ablauf je Befund:** gegen den aktuellen Code prüfen; Test schreiben, der den Fehler zeigt (rot); korrigieren; Test grün; Normalfall, Fehlerfall und Neustart prüfen; Lauf auf dem echten Mac; Protokollzeile (§6).
 2. **Belegstufen:** **CODE** im Quelltext gelesen, kein Lauf · **TEST** durch vorhandenen Test belegt · **LIVE** am laufenden System gesehen · **FREMD** Fremdmeldung, vor der Korrektur im Code bestätigen · **HYPOTHESE** nur ein Lauf entscheidet.
 3. **Priorität:** **P0** – die P0-Befunde der Default-Kette sind vor der Abnahme von Etappe C geschlossen; alle übrigen vor dem ersten echten Kunden außerhalb des Testbetriebs (Backend §6, Tore) · **P1** vor dem ersten echten Kunden · **P2** danach gezielt · **P3** Pflege.
-4. **Status:** OFFEN · BEHOBEN (Code korrigiert, Mac-Nachweis fehlt) · TEIL (Teil am Mac belegt) · PASS (Mac-Nachweis liegt vor) · WIDERLEGT.
+4. **Status:** OFFEN · CODE (Code korrigiert, Mac-Nachweis fehlt; **[17.11.]** bisher „BEHOBEN“, wie PHASENPLAN_BACKEND §2.3) · TEIL (Teil am Mac belegt) · PASS (Mac-Nachweis liegt vor) · WIDERLEGT.
 5. Tests mit Ersatzobjekten (FakeTd, FakeComfy, Testinstanz) sind Regression, kein Nachweis. Keine künstlichen Daten in der echten Datenbank.
 6. Regressionstests: Backend `backend/tests/test_bugs_v1.py` als `test_bugNNN_…` oder im fachlichen Testmodul, Frontend `frontend/tests/`.
 7. Spalte „Paket“ verweist auf die Pläne; ein Befund wird im genannten Paket geschlossen. Ein Fix schließt alle verknüpften IDs, jede mit eigenem Testbeleg.
@@ -130,18 +130,18 @@
 
 | ID | Stand | Offener Mac-Nachweis |
 |---|---|---|
-| BUG-001 | BEHOBEN (`ab1d9cf`) | Browser mit echtem Kundenanhang |
-| BUG-002 | BEHOBEN, lokal TEIL (17.11. 00:23: Weiterleitungs-Header 403) | echter Tunnel |
-| BUG-003 | BEHOBEN (`4f79bfd`) | echter Kanal Telegram und Instagram |
-| BUG-004 | BEHOBEN (`018f462`) | echter Rückversand |
-| BUG-005 | BEHOBEN (`cd0ff68`) | echte Zahlung |
-| BUG-006 | BEHOBEN (`9927140`) | erster Kundenauftrag |
+| BUG-001 | CODE (`ab1d9cf`) | Browser mit echtem Kundenanhang |
+| BUG-002 | CODE, lokal TEIL (17.11. 00:23: Weiterleitungs-Header 403) | echter Tunnel |
+| BUG-003 | CODE (`4f79bfd`) | echter Kanal Telegram und Instagram |
+| BUG-004 | CODE (`018f462`) | echter Rückversand |
+| BUG-005 | CODE (`cd0ff68`) | echte Zahlung |
+| BUG-006 | CODE (`9927140`) | erster Kundenauftrag |
 | BUG-038 | PASS: Telegram-Chat ohne Position wird nach Neustart nachgeholt, nur Ungelesenes (`36433c8`, `b4ad0c4`), live 17.11. | – |
 | BUG-039 | PASS: Register öffnet bei Ungelesenem nach Neuladen (`b4ad0c4`), live 17.11. | – |
-| BUG-040 | BEHOBEN: Name aus Chat-Titel (`e83b7f5`) | Sichtprüfung beim nächsten Eingang |
+| BUG-040 | CODE: Name aus Chat-Titel (`e83b7f5`) | Sichtprüfung beim nächsten Eingang |
 | BUG-041 | PASS: „Als Default festlegen“ (Befehl 48, `ad82d0d`), Klicktest an Testinstanz, Umzug live per ID-Feld | – |
 | BUG-042 | PASS: Seed-Grenzen (`932c9ec`), LTX-Job 64 danach aus dem Cockpit | – |
-| BUG-044 | BEHOBEN im Cockpit (Video Standard 1, `ebbe773`); Kloner siehe BUG-054 | Sichtprüfung |
+| BUG-044 | CODE im Cockpit (Video Standard 1, `ebbe773`); Kloner siehe BUG-054 | Sichtprüfung |
 | BUG-045 | **WIDERLEGT** 17.11.: im echten Chrome läuft das LTX-Video (960×1280, `readyState` 4); schwarz war nur Playwrights Chromium ohne H.264 (`MEDIA_ERR_SRC_NOT_SUPPORTED`). | – |
 | BUG-046 | PASS 17.11.: Warteschlange angehalten → Neustart → weiterhin angehalten → fortgesetzt | – |
 | BUG-012 | Kernaussage WIDERLEGT (Zeitfilter vorhanden); Rest §3 | – |
@@ -208,7 +208,7 @@ Korrektur: suchen und hashen ohne Sperre, Index-Einträge in kurzer Transaktion 
   wieder) – nie ein Index-Eintrag ohne Datei
 Nachweis: tests/test_journal.py::test_delete_media_scans_without_the_write_lock_and_keeps_index_and_files_apart
   (vor der Korrektur rot, danach grün); bestehender Löschtest in test_server.py grün
-Ergebnis: PASS
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
@@ -222,7 +222,7 @@ Korrektur: jeder sonstige Fehler wird protokolliert (Traceback im Log) und festg
   können; dieselbe request_id führt nie ein zweites Mal aus. Der Wallet-Assert selbst bleibt SP5.
 Nachweis: tests/test_server.py::test_unexpected_command_error_is_journaled_and_never_repeated – vorher rot
   (HTTP 500), danach grün; Gesamtlauf 193 bestanden
-Ergebnis: PASS
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
@@ -239,7 +239,7 @@ Korrektur: Zulassung überspringt eine nicht entladbare Instanz (Warnung) statt 
 Nachweis: tests/test_server.py::test_queue_survives_a_failing_free_of_the_other_instance,
   tests/test_orders.py::test_failed_post_processing_ends_the_job_as_failed – beide vor der Korrektur rot
   (ComfyError aus der Zulassung bzw. Job running), danach grün; Gesamtlauf 192 bestanden
-Ergebnis: PASS
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
@@ -251,7 +251,7 @@ Behauptung FABLE-008: BESTÄTIGT – weitere Schlüsselbilder (bb7c98f) gingen n
 Nachweis: tests/test_orders.py::test_keyframes_count_for_the_content_tier (Galerie standard/explizit, fremdes Bild,
   gemischt, Auftrag und Wiederholen) – vor der Korrektur rot („standard“ statt „explizit“), danach grün;
   ::test_retry_of_a_seconds_video_keeps_its_length (BUG-109) – vorher rot („Abschnitte gibt es … nicht“)
-Ergebnis: PASS (beide); Auditregister docs/bugs_fable_v1.md führt FABLE-001…017, BUG-109 ff. bleiben hier
+Ergebnis: CODE (beide; Tests rot/grün, Mac-Lauf folgt mit der Etappe); Auditregister docs/bugs_fable_v1.md führt FABLE-001…017, BUG-109 ff. bleiben hier
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
@@ -284,7 +284,7 @@ Mac-Lauf 17.11.2026: timm 1.0.31 in der ComfyUI-venv (nur dieses Paket), Modelle
   E17 Teil 3: Prompttreue (Qwen3-VL-8B, VQAScore) und Hände (MediaPipe + CountHallu) als Knoten; Job 100 →
   Medium 103 mit fünf Prüfungen; Befund unterwegs: Qwen antwortet „yes“ klein, nur „Yes“ gezählt ergab 0,15 statt
   1,0 – jetzt über alle Schreibweisen; Download-Status „copied“ galt als Fehler (Exit 8), behoben
-Ergebnis: Implementierung PASS (messen); Schwellen, Entscheidung, weitere Prüfer OFFEN
+Ergebnis: TEIL (Implementierung, messen); Schwellen, Entscheidung, weitere Prüfer OFFEN
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
@@ -299,7 +299,7 @@ Mac-Lauf 17.11.2026: ComfyUI 1, LUSTIFY SDXL, 2 Bilder 512 px, 6 Schritte, Check
   Verlust A = B je Schritt, Gewichte und LoRA-Datei Abweichung 0,0, Schrittzahl 6. Gefunden und behoben:
   Checkpoint-Tensoren im inference_mode geladen; Optimiererzustand vor dem Verschieben auf mps; Startgewichte
   aus dem Prozess-Zufall (jetzt aus dem Seed)
-Ergebnis: Implementierung PASS (Abnahme Fortsetzen bestanden); volles Charaktertraining OFFEN (keine Fotos)
+Ergebnis: TEIL (Implementierung, Abnahme Fortsetzen bestanden); volles Charaktertraining OFFEN (keine Fotos)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
@@ -314,7 +314,7 @@ Nachweis: tests/test_checks.py (Engine identity, Prüf-Workflow; Messwerte aus d
 Mac-Lauf 17.11.2026: OpenCV in der ComfyUI-venv (nur dieses Paket, numpy unverändert), ComfyUI 1 neu gestartet,
   Knoten geladen; direkter Lauf: gleiches Bild SFace/AuraFace 1,000, andere Person 0,055/0,050; Browser-Kette
   „Prüfen · Gesichtsidentität“ für Clara → Job 92 → keine_referenz (reference/ leer), Gesicht 123 px, Medium 94
-Ergebnis: Implementierung PASS; Identitätswerte gegen echte Referenzfotos OFFEN (Qualifikation); Textweg für
+Ergebnis: TEIL (Implementierung); Identitätswerte gegen echte Referenzfotos OFFEN (Qualifikation); Textweg für
   Sprach-Workflows bleibt BUG-098/SP4
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
@@ -328,7 +328,7 @@ Nachweis: tests/test_lora.py (Migration 22 mit Sicherung, genau eine aktive je F
   über den Server mit STATE arch/active/strength, fremde LoRA abgelehnt, Aufheben)
 Mac-Lauf 17.11.2026: echte Datenbank 21 → 22, Sicherung vor-migration22, Cockpit ohne Fehler; Smoke-Test grün;
   Formular „Charakter-LoRA“ im echten Cockpit (nur „ohne“, noch keine LoRA)
-Ergebnis: Implementierung PASS; Aktiv setzen mit echter LoRA und Probebilder OFFEN (keine Fotos)
+Ergebnis: TEIL (Implementierung); Aktiv setzen mit echter LoRA und Probebilder OFFEN (keine Fotos)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
@@ -343,7 +343,7 @@ Nachweis: tests/test_lora.py (Lader entfernt und Eingänge durchgereicht in alle
   eingereichter Graph über run_render); Graph ohne LoRA == abgenommener Graph (alle sechs gegen HEAD)
 Mac-Lauf 17.11.2026: lustify_sdxl_t2i Job 90 (20,5 s) und krea2_raw_turbo_lora_t2i Job 91 (74,2 s), je
   8 Schritte 768 × 768, ohne Charakter-LoRA: Lader entfernt, Turbo-LoRA bleibt, echte Bilder
-Ergebnis: Implementierung PASS; Lauf mit geladener Charakter-LoRA OFFEN (keine Fotos, keine LoRA);
+Ergebnis: TEIL (Implementierung); Lauf mit geladener Charakter-LoRA OFFEN (keine Fotos, keine LoRA);
   Bindung am Default-Auftrag (Influencerin, Charakter) bleibt SP1
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
@@ -359,7 +359,7 @@ Nachweis: tests/test_models.py::test_local_registry_holds_loras_and_switches (Ma
   Registry-Version über die lokale Datei
 Mac-Lauf 17.11.2026: Zeile enabled aus dem Manifest nach local/registry.toml; Cockpit neu gestartet, 20 Workflows,
   LUSTIFY aktiviert aus der lokalen Datei, keine Fehler im Log
-Ergebnis: BUG-092, BUG-037 PASS; BUG-094 Implementierung PASS, Eintrag für lustify_sam31_edit OFFEN (Probelauf)
+Ergebnis: BUG-092, BUG-037 PASS; BUG-094 TEIL (Implementierung), Eintrag für lustify_sam31_edit OFFEN (Probelauf)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
@@ -383,7 +383,7 @@ Behauptung: BESTÄTIGT (reines FIFO)
 Nachweis: tests/test_orders.py::test_queue_priority_classes_and_order (Kunde vor Default vor Cockpit vor Training,
   Reihenfolge aus der Konfiguration, ohne Vorrang FIFO)
 Mac-Lauf 17.11.2026: echte Datenbank 19 → 20 mit Sicherung; Warteschlange zeigt „· Cockpit“
-Ergebnis: PASS (Implementierung); Vorrang mit echten Kundenaufträgen folgt mit SP5
+Ergebnis: TEIL (Implementierung); Vorrang mit echten Kundenaufträgen folgt mit SP5
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
@@ -395,7 +395,7 @@ Nachweis: tests/test_server.py::test_command_status_endpoint, frontend tests/com
   Senden mit derselben request_id, danach Endzustand)
 Mac-Lauf 17.11.2026: Sitzung liefert X-Command-Wait-S 30; Anhalten/Fortsetzen im Cockpit quittiert; unbekannte
   Kennung -> 404
-Ergebnis: PASS (Implementierung); Verbindungsabbruch mitten im Befehl am echten System gehört zur SP2-Abnahme
+Ergebnis: TEIL (Implementierung); Verbindungsabbruch mitten im Befehl am echten System gehört zur SP2-Abnahme
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
@@ -417,7 +417,7 @@ Commit: siehe git log „BUG-093“ / workflows/manifest.toml (Wan-Formate), med
 Behauptung: BESTÄTIGT (Wan-Engines ohne formats)
 Nachweis: tests/test_models.py::test_engine_formats_must_fit_every_workflow (gleiche Namen wie LTX, Grenzen/Raster geprüft)
 Mac-Lauf 17.11.2026: Cockpit zeigt bei Wan 2.2 und Remix 16:9 · 1280 × 720, 9:16 · 720 × 1280, 1:1, 3:4, 4:5
-Ergebnis: PASS (Implementierung); Render in 720p gehört zur Modellqualifikation
+Ergebnis: TEIL (Implementierung); Render in 720p gehört zur Modellqualifikation
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
@@ -452,7 +452,7 @@ Behauptung: BESTÄTIGT (Hash und Kennzeichnung im Hauptstrang; zusätzlich: Ganz
 Nachweis: tests/test_mainloop.py mit DF_MAINLOOP_MB=500: vorher 899 ms Blockade (rot), danach < 100 ms (grün);
   aimeta-Ausgabe byte-gleich zum alten Verfahren (MP4 mit udta/meta/altem XMP, 64-Bit-Kiste)
 Mac-Lauf 17.11.2026: Cockpit neu gestartet, Betriebsanzeige „Hauptstrang 1 ms (max 2)“
-Ergebnis: PASS (Dateiarbeit); lange Datenbankabfragen folgen mit BUG-107/SP0 Schritt 6
+Ergebnis: TEIL (Dateiarbeit PASS); lange Datenbankabfragen folgen mit BUG-107/SP0 Schritt 6
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 

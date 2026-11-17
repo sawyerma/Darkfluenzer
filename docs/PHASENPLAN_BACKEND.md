@@ -4,7 +4,7 @@
 **Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; echte Läufe vom 16./17.11. auf dem Mac (§5).
 **Verbindlich sind genau drei Dateien:** diese, `docs/PHASENPLAN_FRONTEND.md` und `docs/bugs_v1.md` (Befundregister).
 **Archiv (nicht verbindlich):** `docs/archiv/` mit `PHASENPLAN_V0.md`, `PHASENPLAN_BACK_V1.md`, `PHASENPLAN_FRONT_V1.md`, `ki_modelle.md`, `bugs_v1_20261117_vor_neufassung.md`. Code-Kommentare mit Verweisen auf V0/V1-Abschnitte beziehen sich auf diese Archivfassungen.
-**Quellen dieser Fassung:** die bisherigen Pläne, die Konsolidierungen und Prüfberichte von ChatGPT und Fable, die Betreiberantworten E1–E18 vom 17.11.2026 und der Code.
+**Quellen dieser Fassung:** die bisherigen Pläne, die Konsolidierungen und Prüfberichte von ChatGPT und Fable, die Betreiberantworten E1–E18 vom 17.11.2026 und der Code. **[17.11., Planlogik]** Korrigiert nach der Logikprüfung des Auditors (Fable) und dem verbindlichen Betreiberauftrag „Phasenpläne korrigieren“: Kanalkonten-Datenmodell vor SP4 (§6 Etappe C), Gegenprüfung nach Regel 4 auch beim Default (SP3 Schritt 7, SP5 Schritt 7), Befehl 40 statt 66 (§10), Statusbegriffe nach §2.3, Videofreigabe (E23), Testweg vorgezogen (Etappe D), KI-Hinweis als fester Text (E20), Rechtsfreigabe vor dem ersten öffentlichen Kundenkontakt (E21), kurzes Training für die Kettenabnahme (E22) und Abläufe für die gefundenen Lücken (Zahlung nach Ablauf, Instagram-Fenster, ungeklärte Nachrichten, Betriebsartwechsel, Freigabewörter, Lieferzeit, Training, Sperren, Löschung); offene Wahlpunkte als E24–E26. Code-Befunde des Auditors stehen in `docs/bugs_fable_v1.md` (FABLE-001 ff.).
 **Wahrheit für Details:** Code auf `main`, `protocol/schemas/darkfluenzer/v1/*.proto` (Vertrag), `workflows/manifest.toml` (Modelle, Workflows), `config.example.toml` (Konfiguration).
 
 ---
@@ -64,6 +64,13 @@ Video läuft genauso: erst das Bild, dann die Animation. Der Betreiber gibt die 
 | E17 | Qualitätsprüfung als Knoten im Medien-Workflow auf ComfyUI 1: Anatomie (Kandidat: Evaluation Pack), Schärfe und Prompttreue, dazu ein bedingter Reparaturlauf (Impact Pack Detailer). Keine externe Schnittstelle in der ersten Umsetzung. | Vorschlag, Betreiberfreigabe **offen** |
 | E18 | Wiederanlauf ohne Anmeldung: automatische Anmeldung eines eigenen macOS-Benutzers (nur ohne FileVault) oder Anmeldung von Hand nach jedem Neustart. Bis zur Entscheidung: Anmeldung von Hand, automatische System-Neustarts aus, Meldung ans Handy nach jedem Wiederanlauf. | **offen** |
 | E19 | **Sprach-KI vollständig über ComfyUI 2 (Betreiberentscheidung 17.11.2026).** Sämtliche sprachlichen Regeln, Anweisungen und Verhaltensvorgaben der Influencerinnen werden ausschließlich über Prompts in den ComfyUI-2-Sprachworkflows definiert und gesteuert; das Gesprächsverhalten ist ohne Python-Änderung über Cockpit und Workflow konfigurierbar. Python: Kanäle, Datenbank, Kundenzuordnung, Gedächtnis speichern und abrufen, Übergabe von Kontext und verifizierten Fakten, technische Validierung strukturierter Ergebnisse, Sendezeiten und Versand, Zahlung, Aufträge, Freigaben, Berechtigungen, Zustell-Gates, Ausführung autorisierter Aktionen. Unzulässig: eine sprachliche Entscheidungslogik, Persona-Interpretation oder KI-Gesprächsklassifikation im Backend. Technische Prüfungen dürfen einen Versand verhindern; Beträge, Berechtigungen und Versandbedingungen prüft das Backend gegen seine Daten. Regeln NO HARDCODING, NO DUPLICATION, NO LEGACY, FREE ONLY, NO DOCKER, MAIN ONLY bleiben. | entschieden |
+| E20 | **[17.11., Planlogik] KI-Hinweis als fester Text.** Der Pflichthinweis (Regel 12 b) ist ein verbindlicher, unveränderlicher Textblock je Influencerin als fester Textknoten im ComfyUI-2-Sprachworkflow (wie der Ehrlichkeitsblock); das Backend liest ihn aus dem registrierten Graphen und versendet ihn wortgetreu als erste Nachricht je Kanalidentität. Die Registrierung prüft, dass der Knoten vorhanden und unverändert ist. Kein frei formulierter Hinweis. | entschieden |
+| E21 | **[17.11., Planlogik] Rechtsfreigabe vor dem ersten öffentlichen Kundenkontakt** (statt vor der ersten Zahlung): KI-Offenlegung, Jugendschutz ohne Altersfrage, Plattformbedingungen gelten ab dem ersten echten Gespräch. Die Klärung (ohne Code) läuft ab sofort parallel; das Tor sperrt jedes Gespräch mit echten Kunden außerhalb des Testbetriebs (§6 Tore). | entschieden |
+| E22 | **[17.11., Planlogik] Kurzes echtes Training für die Kettenabnahme.** Eine mit wenigen Schritten trainierte, echte LoRA darf die technische Kette ab Etappe C belegen (Status TEIL); das vollständige Training und die Identitätsmessung bleiben Modellqualifikation. | entschieden |
+| E23 | **[17.11., Planlogik] Videofreigabe:** automatische Freigabe eines Videos erst, wenn geeignete, qualifizierte Videoprüfungen bestanden sind; bis dahin gibt der Betreiber Videos frei (Cockpit oder Handy). Bilder laufen nach E8/E11 ohne Klick. | entschieden |
+| E24 | **Zahlung nach Angebotsablauf:** sicherer Ablauf ohne Entscheidung: der Auftrag bleibt `cancelled`, der Eingang „nicht zugeordnet“ mit Meldung ans Handy; der Betreiber ordnet ihn einem neuen Angebot zu oder erstattet. Ob eine automatische Neuzuordnung erlaubt wird, entscheidet der Betreiber. | **offen** |
+| E25 | **Training und bezahlte Aufträge:** sicherer Ablauf ohne Entscheidung: das Training läuft weiter, der Kundenauftrag wartet mit Lieferzeit im Faktenblock; der Betreiber kann das Training am nächsten Checkpoint anhalten und später ohne Verlust fortsetzen (SP3 Schritt 3). Ob das Training bei einem bezahlten Auftrag selbsttätig am nächsten Checkpoint anhält, entscheidet der Betreiber. | **offen** |
+| E26 | **Getrennter Einstufungslauf:** Vorschlag des Auditors, im Sprachworkflow vor dem Antwortlauf einen eigenen Einstufungslauf ohne Persona (Minderjährigkeit, expliziter Wunsch, Absicht) zu führen und die Abnahme um Manipulationsversuche zu erweitern. Bis zur Entscheidung gilt SP4 Schritt 4 (ein Lauf, Schema). | **offen** |
 
 ---
 
@@ -84,7 +91,7 @@ Wörtlich aus dem archivierten `PHASENPLAN_V0.md` §2 übernommen. Regel 12 ist 
 9. **Zwei ComfyUI-Instanzen** (§3.2) mit getrennten Warteschlangen und gemeinsamer Ressourcensteuerung; keine dritte KI-Engine.
 10. **Eigene Kanal-Adapter im Python-Backend** (Betreiberentscheidung 15.11.2026): Instagram und Telegram verbindlich, weitere Kanäle später über dieselbe Adapter-Schnittstelle. Chatwoot entfällt; seine bewährten Muster werden übernommen. Kein zusätzlicher Kanaldienst, keine zweite Datenbank, kein Rust-Gateway.
 11. **Ehrliche Erwartung:** Einzelfotos in vielen Szenen praktisch nicht von echten Fotos unterscheidbar ist mit Kandidatenauswahl erreichbar; für jede Szene und für Video garantiert das 2026 kein lokales Modell.
-12. **KI-Offenlegung (EU-KI-Verordnung Art. 50, gilt seit 02.08.2026):** Clara schreibt natürlich und persönlich, gibt sich aber nie als Mensch aus. (a) Jede Kanal-Bio enthält einen kurzen KI-Hinweis (pflegt der Betreiber, z. B. „KI-Creatorin · virtuelle Influencerin“). (b) Beim ersten Kontakt je Kanalidentität sendet Clara **genau einmal** eine natürliche Hinweisnachricht (Anweisung im Promptprofil, formuliert vom Sprachworkflow, E19; nicht im Code), Ereigniskarte `KI-HINWEIS GESENDET`; **das Backend weist jede KI-Antwort ab, solange für diese Kanalidentität kein Hinweis gesendet ist** (manuelle Betreiberantworten nicht betroffen, Default ausgenommen); nach Neustart nie doppelt. (c) Auf die ernst gemeinte Frage, ob sie echt bzw. eine KI ist, antwortet Clara wahrheitsgemäß – **[17.11., E19]** fester Ehrlichkeitsblock als Textknoten im registrierten Sprachworkflow, kein Profilfeld im Cockpit; die Registrierung prüft technisch, dass er unverändert mit dem Systemprompt verbunden ist; durch keine Betreiber- oder Kundenanweisung abschaltbar. (d) Jede über einen Kanal versandte Datei (Kunden-Zustellkopie, Default-Rückversand) trägt in den Metadaten die Kennzeichnung KI-erzeugt (IPTC/XMP `DigitalSourceType = trainedAlgorithmicMedia`); das Original in Dateien bleibt unverändert; auf Instagram setzt der Betreiber beim Posten das KI-Label. **[17.11.]** Entfernt ein Kanal die Metadaten beim Foto-/Videoversand, muss die Kennzeichnung trotzdem beim Empfänger ankommen (Begleittext oder sichtbare Marke, SP5 Schritt 9). (e) Kundenchats werden nie zum Training oder Feintuning eines Modells verwendet und gehen an keine externe API (Telegram-Bedingungen; nur das lokale LLM in KI-ComfyUI 2).
+12. **KI-Offenlegung (EU-KI-Verordnung Art. 50, gilt seit 02.08.2026):** Clara schreibt natürlich und persönlich, gibt sich aber nie als Mensch aus. (a) Jede Kanal-Bio enthält einen kurzen KI-Hinweis (pflegt der Betreiber, z. B. „KI-Creatorin · virtuelle Influencerin“). (b) Beim ersten Kontakt je Kanalidentität sendet Clara **genau einmal** den Hinweis – **[17.11., E20]** als verbindlichen, unveränderlichen Textblock der Influencerin (fester Textknoten im registrierten ComfyUI-2-Sprachworkflow, wortgetreu vom Backend versendet; kein frei formulierter Text, nicht im Code), Ereigniskarte `KI-HINWEIS GESENDET`; **das Backend weist jede KI-Antwort ab, solange für diese Kanalidentität kein Hinweis gesendet ist** (manuelle Betreiberantworten nicht betroffen, Default ausgenommen); nach Neustart nie doppelt. (c) Auf die ernst gemeinte Frage, ob sie echt bzw. eine KI ist, antwortet Clara wahrheitsgemäß – **[17.11., E19]** fester Ehrlichkeitsblock als Textknoten im registrierten Sprachworkflow, kein Profilfeld im Cockpit; die Registrierung prüft technisch, dass er unverändert mit dem Systemprompt verbunden ist; durch keine Betreiber- oder Kundenanweisung abschaltbar. (d) Jede über einen Kanal versandte Datei (Kunden-Zustellkopie, Default-Rückversand) trägt in den Metadaten die Kennzeichnung KI-erzeugt (IPTC/XMP `DigitalSourceType = trainedAlgorithmicMedia`); das Original in Dateien bleibt unverändert; auf Instagram setzt der Betreiber beim Posten das KI-Label. **[17.11.]** Entfernt ein Kanal die Metadaten beim Foto-/Videoversand, muss die Kennzeichnung trotzdem beim Empfänger ankommen (Begleittext oder sichtbare Marke, SP5 Schritt 9). (e) Kundenchats werden nie zum Training oder Feintuning eines Modells verwendet und gehen an keine externe API (Telegram-Bedingungen; nur das lokale LLM in KI-ComfyUI 2).
 13. **Inhaltsaufteilung (Betreiberentscheidung 15.11.2026, [17.11.] angepasst):** Über **Instagram und Telegram** gehen an Kunden ausschließlich **nicht explizite** Inhalte (Lifestyle, Mode, Reise, Sport, Strand, Bikini) sowie die Kundengespräche. **Explizite Inhalte** gibt es nur über eine **Adult-Abo-Plattform**, die fotorealistische, vollständig synthetische KI-Personen ausdrücklich erlaubt; **[17.11.]** Plattform ist **Fansly** (Eignung für synthetische Personen in SP6 Schritt 8 prüfen), explizite Wünsche im Chat beantwortet Clara mit dem Verweis dorthin; Upload durch den Betreiber, Bezahlung und Altersprüfung übernimmt die Plattform. Technisch trägt jedes Artefakt eine **Inhaltsstufe** `standard`/`explizit` (aus Workflow bzw. Auftrag gesetzt, vom Betreiber nur anhebbar; unbekannt gilt als `explizit`); `approval.py` lässt an Kunden über jeden Kanal nur `standard` zu und über Instagram an niemanden `explizit`; nur der Default-Nutzer erhält über Telegram alle eigenen Produktionsergebnisse. Eine automatische Inhaltsprüfung in den Medien-Workflows auf ComfyUI 1 ergänzt die Stufe, sobald ein Prüfmodell qualifiziert ist (SP5 Schritt 7, E16); bei Widerspruch Sperre. **[17.11.]** Keine Altersfrage (E2); Hinweise auf Minderjährigkeit → Akte gesperrt, keine Angebote, kein Flirt.
 
 ### 2.2 Entwicklungsregeln
@@ -178,7 +185,7 @@ flowchart LR
 - **ComfyUI 2 (127.0.0.1:8189, KI):** Melody mit der gesamten Sprachintelligenz (E19): Persona, Regeln, Gesprächsführung, Flirt- und Verkaufsstrategie, Kaufbereitschaft, Kundenwunsch, Angebotsformulierung aus Fakten, freie Default-Anweisungen, Medien-Prompts; später Bildverständnis und Sprache.
 - Beide nutzen dieselbe Installation `local/ComfyUI` (ComfyUI 0.45.3, eigene venv), eigene Ordner und eigene Warteschlangen. Modelle liegen nur unter `local/models` (`extra_model_paths.yaml`, erzeugt von `launcher/setup_comfyui.sh`).
 - Die Zulassung (`server._admit`) prüft vor jedem Medienjob den gemessenen freien Speicher gegen die Reserve aus der Konfiguration. Die KI-Bahn hat Vorrang: Kundenantworten dürfen nicht hinter einem Videorender warten; B5.1 misst das, die Regel für den Fall, dass es nicht reicht, ist E15.
-- **Vorrang auf ComfyUI 1** (Spalte `jobs.priority`, Reihenfolge in der Konfiguration, SP5): (1) bezahlter Kundenauftrag, (2) Default-Produktion und Kundentest, (3) Aufträge aus dem Cockpit, (4) Training. Innerhalb einer Klasse gilt FIFO. Ein Training startet nur, wenn keine Aufträge der Klassen 1–3 warten, und wird nicht unterbrochen; währenddessen eingehende Kundenaufträge warten mit Lieferzeit-Hinweis; der Betreiber kann das Training abbrechen.
+- **Vorrang auf ComfyUI 1** (Spalte `jobs.priority`, Reihenfolge in der Konfiguration, SP5): (1) bezahlter Kundenauftrag, (2) Default-Produktion und Kundentest, (3) Aufträge aus dem Cockpit, (4) Training. Innerhalb einer Klasse gilt FIFO. Ein Training startet nur, wenn keine Aufträge der Klassen 1–3 warten. **[17.11., Planlogik, E25]** Es läuft mit Wiederaufnahme-Checkpoints (SP3 Schritt 3): währenddessen eingehende Kundenaufträge warten mit Lieferzeit im Faktenblock (die Restdauer des Trainings zählt mit); der Betreiber kann das Training am nächsten Checkpoint anhalten und später ohne Verlust fortsetzen. Ein selbsttätiges Anhalten für bezahlte Aufträge ist E25 (offen).
 
 ### 3.3 Protobuf-Rundweg (gilt für jede Funktion im selben Paket)
 
@@ -197,7 +204,7 @@ React-Bedienung → Protobuf-Befehl (request_id, Scope, erwartete Revision)
 
 - `influencers`/`characters` → Fotos, Datensätze, LoRA-Versionen, Persona; `customers` → `channel_identities` → `channel_conversations` → `channel_messages` (Anhänge, Status); `orders` → `order_stages` → `jobs` → `media` → Freigaben → Zustellungen → Zahlungen.
 - **Default** ist `customers.kind = internal`, kein Kunde, nie in Verkaufszahlen.
-- **Kundenauftrag (Code):** `draft → offered → accepted → paid → producing → review → approved → delivered`, Endzustände `cancelled`, `refunded`. **Betreiber-/Kloner-Auftrag (Code):** `producing → review → approved`, `cancelled`. **Geplant (SP5):** abgelaufenes Angebot → `cancelled` mit Grund „abgelaufen“ (Übergang vorhanden); scheitert die automatische Prüfung bis zur Obergrenze, bleibt der Auftrag in `review` mit Meldung an den Betreiber; Nachlauf über die neuen Übergänge `delivered → producing` (Neuauflage) und `delivered → refunded`; Testaufträge sind Aufträge der internen Akte, für die allein die Zahlung entfällt. Bezahlte Aufträge tragen `order_id` von der Anlage bis zur Zustellung. Der Medienwunsch gehört zur Konversation; Angebot und Auftrag verweisen auf ihn.
+- **Kundenauftrag (Code):** `draft → offered → accepted → paid → producing → review → approved → delivered`, Endzustände `cancelled`, `refunded`. **[17.11., Planlogik] Geplant (SP5):** `offered → payment_review` (Zahlungsnachweis eingegangen: Gutscheincode, begonnene PayPal-Zahlung; die Angebotsfrist ruht) `→ paid` oder zurück nach `offered` mit Restfrist; `approved → awaiting_contact` (Instagram-Fenster zu, Zustellung geparkt) `→ delivered`, sobald der Kunde wieder schreibt. **Betreiber-/Kloner-Auftrag (Code):** `producing → review → approved`, `cancelled`. **Geplant (SP5):** abgelaufenes Angebot → `cancelled` mit Grund „abgelaufen“ (Übergang vorhanden); scheitert die automatische Prüfung bis zur Obergrenze, bleibt der Auftrag in `review` mit Meldung an den Betreiber; Nachlauf über die neuen Übergänge `delivered → producing` (Neuauflage) und `delivered → refunded`; Testaufträge sind Aufträge der internen Akte, für die allein die Zahlung entfällt. Bezahlte Aufträge tragen `order_id` von der Anlage bis zur Zustellung. Der Medienwunsch gehört zur Konversation; Angebot und Auftrag verweisen auf ihn.
 - **Job:** `queued → running → done | failed | cancelled`; Pause der Warteschlange ist dauerhaft (SQLite). Nach Absturz wird anhand der gespeicherten `prompt_id` abgeholt statt neu gerendert.
 - **Zustellung:** `queued → sending → sent | failed | unknown`; `unknown` wird abgeglichen, nie blind wiederholt.
 
@@ -307,7 +314,7 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 
 ## 6. Reihenfolge (verbindlich, Betreiberentscheidung 17.11.2026)
 
-Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, Inhalt §7). Umgesetzt wird in sechs Etappen. Innerhalb einer Etappe gilt die genannte Reihenfolge. **[17.11., CODE FIRST]** Die Umsetzung der nächsten Etappe beginnt, sobald der Implementierungsstand der vorigen erreicht ist (§2.3); die Abnahme einer Etappe bleibt offen, bis ihre vorgeschriebenen realen Tests bestanden sind. Fehlende Charakterfotos, ein ausstehendes Langtraining oder die offene Engine-Wahl (E14) blockieren die Umsetzung späterer Etappen nicht. SP0 steht ganz vorn, weil es die Datenbanksicherung und die Aufteilung von `server.py` enthält.
+Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, Inhalt §7). Umgesetzt wird in sechs Etappen. Innerhalb einer Etappe gilt die genannte Reihenfolge. **[17.11., CODE FIRST]** Die Umsetzung der nächsten Etappe beginnt, sobald der Implementierungsstand der vorigen erreicht ist (§2.3); die Abnahme einer Etappe bleibt offen, bis ihre vorgeschriebenen realen Tests bestanden sind. Fehlende Charakterfotos, ein ausstehendes Langtraining oder die offene Engine-Wahl (E14) blockieren die Umsetzung späterer Etappen nicht. SP0 steht ganz vorn, weil es die Datenbanksicherung und die Aufteilung von `server.py` enthält. **[17.11., Planlogik]** Regel: Die Zeile „Braucht“ jedes Pakets muss durch die Etappenfolge erfüllt sein (Prüftabelle §6.2). **Stand 17.11.:** SP0 abgeschlossen (PASS), SP3 weit fortgeschritten (Schritte 1–7 CODE/TEIL), Etappe A nicht abgenommen.
 
 **CODE FIRST (Betreiberentscheidung 17.11.2026):** Oberste Priorität ist die vollständige Implementierung von Darkfluenzer. Jetzt keine Langläufe: kein 10-h-Training, keine langen Videos, keine großen Bildserien; kurze echte Funktionstests nur, soweit erforderlich und wirtschaftlich sinnvoll. Graphen und Bindungen werden validiert, Knoten und Modelle auf tatsächliche Verträglichkeit geprüft, Unit-, Integrations-, Protobuf-, Backend- und Frontendtests laufen. Modellqualifikationen folgen nach der Implementierung; danach wählt der Betreiber anhand der Messwerte die Produktionsmodelle (E14). Arbeitsweise: höchstens zwei Agenten, direkt auf `main`, nach jedem Paket Tests, Dokumentation, Commit und Push; keine weiteren Plandateien.
 
@@ -346,6 +353,8 @@ Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, 
 
 1. SP4 Schritte 1 bis 5 (KI-Laufzeit, Promptprofile, Gates statt Python-Regelprüfung, strukturierte Ergebnisse aus dem Workflow, Gedächtnis).
 
+**[17.11., Planlogik]** Der KI-Studio-Klickprototyp liegt nicht im Repository; bis er vorliegt, gelten FRONTEND §3.4 und F7.9 ohne Prototyp-Vergleich.
+
 **Abnahme B:**
 - 20 Nachrichten im Chat-Test mit Messwerten.
 - Promptprofile sind versioniert angelegt; eine Änderung im KI-Studio wirkt ohne Neustart im nächsten Testlauf, ein früherer Stand lässt sich wieder aktivieren.
@@ -357,24 +366,25 @@ Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, 
 
 ### Etappe C – Telegram
 
+0. **[17.11., Planlogik]** SP2 Schritt 9a: Datenmodell der Kanalkonten (`channel_accounts`, Adapter je Konto, Default-Identität und Betriebsart je Konto, Zuordnung Konto → Influencerin, Aktenregel, Übernahme der bisherigen Konfiguration). Erst danach Betriebsart, Dialogbetrieb, Kundentest und C5.1. Die Pflege im Cockpit (Schritt 9b) bleibt in Etappe E.
 1. SP2 Schritte 1, 3, 4, 5, 6, 7 (Aufsicht, Kundenereignisse, ein TDLib-Empfänger, Eingang vervollständigen, ungeklärter Versand, KI-Hinweis).
 2. SP1 Schritte 1, 3, 4, 5, 6, 7, 8, 9, 12 (Rückverfolgung, Reihenfolge und Alben, Referenzen, Vorprüfung und Antwort, Optionen, Aufträge, Rückversand, Postausgang, Betriebsart).
 3. SP3 Schritte 8 und 9 (Kloner-Methode je Befehl, Abnahme mit Figur).
 4. SP4 Schritte 6, 7, 8 (Dialogbetrieb, Verhalten, Kundentest Chat) und die freien Default-Anweisungen aus Schritt 4; dazu C5.1 (Schalter der Influencerin, Bindung an den Charakter; Ergänzung, in der Etappenliste von Fable nicht genannt).
 
-**Abnahme C:** die Abnahmeliste von SP1 mit Claras LoRA; dazu der Kundentest Chat vom Handy mit Messwerten.
+**Abnahme C:** die Abnahmeliste von SP1 mit einer echten Charakter-LoRA – **[17.11., E22]** eine kurz trainierte LoRA genügt für den Kettennachweis (TEIL), die Abnahme mit voll trainierter LoRA gehört zur Modellqualifikation; dazu der Kundentest Chat vom Handy mit Messwerten.
 
 **Meilenstein:** Der Betreiber erzeugt vom Handy Bilder und Videos für Instagram (Stapel, Story 9:16) und chattet als Testkunde mit Clara. Der Testbetrieb bleibt an; Clara antwortet nur dem Default und freigegebenen Test-Chats.
 
 ### Etappe D – Verkauf im Test, ohne Geld
 
-1. SP5 Schritte 1, 2, 6, 7, 8, 9, 11, 12 (Produkte, Angebot, Produktion, Prüfung, Systemfreigabe, Zustellung, Handy-Ausnahmeweg, Kundentest mit Bild).
+1. **[17.11., Planlogik]** SP5 in dieser Reihenfolge: Schritt 1 (Produkte), 2 (Angebot mit Faktenblock und Lieferzeit), **12 (Testweg, vorgezogen: einziger echter Weg ohne Geld, NO MOCK)**, 6 (Produktion), 9 (Zustellung, zunächst mit Betreiberfreigabe), danach 7 (Prüfung), 8 (Systemfreigabe) und 11 (Handy-Ausnahmeweg). So läuft die Kette früh echt durch, die Automatik kommt darauf.
 
-**Abnahme D:** Kundentest von Wunsch über Angebot und Testfreigabe bis zum zugestellten Bild und Video. Solange E16 und E17 offen sind, gibt der Betreiber frei, im Cockpit oder vom Handy.
+**Abnahme D:** Kundentest von Wunsch über Angebot und Testfreigabe bis zum zugestellten Bild und Video. Solange E16 und E17 offen sind, gibt der Betreiber frei, im Cockpit oder vom Handy; Videos bis zu bestandenen Videoprüfungen immer mit Betreiberfreigabe (E23).
 
 ### Etappe E – Einstellungen, Konten, Zahlungen
 
-1. SP2 Schritte 9, 10, 12 (Kanalkonten als Liste, Einstellungen, Starter) und die restliche Frontend-Härtung.
+1. SP2 Schritte 9b, 10, 12 (Pflege der Kanalkonten im Cockpit, Einstellungen, Starter; das Datenmodell 9a liegt in Etappe C) und die restliche Frontend-Härtung.
 2. Instagram am echten Konto (Meta-App, Tunnel).
 3. SP5 Schritt 3 (öffentlicher Eingang, PayPal), SP2 Schritt 8 und SP5 Schritt 4 (Gutschein, Fehlbetrag), SP5 Schritt 10 (Nachlauf); dazu C5a.1 Krypto, falls zugeschaltet (Ergänzung, in der Etappenliste von Fable nicht genannt).
 
@@ -392,7 +402,7 @@ Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, 
 
 - Automatik für echte Kunden bleibt aus, bis KI-Hinweis und Sperre bei Minderjährigkeit abgenommen sind (Etappe C).
 - Echte Kunden außerhalb des Testbetriebs erst, wenn alle P0-Befunde aus `bugs_v1.md` geschlossen sind, darunter BUG-050 (Gutscheintext, Etappe E) – Ergänzung zur Wahrung der P0-Regel.
-- Der erste zahlende Kunde erst nach SP6 Schritt 8 (Recht).
+- **[17.11., E21]** Der erste öffentliche Kundenkontakt (jedes Gespräch mit echten Kunden außerhalb des Testbetriebs, auch ohne Zahlung) erst nach der Rechtsfreigabe aus SP6 Schritt 8. Die Klärung selbst braucht keinen Code und läuft ab sofort parallel.
 - B5.6 Referenzanalyse (SP3) beginnt, sobald der Betreiber ein Bildmodell freigibt; sie gehört dann zu der Etappe, die gerade läuft.
 - Später, je mit eigener Freigabe: SP7 Instagram-Signale, Telegram-Bot-Adapter, zweiter Rechner, Wechsel Instagram zu Telegram (C5.9), Default über Instagram (C4), WhatsApp und Fansly (C8).
 
@@ -407,6 +417,18 @@ Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, 
 | **SP4 Clara chattet** (§7.3, ausgeschrieben) | B5.1–B5.4, B5.4a, C5.2–C5.4, T1; C5.1 (Influencerin-Block) | Kundentest-Chat mit Messwerten, Clara antwortet Kunden selbst |
 | **SP5 Verkauf automatisch** (§7.5, ausgeschrieben) | C5a, C5.5–C5.8, C5.6a, C5.10, T2; dazu unverändert Krypto (C5a.1) | Zahlung rein, Bild raus, ohne Klick |
 | **SP6 Betrieb, Recht, Abnahme** (§7.7, ausgeschrieben) | D1–D3, C6; später mit eigener Freigabe C4, C5.9, C8, SP7, Telegram-Bot-Adapter, zweiter Rechner | unbeaufsichtigter Dauerbetrieb, Probephase bestanden |
+
+### 6.2 Abhängigkeiten gegen Etappen (Prüftabelle, [17.11., Planlogik])
+
+| Paket bzw. Teil | Braucht | erfüllt durch | Etappe |
+|---|---|---|---|
+| SP3 Schritte 1–7 | SP1 kein festes Zeitlimit, SP2 Inhaltsstufe | SP1 Schritt 2, SP2 Schritt 2 | A vor A5 |
+| SP3 Schritte 8, 9 | SP1 Kloner-Kette | SP1 Schritte in C | C nach SP1 |
+| SP4 Schritte 1–5 | KI-Instanz, Promptprofile je Influencerin (keine Kanalkonten) | SP4 selbst | B |
+| SP4 Schritte 6–8, C5.1 | SP2 Kanalkonten (Datenmodell), Aufsicht, Kundenereignisse | SP2 Schritte 9a, 1, 3 | C (9a zuerst) |
+| SP5 Schritte 1, 2, 12, 6, 9, 7, 8, 11 | SP2 Inhaltsstufe, SP3 LoRA und Gesichtsprüfung, SP4 Dialog und Wunsch | A, C | D |
+| SP5 Schritte 3, 4, 10 | SP2 Einstellungen (Zugänge) | SP2 Schritt 10 | E |
+| SP6 Schritt 8 Produktteile | SP2 Kanalkonten, SP4 `ai_runs` | C | F; Rechtsklärung parallel ab sofort (E21) |
 
 ---
 
@@ -474,7 +496,7 @@ backend/src/darkfluenzer/
 
 **Frontend im selben Paket:** FRONTEND §4.0.
 
-**Stand 17.11.2026: SP0 umgesetzt (Implementierung PASS nach §2.3, mit echten Läufen).** Tests vor der Aufteilung 136, danach dieselben 136 grün plus neue (jetzt 150); Importrichtung `tests/test_layers.py`; Herzschlag bei 500-MB-Video unter 100 ms; 1 Mio. Ereignisse: Runde unter 50 ms; Frontend-Ansichten unverändert.
+**Stand 17.11.2026: SP0 PASS nach §2.3 (Backend, Frontend, echte Läufe; eine Modellqualifikation braucht SP0 nicht).** Tests vor der Aufteilung 136, danach dieselben 136 grün plus neue (jetzt 150); Importrichtung `tests/test_layers.py`; Herzschlag bei 500-MB-Video unter 100 ms; 1 Mio. Ereignisse: Runde unter 50 ms; Frontend-Ansichten unverändert.
 
 **Abnahme:**
 - Gleiche Zahl grüner Tests vor und nach der Aufteilung.
@@ -579,14 +601,15 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
    - Ohne Beleg bleibt sie `unknown`, mit Karte. Der Betreiber entscheidet von Hand: „als gesendet markieren“ oder „erneut senden“ mit Warnhinweis. Zustellungen an Kunden werden aus `unknown` nie automatisch wiederholt.
 7. **KI-Hinweis (`store.queue_ai_notice`).** Erneut möglich, wenn die verknüpfte Nachricht `failed` ist; nie bei `queued`, `sending`, `sent` oder `unknown`.
 8. **Gutscheine (`payments/vouchers.py`, `store.record_inbound`).** Erkennung nur mit Bindestrichen oder zusammenhängend in Großschreibung; Leerzeichen trennen nie. Neue Spalte `vouchers.original_text`. „Ablehnen“ im Wallet stellt den Text im Verlauf wieder her.
-9. **Kanalkonten als Liste.**
+9. **Kanalkonten als Liste.** **[17.11., Planlogik]** Zweigeteilt: **9a Datenmodell** (Tabelle, Adapter je Konto, Default-Identität und Betriebsart je Konto, Konto → Influencerin, Aktenregel, Übernahme der Konfiguration, Webhook-Verteilung) kommt in Etappe C vor SP4 Schritt 6–8; **9b Pflege im Cockpit** (Konten anlegen, zuordnen, entfernen) bleibt in Etappe E.
    - Heute: je Plattform ein Konfigurationsabschnitt und ein Adapter (`Cockpit.telegram`, `Cockpit.instagram`). `default_contact` führt je Plattform eine Absender-ID. `channel_identities.account` und `adapter_state.account` tragen das Konto schon.
-   - Neu: Tabelle `channel_accounts` (Kürzel, Plattform, Plattform-Konto-ID, Influencerin, Testbetrieb, Test-Chats, Status). `Cockpit.adapters` je Konto, `_adapter(platform, account)`, STATE 8 listet alle Konten. Default-Identität und Betriebsart je Konto. Konten anlegen, zuordnen und entfernen über Befehl 66 `channel_account_update`.
+   - Neu: Tabelle `channel_accounts` (Kürzel, Plattform, Plattform-Konto-ID, Influencerin, Testbetrieb, Test-Chats, Status). `Cockpit.adapters` je Konto, `_adapter(platform, account)`, STATE 8 listet alle Konten. Default-Identität und Betriebsart je Konto. Konten anlegen, zuordnen und entfernen über den vorhandenen Befehl 40 `channel_account_update`, additiv erweitert (Konto-Kürzel, Aktionen anlegen/zuordnen/entfernen, Influencerin); **[17.11., Planlogik]** die frühere Vergabe „66 `channel_account_update`“ war doppelt und entfällt, 66 bleibt frei.
    - Die Abschnitte `[telegram_account]` und `[instagram]` entfallen; ihr Inhalt wird beim ersten Start als Konto übernommen.
    - Schlüsselbund: App-Zugänge je Plattform, Sitzungsschlüssel und Token je Konto.
    - Der Instagram-Webhook verteilt nach der Konto-ID im Ereignis.
    - `influencers[0]` wird nirgends mehr verwendet (heute in `_send_ai_notice`).
    - Regel: alle Identitäten einer Akte gehören zu Konten derselben Influencerin; dieselbe Person bei zwei Influencerinnen ergibt zwei Akten.
+   - **[17.11., Planlogik] Sperren je Plattform-Identität:** „minderjährig vermutet“ und die Löschung hängen an Plattform und Nutzer-ID und gelten für alle Akten mit genau dieser Identität, auch bei einer anderen Influencerin. Plattformübergreifend wirken sie nur bei nachweislich identischer Identität (Verknüpfung per Einmal-Code, C5.9), nie aufgrund von Ähnlichkeit.
    - `channel_accounts.customer_transport`: `tdlib` oder `business_bot`. Je Konto beantwortet immer nur ein Weg die Kundenchats (Bot-Adapter später, SP6 Schritt 10).
 10. **Einstellungen (S1).**
     - Katalog aller Einträge mit Gruppe, Format und Prüfer, gemeinsam für Cockpit und CLI.
@@ -630,7 +653,7 @@ Ersetzt B5.1 bis B5.4, B5.4a, C5.2, C5.3, C5.4 und T1. Grundlage: Code-Vergleich
 
 **Ziel:** Clara beantwortet Kunden selbst, mit Promptprofil, Gedächtnis und menschlichem Tempo. Der Betreiber stellt ihr Verhalten im KI-Studio ein, testet es dort und als Testkunde und sieht je Lauf Messwerte und den tatsächlich verwendeten Prompt.
 **Schließt:** BUG-017 (Textteil), 061 (KI-Instanz), 077, 085, 095 bis 098; SPEC-016 bis 021.
-**Braucht:** SP2 (Kanalkonten, Aufsicht, Kundenereignisse).
+**Braucht:** SP2 (Kanalkonten-Datenmodell Schritt 9a, Aufsicht, Kundenereignisse) – erst für die Schritte 6–8; die Schritte 1–5 (Etappe B) brauchen keine Kanalkonten.
 **Dateien:** neue `llm.py` (Einreichen, Text lesen, Schema typisieren), `dialog.py` (Ablauf und Gates), `persona.py` (Promptprofile speichern und versionieren, keine Zusammenstellung), `memory.py` (speichern und abrufen), `behavior.py` (Sendezeiten ausführen); `server.py`, `store.py`, `comfy.py`, `models.py`, `channels/telegram.py`, `channels/instagram.py`, `config.py`, `launcher/*`, `workflows/manifest.toml`, Graphen `workflows/ai/clara_chat_melody.*` und `workflows/ai/default_instruction_melody.*`, neue `ai.proto`, `channel.proto`, `commands.proto`.
 
 **Umsetzung in dieser Reihenfolge**
@@ -664,7 +687,7 @@ Ersetzt B5.1 bis B5.4, B5.4a, C5.2, C5.3, C5.4 und T1. Grundlage: Code-Vergleich
    - Das Backend typisiert das Schema und prüft es gegen autorisierte Aktionen; es deutet keinen Text.
    - Folgen im Backend: Hinweis auf Minderjährigkeit setzt `customers.age_mark = under_18`, sperrt Flirt und Angebote und zeigt eine Karte; aufheben kann nur der Betreiber (Befehl 44, protokolliert). Expliziter Wunsch: kein Auftrag; die Antwort mit Fansly-Verweis formuliert Melody nach der Strategie im Profil. Kaufbereitschaft ab Stufe 2 mit bestätigtem Wunsch löst das Angebot aus (SP5).
    - Freie Default-Anweisungen (bisher B5.4a): eigener registrierter Workflow `default_instruction_melody` auf demselben Knoten und Modell, Schema mit Befehl, Workflow, Prompt, Optionen und Bezug auf frühere Medien; das Backend prüft Befehl und Workflow gegen die Registry und führt nur Erlaubtes aus.
-   - Abnahme je Funktion: mindestens 50 deutsche Testfälle mit notierter Trefferquote; bei Minderjährigkeit Fehlalarme und Verfehlungen getrennt (Verfehlungen 0 im Testsatz).
+   - Abnahme je Funktion: mindestens 50 deutsche Testfälle mit notierter Trefferquote; bei Minderjährigkeit Fehlalarme und Verfehlungen getrennt (Verfehlungen 0 im Testsatz). Ein getrennter Einstufungslauf ohne Persona und Testfälle mit Manipulationsversuchen sind E26 (offen).
 5. **Gedächtnis (`memory.py`, `store.py`).** Persistent in SQLite: vier Ebenen mit FTS5, Quelle und Zeit je Eintrag, Kunden strikt getrennt, eigener Bereich für den Kundentest. Welche Einträge und welcher Verlauf in einen Lauf gehen, bestimmt das Backend nach Zahlen aus dem Profil (letzte Nachrichten, Treffer je Ebene); `ai_runs` hält die Auswahl fest. Was gemerkt wird und die Zusammenfassungen formuliert Melody im Workflow (Schemafeld Gedächtnis), nachrangig und nie vor einer wartenden Antwort. Keine zweite Sprach-KI, kein Verlauf im Knoten.
 6. **Dialogbetrieb (`server._on_inbound`, `dialog.py`, `store.py`).**
    - Heute: für Kunden passiert nach dem Speichern nichts.
@@ -686,7 +709,7 @@ Ersetzt B5.1 bis B5.4, B5.4a, C5.2, C5.3, C5.4 und T1. Grundlage: Code-Vergleich
    - Instagram: Text über `max_text_bytes` wird an Satzgrenzen geteilt (Kanalgrenze, BUG-017 Textteil); Gelesen- und Tippsignal, falls die API sie anbietet (am echten Konto prüfen).
    - Postausgang: eine Sendeaufgabe je Konversation statt einer Schlange je Konto.
    - Nacht und Kaufbereitschaft nach E3 und E4.
-8. **Kundentest Chat (bisher T1).** Betriebsart `test` des Default-Chats führt in denselben Dialog und denselben registrierten Workflow, in einer eigenen Testkonversation der internen Akte mit eigenem Gedächtnisbereich (Produktionsverlauf und Test bleiben getrennt). Schalter „Verzögerung wie Kunde“. „Zurücksetzen“ leert Gedächtnis und Hinweisstatus des Tests. Messwerte je Antwort aus `ai_runs`.
+8. **Kundentest Chat (bisher T1).** Betriebsart `test` des Default-Chats führt in denselben Dialog und denselben registrierten Workflow, in einer eigenen Testkonversation der internen Akte mit eigenem Gedächtnisbereich (Produktionsverlauf und Test bleiben getrennt). **[17.11., Planlogik] Ein Chat, eindeutige Bedeutung:** Feste Wörter des Default-Kontakts (Betriebsart, Abbrechen, Testfreigabe „Cash“, Freigeben/Neu/Erstatten) wertet das Backend vor der Betriebsart aus; sie erreichen nie Sprachmodell oder Gedächtnis. Systemnachrichten an den Default (Betriebsmeldungen, Vorschauen, Ergebnisse) gehören nie zum Testverlauf. Schalter „Verzögerung wie Kunde“. „Zurücksetzen“ leert Gedächtnis und Hinweisstatus des Tests. Messwerte je Antwort aus `ai_runs`.
 
 **Frontend im selben Paket:** FRONTEND §3.4, §4.2, Anhang F7.9.
 
@@ -723,7 +746,7 @@ Ersetzt B5.1 bis B5.4, B5.4a, C5.2, C5.3, C5.4 und T1. Grundlage: Code-Vergleich
 
 Ersetzt C5a, C5.5, C5.6, C5.6a, C5.7, C5.8, C5.10 und T2. Grundlage: Code-Vergleich von Fable (17.11.) mit `approval.py`, `aimeta.py` und dem Rest von `store.py`. PayPal gibt es im Code noch nicht; die Angaben zur PayPal-Schnittstelle sind vor der Umsetzung gegen die PayPal-Dokumentation zu prüfen.
 
-**Ziel:** Vom bestätigten Wunsch bis zur Zustellung ohne Klick. Der Betreiber greift nur ein, wenn die Prüfung scheitert oder ein Gutschein zu bestätigen ist.
+**Ziel:** Vom bestätigten Wunsch bis zur Zustellung ohne Klick (Bilder). Der Betreiber greift nur ein, wenn die Prüfung scheitert, ein Gutschein zu bestätigen ist oder ein Video freizugeben ist, solange keine qualifizierte Videoprüfung besteht (E23).
 **Schließt:** BUG-012, 019, 022, 023, 051, 059, 060, 063, 090 (Video-Teil), 099 bis 102.
 **Braucht:** SP2 (Einstellungen, Inhaltsstufe), SP3 (LoRA, Gesichtsprüfung), SP4 (Dialog, Wunsch; BUG-098 Werte aus dem Lauf lesen).
 **Dateien:** `server.py`, `store.py`, `pipeline.py`, `approval.py`, `aimeta.py`, `channels/telegram.py`, `channels/instagram.py`, neue `payments/paypal.py`, neue `checks.py`, `comfy.py`, `workflows/manifest.toml`, Workflow-Graphen (Prüfkette), `config.py`, `order.proto`, `wallet.proto`, `influencer.proto`, `commands.proto`.
@@ -738,6 +761,9 @@ Ersetzt C5a, C5.5, C5.6, C5.6a, C5.7, C5.8, C5.10 und T2. Grundlage: Code-Vergle
    - Neu: Tabelle `offer_payments` (Zahlungsweg, Betrag, Link oder Hinweis). Ein Angebot ist möglich, sobald ein Zahlungsweg der Influencerin eingerichtet ist. Der Faktenblock kommt aus dem Backend, die Formulierung aus dem Sprachworkflow (Profilblock Angebot, E19); Betrag und Zahlungsweg setzt das Backend aus SQLite. Die Art kommt vom Produkt.
    - Der Dialog löst das Angebot aus, wenn der Wunsch bestätigt ist und die Kaufbereitschaft mindestens Stufe 2 hat; vorher fasst Clara den Wunsch in einem Satz zusammen. Nach einer Ablehnung gilt die Sperrzeit aus dem Profil.
    - Ablauf: eine Zeitaufgabe setzt abgelaufene Angebote auf `cancelled` mit Grund „abgelaufen“ (der Übergang existiert).
+   - **[17.11., Planlogik] Faktenblock und Lieferzeit:** Das Backend hängt den Faktenblock (Produkt, Preis, Zahlungsweg, Frist, Lieferzeit) wörtlich an; der Text des Sprachworkflows enthält keine Ziffern und kein Währungszeichen, sonst geht er nicht raus (Zeichenprüfung, keine Sprachdeutung). Die Lieferzeit berechnet das Backend aus Warteschlange, laufendem Training und gemessenen Laufzeiten (`seconds_per_step`, Laufdauer je Workflow). Liegt sie über der Grenze aus dem Produkt, entsteht kein Angebot; Clara vertröstet nach der Profilanweisung (Bremse bei Auslastung).
+   - **[17.11., Planlogik] Zahlung in Prüfung:** Geht ein Zahlungsnachweis ein (Gutscheincode, begonnene PayPal-Zahlung), wechselt der Auftrag nach `payment_review`; die Frist ruht. Bestätigt → `paid`; abgelehnt → zurück nach `offered` mit Restfrist. PayPal zieht nur ein, solange das Angebot gilt; danach bekommt der Kunde einen neuen Link (gegen die PayPal-Dokumentation zu prüfen).
+   - **[17.11., Planlogik] Eingang nach Ablauf:** Der Auftrag bleibt `cancelled`, der Eingang „nicht zugeordnet“ mit Meldung ans Handy; der Betreiber ordnet ihn einem neuen Angebot zu oder erstattet. Automatische Neuzuordnung ist E24 (offen).
 3. **Öffentlicher Eingang und PayPal (`server.create_public_app`, `serve`, `payments/paypal.py`).**
    - Heute: der öffentliche Eingang startet nur mit Instagram-Konfiguration (BUG-102).
    - Neu: `[server] public_base_url` unabhängig von Instagram.
@@ -762,7 +788,7 @@ Ersetzt C5a, C5.5, C5.6, C5.6a, C5.7, C5.8, C5.10 und T2. Grundlage: Code-Vergle
    - **[17.11., Betreiberentscheidung]** Prüfumfang im Graphen: Inhaltsstufe und Klassifikation, Gesichtsidentität (SP3 Schritt 7), Hände, Fingerzahl und anatomische Auffälligkeiten, Bildqualität, Artefakte, Prompttreue, Bewertung je Kandidat, ein bedingter maskierter Reparaturlauf (Inpainting), erneute Prüfung; bei Video Frameprüfung und zeitliche Konsistenz, soweit die qualifizierten Prüfer es können. Keine Python-Bildprüfarchitektur. Die Auswahl trifft das Backend aus den Werten gegen die Schwellen.
    - Die Dateiprüfung beim Einsammeln (Format, Abmessungen, nicht leer; Video: Frame-Zahl, Dauer) bleibt im Backend; sie bewertet kein Bild.
    - Keine Schleife im Graphen. Weitere Versuche sind neue Kandidatenstufen.
-   - Dieselbe Prüfkette läuft für die Default-Produktion; dort setzt sie nur die Inhaltsstufe und sperrt nichts.
+   - Dieselbe Prüfkette läuft für die Default-Produktion; dort setzt sie die Inhaltsstufe und sperrt nichts – **[17.11., Planlogik]** außer der Gegenprüfung nach Regel 4 (SP3 Schritt 7): ein Ergebnis aus fremder Vorlage, das dem fremden Gesicht ähnlicher ist als die Schwelle, wird verworfen; fehlt die Gegenprüfung, geht es nicht automatisch zurück (Karte, Betreiber entscheidet).
    - Voraussetzung je Erweiterung: fester Stand, Durchsicht des Codes, Modelldateien mit SHA-256 im Manifest, kein automatischer Download, ein Probelauf auf dem Mac. Hinweise (Fable): Das Evaluation Pack war beim Abruf drei Tage alt, braucht SAM3 über ein weiteres Paket und lädt seine Pose-Modelle beim ersten Start selbst. Der Rating Checker ist für gezeichnete Bilder gebaut und stuft in der Standardeinstellung schon erkannte Achseln als R18 ein. In diesem Ökosystem hat schon ein Knotenpaket Zugangsdaten gestohlen.
    - Reihenfolge der Einführung: erst messen ohne Reparatur, dann der eine Reparaturlauf.
    - Auswahl: unter den Kandidaten, die alle vier Prüfungen bestehen, der beste Gesamtwert aus Identität und Qualität (Gewichte in der Konfiguration).
@@ -779,17 +805,21 @@ Ersetzt C5a, C5.5, C5.6, C5.6a, C5.7, C5.8, C5.10 und T2. Grundlage: Code-Vergle
    - Neu: Anhangart aus dem Produkt: Foto oder Video als Standard, Dokument nur mit der Zusatzleistung Originaldatei (nur Telegram, Instagram verschickt keine Dateien). Selbstlöschend über TDLib, wo der Privatchat es erlaubt.
    - Den Begleittext formuliert der Sprachworkflow (Profilblock Zustellung, E19). Der KI-Hinweis steht im Begleittext als fester Text aus dem Profil, den das Backend unverändert anhängt (Pflichtangabe, keine Formulierung), weil der Foto- und Videoversand die Metadaten vermutlich entfernt; die Kennzeichnung der Datei (`aimeta.mark`) bleibt.
    - Kanalgrenzen vor dem Senden: Größe, Format; WebP und WebM werden umgewandelt oder abgewiesen.
+   - **[17.11., Planlogik] Instagram-Fenster:** Ist das 24-Stunden-Fenster beim Versand zu, parkt die Zustellung in `awaiting_contact` (Auftrag) und geht automatisch raus, sobald der Kunde wieder schreibt; der Betreiber wird benachrichtigt. Human-Agent bleibt Betreiberantworten vorbehalten und wird nie für automatische Zustellungen gesetzt.
+   - **[17.11., E23] Video:** bis zu einer qualifizierten Videoprüfung geht ein Video nur nach Betreiberfreigabe (Cockpit oder Handy) raus; die Fertigstellen-Stufe lässt sich mit neuem Seed wiederholen, ohne das Bild neu zu erzeugen.
 10. **Nachlauf (`store.TRANSITIONS`, `deliveries`).**
     - Heute: `delivered` hat keinen Übergang; der Index `deliveries_one_per_order` erlaubt eine Lieferung je Auftrag (BUG-100).
     - Neu: Übergänge `delivered → producing` (Neuauflage) und `delivered → refunded`. Der Index gilt je Auftrag und Artefakt. Höchstzahl der Neuauflagen aus der Konfiguration.
     - Reklamation erkennt der Dialog als Absicht; sie erzeugt eine Karte. Die erste Neuauflage ist frei, alles Weitere entscheidet der Betreiber. Eine Erstattung sperrt jede weitere Zustellung.
-11. **Ausnahmeweg Handy (bisher C5.10).** Wartet ein Auftrag auf den Betreiber, bekommt der Default über Telegram die Vorschau. Er antwortet mit den Wörtern aus dem Default-Kontakt für Freigeben, Neu oder Erstatten. Nur die verifizierte Default-Identität wirkt. „Freigeben“ wirkt nur bei technischen oder qualitativen Fehlschlägen, nie gegen harte Gates.
+11. **Ausnahmeweg Handy (bisher C5.10).** Wartet ein Auftrag auf den Betreiber, bekommt der Default über Telegram die Vorschau. Er antwortet mit den Wörtern aus dem Default-Kontakt für Freigeben, Neu oder Erstatten. Nur die verifizierte Default-Identität wirkt. **[17.11., Planlogik]** Die Wörter wirken nur als Telegram-Antwort auf die Vorschaunachricht des betroffenen Auftrags; damit ist der Auftrag eindeutig und „genau einmal“ hängt an dieser Nachricht. Ohne Antwortbezug fragt das Backend zurück. Erstatten verlangt eine zweite Bestätigung mit der Auftragsnummer. „Freigeben“ wirkt nur bei technischen oder qualitativen Fehlschlägen, nie gegen harte Gates.
 12. **Kundentest mit Bild (bisher T2; SPEC-008).**
     - Der Testauftrag ist ein Auftrag der internen Akte. Der Testverlauf bleibt in der eigenen Testkonversation (SP4 Schritt 8). Statt der Zahlung gilt die Testfreigabe: automatisch oder per Wort (Startwert „Cash“).
     - Die Ausnahme „ohne Zahlung“ gilt nur, wenn alle Bedingungen zutreffen: `orders.test = 1` (gesetzt nur von `_create_offer` in der Betriebsart `test`, ein Trigger macht es unveränderlich); der Auftrag gehört zur internen Akte; das Lieferziel ist genau die Konversation, in der der Testauftrag entstand; deren Identität ist verifiziert (`verified = 1`) und ist die Default-Identität dieses Kontos; die Betriebsart `test` ist beim Anlegen der Lieferung und im Versandmoment aktiv.
     - `approval.check_gate` und beide Trigger (`deliveries_gate`, `deliveries_send_gate`) prüfen dieselben Bedingungen. Ein echter Kunde kann so nie ohne Zahlung beliefert werden.
     - Es entsteht kein Eingang in `payment_inflows`; im Wallet und in der Monatsliste erscheint nichts.
     - Testmedien dürfen gelöscht werden (Ausnahme im Trigger `media_order_no_delete` für Testaufträge der internen Akte).
+    - **[17.11., Planlogik] Betriebsartwechsel:** Verlässt der Default-Chat die Betriebsart `test`, werden offene Testaufträge mit Grund „Testbetrieb beendet“ abgebrochen (Endzustand `cancelled`); keiner bleibt unzustellbar hängen.
+    - **[17.11., Planlogik]** Dieser Schritt kommt in Etappe D direkt nach dem Angebot (vorgezogen), damit Produktion, Prüfung, Freigabe und Zustellung früh echt laufen.
 
 **Weiter gültig (Teil von SP5):** **C5a.1 Krypto** (BUG-009, 010, 011): robuste Beobachter, Blockzeit statt Erkennungszeit; je eine kleine echte Zahlung.
 
@@ -798,7 +828,7 @@ Ersetzt C5a, C5.5, C5.6, C5.6a, C5.7, C5.8, C5.10 und T2. Grundlage: Code-Vergle
 **Abnahme am echten System**
 
 1. Kundentest: Wunsch über mehrere Nachrichten, Zusammenfassung, Angebot, Testfreigabe, Bild als Foto mit Begleittext, alles ohne Klick; das Wallet bleibt leer.
-2. Derselbe Ablauf für ein Videoprodukt mit Höchstlänge.
+2. Derselbe Ablauf für ein Videoprodukt mit Höchstlänge; **[17.11., E23]** die Freigabe gibt der Betreiber, bis eine qualifizierte Videoprüfung besteht – erst dann ohne Klick.
 3. Echte PayPal-Zahlung eines Testkunden: Eingang, Zuordnung und Produktion laufen automatisch; die Erstattung sperrt jede weitere Zustellung.
 4. Gutschein: Meldung an den Default, Bestätigung, danach automatische Produktion.
 5. Ein Kandidat mit fremdem Gesicht und ein explizites Testbild werden nie zugestellt; nach der Obergrenze kommt die Meldung aufs Handy, die Antwort wirkt genau einmal.
@@ -871,7 +901,7 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
    - Engine `identity` im Manifest mit diesen drei Dateien, damit Bereitschaft und Download sichtbar sind. Referenzsatz ist `reference/` der Figur; der Schwerpunkt wird je Satz zwischengespeichert.
    - Schwellen je Modell in der Konfiguration. Ein Kalibrierlauf schlägt sie vor: Werte der Referenzfotos untereinander gegen Werte fremder Gesichter (ersetzt B2.1).
    - Prüfwerte je Medium in Tabelle `media_checks` (Identität, „nicht prüfbar“ als eigener Wert).
-   - Gegenprüfung für den Kloner (Regel 4): Das Ergebnis darf dem Gesicht der fremden Vorlage nicht ähnlicher sein als die Schwelle; sonst wird es verworfen.
+   - Gegenprüfung für den Kloner (Regel 4): Das Ergebnis darf dem Gesicht der fremden Vorlage nicht ähnlicher sein als die Schwelle; sonst wird es verworfen. **[17.11., Planlogik]** Gilt für jedes Ergebnis aus einer fremden Vorlage, auch in der Default-Produktion (SP5 Schritt 7). Solange die Gegenprüfung für einen Lauf nicht bereitsteht (Prüfmodell fehlt, kein Gesicht in der Vorlage messbar, keine Schwelle kalibriert), geht ein solches Ergebnis nicht automatisch zurück: Karte „Gegenprüfung fehlt“, der Betreiber entscheidet. Fremde Gesichter werden so nie ungeprüft übernommen. Ob Vorlagen bis dahin nur über Workflows laufen, die allein Struktur übernehmen (Pose, Tiefe), ist ein offener Vorschlag des Auditors.
    - **Umgesetzt 17.11.2026 (Migration 23):** eigener Knoten `DarkfluenzerFaceIdentity` im Repository (`comfy_nodes/darkfluenzer`, von `launcher/setup_comfyui.sh` nach `custom_nodes` verlinkt; Modellordner `face`; OpenCV 5.0.0.93 im Lock der ComfyUI). Engine `identity` mit den drei Dateien (BUG-091), Workflow `identity_check` (`[workflows.<key>.identity]`: Referenzordner der Figur, `[identity]`-Werte setzt das Backend). Messwerte aus `ui.darkfluenzer_checks` → `RenderResult.checks` → `media_checks` (geprüftes Medium: Ergebnis, sonst Eingabe über SHA) und EVENT `JobCompleted.checks`; ein Prüflauf ohne Datei ist gültig. `media/identity.py` und CLI `identity` entfernt (keine Bildprüfung im Backend). Echter Lauf: Knoten in ComfyUI 1 (gleiches Bild 1,000, andere Person 0,05), Kette Cockpit → Knoten → Cockpit (Job 92). **Offen:** Schwellen und Kalibrierlauf, Fotohinweise im Datensatz über diesen Workflow, Gegenprüfung für den Kloner (SP5), Identitätswerte mit echten Referenzfotos (Qualifikation).
 8. **Kloner-Methode je Befehl festlegen (Vergleich nach Regel 1).**
    - Kandidaten: (A) `flux3_klein_reference` mit zweiter Referenz aus `reference/` der Figur; (B) `krea2_raw_turbo_lora_t2i` mit Charakter-LoRA und Prompt aus der Vorlagen-Analyse (B5.6); (C) LUSTIFY SDXL mit Charakter-LoRA für `edit` und Verfeinern.
@@ -903,7 +933,7 @@ Punkte 1, 5 und 7 gehören zum Implementierungsstand (mit kurzen Läufen), Punkt
 
 Ersetzt D1, D2, D3 und C6. Grundlage: Code-Vergleich von Fable (17.11.) mit `runtime.py` und `realtime.ts`.
 
-**Ziel:** Darkfluenzer läuft unbeaufsichtigt rund um die Uhr, meldet Störungen aufs Handy, lässt sich im Betrieb aktualisieren und ist rechtlich geklärt, bevor der erste Kunde zahlt.
+**Ziel:** Darkfluenzer läuft unbeaufsichtigt rund um die Uhr, meldet Störungen aufs Handy, lässt sich im Betrieb aktualisieren und ist rechtlich geklärt vor dem ersten öffentlichen Kundenkontakt (**[17.11., E21]**, bisher: bevor der erste Kunde zahlt).
 **Schließt:** BUG-035, 061, 065, 066, 076, 103, 104 (BUG-105 schließt SP0).
 **Dateien:** `store.py`, `runtime.py`, `app.py`, `server.py`, `pipeline.py`, `config.py`, `launcher/*`, `frontend/src/core/realtime.ts`.
 
@@ -915,7 +945,7 @@ Ersetzt D1, D2, D3 und C6. Grundlage: Code-Vergleich von Fable (17.11.) mit `run
    - Der Starter wertet die Rückgabe je Instanz aus (BUG-031, SP2).
    - Der Dienst startet nach der Anmeldung des Benutzers. Ein Neustart des Macs ohne Anmeldung stellt Clara nicht bereit (SPEC-014). Lösung nach E18; bis zur Entscheidung gilt: Anmeldung von Hand, automatische System-Neustarts sind ausgeschaltet, und nach jedem Wiederanlauf geht eine Meldung ans Handy.
 2. **Ruhezustand.** Der Server hält einen Schlafschutz, solange er läuft. Die Betriebsanzeige zeigt Netzteil und Schlafschutz. Dokumentiert wird: Betrieb am Netzteil, Deckel offen oder mit externem Bildschirm.
-3. **Betriebsmeldungen ans Handy (`server.py`).** Der Default bekommt über Telegram eine Meldung bei: Neustart nach Absturz, Kanal länger als die Grenze nicht bereit, Warteschlange steht, Speicherplatz unter der Reserve, Auslagerung über der Grenze, Zahlungseingang ohne Zuordnung. Grenzen in der Konfiguration; je Störung höchstens eine Meldung, dazu eine Entwarnung.
+3. **Betriebsmeldungen ans Handy (`server.py`).** Der Default bekommt über Telegram eine Meldung bei: Neustart nach Absturz, Kanal länger als die Grenze nicht bereit, Warteschlange steht, Speicherplatz unter der Reserve, Auslagerung über der Grenze, Zahlungseingang ohne Zuordnung; **[17.11., Planlogik]** dazu Sendung im Status `unknown`, KI-Hinweis ungeklärt (die Identität bekommt bis zur Klärung keine KI-Antwort), Zustellung wartet auf Kontakt (Instagram-Fenster), Zahlungseingang nach Angebotsablauf, Zahlung in Prüfung (Gutschein wartet), Video wartet auf Freigabe. Grenzen in der Konfiguration; je Störung höchstens eine Meldung, dazu eine Entwarnung.
 4. **Sicherung (`app.py`; SPEC-015).**
    - `darkfluenzer backup` sichert auf ein Ziel aus den Einstellungen: Datenbankkopie, `local/customers`, `local/channels`, `local/characters`, Charakter-LoRAs, `local/registry.toml`, `local/config.toml` und die Galerie. Nicht gesichert werden geladene Modelle, die ComfyUI-Installation und Zwischenstände. Läuft täglich aus dem Dienst.
    - Geheimnisse stehen nicht in der Sicherung. Nach einer Rücksicherung zeigen die Einstellungen, was neu einzutragen ist.
@@ -935,9 +965,9 @@ Ersetzt D1, D2, D3 und C6. Grundlage: Code-Vergleich von Fable (17.11.) mit `run
    - `darkfluenzer deploy`: Arbeitsstand sauber, Tests, Protobuf erzeugen, Frontend bauen, Sicherung, dann Neustart. Reihenfolge fest: erst bauen, dann neu starten.
    - Frontend: ist das Cockpit wegen des Schemas gesperrt, versucht es das Neuladen in Abständen erneut, statt gesperrt zu bleiben (BUG-076).
    - Rückfall: altes Release samt Sicherung von vor der Migration; das Verfahren steht im README.
-8. **Recht (bisher D1, Sperre vor dem ersten zahlenden Kunden).**
+8. **Recht (bisher D1; [17.11., E21] Sperre vor dem ersten öffentlichen Kundenkontakt, die Klärung läuft ab sofort parallel und braucht keinen Code; in Etappe F bleiben die Produktteile).**
    - Anwaltlich klären: KI-Offenlegung, Jugendschutz ohne Altersfrage (E2), Verbraucherrecht für digitale Inhalte, Impressum und Datenschutz, Steuer, Plattformbedingungen von Telegram und Instagram für automatisierte Konten und Verkauf, Bedingungen von PayPal und Amazon-Gutscheinen, Fansly für synthetische Personen, Modell-Lizenzen, Umgang mit gelöschten Nachrichten.
-   - Produktteile: Pflichttexte als Felder der Influencerin. Auskunft je Akte als Export. Löschung je Akte (Befehl 57 `customer_erase`): Nachrichten, Anhänge, Gedächtnis, Gutscheintexte und die Zuordnung zur Plattform-Identität entfallen; Aufträge und Zahlungen bleiben ohne Personenbezug für die Aufbewahrung. Die unveränderlichen Tabellen (`events`, `artifacts`, `approvals`) enthalten nur Kennungen.
+   - Produktteile: Pflichttexte als Felder der Influencerin. Auskunft je Akte als Export. Löschung je Akte (Befehl 57 `customer_erase`): Nachrichten, Anhänge, Gedächtnis, Gutscheintexte und die Zuordnung zur Plattform-Identität entfallen; **[17.11., Planlogik]** ebenso `ai_runs` (zusammengesetzter Prompt, Kontext, Gedächtnisauswahl), Medienwunsch, Prompts und Parameter der Jobs dieser Akte, Herkunftsdateien der Läufe und Verlaufsdateien des Sprachknotens; die Löschung gilt je Plattform-Identität für alle Akten mit genau dieser Identität (SP2 Schritt 9); Aufträge und Zahlungen bleiben ohne Personenbezug für die Aufbewahrung. Die unveränderlichen Tabellen (`events`, `artifacts`, `approvals`) enthalten nur Kennungen.
    - Abnahme: nach der Löschung findet eine Volltextsuche über Datenbank und `local/` keinen Namen, keine Kennung und keinen Text der Akte.
    - Die unveränderlichen Ereignisse tragen weiter interne Kundennummern. Ob das nach Löschung der Zuordnung genügt, klärt diese rechtliche Prüfung (SPEC-015).
 9. **Probephase und Gesamtabnahme (bisher C6).**
@@ -1029,7 +1059,7 @@ Frei laut `stream.proto` und `commands.proto` am 17.11.2026: Befehle 31–33, 36
 | SP5 Nachlauf | – | – | 56 `order_aftercare` |
 | C5.9 | – | – | 36 `link_identity` |
 | SP6 | – | – | 57 `customer_erase`; CLI `service`, `backup`, `deploy` |
-| SP2 | 8 (alle Konten), 12 Einstellungen | 26 additiv | 60 `secret_set`, 61 `config_update`, 62 `connection_test`, 66 `channel_account_update`; HTTP `GET /api/v1/command/<request_id>` |
+| SP2 | 8 (alle Konten), 12 Einstellungen | 26 additiv | 60 `secret_set`, 61 `config_update`, 62 `connection_test`, 40 `channel_account_update` additiv (**[17.11., Planlogik]** statt der doppelten Vergabe 66; 66 bleibt frei); HTTP `GET /api/v1/command/<request_id>` |
 | SP4/SP5 Kundentest | – | 31 additiv | 37 additiv, 63 `test_reset` |
 | SP5 Prüfung/Freigabe | 4 additiv | 23 additiv | 35 additiv |
 | SP3 | 5 additiv | – | 25 additiv, 64 `lora_activate`, 65 `reveal_folder`, 67 `character_photos_add` |

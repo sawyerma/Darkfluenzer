@@ -1,7 +1,7 @@
 # Darkfluenzer – PHASENPLAN_FRONTEND.md
 
 **Stand:** 17.11.2026 (Frontend-Teile der Sammelpakete SP1–SP6, Änderungsblätter und Korrektur nach den Prüfberichten) · **Status:** **freigegeben** durch den Betreiber am 17.11.2026, verbindlich. Umsetzung in der Reihenfolge des Backend-Plans §6, Priorität CODE FIRST.
-**Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Produktziel, Regeln, Entscheidungen E1–E19, PASS-Definition, Reihenfolge, Paketnummern) und `docs/bugs_v1.md`.
+**Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Produktziel, Regeln, Entscheidungen E1–E26, Statusbegriffe §2.3, Reihenfolge, Paketnummern; **[17.11., Planlogik]** nach der Logikprüfung korrigiert, offene Wahlpunkte E24–E26) und `docs/bugs_v1.md`.
 **Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; laufendes Cockpit am 17.11.2026.
 **Gestaltungsreferenz:** `docs/design/Darkfluenzer_Cockpit_Interaktiv.html` und Anhang A (F7, wörtlich aus dem archivierten FRONT V1).
 
@@ -158,9 +158,9 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 
 - **A:** SP0 (Seiten in Komponenten teilen), `VideoSettings`, „Auftrag abbrechen“, Ganzzahlprüfung, Befehle mit Zeitlimit und Statusabfrage, Bereich Charakter mit Training und Versionen, Zeitachse, Vorrang in der Warteschlange.
 - **B:** KI-Studio (Chat-Test, Promptprofil mit Versionen, Gedächtnis, Prüfansicht; E19).
-- **C:** Zustandskarten der Default-Kette, Betriebsart, Ausgabeprofil je Befehl, Stapel; Modus der Konversation, Entwürfe, geplante Antworten, Verhaltensprofil; Kundentest mit Latenztafel.
-- **D:** Produktliste, Medienwunsch, Angebot, Produktion mit Prüfwerten, Zustellung, Marke TEST.
-- **E:** Reiter Einstellungen, Kanalkonten, Figur-Filter, Wallet mit PayPal und Kulanz, restliche Härtung.
+- **C:** Zustandskarten der Default-Kette, Betriebsart, Ausgabeprofil je Befehl, Stapel; Modus der Konversation, Entwürfe, geplante Antworten, Verhaltensprofil; Kundentest mit Latenztafel. **[17.11., Planlogik]** Das Kanalkonten-Datenmodell kommt hier im Backend (SP2 Schritt 9a); die Oberfläche zeigt Default-Identität, Betriebsart und Kanalstatus je Konto, die Pflege der Konten bleibt in E.
+- **D:** **[17.11., Planlogik]** zuerst Kundentest mit Bild und Marke TEST (Testweg vorgezogen, Backend SP5 Schritt 12), dann Produktliste, Medienwunsch, Angebot, Produktion mit Prüfwerten, Zustellung; Videos mit Freigabe durch den Betreiber (E23).
+- **E:** Reiter Einstellungen mit Pflege der Kanalkonten (SP2 Schritt 9b), Figur-Filter, Wallet mit PayPal und Kulanz, restliche Härtung.
 - **F:** Betriebsanzeige, Auskunft und Löschung, Release-Kennung, Gesamtlauf.
 
 
@@ -171,8 +171,8 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 | **SP1 Default-Kette** | Karte je Zustand (gestartet, wartet auf Start mit Startknopf, abgelehnt mit Grund, zurückgesendet, Rückversand gesperrt, fehlgeschlagen, abgebrochen); Default-Kontakt mit Betriebsart, Kandidatenzahl, Ausgabeprofil je Befehl (z. B. Story 9:16) und Chat-Wörtern, ausgeschaltete Schalter und fehlende Workflows sichtbar; Stapel mit einer Karte je Bild und gemeinsamem Fortschritt; Auftragskarte nennt Influencerin, Workflow, Zahl der Referenzen, „ohne Charakter-LoRA“; `VideoSettings` für alle Video-Workflows; „Auftrag abbrechen“ an der Auftragskarte mit Abbruchzustand bis zur Quittung | Browser-Test für jeden Zustand; LTX, Wan, Remix mit denselben Feldern an derselben Stelle (Screenshot-Vergleich); echter Lauf vom Handy nach Backend SP1 |
 | **SP4 Clara chattet** | Frontend-Teil nach §4.2 (KI-Studio mit Messwerten, Modus je Konversation, Entwürfe, geplante und stornierte Antworten, Kaufbereitschaft, Sperre „minderjährig vermutet“, Verhaltensprofil, Automatik je Konto, Kundentest, KI-Instanz „bleibt geladen“; Deutung freier Default-Anweisungen in der Karte) | 20 echte Testnachrichten im Kundentest mit Messwerten; Browser-Test für Modus, Entwurf, Storno, Sperre |
 | **C5.1** (SP4) | Figur-Filter und Influencerin-Kennzeichen in Liste, Register und Aktenkopf, sichtbare Sortierung; Influencerin-Block mit Charakter | zwei Figuren ohne Vermischung |
-| **SP5 Verkauf automatisch** | Frontend-Teil nach §4.3 (Produkte, Zahlungswege, Angebot, Zahlung, Prüfwerte, Systemfreigabe, Zustellung, Nachlauf, Wallet mit PayPal, Vorrang in der Warteschlange, Kundentest mit Bild) | Kundentest ohne Klick bis zum Foto mit Begleittext; Testauftrag nie im Wallet, nie an eine Kundenidentität; echte Zahlung je Weg |
-| **SP3 (B1)** | Bereich Charakter §3.3 (Liste, Fotostatus, Training, Versionen, Aktiv setzen, LoRA-Auswahl im Formular) | echter Ordner → Training → LoRA → Bild; Browser-Test Anlegen, Fotostatus, gesperrter Start, Umschalten |
+| **SP5 Verkauf automatisch** | Frontend-Teil nach §4.3 (Produkte, Zahlungswege, Angebot, Zahlung, Prüfwerte, Systemfreigabe für Bilder, Videos durch den Betreiber (E23), Zustellung, Nachlauf, Wallet mit PayPal, Vorrang in der Warteschlange, Kundentest mit Bild) | Kundentest ohne Klick bis zum Foto mit Begleittext; Testauftrag nie im Wallet, nie an eine Kundenidentität; echte Zahlung je Weg |
+| **SP3 (B1)** | Bereich Charakter §3.3 (Liste, Fotostatus, Training, Versionen, Aktiv setzen, LoRA-Auswahl im Formular) | echter Ordner → Training → LoRA → Bild (**[17.11., E22]** ein kurzes echtes Training belegt die Kette als TEIL, volles Training und Identitätsmessung folgen); Browser-Test Anlegen, Fotostatus, gesperrter Start, Umschalten |
 | **B4** | Zeitachse §3.3 | 15 s mit vier Marken → ein Auftrag mit vier Schlüsselbildern |
 
 **Umgesetzt 17.11.2026 (B4 Teil):** Formular „Weitere Schlüsselbilder“ für Workflows mit Schlüsselbild-Kette (`WorkflowInfo.keyframes`): je Zeile Zeitpunkt (s), Bild, Stärke, Entfernen; „Schlüsselbild hinzufügen“. Offen: Auswahl aus Dateien, Zeitleiste mit Marken.
@@ -200,19 +200,20 @@ Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`,
 
 ### 4.2 SP4 Clara chattet (Frontend-Teil)
 
-- **KI-Studio (§3.4, E19):** alle Promptbereiche bearbeitbar (Systemprompt, Persona, positive und negative Anweisungen, Gesprächs- und Verkaufsstrategie, Beispieldialoge, Funktionsanweisungen) und die Modellparameter des Knotens; Versionen speichern, vergleichen, im Chat-Test ausführen, aktivieren und zurücksetzen ohne Neustart (Befehl 68). Chat-Test mit echter Melody-Inferenz, Gesamtzeit, Wartezeit und den Versionen von Profil, Modell und Workflow je Antwort, dazu der zusammengesetzte Prompt; die Zeit bis zum ersten Token nur, wenn sie geliefert wird. Gedächtnisliste mit Kontextinspektor. Prüfansicht für die strukturierten Ergebnisse. Eigene Profile je Influencerin.
+- **KI-Studio (§3.4, E19):** alle Promptbereiche bearbeitbar (Systemprompt, Persona, positive und negative Anweisungen, Gesprächs- und Verkaufsstrategie, Beispieldialoge, Funktionsanweisungen) und die Modellparameter des Knotens; Versionen speichern, vergleichen, im Chat-Test ausführen, aktivieren und zurücksetzen ohne Neustart (Befehl 68). **[17.11., E20]** Der KI-Hinweis wird nur angezeigt (fester Textblock des Workflows, nicht bearbeitbar). Chat-Test mit echter Melody-Inferenz, Gesamtzeit, Wartezeit und den Versionen von Profil, Modell und Workflow je Antwort, dazu der zusammengesetzte Prompt; die Zeit bis zum ersten Token nur, wenn sie geliefert wird. Gedächtnisliste mit Kontextinspektor. Prüfansicht für die strukturierten Ergebnisse. Eigene Profile je Influencerin.
 - **Nachrichten, Kundenakte:** Umschalter für den Modus der Konversation; Entwurf als bearbeitbare Karte mit Senden und Verwerfen; geplante Antwort mit Sendezeit, „Jetzt senden“ und „Zurückhalten“; stornierte Antworten bleiben als Karte sichtbar. Kaufbereitschaft mit Beleg. Karte und Sperre „minderjährig vermutet“ mit „Sperre aufheben“. Status des KI-Hinweises; kein Altersblock.
 - **Influencerin-Block:** Schalter Text-KI; Editor fürs Verhaltensprofil.
 - **Kanalstatus:** Schalter „Automatik“ je Konto mit sichtbarer Wirkung.
-- **Kundentest (§3.8):** wie beschrieben; derselbe registrierte Workflow wie im KI-Studio; die Latenztafel liest `ai_runs`.
+- **Kundentest (§3.8):** wie beschrieben; derselbe registrierte Workflow wie im KI-Studio; die Latenztafel liest `ai_runs`. **[17.11., Planlogik]** Feste Chat-Wörter des Defaults erscheinen als Systemkarte, nie im Testverlauf der KI.
 - **Abnahme:** die zehn Punkte aus Backend SP4 (Abnahme 1 bis 10) im Browser und am Handy; Browser-Test für Speichern, Vergleichen, Aktivieren und Zurücksetzen einer Profilversion.
 - **Instanzen:** KI-Instanz zeigt „bleibt geladen“ und das geladene Modell.
 
 ### 4.3 SP5 Verkauf automatisch (Frontend-Teil)
 
 - **Influencerin-Block:** Produktliste mit Art, Workflow, Kandidatenzahl, Höchstlänge und Zusatzleistungen; Zahlungswege; Angebotsgültigkeit; Schalter Bildautomatik und Freigabeart.
-- **Kundenakte rechts:** Medienwunsch mit Quellnachrichten; Angebot mit gesperrtem Faktenblock und Zahlungswegen; Zahlungsstatus; Produktion mit Prüfwerten je Kandidat und „Neu erzeugen“; Zustellung mit Versandart und Begleittext; Nachlauf mit Neuauflage und Erstattung.
-- **Auftragskarte:** zeigt, ob das System oder der Betreiber freigegeben hat; „wartet auf Betreiber“ mit Freigeben, Neu, Erstatten („Freigeben“ nur bei technischem oder qualitativem Fehlschlag).
+- **Kundenakte rechts:** Medienwunsch mit Quellnachrichten; Angebot mit gesperrtem Faktenblock (mit Lieferzeit) und Zahlungswegen; Zahlungsstatus; Produktion mit Prüfwerten je Kandidat und „Neu erzeugen“; Zustellung mit Versandart und Begleittext; Nachlauf mit Neuauflage und Erstattung.
+- **[17.11., Planlogik] Zustände und Karten:** „Zahlung in Prüfung“ (`payment_review`, Gutschein wartet); „Eingang nach Ablauf“ als nicht zugeordneter Eingang mit „Neuem Angebot zuordnen“ und „Erstatten“ (E24 offen); „Zustellung wartet auf Kontakt“ (`awaiting_contact`, Instagram-Fenster); „Gegenprüfung fehlt“ (Backend SP3 Schritt 7); „Video wartet auf Freigabe“ (E23); „Testbetrieb beendet“ bei Wechsel der Betriebsart mit offenen Testaufträgen. Jede Karte nennt die Auftragsnummer.
+- **Auftragskarte:** zeigt, ob das System oder der Betreiber freigegeben hat; „wartet auf Betreiber“ mit Freigeben, Neu, Erstatten („Freigeben“ nur bei technischem oder qualitativem Fehlschlag; bei Videos bis zu einer qualifizierten Videoprüfung immer, E23). **[17.11., Planlogik]** „Erstatten“ verlangt eine zweite Bestätigung mit der Auftragsnummer; am Handy gelten Freigabewörter nur als Antwort auf die Vorschau des Auftrags.
 - **Wallet:** PayPal-Konto und -Eingänge; Kulanz-Zuordnung zeigt Fehlbetrag und Grenze und verlangt eine Bestätigung (E10, SPEC-010).
 - **Kandidaten:** vier Prüfwerte (Identität, Inhaltsstufe, Technik, Qualität); ohne geprüftes Modell steht dort „Prüfmodell fehlt, Freigabe durch Betreiber“ (E16, E17).
 - **Warteschlange:** Vorrang je Job sichtbar.
@@ -223,7 +224,7 @@ Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`,
 
 - **Betriebsanzeige (Einstellungen, Gruppe Betrieb):** Dienst installiert, Laufzeit seit dem letzten Start, Netzteil, Schlafschutz, letzte Sicherung, freier Speicherplatz, Auslagerung, offene Störungen. Dazu: Verzögerung des Hauptstrangs (SP0), Sicherungsziel und Zahl der Stände, Hinweis „Anmeldung nach Neustart nötig“ (E18).
 - **Verbindung (`realtime.ts`):** bei Sperre wegen des Schemas erneutes Neuladen in Abständen; Anzeige „Update läuft“ (BUG-076).
-- **Kundenakte:** „Auskunft exportieren“ und „Akte löschen“ mit Bestätigung und Quittung.
+- **Kundenakte:** „Auskunft exportieren“ und „Akte löschen“ mit Bestätigung und Quittung; **[17.11., Planlogik]** die Quittung nennt die gelöschten Teile (Nachrichten, Anhänge, Gedächtnis, KI-Läufe, Job-Parameter, Medien) und Dateien, die nicht entfernt werden konnten.
 - **Influencerin-Block:** Pflichttexte.
 - **Release-Kennung** im Kopf.
 - **Abnahme:** ein Browser-Lauf über die ganze Kette; Screenshots aller sechs Reiter gegen die Referenz.
@@ -380,7 +381,7 @@ Die freigegebene **Übersicht** und **Nachrichtenansicht** sind im Betreiber-Cha
 
 **1. Einbettung und visuelle Übereinstimmung**
 
-- **Keine neue App, kein weiterer Hauptreiter, kein neues Design.** Kopfzeile mit pinkem **C** links, genau **Übersicht · Nachrichten · ComfyUI · Dateien · Wallet**; **ComfyUI** aktiv. Darunter die Unterregister **Fotos · Videos · KI**, jeweils mit einer **real aus Registry/Backend ermittelten** Workflow-Anzahl. Der Vorschau-Zähler \`KI 6*\` bedeutet sechs **vorgesehene** Workflowtypen, **nicht sechs fertige** Workflows; im Produkt nie als sechs bereit anzeigen, wenn nicht registriert.
+- **Keine neue App, kein weiterer Hauptreiter, kein neues Design.** Kopfzeile mit pinkem **C** links, genau **Übersicht · Nachrichten · ComfyUI · Dateien · Wallet · Einstellungen** (**[17.11.]** sechs Reiter, E13); **ComfyUI** aktiv. Darunter die Unterregister **Fotos · Videos · KI**, jeweils mit einer **real aus Registry/Backend ermittelten** Workflow-Anzahl. Der Vorschau-Zähler \`KI 6*\` bedeutet sechs **vorgesehene** Workflowtypen, **nicht sechs fertige** Workflows; im Produkt nie als sechs bereit anzeigen, wenn nicht registriert.
 - **Graphite** aus dem freigegebenen F7-Stil: dunkelgraue Hauptflächen (Referenz \`#1c1c1f\`), dunklere Sidebar, feine graue Grenzen (Referenz \`#414149\`), helle Schrift, zurückhaltende pinke Selektion/Aktion (Referenz \`#ed2287\`). **Nur bestehendes Stylesheet \`shared/graphite.css\`** im React-Produkt; kein eigenständiges Designsystem.
 - **Drei feste Desktop-Spalten:** **links ausschließlich Workflowliste**, **Mitte Arbeits-/Ergebnisbereich**, **rechts äußerster Rand Steuerung**. Die KI-Seite ersetzt in der Mitte je nach Workflow Testchat, Persona, Memos, Bildanalyse, Training oder Audio; **sie baut kein zweites Chat-Cockpit** unter Nachrichten auf. Bei schmalen Ansichten darf die rechte Steuerung untergeordnet werden, nicht die fachliche Zuordnung ändern.
 - Links Überschrift **KI-Workflows**, darunter **ComfyUI-Instanz 2** und eine Liste aktivierbarer **registrierter** Workflows. Jede Zeile zeigt Workflowname, Funktion sowie tatsächlichen Zustand **bereit / offen / Fehler**, selektiert pink. Es gibt **keine** alternative linke Job-/Projekt-/Kundenliste.
