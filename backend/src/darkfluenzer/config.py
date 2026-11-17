@@ -200,6 +200,9 @@ class ProductionConfig:
     stage_attempts_max: int
     # Obergrenze der Gesamtlänge eines Videos in Sekunden (Abschnitte werden aneinandergereiht)
     video_max_s: float
+    # Kein festes Zeitlimit für Läufe: abgebrochen wird erst, wenn ComfyUI so lange nicht antwortet
+    # oder den Auftrag weder in der Warteschlange noch im Verlauf kennt
+    comfy_lost_s: float
 
 
 @dataclass(frozen=True)
@@ -597,6 +600,7 @@ def load(root: Path | None = None) -> Config:
         candidates_max=int(_positive(prod, "candidates_max", 6, "production")),
         stage_attempts_max=int(_positive(prod, "stage_attempts_max", 3, "production")),
         video_max_s=float(_positive(prod, "video_max_s", 120, "production")),
+        comfy_lost_s=float(_positive(prod, "comfy_lost_s", 60, "production")),
     )
     if production.candidates_default > production.candidates_max:
         raise ConfigError("Konfiguration: production.candidates_default > candidates_max.")

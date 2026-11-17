@@ -200,6 +200,14 @@ class ComfyClient:
             for item in items
         ]
 
+    def _queued(self, prompt_id: str) -> bool:
+        q = self.queue()
+        return any(
+            item[1] == prompt_id
+            for key in ("queue_running", "queue_pending")
+            for item in q.get(key, [])
+        )
+
     def cancel(self, prompt_id: str) -> None:
         """Nur den eigenen Auftrag abbrechen: wartend -> aus Queue löschen, laufend -> gezielt."""
         q = self.queue()
@@ -211,15 +219,45 @@ class ComfyClient:
     def wait(
         self,
         prompt_id: str,
-        timeout_s: float,
+        timeout_s: float | None,
         poll_s: float = 1.0,
         on_poll: Callable[[], None] | None = None,
+        lost_after_s: float | None = None,
     ) -> dict:
-        deadline = time.monotonic() + timeout_s
+        """Auf das Ergebnis warten. Mit ``timeout_s`` gilt eine feste Frist (danach Abbruch).
+        Ohne Frist (``None``) endet das Warten nur durch Ergebnis, Fehler von ComfyUI oder fehlendes
+        Lebenszeichen: ComfyUI antwortet länger als ``lost_after_s`` nicht oder kennt den Auftrag so
+        lange weder in der Warteschlange noch im Verlauf. Lange Läufe (Training, Video) brechen so
+        nie wegen der Dauer ab."""
+        if timeout_s is None and lost_after_s is None:
+            raise ValueError("wait ohne Frist braucht lost_after_s")
+        deadline = time.monotonic() + timeout_s if timeout_s is not None else None
+        lost_since: float | None = None
         while True:
             if on_poll is not None:
                 on_poll()
-            entry = self.history(prompt_id)
+            if deadline is not None:
+                entry = self.history(prompt_id)
+                alive, reachable = True, True
+            else:
+                try:
+                    entry = self.history(prompt_id)
+                    alive = entry is not None or self._queued(prompt_id)
+                    reachable = True
+                except ComfyError:
+                    entry, alive, reachable = None, False, False
+                if alive:
+                    lost_since = None
+                else:
+                    lost_since = lost_since or time.monotonic()
+                    if time.monotonic() - lost_since > lost_after_s:
+                        reason = (
+                            f"Auftrag {prompt_id}: ComfyUI kennt ihn weder in der Warteschlange "
+                            "noch im Verlauf."
+                            if reachable
+                            else f"Auftrag {prompt_id}: ComfyUI antwortet nicht mehr ({self.base})."
+                        )
+                        raise ComfyError(reason, prompt_id=prompt_id)
             if entry is not None:
                 status = entry.get("status") or {}
                 if status.get("status_str") == "error":
@@ -230,7 +268,7 @@ class ComfyClient:
                     )
                 if status.get("completed"):
                     return entry
-            if time.monotonic() > deadline:
+            if deadline is not None and time.monotonic() > deadline:
                 self.cancel(prompt_id)
                 raise ComfyTimeout(
                     f"Auftrag {prompt_id} nach {timeout_s:.0f} s abgebrochen.", prompt_id=prompt_id
@@ -366,7 +404,7 @@ def run_workflow(
     dest: Path,
     *,
     stem: str,
-    timeout_s: float = 1800.0,
+    timeout_s: float | None = None,
     job_id: int | None = None,
     client_id: str | None = None,
     on_submit: Callable[[str, dict], None] | None = None,
@@ -418,7 +456,7 @@ def collect_workflow(
     dest: Path,
     *,
     stem: str,
-    timeout_s: float,
+    timeout_s: float | None,
     t0: float | None = None,
 ) -> RenderResult:
     """Auf einen eingereichten Auftrag warten und seine Ausgaben unter ``dest`` sichern – auch für
@@ -430,6 +468,7 @@ def collect_workflow(
         dest,
         stem=stem,
         timeout_s=timeout_s,
+        lost_after_s=cfg.production.comfy_lost_s,
         t0=t0,
         base=RenderResult(
             prompt_id=prompt_id,
@@ -448,11 +487,12 @@ def run_graph(
     dest: Path,
     *,
     stem: str,
-    timeout_s: float,
+    timeout_s: float | None,
     base: RenderResult,
     job_id: int | None = None,
     client_id: str | None = None,
     on_submit: Callable[[str, dict], None] | None = None,
+    lost_after_s: float | None = None,
 ) -> RenderResult:
     """Vom Backend gebauten Graphen ausführen (z. B. Abschnitte eines Videos zusammensetzen)."""
     client = ComfyClient(inst.url, client_id=client_id)
@@ -461,7 +501,10 @@ def run_graph(
     if on_submit is not None:
         on_submit(prompt_id, graph)
     base.prompt_id = prompt_id
-    return collect_graph(inst, prompt_id, dest, stem=stem, timeout_s=timeout_s, t0=t0, base=base)
+    return collect_graph(
+        inst, prompt_id, dest, stem=stem, timeout_s=timeout_s, t0=t0, base=base,
+        lost_after_s=lost_after_s,
+    )  # fmt: skip
 
 
 def collect_graph(
@@ -470,16 +513,17 @@ def collect_graph(
     dest: Path,
     *,
     stem: str,
-    timeout_s: float,
+    timeout_s: float | None,
     base: RenderResult,
     t0: float | None = None,
     allow_empty: bool = False,
+    lost_after_s: float | None = None,
 ) -> RenderResult:
     """Auf einen eingereichten Graphen warten und seine Ausgaben unter ``dest`` sichern."""
     client = ComfyClient(inst.url)
     start = time.monotonic() if t0 is None else t0
     trace = MemoryTrace(client)
-    entry = client.wait(prompt_id, timeout_s, on_poll=trace.sample)
+    entry = client.wait(prompt_id, timeout_s, on_poll=trace.sample, lost_after_s=lost_after_s)
     trace.sample()
     dest.mkdir(parents=True, exist_ok=True)
     result = base

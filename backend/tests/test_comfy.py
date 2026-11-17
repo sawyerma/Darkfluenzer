@@ -88,7 +88,7 @@ class FakeComfy:
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def history(self, pid: str) -> dict:
-        if pid not in self.prompts or self.mode == "hang":
+        if pid not in self.prompts or self.mode in ("hang", "lost"):
             return {}
         if self.mode == "exec_error":
             status = {
@@ -182,6 +182,37 @@ def test_timeout_interrupts_only_own_prompt(fake):
     with pytest.raises(comfy.ComfyTimeout):
         client.wait(pid, timeout_s=0.3, poll_s=0.05)
     assert fake.interrupted == [pid]
+
+
+def test_wait_without_deadline_survives_long_run(fake):
+    """Ohne Frist kein Abbruch wegen der Dauer: läuft der Auftrag länger als die Toleranz, wird
+    trotzdem gewartet, solange ComfyUI ihn in der Warteschlange führt."""
+    fake.mode = "hang"
+    client = comfy.ComfyClient(fake.url)
+    pid = client.submit(GRAPH)
+    threading.Timer(0.6, lambda: setattr(fake, "mode", "ok")).start()
+    entry = client.wait(pid, timeout_s=None, poll_s=0.05, lost_after_s=0.2)
+    assert entry["status"]["completed"] and fake.interrupted == []
+
+
+def test_wait_without_deadline_stops_when_prompt_is_lost(fake):
+    fake.mode = "lost"  # weder in der Warteschlange noch im Verlauf
+    client = comfy.ComfyClient(fake.url)
+    pid = client.submit(GRAPH)
+    with pytest.raises(comfy.ComfyError, match="weder in der Warteschlange"):
+        client.wait(pid, timeout_s=None, poll_s=0.05, lost_after_s=0.2)
+
+
+def test_wait_without_deadline_stops_when_comfy_is_gone(fake):
+    fake.mode = "hang"
+    client = comfy.ComfyClient(fake.url, timeout=1)
+    pid = client.submit(GRAPH)
+    fake.server.shutdown()
+    fake.server.server_close()
+    with pytest.raises(comfy.ComfyError, match="antwortet nicht mehr"):
+        client.wait(pid, timeout_s=None, poll_s=0.05, lost_after_s=0.2)
+    with pytest.raises(ValueError):
+        client.wait(pid, timeout_s=None)
 
 
 def test_unreachable_server_is_reported():

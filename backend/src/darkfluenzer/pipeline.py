@@ -428,7 +428,7 @@ def run_render(
     cfg: Config,
     man: Manifest,
     job_id: int,
-    timeout_s: float = 3600.0,
+    timeout_s: float | None = None,
     client_id: str | None = None,
     is_cancelled: Callable[[], bool] = lambda: False,
     unload_first: bool = False,
@@ -525,7 +525,7 @@ def render_evaluation(
     workflow_key: str,
     values: dict,
     uploads: dict[str, Path] | None = None,
-    timeout_s: float = 3600.0,
+    timeout_s: float | None = None,
 ) -> comfy.RenderResult:
     """Evaluationslauf von der Kommandozeile: derselbe Weg wie im Cockpit (Job ohne Kundenbezug)."""
     inputs = {n: store_input(cfg, p.read_bytes(), p.name) for n, p in (uploads or {}).items()}
@@ -546,7 +546,7 @@ def _render(
     job_id: int,
     values: dict,
     uploads: dict[str, Path],
-    timeout_s: float,
+    timeout_s: float | None,
     client_id: str | None = None,
     *,
     resume: str | None = None,
@@ -655,7 +655,7 @@ def _render_video(
     job_id: int,
     values: dict,
     uploads: dict[str, Path],
-    timeout_s: float,
+    timeout_s: float | None,
     client_id: str | None,
     *,
     store: Store,
@@ -779,14 +779,16 @@ def _render_video(
         base.prompt_id = prompt_id
         try:
             result = comfy.collect_graph(
-                inst, prompt_id, dest, stem=stem, timeout_s=timeout_s, base=base
-            )
+                inst, prompt_id, dest, stem=stem, timeout_s=timeout_s, base=base,
+                lost_after_s=cfg.production.comfy_lost_s,
+            )  # fmt: skip
         except comfy.ComfyError as exc:
             log.warning("Job %s: Zusammensetzen neu (%s)", job_id, exc)
     if result is None:
         result = comfy.run_graph(
             inst, joined, dest, stem=stem, timeout_s=timeout_s, base=base, job_id=job_id,
             client_id=client_id, on_submit=submitted(len(frames)),
+            lost_after_s=cfg.production.comfy_lost_s,
         )  # fmt: skip
     result.duration_s = round(
         result.duration_s
