@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 import shutil
@@ -231,3 +232,49 @@ def test_engine_formats_must_fit_every_workflow(tmp_path):
     probs = models.format_problems(wf, {"zu breit": (1296, 720), "schief": (1000, 720)})
     assert any("zu breit" in p and "außerhalb" in p for p in probs)
     assert any("schief" in p and "Vielfaches" in p for p in probs)
+
+
+def test_local_registry_holds_loras_and_switches(tmp_path):
+    """SP3 Schritt 4 (BUG-092, BUG-094): Schalter und LoRAs nur in local/registry.toml, das
+    versionierte Manifest bleibt unverändert; eine LoRA lädt nur auf ihrer Trainings-Engine und
+    auf ausdrücklich eingetragenen Engines."""
+    shutil.copytree(project_root() / "workflows", tmp_path / "workflows")
+    manifest = (tmp_path / "workflows" / "manifest.toml").read_bytes()
+    man = models.set_workflow_enabled(tmp_path, "lustify_sdxl_t2i", False)
+    assert man.workflows["lustify_sdxl_t2i"].enabled is False
+    assert (tmp_path / "workflows" / "manifest.toml").read_bytes() == manifest
+    assert "enabled = false" in (tmp_path / "local" / "registry.toml").read_text()
+    lora = models.Lora(
+        key="ds_x_r16_s10_t", target="loras/characters/clara/ds_x.safetensors", size=1,
+        sha256="a" * 64, base_engine="krea2_raw", base_file=man.engines["krea2_raw"].files[0],
+        dataset="ds_x", trigger="clara01", steps=10, rank=16, learning_rate=1e-4, strength=1.0,
+        status="OFFEN", created_at="t", trainer="ComfyUI TrainLoraNode", character="clara",
+        compatible=("krea2_turbo",),
+    )  # fmt: skip
+    man = models.register_lora(tmp_path, lora)
+    assert man.loras["ds_x_r16_s10_t"].character == "clara"
+    assert (tmp_path / "workflows" / "manifest.toml").read_bytes() == manifest
+    names = lambda engine: models.engine_model_names(man.files, man.engines, man.loras, engine)  # noqa: E731
+    assert lora.comfy_name in names("krea2_raw") and lora.comfy_name in names("krea2_turbo")
+    assert lora.comfy_name not in names("lustify_sdxl")
+    # ungültiger Eintrag -> lokale Registry bleibt unverändert
+    registry = (tmp_path / "local" / "registry.toml").read_bytes()
+    bad = dataclasses.replace(lora, key="ds_y", compatible=("gibt_es_nicht",))
+    with pytest.raises(models.ManifestError, match="gibt_es_nicht unbekannt"):
+        models.register_lora(tmp_path, bad)
+    assert (tmp_path / "local" / "registry.toml").read_bytes() == registry
+    # Löschen nimmt den Schalter mit; eine neue Kopie unter gleichem Schlüssel ist aktiviert
+    man, copy = models.create_workflow(tmp_path, "lustify_sdxl_t2i", "Kopie Test")
+    models.set_workflow_enabled(tmp_path, copy, False)
+    models.delete_workflow(tmp_path, copy)
+    assert copy not in (tmp_path / "local" / "registry.toml").read_text()
+    man, again = models.create_workflow(tmp_path, "lustify_sdxl_t2i", "Kopie Test")
+    assert again == copy and man.workflows[copy].enabled is True
+    # versioniertes Manifest mit Schalter -> klare Ablehnung
+    text = manifest.decode().replace(
+        'title = "LUSTIFY · Text zu Bild"\n',
+        'title = "LUSTIFY · Text zu Bild"\nenabled = true\n',
+        1,
+    )
+    with pytest.raises(models.ManifestError, match="gehört nach local/registry.toml"):
+        models.load_manifest(tmp_path, text=text)

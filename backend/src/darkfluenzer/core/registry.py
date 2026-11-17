@@ -28,8 +28,11 @@ class RegistryMixin:
                 comfy.install_editor_copy(self.cfg, self.manifest, key)
 
     def _fingerprint(self) -> str:
-        """Hash über Manifest und alle registrierten UI-/API-Graphen (Registry-Version)."""
+        """Hash über Manifest, lokale Registry und alle registrierten UI-/API-Graphen
+        (Registry-Version)."""
         digest = hashlib.sha256(self._manifest_path().read_bytes())
+        local = self.cfg.root / models.LOCAL_REGISTRY
+        digest.update(local.read_bytes() if local.is_file() else b"")
         for key in sorted(self.manifest.workflows):
             wf = self.manifest.workflows[key]
             for rel in (wf.ui, wf.api):
@@ -39,10 +42,19 @@ class RegistryMixin:
     def _manifest_path(self) -> Path:
         return self.cfg.root / models.MANIFEST_RELATIVE
 
+    def _registry_mtime(self) -> tuple[int, int]:
+        """Änderungsstand von Manifest und lokaler Registry (``local/registry.toml``)."""
+        local = self.cfg.root / models.LOCAL_REGISTRY
+        return (
+            self._manifest_path().stat().st_mtime_ns,
+            local.stat().st_mtime_ns if local.is_file() else 0,
+        )
+
     def _reload_if_changed(self) -> str | None:
-        """Externe Änderungen an manifest.toml (CLI, git) übernehmen; ungültige Fassung -> alte
-        Registry bleibt aktiv, Fehler im Log. Liefert den neuen Registry-Hash oder None."""
-        mtime = self._manifest_path().stat().st_mtime_ns
+        """Externe Änderungen an manifest.toml oder local/registry.toml (CLI, git) übernehmen;
+        ungültige Fassung -> alte Registry bleibt aktiv, Fehler im Log. Liefert den neuen
+        Registry-Hash oder None."""
+        mtime = self._registry_mtime()
         if mtime == self._manifest_mtime:
             return None
         self._manifest_mtime = mtime

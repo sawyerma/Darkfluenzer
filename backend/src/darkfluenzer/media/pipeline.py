@@ -710,8 +710,10 @@ def _adopt_lora(
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
     steps, rank = int(value("steps")), int(value("rank"))
     dataset_id = Path(str(dataset)).name
+    parts = Path(str(dataset)).parts  # characters/<kürzel>/datasets/<id> (SP3 Schritt 1)
+    character = parts[1] if len(parts) > 2 and parts[0] == "characters" else ""
     key = f"{dataset_id}_r{rank}_s{steps}_{stamp}"
-    target = f"loras/characters/{key}.safetensors"
+    target = f"loras/characters/{character or 'ohne-figur'}/{key}.safetensors"
     dest = models.models_dir(cfg.root) / target
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(src, dest)
@@ -731,6 +733,7 @@ def _adopt_lora(
         status="OFFEN",
         created_at=stamp,
         trainer="ComfyUI TrainLoraNode",
+        character=character,
     )
     models.register_lora(man.root, lora)
     log.info("LoRA %s trainiert und registriert (%s)", key, target)

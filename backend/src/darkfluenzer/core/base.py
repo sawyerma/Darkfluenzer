@@ -110,7 +110,7 @@ class CockpitBase:
         self._character_sig: tuple = ()  # letzter Stand von Trainingsordner, Datensätzen, LoRAs
         # Registry-Änderungen und das Lesen der Workflow-Projektion nie gleichzeitig
         self._registry = asyncio.Lock()
-        self._manifest_mtime = self._manifest_path().stat().st_mtime_ns
+        self._manifest_mtime = self._registry_mtime()
         self._tasks: set[asyncio.Task] = set()
         self._inflight: dict[str, asyncio.Future] = {}  # request_id -> laufende Ausführung
         self._resuming: set[int] = set()  # vor dem Neustart eingereichte Jobs (nur abholen)

@@ -196,6 +196,21 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-092 / BUG-094 / BUG-037 (SP3 Schritt 4)
+Commit: siehe git log „SP3 step 4“ / media.models._merge_local, edit_local, register_lora, set_workflow_enabled,
+  delete_workflow, engine_model_names; core.registry._fingerprint, _registry_mtime
+Behauptung: BESTÄTIGT (lokaler Zustand im versionierten Manifest; LoRA nur auf gleicher Engine)
+Nachweis: tests/test_models.py::test_local_registry_holds_loras_and_switches (Manifest bytegleich nach Schalter und
+  LoRA, Ablehnung von enabled im Manifest, ungültige LoRA ohne Änderung der lokalen Datei, Löschen nimmt den
+  Schalter mit, LoRA auf eingetragener Engine ladbar, auf fremder nicht); tests/test_server.py CAS-Test mit
+  Registry-Version über die lokale Datei
+Mac-Lauf 17.11.2026: Zeile enabled aus dem Manifest nach local/registry.toml; Cockpit neu gestartet, 20 Workflows,
+  LUSTIFY aktiviert aus der lokalen Datei, keine Fehler im Log
+Ergebnis: BUG-092, BUG-037 PASS; BUG-094 Implementierung PASS, Eintrag für lustify_sam31_edit OFFEN (Probelauf)
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-078 (SP3 Schritt 1)
 Commit: siehe git log „SP3 step 1“ / core.characters._migrate_character_folders, media.training.copy_verified, remove_moved
 Behauptung: BESTÄTIGT (zwei Ordnerschemata)

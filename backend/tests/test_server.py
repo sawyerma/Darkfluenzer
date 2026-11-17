@@ -35,6 +35,7 @@ from darkfluenzer.web.stream import PROTOCOL_MAJOR
 def _run(cfg, scenario) -> None:
     # Echte Registry; Modelldateien fehlen im Testprojekt (Workflows dann "nicht bereit").
     shutil.copytree(project_root() / "workflows", cfg.root / "workflows", dirs_exist_ok=True)
+    (cfg.root / models.LOCAL_REGISTRY).unlink(missing_ok=True)  # lokale Registry frisch (BUG-092)
 
     async def main() -> None:
         app = server.create_app(cfg)

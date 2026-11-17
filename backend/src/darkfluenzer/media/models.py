@@ -25,6 +25,8 @@ import tomlkit
 log = logging.getLogger("darkfluenzer.models")
 
 MANIFEST_RELATIVE = Path("workflows") / "manifest.toml"
+# Lokale, nicht versionierte Registry-Einträge (BUG-092): trainierte LoRAs und Schalter „aktiviert“
+LOCAL_REGISTRY = Path("local") / "registry.toml"
 GATES = ("load", "render", "quality", "license_pass")
 GATE_VALUES = {"OFFEN", "PASS", "FAIL", "GESPERRT"}
 USAGES = {"evaluation", "production"}
@@ -206,6 +208,10 @@ class Lora:
     status: str
     created_at: str
     trainer: str
+    character: str = ""  # Kürzel der Figur (SP3 Schritt 4); nie für eine andere Figur laden
+    # weitere Engines derselben Architektur, erst nach bestandenem Probelauf mit Identitätswert
+    # (SPEC-012); die Trainings-Engine gilt immer
+    compatible: tuple[str, ...] = ()
 
     @property
     def comfy_name(self) -> str:
@@ -294,6 +300,45 @@ def format_problems(wf: Workflow, formats: dict[str, tuple[int, int]]) -> list[s
     return problems
 
 
+def _merge_local(root: Path, data: dict) -> None:
+    """Lokale Registry (``local/registry.toml``) einlesen: LoRAs und Schalter „aktiviert“ stehen nur
+    dort, nie im versionierten Manifest (BUG-092)."""
+    for key, wt in (data.get("workflows") or {}).items():
+        if "enabled" in wt:
+            raise ManifestError(f"Manifest: workflows.{key}.enabled gehört nach {LOCAL_REGISTRY}.")
+    if data.get("loras"):
+        raise ManifestError(f"Manifest: [loras] gehört nach {LOCAL_REGISTRY}.")
+    path = root / LOCAL_REGISTRY
+    try:
+        local = tomllib.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    except tomllib.TOMLDecodeError as exc:
+        raise ManifestError(f"{path} ist kein gültiges TOML: {exc}") from exc
+    data["loras"] = dict(local.get("loras") or {})
+    for key, t in (local.get("workflows") or {}).items():
+        if key in (data.get("workflows") or {}) and "enabled" in t:
+            data["workflows"][key]["enabled"] = t["enabled"]  # Typ prüft der Lader
+
+
+def edit_local(root: Path, change: Callable[[tomlkit.TOMLDocument], None]) -> Manifest:
+    """Ändert die lokale Registry; gespeichert wird nur, wenn die Registry danach gültig lädt."""
+    path = root / LOCAL_REGISTRY
+    with _EDIT_LOCK:
+        before = path.read_text(encoding="utf-8") if path.is_file() else ""
+        doc = tomlkit.parse(before)
+        change(doc)
+        text = tomlkit.dumps(doc).rstrip("\n") + "\n"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _atomic_write(path, text)
+        try:
+            return load_manifest(root)
+        except ManifestError:
+            if before:
+                _atomic_write(path, before)
+            else:
+                path.unlink(missing_ok=True)
+            raise
+
+
 def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = None) -> Manifest:
     """Lädt und validiert die Registry. ``require_ui=False`` nur für das Erzeugen der UI-Exporte;
     ``text`` prüft einen geänderten Manifest-Inhalt, bevor er gespeichert wird."""
@@ -306,6 +351,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
         raise ManifestError(f"Manifest {path} ist kein gültiges TOML: {exc}") from exc
     if data.get("schema") != 1:
         raise ManifestError("Manifest: schema = 1 erwartet.")
+    _merge_local(root, data)
 
     files: dict[str, ModelFile] = {}
     targets: dict[str, str] = {}
@@ -407,6 +453,8 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
                 status=_str(t, "status", w),
                 created_at=_str(t, "created_at", w),
                 trainer=_str(t, "trainer", w),
+                character=str(t.get("character", "")),
+                compatible=tuple(str(e) for e in t.get("compatible", ())),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise ManifestError(f"Manifest: {w}: {exc}") from exc
@@ -418,6 +466,8 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             )
         if lora.status not in GATE_VALUES:
             raise ManifestError(f"Manifest: {w}.status muss {GATE_VALUES} sein.")
+        if unknown := [e for e in lora.compatible if e not in engines]:
+            raise ManifestError(f"Manifest: {w}.compatible: Engine {', '.join(unknown)} unbekannt.")
         loras[key] = lora
 
     workflows: dict[str, Workflow] = {}
@@ -512,7 +562,11 @@ def engine_model_names(
     """Modelldateien, die ein Workflow dieser Engine laden darf: ihre Dateien und die auf ihr
     trainierten LoRAs."""
     names = {files[f].comfy_name for f in engines[engine].files}
-    return names | {lo.comfy_name for lo in loras.values() if lo.base_engine == engine}
+    return names | {
+        lo.comfy_name
+        for lo in loras.values()
+        if lo.base_engine == engine or engine in lo.compatible
+    }
 
 
 def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str]:
@@ -599,10 +653,10 @@ def register_lora(root: Path, lora: Lora) -> Manifest:
         table = tomlkit.table()
         for name, value in asdict(lora).items():
             if name != "key":
-                table[name] = value
+                table[name] = list(value) if isinstance(value, tuple) else value
         doc["loras"][lora.key] = table
 
-    return edit_manifest(root, change)
+    return edit_local(root, change)  # nie ins versionierte Manifest (BUG-092)
 
 
 def _workflow_table(doc: tomlkit.TOMLDocument, key: str):
@@ -613,9 +667,18 @@ def _workflow_table(doc: tomlkit.TOMLDocument, key: str):
 
 
 def set_workflow_enabled(root: Path, key: str, enabled: bool) -> Manifest:
-    return edit_manifest(
-        root, lambda doc: _workflow_table(doc, key).__setitem__("enabled", enabled)
-    )
+    """Schalter „aktiviert“ in der lokalen Registry (BUG-092)."""
+    if key not in load_manifest(root).workflows:
+        raise ManifestError(f"Workflow '{key}' ist nicht registriert.")
+
+    def change(doc: tomlkit.TOMLDocument) -> None:
+        if "workflows" not in doc:
+            doc["workflows"] = tomlkit.table(is_super_table=True)
+        if key not in doc["workflows"]:
+            doc["workflows"][key] = tomlkit.table()
+        doc["workflows"][key]["enabled"] = enabled
+
+    return edit_local(root, change)
 
 
 def delete_workflow(root: Path, key: str) -> Manifest:
@@ -627,6 +690,10 @@ def delete_workflow(root: Path, key: str) -> Manifest:
     man = edit_manifest(root, lambda doc: doc["workflows"].remove(key))
     for rel in {wf.ui, wf.api}:
         (root / "workflows" / rel).unlink(missing_ok=True)
+    local = root / LOCAL_REGISTRY
+    if local.is_file() and key in tomllib.loads(local.read_text("utf-8")).get("workflows", {}):
+        # Schalter nicht an einen späteren Workflow mit gleichem Schlüssel vererben
+        man = edit_local(root, lambda doc: doc["workflows"].remove(key))
     return man
 
 
