@@ -91,6 +91,8 @@ message ActiveJob {
   // keine zugesagte Endzeit.
   uint32 elapsed_s = 11;
   uint32 remaining_s = 12;
+  // Vorrangklasse (SP5 Schritt 5): customer | default | cockpit | training
+  string priority = 13;
 }
 
 // STATE jobs.active

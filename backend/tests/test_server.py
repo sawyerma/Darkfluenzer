@@ -673,6 +673,8 @@ def test_render_worker_survives_a_failing_after_job(cfg, monkeypatch):
         async def delivery(order_id, selected=None):
             raise RuntimeError("Rückversand kaputt")
 
+        picks = [1, 2]  # Auswahl nach Vorrang: hier fest vorgegeben
+        monkeypatch.setattr(cockpit, "_next_job", lambda lane: picks.pop(0) if picks else None)
         monkeypatch.setattr(cockpit.store, "job", lambda job_id: dict(jobs[job_id]))
         monkeypatch.setattr(cockpit.store, "stage", lambda sid: types.SimpleNamespace(order_id=3))
         monkeypatch.setattr(cockpit, "_admit", admit)

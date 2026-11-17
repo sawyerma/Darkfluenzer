@@ -70,6 +70,7 @@ def test_migration_18_takes_counters_from_the_journal_and_never_reuses(tmp_path)
     db.execute("DROP INDEX events_entity_event")  # Migration 18 zurück
     db.execute("DROP TABLE counters")
     db.execute("ALTER TABLE jobs DROP COLUMN media_id")  # Migration 19 zurück
+    db.execute("ALTER TABLE jobs DROP COLUMN priority")  # Migration 20 zurück
     db.execute("PRAGMA user_version = 17")
     # Journal kennt Medium 7 (gelöscht, Nummer 5) und Medium 9 (vorhanden, Nummer 6)
     ev = "INSERT INTO events (entity, entity_id, event, data, created_at) VALUES (?,?,?,?,'t')"

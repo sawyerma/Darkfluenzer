@@ -213,6 +213,8 @@ class ProductionConfig:
     stall_notice_s: float
     # Läufe je Workflow, aus denen die Dauer geschätzt wird (Median)
     estimate_runs: int
+    # Vorrang auf der Renderbahn (SP5 Schritt 5): Klassen in dieser Reihenfolge, je Klasse FIFO
+    priority: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -571,6 +573,16 @@ def _parse_server(t: dict) -> ServerConfig:
     )
 
 
+PRIORITY_CLASSES = ("customer", "default", "cockpit", "training")
+
+
+def _priority(prod: dict) -> tuple[str, ...]:
+    order = tuple(str(x) for x in prod.get("priority", PRIORITY_CLASSES))
+    if sorted(order) != sorted(PRIORITY_CLASSES):
+        raise ConfigError(f"Konfiguration: production.priority muss genau {PRIORITY_CLASSES} sein.")
+    return order
+
+
 def load(root: Path | None = None) -> Config:
     root = (root or project_root()).resolve()
     path = root / CONFIG_RELATIVE
@@ -617,6 +629,7 @@ def load(root: Path | None = None) -> Config:
         comfy_lost_s=float(_positive(prod, "comfy_lost_s", 60, "production")),
         stall_notice_s=float(_positive(prod, "stall_notice_s", 900, "production")),
         estimate_runs=int(_positive(prod, "estimate_runs", 5, "production")),
+        priority=_priority(prod),
     )
     if production.candidates_default > production.candidates_max:
         raise ConfigError("Konfiguration: production.candidates_default > candidates_max.")

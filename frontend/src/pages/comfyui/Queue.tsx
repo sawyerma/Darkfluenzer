@@ -1,5 +1,8 @@
 import type { ActiveJob } from "../../core/generated/darkfluenzer/v1/comfy_pb";
 import { LABEL, duration } from "./common";
+
+/** Vorrangklasse je Job (SP5 Schritt 5); Reihenfolge laut Backend-Konfiguration. */
+const PRIORITY_LABEL: Record<string, string> = { customer: "Kunde", default: "Default", cockpit: "Cockpit", training: "Training" };
 import { Topic } from "../../core/generated/darkfluenzer/v1/stream_pb";
 import { useCommand } from "../../core/commands";
 import { useState } from "react";
@@ -86,6 +89,7 @@ export function Queue({ instance, onLoad, canLoad }: { instance: string; onLoad:
               >
                 <span className="g-ellipsis">
                   {i + 1}. {job.jobId ? job.workflow : "Auftrag aus der ComfyUI-Oberfläche"}
+                  {job.priority ? <small> · {PRIORITY_LABEL[job.priority] ?? job.priority}</small> : null}
                 </span>
                 {job.running ? (
                   <span className="g-badge" data-tone={job.unknown ? "warn" : "ok"}>

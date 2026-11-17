@@ -35,6 +35,8 @@ log = logging.getLogger("darkfluenzer.pipeline")
 # den die Galerie nicht aufnimmt; Länge und Abschnittslänge in Sekunden (keine Graph-Eingänge)
 WORK_PREFIX = "darkfluenzer_work"
 VIDEO_KEYS = ("duration_s", "segment_s")
+# Vorrangklasse aus der Auftragsquelle (Kundentest-Aufträge folgen mit SP5 als "default")
+PRIORITY_OF_SOURCE = {"customer": "customer", "cloner": "default", "operator": "cockpit"}
 VIDEO_SUFFIXES = {".mp4", ".webm", ".mov", ".mkv"}
 LAST_FRAME, LAST_SAVE = "df_last_frame", "df_last_save"  # zusätzliche Nodes je Abschnitt
 
@@ -241,6 +243,12 @@ def create_render(
         *upload_tiers,
         *([inherit_tier] if inherit_tier is not None else []),
     )
+    if wf.training:  # Vorrang (SP5 Schritt 5): Training immer zuletzt
+        priority = "training"
+    elif stage_id is not None:
+        priority = PRIORITY_OF_SOURCE.get(store.order_source_of_stage(stage_id) or "", "cockpit")
+    else:
+        priority = "cockpit"
     return store.create_job(
         None,
         wf.engine,
@@ -261,6 +269,7 @@ def create_render(
         command=command,
         stage_id=stage_id,
         content_tier=content_tier,
+        priority=priority,
     )
 
 

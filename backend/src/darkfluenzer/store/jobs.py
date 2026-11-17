@@ -31,6 +31,7 @@ class JobsMixin:
         command: dict | None = None,
         stage_id: int | None = None,
         content_tier: str | None = None,
+        priority: str = "cockpit",
     ) -> int:
         """Job anlegen; ``order_no=None`` für Renderungen ohne Kundenbezug (Evaluation).
         ``command``: auslösender Befehl (``record_command``-Argumente) – Job und Befehlsjournal
@@ -49,8 +50,8 @@ class JobsMixin:
             ts = now()
             cur = db.execute(
                 "INSERT INTO jobs (order_id, engine, workflow, prompt, params, seeds, created_at,"
-                " updated_at, parent_media_id, request_id, stage_id, content_tier)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                " updated_at, parent_media_id, request_id, stage_id, content_tier, priority)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     order_id,
                     engine,
@@ -64,6 +65,7 @@ class JobsMixin:
                     command["request_id"] if command else None,
                     stage_id,
                     content_tier,
+                    priority,
                 ),
             )
             job_id = cur.lastrowid
@@ -179,10 +181,30 @@ class JobsMixin:
         since = row.fetchone()[0]
         return datetime.fromisoformat(since).timestamp() if since else None
 
-    def queued_jobs(self) -> list[tuple[int, str]]:
-        """Angelegte, noch nicht gestartete Jobs in Eingangsreihenfolge (FIFO): (ID, Workflow)."""
-        rows = self.db.execute("SELECT id, workflow FROM jobs WHERE status = 'queued' ORDER BY id")
+    def queued_jobs(self, order: tuple[str, ...] = ()) -> list[tuple[int, str]]:
+        """Angelegte, noch nicht gestartete Jobs: (ID, Workflow). Mit ``order`` (Klassen in
+        Vorrangfolge, SP5 Schritt 5) zuerst nach Klasse, dann FIFO; ohne reines FIFO."""
+        rank = " ".join(f"WHEN ? THEN {i}" for i in range(len(order)))
+        sql = "SELECT id, workflow FROM jobs WHERE status = 'queued' ORDER BY " + (
+            f"CASE priority {rank} ELSE {len(order)} END, id" if order else "id"
+        )
+        rows = self.db.execute(sql, order)
         return [(r["id"], r["workflow"]) for r in rows]
+
+    def job_priorities(self, ids: list[int]) -> dict[int, str]:
+        """Vorrangklasse je Job (Anzeige in der Warteschlange)."""
+        if not ids:
+            return {}
+        marks = ",".join("?" * len(ids))
+        rows = self.db.execute(f"SELECT id, priority FROM jobs WHERE id IN ({marks})", ids)
+        return {r["id"]: r["priority"] for r in rows}
+
+    def order_source_of_stage(self, stage_id: int) -> str | None:
+        row = self.db.execute(
+            "SELECT o.source FROM order_stages s JOIN orders o ON o.id = s.order_id WHERE s.id = ?",
+            (stage_id,),
+        ).fetchone()
+        return row[0] if row else None
 
     def running_jobs(self) -> list[tuple[int, int | None]]:
         """Jobs im Status running mit der Prozess-ID, die sie ausführt (aus dem Journal)."""

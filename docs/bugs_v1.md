@@ -196,6 +196,17 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-101 (SP5 Schritt 5, Etappe A)
+Commit: siehe git log „SP5 step 5“ / core.render._next_job, store.jobs.queued_jobs(order), Migration 20
+Behauptung: BESTÄTIGT (reines FIFO)
+Nachweis: tests/test_orders.py::test_queue_priority_classes_and_order (Kunde vor Default vor Cockpit vor Training,
+  Reihenfolge aus der Konfiguration, ohne Vorrang FIFO)
+Mac-Lauf 17.11.2026: echte Datenbank 19 → 20 mit Sicherung; Warteschlange zeigt „· Cockpit“
+Ergebnis: PASS (Implementierung); Vorrang mit echten Kundenaufträgen folgt mit SP5
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-024 (SP2 Schritt 11, Etappe A)
 Commit: siehe git log „SP2 step 11“ / web.http._command_status, frontend core/commands.ts settle
 Behauptung: BESTÄTIGT (terminalReceipt wartete ohne Zeitlimit; kein Befehlsstatus abfragbar)

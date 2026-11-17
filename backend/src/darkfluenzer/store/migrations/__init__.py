@@ -453,6 +453,12 @@ INSERT INTO counters (name, value) VALUES
 -- zeigt media_id auf dieses Medium (ohne Fremdschlüssel, damit Löschen in der Galerie frei bleibt)
 ALTER TABLE jobs ADD COLUMN media_id INTEGER;
 """,
+    20: """
+-- Vorrang auf der Renderbahn (SP5 Schritt 5, BUG-101): Klasse je Job; die Reihenfolge der Klassen
+-- steht in der Konfiguration (production.priority), innerhalb einer Klasse FIFO
+ALTER TABLE jobs ADD COLUMN priority TEXT NOT NULL DEFAULT 'cockpit'
+    CHECK (priority IN ('customer', 'default', 'cockpit', 'training'));
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

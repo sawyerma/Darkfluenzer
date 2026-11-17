@@ -203,3 +203,34 @@ def test_content_tier_from_every_input_file(setup):
     assert render(foreign) == "explizit"
     # „Wiederholen“ erbt die Stufe des Ursprungsjobs, auch mit unverdächtiger Eingabe
     assert render(pipeline.input_from_media(cfg, standard), inherit_tier="explizit") == "explizit"
+
+
+def test_queue_priority_classes_and_order(setup):
+    """SP5 Schritt 5 (BUG-101): Klasse aus der Auftragsquelle, Auswahl nach Vorrang (Konfiguration),
+    je Klasse FIFO; ein Training kommt zuletzt."""
+    cfg, store, man = setup
+    _, cockpit_jobs = orders.create_order(
+        store, man, "lustify_sdxl_t2i", {"prompt": "p", "seed": 1}, {}, count=1,
+        command=_command("cockpit"),
+    )  # fmt: skip
+    _, cloner_jobs = orders.create_order(
+        store, man, "lustify_sdxl_t2i", {"prompt": "p", "seed": 1}, {}, count=1,
+        command=_command("kloner"), source="cloner",
+    )  # fmt: skip
+    training = store.create_job(None, "e", "wf_train", "p", {}, [], priority="training")
+    customer = store.create_job(None, "e", "wf", "p", {}, [], priority="customer")
+    assert store.job_priorities([cockpit_jobs[0], cloner_jobs[0]]) == {
+        cockpit_jobs[0]: "cockpit",
+        cloner_jobs[0]: "default",
+    }
+    order = cfg.production.priority
+    assert [j for j, _ in store.queued_jobs(order)] == [
+        customer,
+        cloner_jobs[0],
+        cockpit_jobs[0],
+        training,
+    ]
+    # Reihenfolge kommt aus der Konfiguration: andere Reihenfolge, andere Auswahl
+    flipped = ("training", "cockpit", "default", "customer")
+    assert [j for j, _ in store.queued_jobs(flipped)][0] == training
+    assert [j for j, _ in store.queued_jobs()][0] == cockpit_jobs[0]  # ohne Vorrang: FIFO

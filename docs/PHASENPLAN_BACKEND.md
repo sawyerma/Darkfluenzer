@@ -749,6 +749,7 @@ Ersetzt C5a, C5.5, C5.6, C5.6a, C5.7, C5.8, C5.10 und T2. Grundlage: Code-Vergle
 5. **Warteschlange mit Vorrang (`server.render_worker`, `jobs`).**
    - Heute: reines FIFO (BUG-101).
    - Neu: Spalte `jobs.priority`. Reihenfolge nach §3.2: bezahlter Kundenauftrag, Default-Produktion, Cockpit, Training.
+   - **Umgesetzt 17.11.2026 (Migration 20):** Klasse je Job aus der Auftragsquelle (Kunde, Kloner = Default, Betreiber = Cockpit, Training), Reihenfolge `production.priority`, je Klasse FIFO; der Render-Worker nimmt den besten wartenden Job seiner Bahn; Warteschlange zeigt die Klasse. Kundentest-Aufträge bekommen die Klasse Default mit SP5. Echte Datenbank auf Version 20.
 6. **Produktion nach Zahlung (`server._payments_changed`, `pipeline.py`).**
    - Heute: der Betreiber startet die Produktion von Hand über „Für Kundenauftrag“.
    - Neu: sobald ein Auftrag `paid` ist und die Bildautomatik der Influencerin an ist, startet die Produktion aus dem Produkt: Workflow, Kandidatenzahl, Prompt aus dem Wunsch, LoRA der Figur.

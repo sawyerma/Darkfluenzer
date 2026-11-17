@@ -53,21 +53,30 @@ class RenderMixin:
             self._lane_of_job(job_id).renders.put_nowait(job_id)
 
     async def render_worker(self, lane: _Lane) -> None:
-        """Führt die Renderjobs einer Instanz nacheinander (FIFO) aus; vor jedem Start prüft die
-        gemeinsame Zulassung den freien Speicher (§4.2). Ein Fehler außerhalb des Renderlaufs wird
-        protokolliert und beendet die Bahn nie (SP1 Schritt 2)."""
+        """Führt die Renderjobs einer Instanz nacheinander aus, nach Vorrang (SP5 Schritt 5) und je
+        Klasse FIFO; vor jedem Start prüft die gemeinsame Zulassung den freien Speicher (§4.2). Ein
+        Fehler außerhalb des Renderlaufs wird protokolliert und beendet die Bahn nie (SP1 2)."""
         while True:
-            job_id = await lane.renders.get()
+            signal = await lane.renders.get()  # Weckruf; welcher Job läuft, bestimmt der Vorrang
             try:
-                await self._run_job(lane, job_id)
+                await lane.resume.wait()  # angehalten: nächster Job wartet
+                job_id = signal if signal in self._resuming else self._next_job(lane)
+                if job_id is not None:
+                    await self._run_job(lane, job_id)
             except Exception:
-                log.exception(
-                    "Renderbahn %s: Job %s – Fehler bei der Ausführung", lane.inst.name, job_id
-                )
+                log.exception("Renderbahn %s: Fehler bei der Ausführung", lane.inst.name)
                 lane.running_job = 0
 
+    def _next_job(self, lane: _Lane) -> int | None:
+        """Wartender Job dieser Bahn mit dem besten Vorrang (Klassen laut production.priority,
+        je Klasse FIFO; SP5 Schritt 5). Ein Training kommt so erst, wenn nichts anderes wartet."""
+        for job_id, workflow in self.store.queued_jobs(self.cfg.production.priority):
+            wf = self.manifest.workflows.get(workflow)
+            if ((self._lane_of(wf) if wf else None) or self.lanes["media"]) is lane:
+                return job_id
+        return None
+
     async def _run_job(self, lane: _Lane, job_id: int) -> None:
-        await lane.resume.wait()  # angehalten: nächster Job wartet
         job = self.store.job(job_id)
         status = job["status"]
         if status != "queued" and not (status == "running" and job_id in self._resuming):
@@ -280,12 +289,13 @@ class RenderMixin:
     def _jobs_active(self) -> bytes:
         """FIFO-Sicht je Instanz: ComfyUI (läuft, wartet), danach angelegte, noch nicht
         übergebene Jobs."""
-        queued = [job_id for job_id, _ in self.store.queued_jobs()]
+        queued = [job_id for job_id, _ in self.store.queued_jobs(self.cfg.production.priority)]
         in_comfy = [job_id for lane in self.lanes.values() for job_id, _, _ in lane.queue if job_id]
         ids = in_comfy + [j for j in queued if j not in in_comfy]
         running = [lane.running_job for lane in self.lanes.values() if lane.running_job]
         wanted = ids + [j for j in running if j not in ids]
         brief = self.store.jobs_brief(wanted) if wanted else {}
+        priorities = self.store.job_priorities(wanted)
         msg = comfy_pb2.JobsActive(
             paused=[n for n, lane in self.lanes.items() if not lane.resume.is_set()],
             version=self.store.domain_version("jobs"),
@@ -320,6 +330,7 @@ class RenderMixin:
                 estimate_s=int(estimate),
                 elapsed_s=int(elapsed),
                 remaining_s=int(remaining),
+                priority=priorities.get(job_id, ""),
             )
             job.params.update({k: _param_text(k, v) for k, v in params.items()})
 
