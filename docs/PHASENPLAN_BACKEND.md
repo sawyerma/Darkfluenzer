@@ -433,7 +433,7 @@ backend/src/darkfluenzer/
   channels/  base.py  telegram.py  tdjson.py  instagram.py
   payments/  paypal.py  vouchers.py  chain.py  addresses.py
   store/     db.py  schema.py  migrations/  customers.py  messages.py
-             orders.py  payments.py  media.py  jobs.py  commands.py
+             orders.py  payments.py  media.py  jobs.py  commands.py  profiles.py
   v1/
 ```
 
@@ -454,7 +454,7 @@ backend/src/darkfluenzer/
 | `pipeline.py`: `media_candidates`, `scan_media`, `delete_media` | `media/gallery.py` |
 | `runtime.py`, Ordnerzugriffe auf ComfyUI | `nodes/local.py` |
 | `comfy.py` | `nodes/comfy.py` |
-| `store.py` | `store/`, nach Themen geteilt |
+| `store.py` | `store/`, nach Themen geteilt: `Store` aus Mixins je Thema (`profiles.py` für Influencerinnen, Charaktere und Default-Kontakt); `store/__init__.py` behält die öffentlichen Namen (umgesetzt 17.11.) |
 
    Regeln: rein mechanisch verschieben; je Modul ein Commit; `web/` kennt keine Fachlogik; `core/` importiert nie `web/`; Tests ändern sich nur in den Importen. Die Dateinamen in den Paketen SP1 bis SP6 beziehen sich auf den heutigen Stand; nach SP0 gilt die Zuordnung dieser Tabelle.
 3. **Rechenknoten-Schnittstelle (`nodes/base.py`).** Alles, was heute direkt auf Prozesse und Ordner einer ComfyUI zugreift, läuft über diese Schnittstelle: starten, stoppen, Zustand, Speicher messen, Eingabe hochladen, Trainingsdatensatz ablegen, LoRA abholen, Ausgabe holen und entfernen, Editor-Kopie, Modellstatus. `nodes/local.py` ist die heutige Logik. `nodes/remote.py` bleibt leer.
