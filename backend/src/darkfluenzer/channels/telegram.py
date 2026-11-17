@@ -42,7 +42,6 @@ HANDOFF_CARD = "ÜBERGABE AN BETREIBER"
 LAST = "last:"  # adapter_state: letzte gespeicherte Nachrichten-ID je Chat (Abgleich nach Neustart)
 HISTORY_PAGES = 20  # Obergrenze Seiten je Chat beim Abgleich (je bis zu 100 Nachrichten)
 REJECTED_SHOWN = 5  # Testbetrieb: zuletzt verworfene Einzelchat-IDs (nur im Speicher, ohne Inhalt)
-FIRST_IMPORT = 20  # Testbetrieb: so viele letzte Nachrichten eines neu freigegebenen Test-Chats
 # TDLib-Inhaltsart -> (Anhangart, Feld mit der Datei)
 _FILE_CONTENT = {
     "messageVideo": ("video", "video", "video"),
@@ -357,9 +356,9 @@ class TelegramAccount:
     async def _reconcile(self) -> None:
         """Nachrichten, die während einer Pause ankamen, über getChatHistory nachholen (V0 §6):
         bekannte Chats ab der zuletzt gespeicherten Nachrichten-ID; Chats ohne gespeicherte
-        Position (Kunde schrieb erstmals, während Darkfluenzer aus war) ab der zuletzt gelesenen
-        eingehenden Nachricht; im Testbetrieb neu freigegebene Test-Chats mit ihren letzten
-        ``FIRST_IMPORT`` Nachrichten – deren erste Nachricht kam vor der Freigabe."""
+        Position (Kunde schrieb erstmals, während Darkfluenzer aus war, oder Test-Chat schrieb
+        vor seiner Freigabe) nur ab der zuletzt gelesenen eingehenden Nachricht – nie älterer
+        Verlauf des Kontos."""
         assert self._td is not None
         with contextlib.suppress(TdError):  # 404: alle Chats geladen (Updates kommen vorher)
             await self._td.call(
@@ -370,19 +369,17 @@ class TelegramAccount:
         since = {int(chat): int(last) for chat, last in stored.items()}
         for chat_id, read in self._unread.items():
             since.setdefault(chat_id, read)
-        fresh = set(self.tg.test_chat_ids) - set(since) if self.tg.test_mode else set()
-        since.update(dict.fromkeys(fresh, 0))
         for chat_id, last in since.items():
             if self.tg.test_mode and chat_id not in self.tg.test_chat_ids:
                 continue
-            missed = await self._missed(chat_id, last, FIRST_IMPORT if chat_id in fresh else 0)
+            missed = await self._missed(chat_id, last)
             for msg in missed:
                 await self._message(msg)
             if missed:
                 log.info("Telegram: %d Nachricht(en) aus Chat %s nachgeholt", len(missed), chat_id)
 
-    async def _missed(self, chat_id: int, last: int, cap: int) -> list[dict]:
-        """Nachrichten mit ID > ``last``, aufsteigend; ``cap`` > 0: nur die letzten ``cap``."""
+    async def _missed(self, chat_id: int, last: int) -> list[dict]:
+        """Nachrichten mit ID > ``last``, aufsteigend."""
         assert self._td is not None
         found: dict[int, dict] = {}
         start = 0
@@ -401,11 +398,10 @@ class TelegramAccount:
             batch = page.get("messages") or []
             found.update({m["id"]: m for m in batch if m["id"] > last})
             oldest = min((m["id"] for m in batch), default=0)
-            if not batch or oldest <= last or (cap and len(found) >= cap):
+            if not batch or oldest <= last:
                 break
             start = oldest
-        missed = [found[i] for i in sorted(found)]
-        return missed[-cap:] if cap else missed
+        return [found[i] for i in sorted(found)]
 
     def _remember(self, chat_id: int, message_id: int) -> None:
         key = f"{LAST}{chat_id}"

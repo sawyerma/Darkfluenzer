@@ -257,17 +257,23 @@ export function useRegisters(): { open: readonly bigint[]; active: bigint } {
   return { open: openIds, active: activeId };
 }
 
-/** Erstkontakt: neue Kundenakte bekommt ein eigenes Register, ohne den Fokus zu wechseln. */
+/** Register, die sich ohne Fokuswechsel öffnen (FRONT F4 Punkt 2): beim ersten Stand jede
+ *  Kundenakte mit Ungelesenem (Neuladen, Erstkontakt während das Cockpit zu war – der Backend-Stand
+ *  ist die Autorität), danach jede neu erscheinende Kundenakte. */
+export function autoRegisters(
+  list: readonly CustomerSummary[],
+  known: ReadonlySet<bigint> | null,
+  open: readonly bigint[],
+): bigint[] {
+  const pick = known === null ? list.filter((c) => c.unread > 0) : list.filter((c) => !known.has(c.customerId));
+  return pick.filter((c) => c.kind === "customer" && !open.includes(c.customerId)).map((c) => c.customerId);
+}
+
 function noteCustomers(list: readonly CustomerSummary[]): void {
-  if (knownIds === null) {
-    knownIds = new Set(list.map((c) => c.customerId));
-    return;
-  }
-  const fresh = list.filter((c) => !knownIds!.has(c.customerId));
-  for (const c of fresh) knownIds.add(c.customerId);
-  const opened = fresh.filter((c) => c.kind === "customer" && !openIds.includes(c.customerId));
-  if (opened.length > 0) {
-    openIds = [...openIds, ...opened.map((c) => c.customerId)];
+  const add = autoRegisters(list, knownIds, openIds);
+  knownIds = new Set([...(knownIds ?? []), ...list.map((c) => c.customerId)]);
+  if (add.length > 0) {
+    openIds = [...openIds, ...add];
     saveRegisters();
   }
 }

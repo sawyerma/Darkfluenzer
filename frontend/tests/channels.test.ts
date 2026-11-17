@@ -9,6 +9,7 @@ import {
 } from "../src/core/generated/darkfluenzer/v1/channel_pb";
 import {
   VersionedQuery,
+  autoRegisters,
   conversationItems,
   markReadTarget,
   mergeCustomers,
@@ -114,4 +115,14 @@ test("Abfrage: je Schlüssel einmal; Wechsel während einer Anfrage ergeben gena
   await new Promise((r) => setTimeout(r, 0));
   q.request("c");
   expect(runs).toEqual(["a", "c"]);
+});
+
+test("Register: beim ersten Stand Akten mit Ungelesenem, danach jede neue Akte – ohne Default und ohne Doppel", () => {
+  const c = (customerId: bigint, unread = 0, kind = "customer") =>
+    create(CustomerSummarySchema, { customerId, unread, kind, customerNo: `DF-C-${customerId}` });
+  const first = [c(1n, 3, "internal"), c(2n, 1), c(3n), c(4n, 2)];
+  expect(autoRegisters(first, null, [4n])).toEqual([2n]); // Neuladen: 4 ist schon offen
+  const known = new Set([1n, 2n, 3n, 4n]);
+  expect(autoRegisters([...first, c(5n)], known, [])).toEqual([5n]); // Erstkontakt
+  expect(autoRegisters(first, known, [])).toEqual([]); // geschlossenes Register bleibt zu
 });
