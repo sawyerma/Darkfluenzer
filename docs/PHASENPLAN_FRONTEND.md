@@ -123,7 +123,7 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 ### 3.8 Kundentest T1 und T2 (Nachrichten, Default-Kontakt)
 
 - Umschalter Betriebsart: Produktion, Kundentest, Aus.
-- Der Kundentest läuft in einer eigenen Testakte (Art `test`) mit eigenem Verlauf; der Produktionsverlauf des Defaults bleibt unberührt. Jeder Wechsel erscheint als Karte in beiden Verläufen; der KI-Hinweis kommt wie bei Kunden einmal je Testsitzung.
+- Der Kundentest läuft in einer eigenen Testkonversation der internen Akte mit eigenem Verlauf und Gedächtnis; der Produktionsverlauf des Defaults bleibt unberührt. Testaufträge gehören zur internen Akte, nur für sie entfällt die Zahlung. Jeder Wechsel erscheint als Karte; der KI-Hinweis kommt wie bei Kunden einmal je Testsitzung.
 - Im Kundentest: Marke TEST im Verlauf, Messwerte je Nachricht aufklappbar, Tafel „Latenzen“ mit p50 und p95 für Antwort und Render.
 - Knöpfe „Test zurücksetzen“ und „Verzögerung wie Kunde“.
 - Testaufträge tragen in allen Listen die Marke TEST und erscheinen nie im Wallet.
@@ -138,9 +138,8 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 | **SP2 Fundament** | Frontend-Teil nach §4.1 (Befehle mit Zeitlimit und Statusabfrage, begrenzte Ereignislisten, Kundenliste/Übersicht per EVENT 26, Kanalstatus je Konto, Figur-Filter, Reiter Einstellungen mit Kanalkonten, kleinere Punkte) | je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet und Einstellungen; Smoke klickt alle sechs Reiter; Verbindungsabbruch während eines Befehls gibt den Knopf wieder frei |
 | **SP1 Default-Kette** | Karte je Zustand (gestartet, wartet auf Start mit Startknopf, abgelehnt mit Grund, zurückgesendet, Rückversand gesperrt, fehlgeschlagen, abgebrochen); Default-Kontakt mit Betriebsart, Kandidatenzahl, Ausgabeprofil je Befehl (z. B. Story 9:16) und Chat-Wörtern, ausgeschaltete Schalter und fehlende Workflows sichtbar; Stapel mit einer Karte je Bild und gemeinsamem Fortschritt; Auftragskarte nennt Influencerin, Workflow, Zahl der Referenzen, „ohne Charakter-LoRA“; `VideoSettings` für alle Video-Workflows; „Auftrag abbrechen“ an der Auftragskarte mit Abbruchzustand bis zur Quittung | Browser-Test für jeden Zustand; LTX, Wan, Remix mit denselben Feldern an derselben Stelle (Screenshot-Vergleich); echter Lauf vom Handy nach Backend SP1 |
 | **SP4 Clara chattet** | Frontend-Teil nach §4.2 (KI-Studio mit Messwerten, Modus je Konversation, Entwürfe, geplante und stornierte Antworten, Kaufbereitschaft, Sperre „minderjährig vermutet“, Verhaltensprofil, Automatik je Konto, Kundentest, KI-Instanz „bleibt geladen“; Deutung freier Default-Anweisungen in der Karte) | 20 echte Testnachrichten im Kundentest mit Messwerten; Browser-Test für Modus, Entwurf, Storno, Sperre |
-| **C5.1, C5.5–C5.10** | rechte Kundensteuerung §3.2 je Paket; C5.1: Figur-Filter und Influencerin-Kennzeichen in Liste, Register und Aktenkopf, sichtbare Sortierung; C5.6a: Prüfwerte je Kandidat (Identität, Inhaltsstufe, Technik, Qualität; bei Video Stichprobenbilder), Hinweis „keine automatische Freigabe“, solange ein Prüfmodell fehlt (E16), Karte „wartet auf Betreiber“ (Freigeben, Neu, Erstatten; „Freigeben“ nur bei technischem oder qualitativem Fehlschlag, harte Gates bleiben gesperrt), Schalter Freigabeart im Influencerin-Block; C5.10: Auftragskarte zeigt, ob System oder Betreiber freigegeben hat und über welchen Weg | je Paket echter Lauf mit Testkunden |
-| **T2** (SP5) | Kundentest mit Bild ohne Zahlung §3.8 | Testauftrag nie im Wallet, nie an eine Kundenidentität |
-| **C5a** | Wallet §3.6 | echte Zahlung je Weg |
+| **C5.1** (SP4) | Figur-Filter und Influencerin-Kennzeichen in Liste, Register und Aktenkopf, sichtbare Sortierung; Influencerin-Block mit Charakter | zwei Figuren ohne Vermischung |
+| **SP5 Verkauf automatisch** | Frontend-Teil nach §4.3 (Produkte, Zahlungswege, Angebot, Zahlung, Prüfwerte, Systemfreigabe, Zustellung, Nachlauf, Wallet mit PayPal, Vorrang in der Warteschlange, Kundentest mit Bild) | Kundentest ohne Klick bis zum Foto mit Begleittext; Testauftrag nie im Wallet, nie an eine Kundenidentität; echte Zahlung je Weg |
 | **SP3 (B1)** | Bereich Charakter §3.3 (Liste, Fotostatus, Training, Versionen, Aktiv setzen, LoRA-Auswahl im Formular) | echter Ordner → Training → LoRA → Bild; Browser-Test Anlegen, Fotostatus, gesperrter Start, Umschalten |
 | **B4** | Zeitachse §3.3 | 15 s mit vier Marken → ein Auftrag mit vier Schlüsselbildern |
 | **B5.6** | Referenzanalyse §3.3 | eigenes Bild → Prompt → echte Generierung |
@@ -167,6 +166,16 @@ Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`,
 - **Kanalstatus:** Schalter „Automatik“ je Konto mit sichtbarer Wirkung.
 - **Kundentest (§3.8):** wie beschrieben; die Latenztafel liest `ai_runs`.
 - **Instanzen:** KI-Instanz zeigt „bleibt geladen“ und das geladene Modell.
+
+### 4.3 SP5 Verkauf automatisch (Frontend-Teil)
+
+- **Influencerin-Block:** Produktliste mit Art, Workflow, Kandidatenzahl, Höchstlänge und Zusatzleistungen; Zahlungswege; Angebotsgültigkeit; Schalter Bildautomatik und Freigabeart.
+- **Kundenakte rechts:** Medienwunsch mit Quellnachrichten; Angebot mit gesperrtem Faktenblock und Zahlungswegen; Zahlungsstatus; Produktion mit Prüfwerten je Kandidat und „Neu erzeugen“; Zustellung mit Versandart und Begleittext; Nachlauf mit Neuauflage und Erstattung.
+- **Auftragskarte:** zeigt, ob das System oder der Betreiber freigegeben hat; „wartet auf Betreiber“ mit Freigeben, Neu, Erstatten („Freigeben“ nur bei technischem oder qualitativem Fehlschlag).
+- **Wallet:** PayPal-Konto und -Eingänge; Kulanz-Zuordnung mit Bestätigung des Betrags (E10).
+- **Warteschlange:** Vorrang je Job sichtbar.
+- **Kundentest:** Marke TEST an Auftrag, Medien und Karten; Testaufträge nie im Wallet.
+- **Übersicht:** Zähler „wartet auf Betreiber“.
 
 ---
 
