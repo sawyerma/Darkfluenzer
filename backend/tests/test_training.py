@@ -100,3 +100,32 @@ def test_bucket_picks_nearest_aspect():
     assert training.bucket(3000, 4000) == (896, 1152)
     assert training.bucket(4000, 3000) == (1152, 896)
     assert training.bucket(1080, 1920) == (768, 1344)
+
+
+def test_captions_from_txt_and_dataset_id_covers_trigger_class_captions(tmp_path, photos):
+    """SP3 Schritt 2: gleichnamige .txt ist die Beschriftung; Trigger, Klasse und Beschriftungen
+    bestimmen die Datensatz-ID; die .txt erscheint nicht als ungeeignete Datei."""
+    import json
+
+    rules = dataclasses.replace(RULES, min_images=4)
+    folders = _folders(photos)
+    for i in range(4):
+        Image.new("RGB", (1024, 1024), (i * 50, 9, 9)).save(photos / f"p{i}.png")
+        os.utime(photos / f"p{i}.png", (1, 1))
+    (photos / "p0.txt").write_text("am Strand, Abendlicht")
+    (photos / "p1.txt").write_text("clara01 woman im Café")
+    os.utime(photos / "p0.txt", (1, 1))
+    os.utime(photos / "p1.txt", (1, 1))
+    assert all(p.status == "ok" for p in training.scan(photos, rules))
+    ds = training.build_dataset(folders, rules, "clara01", "woman")
+    caps = {
+        i["source"]: i["caption"] for i in json.loads((ds / "dataset.json").read_text())["items"]
+    }
+    assert caps["p0.png"] == "photo of clara01 woman, am Strand, Abendlicht"
+    assert caps["p1.png"] == "clara01 woman im Café"  # Trigger schon drin: unverändert
+    assert caps["p2.png"] == "photo of clara01 woman"
+    assert training.build_dataset(folders, rules, "clara01", "girl") != ds  # Klasse zählt
+    assert training.build_dataset(folders, rules, "mia01", "woman") != ds  # Trigger zählt
+    (photos / "p2.txt").write_text("neu beschriftet")
+    os.utime(photos / "p2.txt", (1, 1))
+    assert training.build_dataset(folders, rules, "clara01", "woman") != ds  # Beschriftung zählt

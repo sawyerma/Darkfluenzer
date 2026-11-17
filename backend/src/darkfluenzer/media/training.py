@@ -190,6 +190,10 @@ def scan(folder: Path, rules: TrainingConfig, now: float | None = None) -> list[
     for path in sorted(folder.iterdir()) if folder.is_dir() else []:
         if path.name.startswith(".") or not path.is_file():
             continue
+        if path.suffix.lower() == CAPTION_SUFFIX:  # Beschriftung eines Fotos (SP3 Schritt 2)
+            if not any(path.with_suffix(sfx).is_file() for sfx in rules.suffixes):
+                result.append(Photo(path.name, "unsupported", note="Beschriftung ohne Foto"))
+            continue
         if path.suffix.lower() not in rules.suffixes:
             result.append(Photo(path.name, "unsupported", note="nur " + ", ".join(rules.suffixes)))
             continue
@@ -296,6 +300,19 @@ def _fit(im: Image.Image, size: tuple[int, int]) -> tuple[Image.Image, int, int]
     return resized.crop((left, top, left + tw, top + th)), top, left
 
 
+CAPTION_SUFFIX = ".txt"
+
+
+def caption_for(photo: Path, base: str, trigger: str) -> str:
+    """Beschriftung eines Fotos: gleichnamige .txt daneben (mit Trigger und Klasse davor, falls der
+    Text den Trigger nicht schon enthält), sonst nur Trigger und Klasse."""
+    path = photo.with_suffix(CAPTION_SUFFIX)
+    text = path.read_text(encoding="utf-8").strip() if path.is_file() else ""
+    if not text:
+        return base
+    return text if trigger in text.split() else f"{base}, {text}"
+
+
 def build_dataset(
     folders: Folders,
     rules: TrainingConfig,
@@ -309,7 +326,13 @@ def build_dataset(
         raise DatasetIncomplete(
             f"{len(ok)} geeignete Bilder in {folders.photos}, mindestens {min_images} nötig."
         )
-    set_id = hashlib.sha256("".join(sorted(p.sha256 for p in ok)).encode()).hexdigest()[:12]
+    base = f"photo of {trigger} {class_word}"
+    captions = {p.name: caption_for(folders.photos / p.name, base, trigger) for p in ok}
+    # Datensatz-ID aus Bildern, Beschriftungen, Trigger und Klasse (SP3 Schritt 2)
+    material = json.dumps(
+        [trigger, class_word, sorted((p.sha256, captions[p.name]) for p in ok)], ensure_ascii=False
+    )
+    set_id = hashlib.sha256(material.encode()).hexdigest()[:12]
     root = folders.datasets
     target = root / f"ds_{set_id}"
     if (target / "dataset.json").is_file():
@@ -330,7 +353,7 @@ def build_dataset(
                 "file": name,
                 "source": photo.name,
                 "source_sha256": photo.sha256,
-                "caption": f"photo of {trigger} {class_word}",
+                "caption": captions[photo.name],
                 "original_size": [im.height, im.width],
                 "crop_top_left": [top, left],
                 "target_size": [size[1], size[0]],
@@ -342,7 +365,7 @@ def build_dataset(
         "trigger": trigger,
         "class_word": class_word,
         "items": items,
-        "captions": "Identitäts-Caption (Trigger + Klasse); Szenen-Captions per lokalem VLM: offen",
+        "captions": "Trigger + Klasse; Beschriftung aus gleichnamiger .txt neben dem Foto",
         "identity_check": "nicht durchgeführt – lokales Gesichtsmodell fehlt noch",
     }
     (tmp / "dataset.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n")

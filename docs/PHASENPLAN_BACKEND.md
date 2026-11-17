@@ -831,6 +831,7 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
    - Heute: Trigger `dfchar`, Klasse `woman` und Beschriftung fest; die Datensatz-ID entsteht nur aus den Foto-Hashes.
    - Neu: Trigger und Klasse aus dem Profil. Eine gleichnamige `.txt` neben dem Foto ist dessen Beschriftung. Trigger, Klasse und Beschriftungen gehen in die Datensatz-ID ein.
    - Fotoprüfung mit `identity.FaceIdentity`: zusätzliche Hinweise „kein Gesicht“ und „andere Person“ (Abstand zum Schwerpunkt aller Fotos). `dataset.json` hält das Ergebnis fest.
+   - **Umgesetzt 17.11.2026:** Trigger und Klasse aus dem Profil, Beschriftung aus gleichnamiger `.txt` (Trigger und Klasse davor, wenn der Text den Trigger nicht enthält), Datensatz-ID aus Bildern, Beschriftungen, Trigger und Klasse; verwaiste `.txt` als „Beschriftung ohne Foto“. **Offen:** die Gesichtshinweise, über den Prüfknoten aus Schritt 7.
 3. **Training durchgehend mit Wiederaufnahme-Checkpoints (`server._render`, `pipeline._render`, `pipeline._adopt_lora`).**
    - `_render` übergibt Trigger und Klasse des gewählten Charakters an `build_dataset`.
    - Kein zeitbasierter Abbruch (SP1 Schritt 2). Vor dem Start zeigt das Cockpit Gesamtschritte und die geschätzte Dauer aus den Messwerten der Engine.
