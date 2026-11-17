@@ -1,260 +1,172 @@
 # Darkfluenzer – bugs_v1.md
-**Stand:** 16.11.2026  
-**Prüfbasis:** GitHub `main` am Commit `ccf8723298312243bf99eceb67d5ee1a0252f5b9`; Fremdanalyse „Darkfluenzer: Projektüberblick“ (`Eingefügter Text(8).txt`, vom Betreiber übergeben).  
-**Zweck:** ALLE gemeldeten Fehler und Abweichungen **unabhängig prüfen**, belegte Ursachen korrigieren und mit echten Tests schließen. **Kein Befund ist durch die Aufnahme in diese Datei als reproduziert oder behoben anzusehen.**
 
-## 0. Prüf- und Bearbeitungsregeln (verbindlich)
-1. Die Fremdanalyse ist eine **Meldung**, kein Testnachweis: Ihr Autor hat ausdrücklich **keine Tests ausgeführt**. Aussagen „(geprüft)“ bedeuten dort höchstens Codeprüfung.
-2. Zu jedem Eintrag: gegen den **aktuellen** Git-Stand prüfen, exakte Funktions-/Zeilenreferenz und den tatsächlich erreichbaren Aufrufpfad notieren; zuerst reproduzierbaren Fehlerfall erstellen, danach korrigieren, dann Negativ-/Normalfall, Wiederanlauf und relevante End-to-End-Prüfung auf dem **echten Mac** durchführen.
-3. Belegstufen: **CODE** = statischer Codebefund sichtbar, Auswirkung noch zu testen; **TEILWEISE** = Kern stimmt, pauschale Aussage überzogen/abhängig; **HYPOTHESE** = erst Lauf-/Konfigtest entscheidet; **WIDERLEGT** = konkrete Aussage durch Gegenbeleg nicht haltbar; **OFFEN** = noch nicht unabhängig geprüft. Keine Stufe bedeutet „TEST PASS“. Ergebnis nach Prüfung mit Datum, Commit, Testbefehl und Mess-/Logbeleg nachtragen.
-4. **P0**: vor produktiver Kanal-/Kundennutzung beheben; **P1**: vor verlässlichem Telegram-End-to-End und längeren Renderläufen prüfen/beheben; **P2**: gezielt nach P0/P1; **P3**: Pflege/Abgleich. Keine fachfremde Neuentwicklung aus dem Audit ableiten.
-5. Bestehende Projektregeln beachten: **main only**, keine Branches/Worktrees, max. zwei Agenten, NO MOCK, NO LEGACY, FREE ONLY, kein Docker, keine zweite Datenbank, keine neuen Laufzeitdienste. Pro abgeschlossenem Paket Tests → Commit → Push. Produktions-/Live-Zustände niemals mit künstlichen Daten als bestanden deklarieren.
-6. **Ausdrücklicher Auftrag an jeden Bearbeiter:** Nicht einfach „alles stimmt“ behaupten. Zu **jedem** Befund entweder **BESTÄTIGT (mit Beleg)**, **TEILWEISE BESTÄTIGT**, **WIDERLEGT (mit Gegenbeleg)** oder **NICHT REPRODUZIERBAR (mit Testnachweis)** eintragen. „Im Code sieht es plausibel aus“ ist keine Abnahme.
-7. Änderungen dürfen keine P0-Lücken im Zahlungs-/Freigabe-/Inhaltsstufengate erzeugen. Die geplante isolierte „Cash“-**Testfreigabe** ist von realen Kundenaufträgen und echten Zahlungsdatensätzen strikt zu trennen.
+**Stand:** 17.11.2026 · Befundregister zu `docs/PHASENPLAN_BACKEND.md` (B) und `docs/PHASENPLAN_FRONTEND.md` (F); kein dritter Plan.
+**Vorfassung:** `docs/archiv/bugs_v1_20261117_vor_neufassung.md` (dort die vollständigen Prüfprotokolle zu BUG-001 bis 006 und die Erstfassungen von BUG-007 bis 046). IDs werden nie neu vergeben oder umnummeriert.
+**Prüfbasis:** `main` `7a49b6a`; Backend- und Frontend-Quelltext, Tests, Starter; dazu die Prüfberichte von ChatGPT und Fable (17.11.) und die Läufe am Mac vom 16./17.11. Kein Befund gilt durch diese Liste als reproduziert oder behoben.
 
-## 1. P0 – Sicherheit, Kanaltrennung, Zahlungswahrheit
+## 0. Regeln
 
-### BUG-001 – Gespeicherte Kundenanhänge potenziell als aktiver Inhalt ausführbar
-- **Meldung:** Stored XSS über `GET /api/v1/media/{path}`, wenn Kunden `.html`/`.svg`-Anhänge öffnen; kein `nosniff`, keine gesonderte CSP/Download-Erzwingung.
-- **Eigene Gegenprüfung:** **CODE** – `backend/src/darkfluenzer/server.py`, `_media` (um Zeilen 2344–2361): `web.FileResponse` für `message_file_known` und Galerie-Dateien; `Content-Disposition: attachment` nur bei `?download=1`. Der hier geprüfte Handler setzt kein `X-Content-Type-Options: nosniff`. Die tatsächliche Ausführbarkeit/CSRF-Kette ist **noch nicht per Browser getestet**.
-- **Prüfung:** Gesicherten HTML-/SVG-Testanhang als nicht vertrauenswürdigen Upload laden, mit angemeldeter Sitzung öffnen, tatsächlichen Content-Type/Disposition/CSP und Skriptausführung prüfen; Angriff auf geschützten Testbefehl muss scheitern. Gleiches für Bilder/Videos und legitime Downloads.
-- **Soll:** Fremde aktive Anhänge niemals unter derselben vertrauenswürdigen Cockpit-Origin als ausführbares Dokument ausliefern; serverseitig MIME-/Typbindung, `nosniff`, geeignete Sandbox/Download-Trennung. Normaler Medienzugriff bleibt funktionsfähig.
-- **Status:** BESTÄTIGT und behoben (Protokoll §7, BUG-001); Browser-Nachweis am laufenden Cockpit nach dem nächsten Deploy.
+1. **Ablauf je Befund:** gegen den aktuellen Code prüfen; Test schreiben, der den Fehler zeigt (rot); korrigieren; Test grün; Normalfall, Fehlerfall und Neustart prüfen; Lauf auf dem echten Mac; Protokollzeile (§6).
+2. **Belegstufen:** **CODE** im Quelltext gelesen, kein Lauf · **TEST** durch vorhandenen Test belegt · **LIVE** am laufenden System gesehen · **FREMD** Fremdmeldung, vor der Korrektur im Code bestätigen · **HYPOTHESE** nur ein Lauf entscheidet.
+3. **Priorität:** **P0** vor jedem KI-Kanaltest bzw. vor der Default-Abnahme H6 · **P1** vor dem ersten echten Kunden · **P2** danach gezielt · **P3** Pflege.
+4. **Status:** OFFEN · BEHOBEN (Code korrigiert, Mac-Nachweis fehlt) · TEIL (Teil am Mac belegt) · PASS (Mac-Nachweis liegt vor) · WIDERLEGT.
+5. Tests mit Ersatzobjekten (FakeTd, FakeComfy, Testinstanz) sind Regression, kein Nachweis. Keine künstlichen Daten in der echten Datenbank.
+6. Regressionstests: Backend `backend/tests/test_bugs_v1.py` als `test_bugNNN_…` oder im fachlichen Testmodul, Frontend `frontend/tests/`.
+7. Spalte „Paket“ verweist auf die Pläne; ein Befund wird im genannten Paket geschlossen. Ein Fix schließt alle verknüpften IDs, jede mit eigenem Testbeleg.
+8. Widerspruch zwischen Plan und Code → Eintrag `SPEC-NNN` in §5a, vor der Umsetzung klären.
 
-### BUG-002 – Tunnel könnte lokalen Cockpit-Host-Check umgehen
-- **Meldung:** Tunnel verändert Host-Header zu `127.0.0.1:8190`, dadurch könnten statt nur Instagram-/PayPal-Pfaden alle Cockpit-Endpunkte erreichbar werden.
-- **Eigene Gegenprüfung:** **HYPOTHESE** – `server.py`, `_host_check` (um 2214): Jeder Request mit Host aus `guard.hosts` wird zunächst durchgelassen, für abweichende Hosts greift die Instagram-Pfadsperre. Ob die Tunnel-Proxykonfiguration den originalen Host erhält, wurde nicht geprüft.
-- **Prüfung:** Reale gewählte Tunnelkonfiguration inspizieren; von einem externen Testclient unerlaubte Cockpit-, Medien-, Health-/Login- und Protobuf-URLs anfragen, Host-/Forwarded-Header-Varianten und tatsächliche Bindung beobachten. Erfolgreiche Zugriffe auf nicht freigegebene Pfade sind P0.
-- **Soll:** Öffentliche Freigabeliste der exakt benötigten Webhook-/OAuth-/Medienpfade; keine Abhängigkeit allein von einem manipulier-/umgeschriebenen Host-Header.
-- **Status:** BESTÄTIGT (für umgeschriebenen Host) und behoben (Protokoll §7, BUG-002); Prüfung mit der echten Tunnelkonfiguration folgt, sobald der Tunnel eingerichtet ist.
+## 1. P0
 
-### BUG-003 – Interner Default-Rückversand ohne plattformspezifische Inhaltsstufenprüfung
-- **Meldung:** Explizite Default-Ergebnisse könnten auf Instagram versandt werden, obwohl Regel 13 sie ausschließlich für Default über Telegram zulässt.
-- **Eigene Gegenprüfung:** **CODE** – `server.py`, `_reply_internal` (um 1459): Ziel wird über `conversation_platform(conversation_id)` dynamisch bestimmt, es fehlt vor dem Dateiversand die Prüfung „`explizit` nur Default-Telegram“. Das Kunden-Gate in `approval.py` reicht für diesen internen Sonderpfad nicht aus.
-- **Prüfung:** Interner Default-Auftrag mit Testartefakten der Stufen `standard` und `explizit` einmal aus Instagram und einmal aus Telegram; Server/Adapter direkt testen, nicht nur Frontend. Cross-Channel-Daten und echte Ziel-IDs prüfen.
-- **Soll:** `explizit` niemals über Instagram, auch nicht für Default. Default-Vollauflösung nur an verifizierte Telegram-ID; gesperrte Sendung sichtbar dokumentieren.
-- **Status:** BESTÄTIGT und behoben (Protokoll §7, BUG-003); Kanal-End-to-End mit echtem Telegram/Instagram ausstehend.
+| ID | Befund | Beleg | Soll und Abnahme | Paket |
+|---|---|---|---|---|
+| BUG-047 | **Inhaltsstufe umgehbar.** Die Stufe erbt nur über `parent_media_id`; Upload von Platte, Vorlagen-Eingang und Befehl ohne Eltern-Medium laufen durch `standard`-Workflows (Hochskalieren, Instagram-Export, Bild zu Video) und kommen als `standard` heraus. | CODE | Stufe = höchste Stufe aus Workflow und allen Eingabebildern; Uploads per SHA-256 gegen `media`; unbekanntes Eingabebild in einem abgeleiteten Workflow = `explizit`. Abnahme: explizites Bild über alle Wege → Ergebnis `explizit`, Liefer-Gate sperrt, auch bei manipuliertem Befehl. | B H1 |
+| BUG-048 | **Kundenliste, Ungelesen und Übersicht** aktualisieren sich bei bekannten Kunden nicht; EVENT 26 entsteht nur bei neuer Akte. | CODE | EVENT 26 bei jedem Eingang, Versand und Gelesen-Wechsel. Abnahme: zweite Nachricht eines bekannten Kunden erhöht Ungelesen, ohne die Akte zu öffnen. | B H2, F H |
+| BUG-049 | **Telegram-Kontowechsel** ohne Neustart: zwei Empfangsthreads lesen dieselbe TDLib-Instanz. | CODE, HYPOTHESE | Genau ein Empfänger je Prozess; alter Client wird geschlossen und abgewartet. Abnahme: abmelden, anmelden, zehn Eingänge genau einmal. | B H2 |
+| BUG-050 | **Gutschein-Erkennung** (`payments/vouchers.py`, `extract`) hält normalen Text mit Buchstaben und Ziffern („habe morgen 1830 Zeit“) für einen Code und maskiert ihn; das Original ist verloren. | CODE | Nur eindeutige Muster; Originaltext am Gutschein geschützt speichern (nur im Wallet sichtbar). Abnahme: 20 normale Sätze mit Zahlen bleiben unverändert, echte Codes werden erkannt. | B H2, C5a.4 |
+| BUG-051 | **Bezahlter Auftrag kann stecken bleiben:** kein „Neu erzeugen“ bei unbrauchbaren erfolgreichen Kandidaten (`pipeline.retry_stage` nur für Fehlstufen), keine Erstattung per Befehl, nach `delivered` kein Übergang. | CODE | Befehle `order_regenerate`, `order_aftercare`; Zustände `complaint`, `closed`; Erstattung mit Beleg. | B C5.6, C5.8 |
+| BUG-052 | **Default-Auftrag ohne Charakterbindung:** weder Influencerin noch Charakter-LoRA am Auftrag; kein Workflow hat einen LoRA-Parameter, die Registry kennt keine trainierten LoRAs. Live 17.11.: Influencerin nicht gesetzt, Charakter 01 mit 0 Bildern. | CODE, LIVE | Auftrag trägt Influencerin, Charakterprofil, LoRA-Version; Workflow lädt die LoRA; bis B1 Karte „ohne Charakter-LoRA“. | B H4, B1 |
+| BUG-057 | **Default-Nachricht endet still.** Live 17.11.: „Clone“ → nur Cockpit-Karte „Kein Workflow für clone im Default-Kontakt gewählt“, keine Antwort in Telegram. Dazu: „wartet auf Start“ ohne Chat-Antwort, stiller Rücksprung bei abgeschalteten Befehlen, Rückversand je Freigabeart unklar. | LIVE, TEST | Jede Default-Nachricht endet in genau einem Zustand (gestartet · wartet auf Start · abgelehnt mit Grund · zurückgesendet · Rückversand gesperrt) mit Karte **und** Antwort im selben Chat. | B H4, F H4 |
+| BUG-075 | **Referenz aus vorheriger Nachricht wird nicht gefunden.** Live 17.11.: Foto und „Clone“ als zwei Nachrichten (4 s Abstand); `_cloner_plan` nimmt Referenzen nur aus derselben oder einer beantworteten Nachricht und hätte nach dem Bild gefragt. | LIVE, CODE | Letzte Medien desselben Absenders innerhalb `cloner.reference_window_s` (Konfiguration) gelten als Referenz; nie Medien anderer Absender. Abnahme: Foto, dann Befehl → genau ein Auftrag mit diesem Foto. | B H4 |
+| BUG-008 | **Render-Worker kann nach einem Job sterben** (`advance_order`, Kloner-Rückversand, Push außerhalb des Fehlerfangs). | CODE | Fehler in jeder Nachbearbeitung auslösen: Worker läuft weiter, kein Job verloren, kein Doppelversand. | B H2 |
 
-### BUG-004 – Kollision der internen KI-Zustellkopien
-- **Meldung:** Gleichnamige Quellbilder können eine ältere, falsche Datei erneut versenden.
-- **Eigene Gegenprüfung:** **CODE** – `_reply_internal` bildet den Zielpfad aus `src.stem + "_ki" + suffix`, prüft `if not copy.exists()` und markiert eine bestehende Datei nicht neu. Derselbe Name aus unterschiedlicher Herkunft kann kollidieren.
-- **Prüfung:** Zwei Dateien mit identischem Basenamen, aber unterschiedlichen Bytes/Hashes nacheinander als Default-Ergebnis zustellen; Hash und tatsächlich empfangene Datei abgleichen, Neustart/Deduplikation mitprüfen.
-- **Soll:** Inhaltsadressierte/unveränderliche Zustellkopien je eindeutiger Artefakt-ID/Hash, Herkunft, geprüfter SHA-256; kein falscher Rückversand.
-- **Status:** BESTÄTIGT und behoben (Protokoll §7, BUG-004).
+## 2. P1
 
-### BUG-005 – Manuell zugeordnete Unterzahlung kann als voller Auftragspreis gebucht werden
-- **Meldung:** Befehl 41 sowie Amazon-Gutscheine tragen den Preis des Auftrags als bestätigt ein, unabhängig vom tatsächlich eingegangenen Betrag.
-- **Eigene Gegenprüfung:** **CODE** – `store.py`, `assign_inflow` (um 1444–1463) ruft `record_payment(order_no, ..., order.price_amount, order.currency)` auf, ohne den Eingangswert in der jeweiligen Zahlungseinheit vorab gegen das Angebot zu verifizieren. `redeem_voucher` sucht ein Angebot mit `price_amount <= amount_cents`; bei manueller Zuordnung eines geringeren Gutscheins/Chain-Eingangs bleibt ein Unterzahlungsfall möglich.
-- **Prüfung:** Echter/syntaktisch gültiger Test-Chain-Eingang und eingelöster Testgutschein **unter** Angebotspreis; manuelle Zuordnung, auto Zuordnung, Teilzahlung und andere Währung jeweils getrennt. Prüfen, ob `payments.status=confirmed` und `orders.status=paid` fälschlich entstehen. Kein echter Geldfluss als Test simulieren.
-- **Soll:** Nur tatsächlich bestätigter ausreichender Zahlungseingang berechtigt die volle Zahlung; Umrechnung/Kurszeit/Betrag/Asset eindeutig; Differenzen bleiben offen/nicht zugeordnet oder explizit als Teilzahlung erfasst.
-- **Status:** BESTÄTIGT und behoben (Protokoll §7, BUG-005); Teilzahlungen werden nicht verbucht, sondern bleiben sichtbar offen.
+| ID | Befund | Beleg | Soll und Abnahme | Paket |
+|---|---|---|---|---|
+| BUG-007 | Zeitlimit 3600 s fest in `pipeline.run_render`; Remix-Lauf lag mit 3440 s knapp darunter. | CODE | Zeitlimit je Workflow aus der Registry; Lauf über 3600 s mit Wiederaufnahme. | B H3 |
+| BUG-009 | Wallet-Beobachter (`payments/chain.py`, `run`) fängt `TypeError` nicht. | CODE | `null`, Liste statt Objekt, falsche Felder: Beobachter läuft weiter, zeigt Fehler, holt auf. | B C5a.1 |
+| BUG-010 | BTC-Adresse in Großbuchstaben: Prüfung akzeptiert, Vergleich unterscheidet Groß/klein. | CODE | Für Vergleich und Abfrage normalisieren. | B C5a.1 |
+| BUG-011 | Zuordnung nach Erkennungszeit statt Blockzeit (`store._match_offer`). | CODE | Verspätet gescannte, rechtzeitig bestätigte Zahlung wird zugeordnet; nach Ablauf nicht. | B C5a.1 |
+| BUG-013 | Telegram-Anhang bleibt nach Absturz zwischen Speichern und Download `pending`. | CODE | Fortsetzung nach Neustart oder Fehlschlag mit Grund. | B H2 |
+| BUG-014 | Telegram sichert die Reihenfolge je Chat nicht; ein Befehl kann die Foto-Nachricht überholen. | CODE | Verarbeitung je Chat nacheinander; Foto mit verzögertem Download, dann Befehl. | B H2 |
+| BUG-015 | Telegram-Dienstkonto 777000 kann als Kunde landen. | OFFEN | Keine Akte, kein KI-Dialog, Code nie im Gedächtnis. | B H2 |
+| BUG-016 | Versand mit Status `unknown` bleibt hängen; Instagram klärt ihn nur im Speicher, nach Neustart entsteht fälschlich „ÜBERGABE AN BETREIBER“. | CODE | Abgleich dauerhaft über Verlauf/Echo, nie blind zweimal senden, eigene Nachricht nie als Übergabe. | B H2 |
+| BUG-017 | Instagram lehnt Bilder über 8 MB ab; keine Zustellkopie; Texte über 1000 Byte nicht geteilt. | CODE | Zustellkopie je Kanalgrenze, nie unter 1K; Text teilen; genau einmal zugestellt. | B C5.7, C5.3 |
+| BUG-019 | Angebot wählt das Produkt über den Listenindex. | CODE | Stabile ID je Preisposition, Revisionsprüfung. | B C5.5 |
+| BUG-020 | Kundenakte nimmt `influencers[0]` statt der Influencerin des Kontos. | CODE | Influencerin je Kanalkonto und Akte. | B C5.1 |
+| BUG-021 | KI-Hinweis nach fehlgeschlagenem oder ungeklärtem Versand nicht fortsetzbar. | OFFEN | Erneuter Versuch möglich, nie doppelt. | B H2 |
+| BUG-022 | Alle Engines `evaluation`, Rollen leer; Kundenaufträge prüfen Engine-Freigabe nicht (`_not_startable` prüft nur aktiviert, gesperrt, Dateien). | CODE | Kundenproduktion nur auf freigegebenen Engines mit der LoRA der Figur, auch bei manipuliertem Befehl. | B C5.6 |
+| BUG-023 | Krea als `standard` eingestuft ohne Nachweis. | HYPOTHESE | Graph und Testbilder prüfen; Stufe nur mit Beleg. | B C5.6 |
+| BUG-024 | Cockpit-Befehle warten ohne Zeitlimit auf die Quittung (`core/commands.ts`, `terminalReceipt`). | CODE | Zeitlimit, danach Zustand über die `request_id` wiederherstellen. | F H |
+| BUG-043 | **Abbrechen.** Behoben (`ebbe773`): Abbruch ab Klick, Ergebnis nach Abbruch verworfen, Speicher frei, Pause dauerhaft. Offen: Auftrag als Ganzes, Mehrkandidaten. | TEIL (§7) | Laufender Mehrkandidaten-Auftrag abgebrochen, Warteschlange leer, Journal stimmt. | B H3, F H3 |
+| BUG-053 | Kloner legt Aufträge ohne Vorprüfung an (aktiviert, nicht gesperrt, Modelle vorhanden). | CODE | Dieselbe Prüfung wie der Render-Befehl vor der Anlage; sonst Ablehnung mit Grund im Chat. | B H4 |
+| BUG-054 | Kloner startet auch Videos mit `production.candidates_default` (3). | CODE | `production.video_candidates_default` (Vorgabe 1). | B H4 |
+| BUG-055 | Kloner nutzt nur die erste Referenz (`refs[0]` in `_cloner_order`). | CODE | Alle Referenzen an die Vorlagen-Parameter; überzählige melden. | B H4 |
+| BUG-056 | Stufe mit genau einem Kandidaten wartet auf manuelle Auswahl (`advance_order`). | TEST | Ein erfolgreicher Kandidat wird automatisch gewählt. | B H4 |
+| BUG-058 | **Video-Parameter uneinheitlich:** LTX `duration` („Länge (s)“) aus dem Manifest, Wan/Remix `duration_s` („Gesamtlänge“) aus dem Backend; das Feld steht je Workflow an anderer Stelle. Betreiber beanstandet 17.11. | TEST, LIVE | Ein Parametervertrag und eine Bedienkomponente für alle Video-Workflows. | B H5, F H5 |
+| BUG-059 | KI-Kennzeichnung nur in Metadaten; Plattform-Neukodierung entfernt sie vermutlich; WebP/WebM nicht kennzeichenbar. | CODE, HYPOTHESE | Kennzeichnung muss beim Empfänger ankommen (Begleittext oder Marke); je Kanal real prüfen. | B C5.7 |
+| BUG-060 | Angebot setzt ein Krypto-Wallet voraus; Angebotstext fest im Code. | CODE | Zahlungswege als Liste je Influencerin, Text als Vorlage im Profil. | B C5.5, C5a |
+| BUG-061 | Starter startet nur die Medien-Instanz; kein Autostart, kein Schutz vor Ruhezustand. | CODE | Beide Instanzen, Autostart, kein Ruhezustand im Betrieb. | B B5.1, D2 |
 
-### BUG-006 – Fehlender Kundenauftragsbezug bei Generierungsjobs
-- **Meldung:** Medien eines Kundenauftrags könnten als normale Betreiberdateien erscheinen und durch Galerie-Löschen entfernt werden.
-- **Eigene Gegenprüfung:** **CODE/TEILWEISE** – `pipeline.py`, `create_job` (um 209) ruft `store.create_job(None, ... stage_id=stage_id)`; `store.py`, `create_job` legt bei `order_no=None` zunächst `jobs.order_id=NULL` an. `store.register_media` leitet Medienauftrag aus Job-/Artefaktbezug ab, und `remove_media` schützt nur Zeilen mit `media.order_id IS NOT NULL`. **Ob ein späterer `artifact_id`-Pfad den Bezug vor dem Galerieeintrag rettet, muss der End-to-End-Test zeigen.**
-- **Prüfung:** Realen Kundenauftrag von `paid` bis Galerieeintrag ausführen, `jobs/order_stages/artifacts/media.order_id` vor/nach Finalisierung kontrollieren; Löschversuch über UI **und** manipulierten Befehl muss abgewiesen werden.
-- **Soll:** Auftragsbezug bei Anlage des Jobs und durchgehend bis zu Artefakt und Galerieeintrag; unveränderliche Kundendateien.
-- **Status:** BESTÄTIGT und behoben (Protokoll §7, BUG-006).
+## 3. P2
 
-## 2. P1 – Zuverlässigkeit und wesentliche Betriebsfehler
+| ID | Befund | Beleg | Soll | Paket |
+|---|---|---|---|---|
+| BUG-012 | Rest: abgelaufene Angebote nicht sichtbar als abgelaufen. | CODE | Zustand `expired`, keine Aktion mehr. | B C5.5 |
+| BUG-025 | Ganzzahl wie `30.0` oder `1e3` scheitert still an `BigInt` (`ComfyUI.tsx`). | CODE | Prüfung vor dem Senden, Fehler am Feld. | F H |
+| BUG-026 | Fristen (Angebot, Instagram-Fenster, Telegram-Bremse) altern ohne neues Ereignis nicht mit. | CODE | Zeitgeber im Browser; Backend prüft beim Klick. | F H |
+| BUG-027 | Video in der Auftragskarte als `<img>` (`Messages.tsx`). | CODE | Videospieler mit Vorschaubild. | F H |
+| BUG-028 | Registry und Festplatte nicht synchron (gemeldet ≈ 196 GB unregistriert). | OFFEN | Nach Größe und SHA prüfen, nichts nach Dateinamen registrieren. | B B4 |
+| BUG-029 | `ltx25_fast` zeigt auf ein nicht vorhandenes Distilled-Modell. | OFFEN | Manifest gegen Platte; nur lauffähige Workflows anbieten. | B B4 |
+| BUG-030 | Engine-Gates offen trotz bestandener Workflows. | CODE | Gate je Bedingung mit echtem Beleg. | B B4 |
+| BUG-031 | Starter vergleicht `comfyui` als Text, das Backend liefert ein Objekt je Instanz. | CODE | Rückgabe je Instanz auswerten. | B H2 |
+| BUG-032 | Gutscheincodes unmaskiert im Wallet. | CODE | Maskiert, Aufdecken ausdrücklich, nie an KI oder Logs. | F H |
+| BUG-033 | Zuordnen und Einlösen ohne Rückfrage. | CODE | Bestätigung mit Betrag, Kunde, Auftrag. | F H |
+| BUG-062 | Bearbeitete, gelöschte, zurückgezogene Kundennachrichten nicht übernommen; bei mehreren Anhängen Text mehrfach (vor Korrektur bestätigen). | CODE | Änderung und Löschung abbilden; Text einmal. | B H2 |
+| BUG-063 | Kein Weg, einen kleinen Fehlbetrag anzunehmen. | CODE | Nach E10 (offen): nur mit Bestätigung und Protokoll. | B C5a.3 |
+| BUG-064 | Bitgleiches Ergebnis zu einem vorhandenen Medium gilt als „kein Ergebnis“. | CODE | Vorhandenes Medium zählt als Kandidat. | B H3 |
+| BUG-065 | Beobachter lädt alle 2 s alle Jobs und Ordner und startet `lsof`/`ps`; jeder Render fragt sekündlich und startet `sysctl`. | CODE | Änderungsbetrieb statt Vollabfrage. | B D2 |
+| BUG-066 | `cockpit_restart` prüft nur Renderjobs, nicht laufende Sendungen. | CODE | Sperre auch bei `sending`. | B D2 |
+| BUG-067 | `secret set` kennt nur Telegram. | TEST | Instagram und PayPal ergänzen. | B C5a.2 |
+| BUG-068 | Zwei Trainingswege: alter diffusers-Trainer neben dem ComfyUI-Trainingsworkflow. | CODE | Alten Weg samt CLI entfernen, wenn B1 belegt ist. | B B1 |
+| BUG-069 | Trigger `dfchar`, Klasse `woman` und Beschriftung fest im Code; neuer Trigger erzeugt keine neue Datensatzversion. | CODE, TEST | Felder im Charakterprofil, Teil der Datensatz-ID. | B B1 |
+| BUG-070 | Übersicht zählt bezahlte Aufträge in Produktion und Freigabe nicht. | CODE | Eigene Zähler. | F H |
+| BUG-071 | Ereignislisten im Browser wachsen unbegrenzt (`state.applyEvent`). | CODE | Begrenzen, älteres seitenweise. | F H |
+| BUG-072 | Nachrichten, Wallet, ComfyUI ohne Browser-Test; Smoke klickt Wallet nicht. | CODE | Je Seite ein Browser-Test. | F H |
+| BUG-076 | Nach einem Deploy mit Schemawechsel weist das Backend offene Cockpits ab („Frontend-Build passt nicht zum Backend-Schema“); der Betreiber muss selbst neu laden. | LIVE | Cockpit lädt nach Schemawechsel automatisch neu. | B D3, F H |
 
-| ID | Meldung / eigene Belegstufe | Prüfauftrag / Soll |
+## 4. P3
+
+| ID | Befund | Soll | Paket |
+|---|---|---|---|
+| BUG-035 | `config.toml.vor-instagram` lokal mit Rechten 644. | Auf dem Mac prüfen, auf 600 setzen oder nach Rückfrage löschen. | B D2 |
+| BUG-036 | `setup_comfyui.sh` trägt keinen Ordner für Bildinterpolation (FILM) ein; Ordner `LLM` und Knotenpaket für das Chatmodell fehlen (vorbereitet: `launcher/setup_llm_session.sh`, `LLM: llm`, noch nicht committet). | Skripte ergänzen, am Mac prüfen. | B B5.1 |
+| BUG-037 | Lokale, nicht committete Zeile `enabled = true` in `workflows/manifest.toml`. | Bewusst lokal; nie mit Fachänderungen committen. | – |
+| BUG-074 | Dokumente veraltet und widersprüchlich (schließt BUG-034 ein). | Mit DOK-1 am 17.11. erledigt: zwei Pläne + diese Liste, Altdokumente im Archiv. | B DOK-1 |
+
+## 5. Erledigt oder widerlegt
+
+| ID | Stand | Offener Mac-Nachweis |
 |---|---|---|
-| **BUG-007** | **Render-Timeout 3600 s – CODE/TEILWEISE.** `pipeline.py:run_render(timeout_s=3600.0)`. Die Behauptung „jeder lange Job bricht nach einer Stunde ab“ hängt von allen Aufrufwegen/Segmentierungen ab. | Call-Graph, ComfyUI-Client und Langvideo-/Trainingspfade prüfen. Zeitlimit pro Workflow/Auftrag konfigurieren oder echte Fortschritts-/Liveness-Semantik; >3600-s-Test mit Wiederaufnahme. |
-| **BUG-008** | **Worker kann nach Render-Job sterben – CODE.** `server.py`, Worker um 293–302: `advance_order`, `_cloner_delivery` und Push-Funktionen nach dem `try/except`. | Fehler in jeder Nachbearbeitungsphase gezielt injizieren; Worker muss weiterlaufen oder beaufsichtigt neu starten; keine verlorenen Jobs/Doppelversände. |
-| **BUG-009** | **Wallet-Watcher unerwartete RPC-Antwort – CODE.** `payments/chain.py:run` fängt nur `ClientError/TimeoutError/KeyError/ValueError`, nicht `TypeError` bei fehlerhaften Datentypen. | RPC `null`, `None`, Liste statt Objekt, ungültige Felder; Watcher darf nicht dauerhaft sterben, Datenquellenstatus muss Fehler zeigen und später aufholen. |
-| **BUG-010** | **BTC-Adresse in Großbuchstaben – TEILWEISE.** `payments/addresses.py:btc_address_error` akzeptiert eine **vollständig großgeschriebene gültige** `BC1...`-Adresse; Aussage „nie erkannt“ ist für die Validierung **widerlegt**. `chain.py:_btc` vergleicht `scriptpubkey_address != addr` jedoch case-sensitiv; reale API kann kleingeschriebene Adresse liefern. | Gültigen uppercase-Bech32-Testvektor gegen Validierung **und** Watcher/Provider-Antwort testen; Adressnormalisierung für Vergleich und API-Abfrage herstellen; kein irreführender P0 ohne Reproduktion. |
-| **BUG-011** | **Blockchain-Zuordnung anhand Erkennungszeit – OFFEN/TEILWEISE.** `store.py:_match_offer` prüft `inflow.detected_at` gegen Angebotsfenster, nicht ersichtlich den tatsächlichen Blockzeitpunkt. | Verspätet eingegangenen Scan bei vor Ablauf bestätigter Zahlung und Zahlung nach Ablauf testen; Zeitpunkt aus vertrauenswürdiger Kette, Bestätigungen und Angebot korrekt unterscheiden. |
-| **BUG-012** | **„Angebote laufen nie ab“ – als pauschale Aussage WIDERLEGT.** `store.py:_match_offer` enthält `f.expires_at >= inflow.detected_at` und `f.created_at <= inflow.detected_at`. | **Restprüfung:** Wird der abgelaufene Status sichtbar aktualisiert, werden manuelle Aktionen/Angebotsrecycling korrekt blockiert? Keine bereits vorhandene Zeitfensterprüfung entfernen. |
-| **BUG-013** | **Telegram-Anhang verbleibt auf pending – OFFEN.** `channels/telegram.py` schreibt Anhänge zunächst als pending, Download folgt danach. | Absturz zwischen Nachrichtenspeicherung, Download und Datei-Aktualisierung; Reconnect muss ausstehende Downloads fortsetzen oder verständlich fehlschlagen, kein endloses pending. |
-| **BUG-014** | **Telegram-Nachrichtenreihenfolge je Chat – OFFEN.** Gemeldet: Befehl kann zugehörige Foto-Nachricht überholen. | Zwei schnell aufeinanderfolgende Nachrichten (Foto und Befehl) mit verzögertem Download, Neustart und Dublette testen; serialisierte Entscheidungsreihenfolge je Chat oder korrekte referenzbasierte Zuordnung. |
-| **BUG-015** | **Telegram-Konto 777000 als Kunde – OFFEN.** Behauptung aus Fremdanalyse, bisher ohne eigenen Filter-/Betriebstest. | Login-Code-Nachricht im normalen Betriebsmodus: keine normale Kundenakte und keine Weitergabe an Dialog-LLM, Code nicht im Customer-Memory; echte Kunden unverändert. |
-| **BUG-016** | **Zustellung mit Status unbekannt bleibt hängen – OFFEN.** | Timeout nach möglicher Plattformannahme simulieren; Status mittels Plattform-ID/History abgleichen, ohne blindes Zweitsenden; bei endgültigem Fehler manueller Retry korrekt. |
-| **BUG-017** | **Instagram-Datei zu groß, fehlende Zustellkopie – OFFEN.** | 4K-PNG > Plattformgrenze, Video und dokumentengroße Dateien; automatische geeignete Zustellkopie mit Original-/Hash-/Auflösungsreferenz; Kunde erhält genau einmal. |
-| **BUG-018** | **Instagram-Antwortfenster wird nicht serverseitig im Versandmoment geprüft – OFFEN.** | Nachrichten kurz vor/nach 24-h-Grenze, KI-/Operatorantwort, freigegebene Human-Agent-Ausnahme; im Backend abweisen, zeitgebundenen GUI-Status aktualisieren. |
-| **BUG-019** | **Angebot wählt Produkt per veränderlichem Listenindex – OFFEN.** | Preisliste zwischen UI-Anzeige und Angebot ändern, Revisionsprüfung/CAS; Preis und Produkt müssen zur tatsächlich bestätigten Position gehören. |
-| **BUG-020** | **Kundenakte bindet erste Influencerin statt Kontoprofil – OFFEN.** | Zwei Figuren/Kanalkonten, Wechsel der Auswahl, parallele Anfragen; niemals unbemerkt `influencers[0]` verwenden, stabile per-Kanal-/Kunden-Zuordnung. |
-| **BUG-021** | **KI-Ersthinweis nach unbekanntem/fehlgeschlagenem Versand nicht fortsetzbar – OFFEN.** | Versandfehler/Timeout, Neustart, erneuter zulässiger Versuch und Abgleich; kein Doppelhinweis, keine permanent blockierte legitime Unterhaltung. |
-| **BUG-022** | **Modellprüfstatus und Eignung zur Laufzeit nicht erzwungen – OFFEN.** | Ein als OFFEN/nicht qualifiziertes Modell im Manifest auswählen bzw. direkten Befehl manipulieren; Backend muss gemäß V0-Freigaben und Inhaltsstufe abweisen. **Lizenz-/kommerzielles Nutzungsrecht separat anhand konkreter Modellkarte prüfen; keine pauschale Aussage ohne Beleg.** |
-| **BUG-023** | **Krea-Standardklassifizierung trotz entfernter Prompt-Kleidungsvorgabe – HYPOTHESE.** | Tatsächlichen Workflow-Graphen, Inhaltsstufenherkunft und generierte Testbilder prüfen. Kein automatisches Gleichsetzen `standard` mit nachgewiesener Nicht-Explizitheit. |
+| BUG-001 | BEHOBEN (`ab1d9cf`) | Browser mit echtem Kundenanhang |
+| BUG-002 | BEHOBEN, lokal TEIL (17.11. 00:23: Weiterleitungs-Header 403) | echter Tunnel |
+| BUG-003 | BEHOBEN (`4f79bfd`) | echter Kanal Telegram und Instagram |
+| BUG-004 | BEHOBEN (`018f462`) | echter Rückversand |
+| BUG-005 | BEHOBEN (`cd0ff68`) | echte Zahlung |
+| BUG-006 | BEHOBEN (`9927140`) | erster Kundenauftrag |
+| BUG-038 | PASS: Telegram-Chat ohne Position wird nach Neustart nachgeholt, nur Ungelesenes (`36433c8`, `b4ad0c4`), live 17.11. | – |
+| BUG-039 | PASS: Register öffnet bei Ungelesenem nach Neuladen (`b4ad0c4`), live 17.11. | – |
+| BUG-040 | BEHOBEN: Name aus Chat-Titel (`e83b7f5`) | Sichtprüfung beim nächsten Eingang |
+| BUG-041 | PASS: „Als Default festlegen“ (Befehl 48, `ad82d0d`), Klicktest an Testinstanz, Umzug live per ID-Feld | – |
+| BUG-042 | PASS: Seed-Grenzen (`932c9ec`), LTX-Job 64 danach aus dem Cockpit | – |
+| BUG-044 | BEHOBEN im Cockpit (Video Standard 1, `ebbe773`); Kloner siehe BUG-054 | Sichtprüfung |
+| BUG-045 | **WIDERLEGT** 17.11.: im echten Chrome läuft das LTX-Video (960×1280, `readyState` 4); schwarz war nur Playwrights Chromium ohne H.264 (`MEDIA_ERR_SRC_NOT_SUPPORTED`). | – |
+| BUG-046 | PASS 17.11.: Warteschlange angehalten → Neustart → weiterhin angehalten → fortgesetzt | – |
+| BUG-012 | Kernaussage WIDERLEGT (Zeitfilter vorhanden); Rest §3 | – |
+| BUG-018 | WIDERLEGT: Fensterprüfung im Versandmoment vorhanden (`test_reply_window_refuses_and_human_agent_override`) | echter 24-h-Grenzfall |
+| BUG-034 | in BUG-074 aufgegangen | – |
 
-## 3. P2 – Frontend, Datenpflege und Qualitätskontrolle
+### 5a. Widersprüche Plan ↔ Code (SPEC)
 
-| ID | Meldung / eigene Belegstufe | Prüfauftrag / Soll |
-|---|---|---|
-| **BUG-024** | **GUI-Befehle ohne Timeout – OFFEN.** | Protobuf-Receipt absichtlich verzögern/verwerfen, Reconnect; kein ewig blockiertes UI, Zustand über request_id wiederherstellen. |
-| **BUG-025** | **Ungültige BigInt-Parameter `30.0`/`1e3` – CODE.** `frontend/src/pages/ComfyUI.tsx` um 900 konvertiert Integer-Text direkt mit `BigInt(text)`. | Eingabefehler sichtbar anzeigen und vor Befehl prüfen; echte gültige Ganzzahl-/Negativ-/Grenzfalltests. Kein stilles Scheitern. |
-| **BUG-026** | **24-h-/Flood-Wait-Sperren altern ohne Zeitupdate – OFFEN.** | Ablauf ohne neues Push-Ereignis abwarten; React/Backend müssen Entscheidung bei Klick mit aktueller Zeit prüfen, UI nachführen. |
-| **BUG-027** | **Video-Kandidaten werden mit `<img>` dargestellt – CODE/TEILWEISE.** `Messages.tsx`, `OrderCard` um 478 verwendet `<img src={resultPath}>`; im ComfyUI-Ergebnisbereich wird Video bereits nach Dateityp behandelt. | Kundenauftrag mit MP4/WebM bis Freigabe, korrekter Videoplayer/Preview, Dateiversand und Wiedergabe. |
-| **BUG-028** | **Registry/Festplatte nicht synchron – OFFEN.** Bericht nennt ca. 196 GB unregistrierte Modelle, u. a. FLUX.2, LTX 2.5 Dev, Wan Animate 2, Qwen3.5, FILM. | Tatsächliche Modelldateien auf dem Mac nach Größe/SHA prüfen, gegen `workflows/manifest.toml`/Graphen/Versionsstand vergleichen; kein Registrieren bloß aufgrund Dateinamen. |
-| **BUG-029** | **LTX-2.5-Fast zeigt auf nicht vorhandenes Distilled-Modell – OFFEN.** | `[engines.ltx25_fast]` im Manifest gegen tatsächlich vorhandene Datei sowie LTX-Dev/Distilled unterscheiden; nur echte kompatible Workflows anbieten. |
-| **BUG-030** | **Gates für sieben Engines OFFEN trotz Teiltests – OFFEN.** | Trainings-, Laden-, Render-, Qualitäts- und Nutzungs-Gates getrennt anhand echter Testbelege prüfen; Gate nur bei bestandener Bedingung aktualisieren, nicht pauschal. |
-| **BUG-031** | **Swift-Launcher prüft falschen Datentyp beim Stoppen – CODE.** `launcher/Darkfluenzer.swift`, `stopClicked` um 131 vergleicht `r.json?["comfyui"] as? String` mit `"not_managed"`; gemeldete Runtime-Rückgabe ist pro Instanz ein Dictionary (noch mit echtem CLI-Lauf zu prüfen). | `up/down` mit eigener und fremder Medien-/KI-Instanz; Rückgabeformat wirklich ermitteln und Statusanzeige pro Instanz korrekt auswerten. |
-| **BUG-032** | **Amazon-Gutscheincodes unmaskiert in Daten/STATE/Oberfläche – OFFEN.** | SQLite/Protobuf/React-Ansicht auf Offenlegung prüfen; im UI maskiert mit expliziter Anzeige, keine Weitergabe an LLM/Logs und keine unnötigen Klartextkopien. |
-| **BUG-033** | **Wallet-Befehle Einlösen/Zuordnen ohne Bestätigungsdialog – OFFEN.** | Prüfen, ob zweistufige Operatorbestätigung tatsächlich fehlt; UI und Backend-Receipt mit Betrags-/Kundenzuordnung testen. |
-| **BUG-034** | **Dokumentation veraltet – OFFEN.** | `README.md`, `docs/ki_modelle.md`, FRONT-Fortschritt, V0-B4-Langvideo und C2d-Teilnachweise mit aktuellem Git-Stand und dokumentierten realen Messungen abgleichen. Dokumente nicht als Nachweis ausgeben. |
+(keine offenen)
 
-## 4. P3 – lokale Pflege / Konfiguration
+## 6. Protokollzeile je Befund
 
-| ID | Gemeldeter Punkt | Prüfung |
-|---|---|---|
-| **BUG-035** | `config.toml.vor-instagram` lokal mit Dateirechten `644` statt `600` | **Nur auf dem Mac** mit `stat` prüfen; falls geheimnishaltig, Zugriff einschränken. Git allein enthält weder lokale Datei noch Dateirechte als Beweis. |
-| **BUG-036** | FILM fehlt in `extra_model_paths.yaml` | **Nur auf dem Mac** ComfyUI-Pfade, Modellregistrierung, echten FILM-Node und Workflow-Ausführung prüfen. |
-| **BUG-037** | Nicht committete Änderung `enabled = true` in `workflows/manifest.toml:530` | **Nur auf dem Mac** `git status` und `git diff` prüfen. Aus Remote-Git kann der lokale Dirty-Stand nicht verifiziert werden; kein automatisches Staging ohne Sichtung. |
+ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT, NICHT REPRODUZIERBAR) · Nachweis (Test, Log) · Ursache · Korrektur-Commit · Regression (Normalfall, Fehlerfall, Neustart, Mehrfachzustellung) · Mac-Lauf (PASS, FAIL, NICHT GELAUFEN) · Bearbeiter, Datum.
 
-## 4a. Betreiber-Mängelmeldung 17.11.2026 (eigene Befunde am laufenden System)
+**Abschluss:** PASS erst, wenn der Test grün ist, die Änderung auf `main` liegt und der Mac-Lauf belegt ist.
 
-Bereiche FL-1 bis FL-7 im PHASENPLAN_V0 („Funktionslücken-Abgleich 17.11.2026“).
-
-| ID | Befund / Belegstufe | Stand |
-|---|---|---|
-| **BUG-038** | **Telegram: vor der Freigabe schreibender Test-Chat bzw. erstmals schreibender Kunde während Backend aus nie nachgeholt – BESTÄTIGT live** (Chat 571334304, 0 Akten). Erster Fix holte zusätzlich alten privaten Verlauf (2023/2024) samt falscher Übergabe-Karten. | BEHOBEN `36433c8`, `b4ad0c4`: nur Ungelesenes ab der zuletzt gelesenen Nachricht; 32 Fehlimporte mit Sicherung `darkfluenzer.sqlite3.bak-20261117090150-vor-tg-bereinigung` entfernt; Nachricht erschien live |
-| **BUG-039** | **Kundenregister öffnet nach Neuladen nicht – BESTÄTIGT** (FRONT F4 Punkt 2). | BEHOBEN `b4ad0c4`: beim ersten Stand Register für Akten mit Ungelesenem, ohne Fokuswechsel; Vitest |
-| **BUG-040** | **Kundenakte ohne Namen – BESTÄTIGT live** (`getUser` scheiterte nach Neustart). | BEHOBEN `e83b7f5`: Name aus dem Chat-Titel; namenlose Akte erhält den Namen einmal |
-| **BUG-041** | **Privates Zweitkonto landet als Kunde; Default nur per ID-Eingabe – BESTÄTIGT.** | BEHOBEN `ad82d0d`: Befehl 48 „Als Default festlegen“ an der Identität, mit Bestätigung; live per ID-Feld umgezogen, Klick an Testinstanz geprüft |
-| **BUG-042** | **„Generieren“ scheitert still bei LTX 2.5, FLUX 3 Klein Vorlage, Qwen-Image 2512/2.1 – BESTÄTIGT live.** Seed der Vorlage > Manifest-Grenze 2^32, Eingabeprüfung blockiert ohne sichtbaren Grund. | BEHOBEN `932c9ec`: Grenze 2^63−1, Registrierung weist ungültige Graph-Standardwerte ab, Cockpit nennt ungültige Felder am Knopf; LTX-Job 64 danach aus dem Cockpit gestartet |
-| **BUG-043** | **Abbrechen unvollständig – CODE.** `server.py:_cancel`: vor `prompt_id` „gleich erneut versuchen“; `pipeline.run_render`: Abbruch nur über Exception – fertig vor dem Interrupt wird als erfolgreich übernommen; kein `/free`. | OFFEN → FL-7 |
-| **BUG-044** | **Video standardmäßig 3 Kandidaten – BESTÄTIGT (GUI).** 3 × LTX (~19 min, ~45 GB Swap je Lauf). | OFFEN → FL-2 |
-| **BUG-045** | **Ergebnisvorschau eines Videos schwarz – BESTÄTIGT (GUI, Job 63).** | OFFEN → FL-2 |
-| **BUG-046** | **Pause der Warteschlange übersteht keinen Neustart – CODE/HYPOTHESE** (Pause 16.11. 23:47, nach Neustart „Anhalten“ angeboten). | OFFEN → FL-7, real prüfen |
-
-## 5. Aussagen zum Gesamtstand, ausdrücklich gegenprüfen
-
-Diese Aussagen aus der Fremdanalyse sind **keine Bugs, aber unbewiesene Abnahmen** und dürfen nicht unkritisch als PASS übernommen werden:
-
-- **QA-01 – „Block A ist abgeschlossen“:** Nachweise A1–A4 gegen realen Mac, zweite ComfyUI-Instanz, Protobuf-Rundweg, Wiederanlauf und Dateien abgleichen. Die Existenz von Code ist kein vollständiger Test.
-- **QA-02 – „Block C weitgehend gebaut“:** Implementierter Adapter ≠ angemeldetes Telegram/Instagram oder echter End-to-End-Kundenfluss; Status je Paket klar **CODE / LIVE-TEST / PASS** unterscheiden.
-- **QA-03 – „Alle lokalen Zahlen stimmen“:** 519 GB Modelle, 19 Workflows, 62 Jobs/61 Medien, Rendering-Zeiten, Swap-Spitzen, 0 echte Kunden und `local/character/photos/` leer sind **lokale Behauptungen**. Nur Mac-Abfrage/Logs beweisen sie.
-- **QA-04 – „Keine KI-Modelle geladen“:** B5-Status und KI-Workflowzählung direkt im aktuellen Manifest und auf der lokalen Platte prüfen; nicht aus einem älteren Bericht auf Gegenwart schließen.
-- **QA-05 – B4 81-Frame-Segmentierung:** Codepfad und Vollvideo-Nachweis mit Frame-Zählung, Übergängen, Audio und Restart; frischer Commit allein ist noch keine bestandene Abnahme.
-- **QA-06 – Sicherheitsbehauptung „zweifaches Gate vollständig sicher“:** `approval.py` und SQLite-Trigger sind vorhanden, aber die oben genannten Sonderpfade und Zahlungsprobleme zeigen, dass ein pauschales Sicherheitsurteil unzulässig ist.
-
-## 6. Prüfprotokoll und Abschlussdefinition
-
-Für jeden BUG die folgende Zeile **nach** Prüfung ergänzen:
+## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
-ID:
-Git-Commit / geprüfte Datei + Zeilen:
-Behauptung: BESTÄTIGT | TEILWEISE | WIDERLEGT | NICHT REPRODUZIERBAR
-Nachweis: konkreter Codepfad und reproduzierbarer Test (Befehl/Fixture/Logs; keine echten Fremddaten)
-Ursache:
-Korrektur-Commit:
-Regression: Normalfall / Fehlerfall / Neustart / ggf. Mehrfachzustellung
-Mac-End-to-End: PASS | FAIL | NICHT GELAUFEN
-Bearbeiter/Datum:
-```
-
-**Abschluss je Befund:** reproduzierbarer Beleg oder widerlegter Sachverhalt, keine offene Gegenprüfung, Änderung auf `main` gepusht (falls erforderlich), Tests auf echtem Mac bestanden und belegbar. **Nicht gefixte/noch nicht geprüfte Punkte bleiben ausdrücklich OFFEN.**
-
-**Priorität gegenüber dem KI-Studio:** Die tatsächlich bestätigten P0-/relevanten P1-Fehler sollen vor dem Telegram-Kundentest gezielt korrigiert werden; die vereinbarte Produktreihenfolge **Melody (B5.1) → KI-Studio → Gedächtnis → Testauftrag → Telegram-Rückversand** (Betreiberentscheidung 16.11.2026) bleibt danach unverändert. Keine ungefragten neuen Modellvergleiche oder Infrastrukturpakete.
-
-## 7. Prüfprotokoll
-
-```text
-ID: BUG-001
-Git-Commit / geprüfte Datei + Zeilen: ab1d9cf / backend/src/darkfluenzer/server.py, _media (Medien-Route)
-Behauptung: BESTÄTIGT
-Nachweis: tests/test_bugs_v1.py::test_bug001_active_attachments_never_render_in_cockpit_origin – gesicherter
-  Kundenanhang evil.html kam mit angemeldeter Sitzung als "text/html" ohne nosniff/CSP/Download zurück
-  (rot vor der Korrektur), evil.svg ebenso als aktives Dokument möglich
-Ursache: web.FileResponse leitet den Typ aus der Dateiendung ab; Anhänge aus message_files wurden ohne
-  Typbindung inline ausgeliefert
-Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-001"
-Regression: Normalfall (PNG bleibt inline als image/png), Fehlerfall (HTML/SVG/Unbekanntes nur als Download
-  application/octet-stream), jede Antwort nosniff + CSP sandbox; tests/test_server.py und
-  test_customer_orders.py (Vorschau der Zustellkopie) grün
-Mac-End-to-End: Deploy 17.11.2026 00:23; Browserprüfung mit einem echten Kundenanhang, sobald ein Kanal
-  angemeldet ist (keine künstlichen Anhänge in der echten Datenbank)
+ID: BUG-043 / BUG-046 (FL-7)
+Commit: ebbe773 / server._cancel, server.render_worker, pipeline.run_render, server._pause
+Behauptung: BESTÄTIGT (Abbruch vor prompt_id nicht möglich; Ergebnis nach Abbruch übernommen; kein /free;
+  Pause nicht dauerhaft)
+Nachweis: tests/test_video.py::test_cancel_before_submit_and_result_after_cancel_are_never_done (rot vor der
+  Korrektur), tests/test_server.py (Pause gespeichert)
+Mac-Lauf 17.11.2026 (Cockpit, echter Chrome): Job 65 nach 0,6 s abgebrochen (bereits übermittelt) → Status
+  „Vom Betreiber abgebrochen“, ComfyUI-Queue leer, 0 Medien; Job 66 im Lauf abgebrochen → in 0,2 s
+  unterbrochen, 0 Medien, Speicher der Medien-Instanz 2,9 → 1,9 GB; Warteschlange angehalten, Neustart,
+  weiterhin angehalten, fortgesetzt
+Ergebnis: TEIL (Auftrag als Ganzes offen, H3)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
 ```text
-ID: BUG-002
-Git-Commit / geprüfte Datei + Zeilen: abf4be8 / backend/src/darkfluenzer/server.py, _host_check, create_app
-Behauptung: BESTÄTIGT (Fall „Tunnel schreibt Host auf 127.0.0.1 um“); öffentliche Ausnutzbarkeit mit der
-  realen Tunnelkonfiguration NICHT GEPRÜFT (kein Tunnel eingerichtet)
-Nachweis: tests/test_bugs_v1.py::test_bug002_tunnel_never_reaches_cockpit_even_with_rewritten_host – mit
-  Host 127.0.0.1 und X-Forwarded-For gab /api/v1/session eine Cockpit-Sitzung samt CSRF-Token heraus (204,
-  rot vor der Korrektur)
-Ursache: Die Trennung öffentlich/lokal hing allein am Host-Header; die öffentlichen Pfade lagen in
-  derselben App wie das Cockpit
-Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-002"
-Regression: Cockpit lehnt jede Anfrage mit Weiterleitungs-Headern ab (X-Forwarded-*, Forwarded, X-Real-IP,
-  CF-*, Tailscale-*, True-Client-IP, Via) und kennt keine öffentlichen Pfade mehr; eigener öffentlicher
-  Eingang create_public_app nur mit Webhook/OAuth/signierten Medien auf 127.0.0.1:server.public_port
-  (Standard Cockpit-Port + 1, einziges Tunnel-Ziel); Instagram-Tests angepasst, 119 Tests grün
-Mac-End-to-End: TEILWEISE PASS 17.11.2026 00:23 – laufendes Cockpit nach Deploy: /api/v1/session normal 204,
-  mit X-Forwarded-For bzw. Tailscale-Funnel-Request 403, /instagram/webhook im Cockpit 404; echter Tunneltest
-  nach Einrichtung des Tunnels
+ID: BUG-045
+Behauptung: WIDERLEGT
+Nachweis: Video von Job 63 im echten Chrome: videoWidth 960, videoHeight 1280, readyState 4, kein Fehler; im
+  Playwright-Chromium MEDIA_ERR_SRC_NOT_SUPPORTED (H.264/AAC nicht enthalten)
+Folge: Browser-Tests mit Video laufen mit channel "chrome" (FRONTEND §1)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
 ```text
-ID: BUG-003
-Git-Commit / geprüfte Datei + Zeilen: 4f79bfd / backend/src/darkfluenzer/server.py, Cockpit._reply_internal
-Behauptung: BESTÄTIGT
-Nachweis: tests/test_bugs_v1.py::test_bug003_explicit_default_return_never_over_instagram – Default mit
-  Telegram- und Instagram-Identität; ein Medium der Stufe explizit wurde über die Instagram-Konversation als
-  Zustellkopie eingereiht (rot vor der Korrektur)
-Ursache: Der interne Rückversand bestimmte das Ziel dynamisch und prüfte die Inhaltsstufe nicht je Plattform;
-  das Kunden-Gate (approval.py) gilt für diesen Sonderpfad nicht
-Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-003"
-Regression: explizit/unbekannt über Instagram gesperrt mit Karte „RÜCKVERSAND GESPERRT … (Regel 13)“ und Hinweis
-  im Text; standard über Instagram erlaubt; Default über Telegram erhält explizit weiterhin; Kloner-Tests grün
-Mac-End-to-End: NICHT GELAUFEN (Telegram/Instagram noch nicht angemeldet)
+ID: FL-2 (LTX aus dem Cockpit)
+Nachweis: Job 64, gestartet über ComfyUI → Videos → LTX 2.5, Startbild „Aus Dateien“ (0070), 3:4, 5 s, 1 Kandidat;
+  780,9 s, Speicher frei 38,6 → min 12,8 GB, Swap max 42,7 GB; Medium 77 in Dateien
+Ergebnis: PASS (manuelle Videogenerierung aus dem Cockpit)
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
 
 ```text
-ID: BUG-004
-Git-Commit / geprüfte Datei + Zeilen: 018f462 / backend/src/darkfluenzer/server.py, Cockpit._reply_internal
-Behauptung: BESTÄTIGT
-Nachweis: tests/test_bugs_v1.py::test_bug004_same_name_different_content_never_sends_the_wrong_copy – zwei
-  Ergebnisse evaluation/a/bild_01.png (rot) und evaluation/b/bild_01.png (blau): für das blaue wurde die rote
-  Zustellkopie bild_01_ki.png erneut versendet (rot vor der Korrektur)
-Ursache: Kopiename nur aus dem Dateinamen, vorhandene Kopie ohne Prüfung wiederverwendet
-Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-004"
-Regression: Kopiename = SHA-256-Präfix der Quelle + Name; Wiederverwendung nur, wenn die Kopie gekennzeichnet
-  ist; erneuter Versand beider Bilder je richtig; Kloner-/BUG-003-Tests grün. (Kundenzustellung nutzt je
-  Auftrag eine eigene Kopie im Auftragsordner – dort keine Kollision.)
-Mac-End-to-End: NICHT GELAUFEN (Telegram noch nicht angemeldet)
+ID: BUG-057 / BUG-075 / BUG-052 (Default-Kette, Live-Befund)
+Lauf 17.11.2026 09:12: privates Telegram 571334304 (Default) → Foto (Nachricht 38), 4 s später „Clone“
+  (Nachricht 39) → nur Systemkarte „Kein Workflow für clone im Default-Kontakt gewählt“ (Nachricht 40), keine
+  Antwort in Telegram
+Ursachen: Medien-Workflow und Befehlszuordnung leer; Ablehnung nur als Karte; Referenz nur aus derselben oder
+  beantworteter Nachricht; keine Influencerin/LoRA
+Ergebnis: OFFEN → H4, H6, B1
 Bearbeiter/Datum: Claude, 17.11.2026
 ```
-
-```text
-ID: BUG-005
-Git-Commit / geprüfte Datei + Zeilen: cd0ff68 / backend/src/darkfluenzer/store.py, Store.assign_inflow
-Behauptung: BESTÄTIGT (manuelle Zuordnung); automatische Zuordnung und Gutschein-Automatik waren bereits
-  betragsgebunden (exakter Betrag bzw. Preis ≤ eingelöster Betrag)
-Nachweis: tests/test_bugs_v1.py::test_bug005_underpayment_never_books_the_full_price – 10 USDT (9 €) ließen
-  sich einem 25-€-Angebot (27,7801 USDT) zuordnen, Auftrag paid, Zahlung mit vollem Preis bestätigt (rot)
-Ursache: assign_inflow rief record_payment mit order.price_amount auf, ohne den Eingang gegen das Angebot zu
-  prüfen
-Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-005"
-Regression: gleicher Zahlungsweg wie im Angebot -> mindestens dessen exakter Betrag; anderer Weg -> Euro-Wert
-  beim Eingang ≥ Preis; Gutschein -> eingelöster Betrag ≥ Preis; sonst StoreError „deckt den Angebotspreis
-  nicht“, Eingang bleibt nicht zugeordnet, Auftrag unbezahlt; ausreichender Eingang wird zugeordnet;
-  test_customer_orders an die korrigierte Regel angepasst (dort war eine Unterzahlung manuell zugeordnet)
-Mac-End-to-End: NICHT GELAUFEN (keine echten Zahlungsadressen; kein echter Geldfluss simuliert)
-Bearbeiter/Datum: Claude, 17.11.2026
-```
-
-```text
-ID: BUG-006
-Git-Commit / geprüfte Datei + Zeilen: 9927140 / backend/src/darkfluenzer/store.py, Store.create_job
-  (Aufruf aus pipeline.create_render mit order_no=None und stage_id)
-Behauptung: BESTÄTIGT
-Nachweis: tests/test_bugs_v1.py::test_bug006_customer_order_jobs_and_media_carry_the_order – Job eines
-  bezahlten Kundenauftrags (pipeline.create_order mit customer_order_no) hatte jobs.order_id = NULL; sein
-  Medium wäre als Betreiberdatei löschbar gewesen (rot vor der Korrektur)
-Ursache: create_render legt Jobs immer ohne Auftrag an; der Bezug lief nur über die Stufe, die
-  Galerie/Löschschutz nicht kennen
-Korrektur-Commit: siehe git log "fix(bugs_v1): BUG-006"
-Regression: Jobs von Stufen eines Kundenauftrags tragen dessen ID ab der Anlage; Medium erbt order_id;
-  remove_media weist ab („Medien eines Kundenauftrags …“), DB-Trigger media_order_no_delete greift
-  zusätzlich; Betreiber-/Kloner-Aufträge unverändert löschbar; Kundenauftrags- und Auftragstests grün
-Mac-End-to-End: NICHT GELAUFEN (erster echter Kundenauftrag steht aus)
-Bearbeiter/Datum: Claude, 17.11.2026
-```
-

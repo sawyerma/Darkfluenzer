@@ -1,0 +1,311 @@
+# Darkfluenzer – PHASENPLAN_FRONTEND.md
+
+**Stand:** 17.11.2026 · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
+**Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Produktziel, Regeln, Entscheidungen E1–E10, PASS-Definition, Reihenfolge, Paketnummern) und `docs/bugs_v1.md`.
+**Prüfbasis:** `main` `7a49b6a`, laufendes Cockpit am 17.11.2026.
+**Gestaltungsreferenz:** `docs/design/Darkfluenzer_Cockpit_Interaktiv.html` und Anhang A (F7, wörtlich aus dem archivierten FRONT V1).
+
+---
+
+## 1. Grundregeln
+
+- **Bestehende GUI erhalten und ergänzen, nicht neu schreiben.** React/Vite, generierte Protobuf-Typen, keine neue UI-Bibliothek, kein Electron, keine LLM- oder Chat-Logik im Browser.
+- **Ein Stylesheet:** `frontend/src/shared/graphite.css`. Keine Datei je Seite, keine eigene Video- oder Bildgestaltung.
+- **Fünf Hauptreiter:** Übersicht · Nachrichten · ComfyUI · Dateien · Wallet. Neue Funktionen kommen in passende Reiter (KI-Studio unter ComfyUI → KI, Charaktertraining unter ComfyUI, Kloner im Default-Kontakt).
+- **Daten nur per Push:** STATE und EVENT über den einen WebSocket `/ws/v1/stream`; Detailabfragen nur bei Ansichts-, Filter-, Seiten- oder Kundenwechsel, relevanter Fachversion, Reconnect oder manuellem Neuladen. Keine Abfrageschleifen. Alte Antworten (Version, Seite, Kunde, Verbindung) verwerfen; gleiche Anfragen zusammenfassen.
+- **Aktionen nur als Protobuf-Befehl** mit `request_id`, Scope und erwarteter Revision. `ACCEPTED` ist kein Erfolg; die Oberfläche zeigt den Zustand erst nach dem terminalen Receipt. Nach Verbindungsverlust dieselbe `request_id` wieder aufnehmen, nie blind neu senden.
+- **Kein Bedienelement ohne Backend.** Jedes Element kennt die Zustände leer · lädt · gesperrt mit Grund · Fehler. Geplante Funktionen bleiben ehrlich deaktiviert.
+- **Kurze Texte:** Beschriftungen, Werte, Zustände und kurze Fehlermeldungen; keine erklärenden Absätze und keine Architekturtexte in der Steuerung.
+- **Gleiche Arten, gleiche Bedienung:** Alle Workflows einer Art (Bild, Video, Training, Text) zeigen dieselben Felder an derselben Stelle mit denselben Beschriftungen. Grenzen und Auswahlwerte kommen aus dem STATE, nie aus dem Frontend.
+- **Abnahme je Paket:** Browser-Test (Playwright mit echtem Chrome, `channel: "chrome"`, denn das mitgelieferte Chromium dekodiert kein H.264) gegen das laufende Cockpit, Mac-Screenshot gegen die Referenz, dazu der echte End-to-End-Lauf aus dem Backend-Plan.
+- **Prüfungen:** `npx tsc --noEmit`, `npx vitest run`, `npm run build`. Nach einer Schemaänderung laden geöffnete Cockpits neu (BUG-076).
+
+---
+
+## 2. Ist-Stand (17.11.2026)
+
+| Reiter | Vorhanden | Fehlt |
+|---|---|---|
+| Übersicht | drei Karten (Kundenakten, GPU-Warteschlange, Freigaben ausstehend), aktuelle Kunden | Zähler „wartet auf Produktion/Freigabe“; Ungelesen veraltet bei bekannten Kunden (BUG-048) |
+| Nachrichten | Kundenliste, Register (öffnen automatisch bei neuer Akte und bei Ungelesenem nach Neuladen), Unterregister je Kanal, Composer mit „Antwort senden“, Kanalstatus mit Telegram-Anmeldung; rechts Identität, **„Als Default festlegen“**, Alter, KI-Hinweis, Angebot, Influencerin; Default-Kontakt mit Absender-IDs, Workflows, **Befehle (Workflow je Befehl)**, Freigabemodus, Schalter | Antwortmodus, KI-Schalter, Entwürfe, Medienwunsch, Prompt, Prüfwerte, Telegram-Übergang, Nachlauf; Zustandskarte mit Antwort im Chat für jede Default-Nachricht (H4) |
+| ComfyUI | Workflowliste (Fotos, Videos, KI), Formular aus der Registry, erweiterte Einstellungen (zugeklappt), „Aus Dateien“, Kandidaten (Video Standard 1), Ergebnis, Warteschlange mit Fortschritt, Anhalten (dauerhaft), Abbrechen, Instanzen, Charakter, Trainingsordner, „Für Kundenauftrag“; ungültige Felder werden am Knopf genannt | einheitliche Videosteuerung (H5), Zeitachse (B4), KI-Studio (B5), LoRA-Auswahl und -Vergleich (B1), Auftrag als Ganzes abbrechen (H3) |
+| Dateien | Galerie, Filter, Markieren, Alle markieren, Löschen mit Bestätigung, Download, Herkunft, Weiterverarbeiten, Wiederholen, Variieren, Hochskalieren, Video erstellen, abgeleitete Versionen | – (Video-Vorschau im echten Chrome geprüft) |
+| Wallet | Konten, Adresse mit QR, Eingänge, Zuordnen, Gutscheine, Monatsliste | PayPal, Gutscheinmaskierung, Bestätigung vor Zuordnen/Einlösen (BUG-032, 033) |
+
+**Wo „Als Default festlegen“ liegt:** Nachrichten → Kundenakte (Register) → rechte Spalte → Identität → bei jeder Telegram- oder Instagram-Identität „Als Default festlegen“ → „Default bestätigen“. Der Knopf erscheint nur in einer Kundenakte; ist der Absender schon Default, gibt es keine Akte mehr. Die Schalter „Interne Befehle verarbeiten“ und „Automatische Produktionsaufträge“ liegen im Default-Kontakt (rechte Spalte).
+
+---
+
+## 3. Reiter im Einzelnen
+
+### 3.1 Übersicht
+
+Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohne Default), **GPU-Warteschlange** (aktiv, wartend, angehalten je Instanz), **Freigaben ausstehend** mit Teilzahlen „wartet auf Produktion“, „wartet auf Freigabe“; „Aktuelle Kunden“ öffnet die vorhandene Akte. Abnahme: zwei verbundene Cockpits aktualisieren per Push.
+
+### 3.2 Nachrichten
+
+**Spalten:** links Kunden (Suche, Avatar, Name, Kunden-ID, Kanalkennzeichen, letzte Aktivität, Ungelesen); Mitte Register mehrerer Akten (× schließt nur das Register), Unterregister Gesamter Verlauf · Instagram · Telegram · WhatsApp (Gesamt nur lesbar, ohne Composer; nicht verbundene Kanäle deaktiviert), eingehend links, ausgehend rechts, Kanalfarbe IG pink, TG blau, WA grün, Ereigniskarten zwischen den Nachrichten; rechts die vollständige Steuerung, eigene Scrollleiste.
+
+**Rechte Steuerung bei Kunden:**
+
+| Block | Felder |
+|---|---|
+| Identität | Kundennummer, Kanalidentitäten (verifiziert), „Als Default festlegen“, Telegram-Übergang (C5.9) |
+| KI | Influencerin der Akte (C5.1), Text-KI an/aus, Antwortmodus Automatisch · Entwürfe prüfen · Manuell (C5.3), automatische Antworten an/aus, Kaufbereitschaft mit Beleg (C5.4), geplante Sendezeit mit „Jetzt senden“/„Zurückhalten“ |
+| Sicherheit | KI-Hinweis (Status je Identität), Minderjährigkeits-Sperre, Inhaltsstufe, Kanalfenster (Instagram 24 h, Telegram-Bremse) mit mitlaufender Frist |
+| Gedächtnis | Zusammenfassung, Vorlieben mit Quelle, Korrigieren/Löschen (B5.3) |
+| Medienwunsch | Motiv, Foto/Video/Set, Anzahl, Format, Lieferart, Quellnachrichten, offene Rückfrage (C5.5) |
+| Angebot | Produkt-ID, Preislistenrevision, Betrag, Zahlungswege der Influencerin, Frist, Zusatzleistungen Originaldatei/selbstlöschend; Faktenblock gesperrt (C5.5) |
+| Zahlung | nicht gezahlt · Eingang unklar · bestätigt · unterbezahlt · erstattet, mit Quelle und Betrag; ohne Zugang „NICHT EINGERICHTET“ |
+| Produktion | Stufe, Prompt, Workflow, LoRA-Version oder „ohne Charakter-LoRA“, Fortschritt, Lieferzeit, Kandidaten als Bild oder abspielbares Video mit Prüfwerten (C5.6a), „Neu erzeugen“ |
+| Zustellung | Vorschau der Zustellkopie (Kanal, Versandart, Größe, Kennzeichnung), Begleittext, Status (C5.7) |
+| Nachlauf | Reklamation, Neuauflage, Erstattung, Abschließen (C5.8) |
+
+**Rechte Steuerung beim Default (nur Betreiberfelder):** Telegram- und Instagram-Absender-ID, Interne Befehle verarbeiten, Influencerin, Medien-Workflow, Video-Workflow (animate), **Befehle** (Workflow je `clone`, `pose`, `style`, `remix`, `animate`, `edit`; Vorschläge aus der Registry), Freigabemodus, Automatische Produktionsaufträge, Freigabe vom Handy (C5.10). Die sechs Befehle werden in der Nachricht erkannt, es gibt keine Befehlsknöpfe. Ist ein Schalter aus oder fehlt ein Workflow, zeigt der Default-Kontakt das deutlich und die Kette antwortet im Chat (H4).
+
+**Composer:** nur im gewählten verbundenen Kanal; „KI antworten“ (Entwurf nach Antwortmodus), „Antwort senden“ (genau einmal, Receipt); ungesendete Entwürfe bleiben an ihrer Akte; bei Handy-Übergabe pausiert die Automatik.
+
+### 3.3 ComfyUI
+
+**Spalten:** links nur Workflows aus der Registry, gruppiert Fotos · Videos · KI, mit Status; Mitte Arbeitsfläche (Prompt, Negativ nur wenn deklariert, Quellbild/Upload/„Aus Dateien“, Maske, Ergebnis); rechts Steuerung (Charakter, Workflow-Info, Format, Kandidaten, Fertigstellen mit, erweiterte Einstellungen – bei jedem Workflowwechsel zugeklappt –, Generieren bzw. Training starten), darunter Warteschlange und Instanzen.
+
+- **Erweiterte Einstellungen:** alle tatsächlich registrierten Eingänge mit Typ, Grenzen und Fehler am Feld; Ganzzahlen vor dem Senden geprüft (BUG-025).
+- **Einheitliche Videosteuerung (H5):** Komponente `VideoSettings` für alle Video-Workflows. Feste Reihenfolge direkt unter Prompt und Startbild: **Gesamtlänge (s)**, Bildrate, Auflösung, Abschnittslänge (nur wenn die Engine Abschnitte nutzt). Gleiche Beschriftung für LTX, Wan und Remix; Grenzen aus dem STATE.
+- **Zeitachse (B4, FL-4):** unter `VideoSettings` eine Leiste über die Gesamtlänge; je Marke Sekunde, Referenzbild aus Dateien, Prompt des folgenden Abschnitts, Kamera/Bewegung, Übergangsstärke; Marken verschiebbar, Abschnitte sichtbar.
+- **Warteschlange:** dauerhafte Reihenfolge, Fortschritt (Schritt, Abschnitt), Anhalten/Fortsetzen (übersteht Neustart), Abbrechen je Job und je Auftrag (H3); Video standardmäßig ein Kandidat.
+- **Charaktertraining (B1, FL-3):** Charakter wählen/anlegen, Fotos importieren (Ziehen/Ablegen, aus Dateien), geprüfte Anzahl, Dubletten, Datensatzversion; Training erst ab 15 geeigneten Fotos; Trainingsdialog mit Parametern (Basis, Rang, Schritte, Lernrate, Auflösung); LoRA-Versionen mit Namen und Vergleichsraster (feste Seeds, Gesichtswert); LoRA-Auswahl in jedem passenden Workflow.
+- **Referenzanalyse (B5.6, FL-5):** Knopf „Analysieren“ an Vorlage und Datei; Ergebnis als bearbeitbarer Prompt mit Pose, Licht, Kamera, Komposition; „Als Prompt übernehmen“ oder „Als Referenz verwenden“.
+- **Workflowverwaltung (Bestand):** öffnen im echten ComfyUI, übernehmen, aktivieren/deaktivieren, löschen (nur Definition, nie Modelle oder Medien).
+
+### 3.4 ComfyUI → KI (KI-Studio, B5)
+
+Links die KI-Workflows aus der Registry; Mitte Tabs **Chat-Test · Persona · Gedächtnis · Vergleich**; rechts Modell & Figur (Melody1437 v2.0 Q6_K aus der Registry), Sampling (nur Werte, die der Graph wirklich nutzt), Kontext, KI-Warteschlange. Chat-Test mit Sitzung, „Nachricht an Clara …“, Enter sendet, Shift+Enter Zeilenumbruch, Messwerte je Antwort (TTFT, Gesamtzeit, Tokens/s); Testdaten getrennt von Kundendaten. Persona-Editor mit Versionen, Beispieldialogen, Regeln, Vorlagentexten (B5.2); Gedächtnisliste mit Quelle und Zeit (B5.3); Prüfansicht für Kaufbereitschaft, Wunsch und Prompt (B5.4); Vergleich nur mit freigegebenem zweitem Profil. Anzeige „bereit“ nur für wirklich registrierte und geprüfte KI-Workflows.
+
+### 3.5 Dateien
+
+Bestand `Files.tsx` bleibt (Kacheln, Filter, Markieren, Alle markieren, Löschen mit Bestätigung, Download, Herkunft, Weiterverarbeiten). Auftragsmedien sind serverseitig vor dem Löschen geschützt. Videos mit Player; Herkunft zeigt alle wirksamen Parameter inklusive LoRA-Version; fehlende Herkunft heißt „nicht vorhanden“.
+
+### 3.6 Wallet
+
+Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht zugeordnete Beträge, Zuordnen, Gutscheine, Monatsliste. Neu: PayPal-Konto und -Eingänge (C5a.2), Gutscheincodes maskiert mit ausdrücklichem Aufdecken, Bestätigungsdialog mit Betrag, Kunde und Auftrag vor Zuordnen und Einlösen, Kulanz nach E10, Zahlungswege je Influencerin. Keine Trading-Ansichten, keine Auszahlungen.
+
+---
+
+## 4. Pakete (Nummern wie im Backend-Plan)
+
+| Paket | Frontend-Umfang | Abnahme |
+|---|---|---|
+| **H allgemein** | Kundenliste/Übersicht folgen EVENT 26 bei jedem Eingang (BUG-048); Befehle mit Zeitlimit und Wiederaufnahme (BUG-024); Ganzzahlprüfung (BUG-025); mitlaufende Fristen (BUG-026); Video in der Auftragskarte als Player (BUG-027); Ereignislisten begrenzt (BUG-071); Wallet-Maskierung und Bestätigungen (BUG-032, 033); Übersichtszähler (BUG-070); automatisches Neuladen nach Schemawechsel (BUG-076) | je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet; Smoke klickt alle fünf Reiter (BUG-072) |
+| **H3** | „Auftrag abbrechen“ an der Auftragskarte; Fortschritt langer Läufe; Abbruchzustand bis zur Quittung | laufender Mehrkandidaten-Auftrag abgebrochen |
+| **H4** | Zustandskarte je Default-Nachricht (gestartet, wartet auf Start mit Startknopf, abgelehnt mit Grund, zurückgesendet, Rückversand gesperrt); Default-Kontakt zeigt ausgeschaltete Schalter und fehlende Workflows; Auftragskarte nennt Influencerin, Workflow, Zahl der Referenzen, LoRA-Version | Browser-Test für jeden der fünf Zustände plus echter Lauf vom Handy (H6) |
+| **H5** | `VideoSettings` für alle Video-Workflows | LTX, Wan, Remix zeigen dieselben Felder an derselben Stelle (Screenshot-Vergleich) |
+| **B5.1–B5.4** | KI-Studio §3.4 | 20 echte Testnachrichten im Chat-Test, Messwerte sichtbar |
+| **B5.4a** | Default-Verlauf zeigt die Deutung einer freien Anweisung (Befehl, Workflow, Prompt) in der Karte | 30 Anweisungen vom Handy |
+| **C5.1–C5.10** | rechte Kundensteuerung §3.2 je Paket | je Paket echter Lauf mit Testkunden |
+| **C5a** | Wallet §3.6 | echte Zahlung je Weg |
+| **B1** | Charaktertraining §3.3 | echter Ordner → Training → LoRA → Bild |
+| **B4** | Zeitachse §3.3 | 15 s mit vier Marken → ein Auftrag mit vier Schlüsselbildern |
+| **B5.6** | Referenzanalyse §3.3 | eigenes Bild → Prompt → echte Generierung |
+| **D1–D3** | Auskunft/Löschen in der Akte; Betriebsanzeige (Sicherung, Autostart, Ruhezustand); Release-Kennung | – |
+| **C6** | ein Browser-Lauf über die ganze Kette, Screenshots aller Reiter gegen die Referenz | Betreiberabnahme |
+
+---
+
+## 5. Klick-Abnahme (Checkliste)
+
+- [ ] Übersicht: echte Karten und Kunden, ohne Polling.
+- [ ] Nachrichten: drei Spalten; Register öffnen/schließen; Gesamt nur lesbar; Kanalregister kanalgebunden; rechte Steuerung wechselt mit dem Register.
+- [ ] Default: nur Betreiberfelder; „Als Default festlegen“ an einer Kundenidentität; jede Default-Nachricht endet in einer sichtbaren Karte und einer Antwort im Chat.
+- [ ] ComfyUI: links nur Workflows; erweiterte Einstellungen zugeklappt; Video-Felder einheitlich; Abbrechen und Anhalten mit echtem Receipt.
+- [ ] KI-Studio: Melody aus der Registry, Messwerte echt.
+- [ ] Dateien: Bestand unverändert, Video-Player, Herkunft vollständig.
+- [ ] Wallet: fünfter Reiter, Codes maskiert, Bestätigung vor Geldaktionen.
+- [ ] Jeder Knopf: Befehl → Receipt → Push → richtiger Reiter.
+
+---
+
+## Anhang A – Freigegebene Klickreferenz F7
+
+Wörtlich aus dem archivierten `PHASENPLAN_FRONT_V1.md` (F7, Betreiberfreigabe 15./16.11.2026) übernommen. Verweise auf „V0“, „FRONT“ oder Abschnittsnummern beziehen sich auf die Archivfassungen. Bei Widerspruch gilt dieser Plan, insbesondere §1 (einheitliche Bedienung je Art) und §3. Die früheren Abschnitte F0–F6 sind durch §1–§4 dieses Plans und den Backend-Plan ersetzt und liegen im Archiv.
+
+### A.0 F7 — Abgenommene klickbare Cockpit-Referenz (Betreiberfreigabe 15.11.2026)
+
+**Verbindliche Datei:** [Darkfluenzer_Cockpit_Interaktiv.html](design/Darkfluenzer_Cockpit_Interaktiv.html) — eigenständige HTML/CSS/JavaScript-Datei; im Browser öffnen, ohne Build, Backend oder Netzwerkzugriff. **Diese F7-Vereinbarung ist die Designreferenz für die nächste GUI-Anpassung; die noch nicht implementierten Funktionen bleiben fachlich F4/F3c/F5.** Designgetreue Umsetzung bedeutet insbesondere: keine neuen Menüs, künstlichen Status-Kacheln, Formularvorschauen oder Werbetexte. Screenshots der vom Betreiber freigegebenen Astra-Ansichten vom 14.11.2026 sind die visuelle Vergleichsgrundlage. Der HTML-Prototyp enthält bewusst nur stilisierte Bild-/Video-Platzhalter, niemals vorgetäuschte ComfyUI-Ergebnisse.
+
+**Abgrenzung:** Die HTML-Datei demonstriert Navigation, Auswahl, Formulare, Kanalansichten, aufklappbare Detailbereiche, Markieren/Löschen und Dialoge nur im Browser-Speicher. Sie ist kein React-Code, kein produktiver Nachrichtendienst, keine Modell-/Trainingsausführung und kein Nachweis fertiger F4-Implementierung. Im Produktivsystem dürfen die beschrifteten Beispieldaten und "DEMO · OFFLINE" nicht als tatsächliche Statusdaten übernommen werden. Die bestehende React-/Protobuf-/Backend-Architektur bleibt die einzige Laufzeit.
+
+#### F7.1 Verbindliche Position und Gestaltung
+
+- **App-Kopfzeile:** Pinkes C links, Hauptnavigation **Übersicht · Nachrichten · ComfyUI · Dateien · Wallet** in derselben Zeile; rechts nur tatsächlich vom Backend bestätigter Status. Keine weiteren Hauptreiter (Wallet seit V1.12, F7.8).
+- **Übersicht:** Titel, knappe Unterzeile, die drei im freigegebenen Screenshot sichtbaren Informationskarten *Kundenakten*, *GPU-Warteschlange*, *Freigaben ausstehend*; darunter *Aktuelle Kunden · anklicken zum Öffnen*. Werte ausschließlich aus echtem Backendzustand. Klick auf einen Kunden öffnet seine vorhandene Kundenakte im Reiter Nachrichten und nicht eine zweite Kundenansicht.
+- **Nachrichten — drei feste Desktop-Spalten:** **Links** Kundenliste mit Suchfeld, Einträgen und Kanalkennzeichen; **Mitte** offene Kundenregisterkarten, Kontakttitel/-ID, Unterregister *Gesamter Verlauf / Instagram / Telegram / WhatsApp*, Chronologie und kanalgebundenes Antwortfeld; **rechts am äußersten Rand** die vollständige und scrollbare **Kundensteuerung**. Kein Verschieben der Steuerung in die Mitte. Stil: Graphite-Dunkelgrau, dezente Trennlinien und pinke Marke/Auswahl. Screenshot-Abmessungen als proportionale Leitlinie; responsives Verhalten darf Elemente umordnen, die fachliche Zuweisung jedoch nicht.
+- **ComfyUI — drei feste Desktop-Spalten:** **Links ausschließlich Workflows** der jeweiligen Instanz/Registry (keine "Aufträge & Workflows"); **Mitte** Prompt-/Quellbild-/Masken-/Trainings-Arbeitsfläche und echte Ergebnisse; **rechts äußerster Rand** **Steuerung**, erweiterte Workflow-Einstellungen (**initial geschlossen**), **Generieren**, darunter persistente **Warteschlange und Instanzstatus**.
+- **Dateien:** Bewährten Bestand \`frontend/src/pages/Files.tsx\` weiterverwenden; **Einzelauswahl, Mehrfachmarkierung, Alle markieren, Markierung aufheben, Einzel-X, Löschen (n) inklusive Bestätigungsdialog, Filter Alle/Fotos/Videos, Öffnen, Download** bleiben unverändert funktionsfähig. Ergänzung ausschließlich über jedes einzelne Medium bzw. dessen Detailansicht: **Weiterverarbeiten** einschließlich Wiederholen/Variieren/Als Vorlage verwenden/Video daraus erzeugen/Hochskalieren. Keine zweite Galerie, keine neue Kartenästhetik.
+- **Wallet:** Gestaltung nach F7.8 (Darstellung der DarkBot-BSC-Wallet-Ansicht in Graphite), Beschriftungen deutsch.
+
+#### F7.2 Linke Nachrichtenspalte — Bedeutung jedes Elements
+
+| Element | Funktion / Backend-Vertrag |
+|---|---|
+| **Kunden** + Anzahl | Zahl der kanonischen Kundenakten; interne Default-Identität gesondert markieren, nicht als zahlenden Kunden zählen. |
+| **Kunde suchen** | Vorhandene Kundenakte per Name, stabiler Kundennummer oder Plattformidentität finden; nur gefilterte Liste ändern, nicht Kunden löschen. |
+| **Kundenzeile** mit Avatar, Name, Untertitel, IG/TG/WA | Zur Akte wechseln, bestehende Registerkarte aktivieren oder neu öffnen; letzten Zustand/Ungelesen aus gespeicherten Backend-Events. Nicht allein aufgrund identischen Namens Kanäle zusammenführen. |
+| **Default** | Bei der Ersteinrichtung einmalig angelegter **interner Kontakt** für das private Telegram (und optional das private Instagram) des Betreibers, der an Claras Konten schreibt; besondere Steuerung rechts statt Verkaufsakte. Kein regulärer Kunde, keine Zahlungspflicht für eigene interne Produktionsaufträge. |
+| **+ Instagram-Kontakt** | Nur durch tatsächlich unterstützte Kanal-/Kontaktfunktion einen Kontakt anlegen/verknüpfen, niemals mit simuliertem Eingang. Erstkontakt darf den Fokus einer bestehenden Karte nicht stehlen. |
+
+#### F7.3 Mittlere Nachrichtenspalte — Bedeutung jedes Elements
+
+| Element | Funktion / Backend-Vertrag |
+|---|---|
+| **Geöffnete Kundenregisterkarten**, z. B. Leon 1041, Erik 1042 | Mehrere Kunden gleichzeitig offen halten; Aktivieren wechselt die Mitte und die rechte Steuerung atomar. **×** schließt ausschließlich die Registerkarte, nicht Kundenhistorie, KI, Queue oder Plattform-Konversation. |
+| **Kontaktkopf**, Kundenname, Kundennummer, Handle | Zeigt kanonische Identität und zugeordnete aktuelle Akte; kein beliebiger Anzeigename als Identitätsschlüssel. |
+| **Kanalwechsel** | Im Design sichtbare Aktion; technische Übergabe Instagram→Telegram gemäß F4 (Token/Bestätigung); keine stille Kanalidentitäts-Zuordnung und kein blindes Senden. |
+| **Gesamter Verlauf** | Zusammengeführter, chronologischer Verlauf aller bestätigten Kanäle einschließlich Ereignissen; **ausschließlich lesen, ohne Composer oder Antwortaktionen**. |
+| **Instagram / Telegram / WhatsApp** | Filtert Verlauf und ist bei aktivem, verifiziertem Kanal die **einzige** Wahl des Antwortziels; inaktive Kanäle sind nicht sendbar. |
+| **Nachrichtenblasen** | Eingehend links, ausgehend rechts; kanaltypische Farben IG pink, TG blau, WA grün, plus Text-Kanalnamen, Uhrzeit, Anhänge, Zustellstatus. |
+| **System-/Fachereignis** | In chronologischer Reihenfolge zwischen Nachrichten: Erstkontakt, Dialogschwelle, Medienwunsch, Anfrage, Angebot, verifizierte Zahlung, Prompt, Render, Kandidaten, Freigabe, Versand, Fehler. Nur echte verifizierte Events; keine Demo-Zahlungen. |
+| **Eingabefeld** | Text an **genau die geöffnete, geprüfte** Plattform-Konversation (eigener Kanal-Adapter) des ausgewählten Kanalregisters; Entwürfe kanal-/revisionsgebunden. |
+| **KI antworten** | Startet genau eine KI-Antwort oder einen bearbeitbaren KI-Entwurf im aktiven Kanal; nicht in Gesamt; keine LLM-Autorität über Zahlungs-/Freigabestatus. |
+| **Antwort senden** | Versendet ausschließlich den aktuellen manuellen Text in den aktiven Kanal; Backend prüft Kunden-/Kanal-/Conversation-/Revisions-IDs und Idempotenz. |
+
+#### F7.4 Rechte Nachrichtenspalte — **Steuerung**, nicht Erklärungstexte
+
+Der äußerste rechte Rand enthält **reale Bedienelemente und reale Akteninformationen**, keine Architekturprosa. Bei Wahl eines normalen Kunden zeigt die Spalte folgende Gruppen in dieser Reihenfolge:
+
+| Gruppe / Feld | Exakte Wirkung |
+|---|---|
+| **Kundenakte · Nummer** | Anzeige der aktiven kanonischen Kundenakte; Wechsel der offenen Registerkarte wechselt vollständig deren rechte Steuerung. |
+| **IDENTITÄT & DIALOG** – Kunde, aktive Kanäle, Instagram-Dialogzüge | Verifizierte Identitäten, Dialogzähler aus echten Nachrichten/Projektion; Kundengedächtnis und Gesprächszusammenfassung aus SQLite. |
+| **Charakter-LLM** | Zuordnung der aktiven Influencerin und ihres qualifizierten LLM-Workflows. Melody erst nach bestandener B5.1-Messung als laufendes Modell ausgeben. |
+| **Telegram-Übergang** – Schwelle, Fortschritt, Einladung | Konfigurierbare Dialogschwelle (F4: 10–30), echte Fortschrittsanzeige; **Telegram anbieten** erzeugt zulässigen Einmal-Token und sendet nur nach bestätigtem Kanal. Keine reine kosmetische Aktion. |
+| **KI-Steuerung – Influencerin** | Explizite, versionierte Figur-Zuordnung; keine stillen Wechsel oder fremden Kundengedächtnisse. |
+| **Antwortmodus** | Automatisch / Entwürfe prüfen / Manuell; pro Kundengespräch, mit Handoff/Revision gegen überholte KI-Antworten. |
+| **Text-KI** | Schaltet nur erlaubte KI-Textverarbeitung, nicht manuelles Senden. |
+| **Automatische Textantworten** | Unaufgeforderte LLM-Antworten aktiv/inaktiv, unabhängig von manuellem **KI antworten**. |
+| **Modelle und Fähigkeiten** (standardmäßig geschlossen) | Text-LLM, Antwortlänge, Stimm-/TTS-Modell, Sprachversand, Bildautomatik, Foto-/Videomodell, Workflow, Charakter-/LoRA-Zuordnung, Zweit-KI-Prüfung und Freigabemodus; nur tatsächlich qualifizierte Optionen aktiv. Derselbe Block trägt das Influencerin-Profil und die Preisliste (F4 V1.12 Punkt 12). |
+| **MEDIENWUNSCH** | Konkreter Kundenwunsch mit Quellen, Text-/Bild-/Videoart und offener Rückfrage. |
+| **Prompt & Produktion** | Pro Auftrag tatsächlicher Prompt/Negativ-Prompt falls unterstützt, gewählte Figur, Workflowversion, Rendermedien, Status und Kandidaten. Ein Artefakt hat dieselbe ID unter Dateien. |
+| **AUFTRAG & FREIGABE** | Pro Bestellung eigenständiger chronologischer Verlauf: Anfrage → Angebot → tatsächlich bestätigte Zahlung → Generierung → Auswahl/Prüfung → Freigabe → Zustellung. Ohne verifizierte Zahlung/Freigabe kein Kundenversand. |
+
+**Default-Spezialfall:** Der Kontakt **Default** nutzt dieselbe Nachrichten-Layoutstruktur; nur die rechte Akte wechselt zu echten Operator-Feldern: **Instagram-Absender-ID**, **Telegram-Absender-ID**, **Interne Befehle verarbeiten (Ein/Aus)**, **Influencerin**, **Medien-KI/Workflow**, **Freigabemodus**, **Automatische Produktionsaufträge (Ein/Aus)** und **Einstellungen übernehmen**. Der festgelegte Absender wird nach Ersteinrichtung über unveränderliche Plattform-ID geprüft. Die sechs Klartextkommandos **clone · pose · style · remix · animate · edit** (`edit` nur auf nachweislich eigenen Bildern, PHASENPLAN_V0 §8) werden aus Nachrichten erkannt und **nicht** als separate Schaltflächen angezeigt; zusätzlich versteht die KI-Instanz freie Anweisungen mit Referenzen wie „die letzten 3 Fotos“ (PHASENPLAN_V0 §8.1). **Kein zusätzliches Kapitel „Produktionsakte“ oder Beschreibungsblock im rechten Default-Bereich.** Für verarbeitete Medien erscheinen echte Auftrags-/Render-/Ergebnisereignisse in der bestehenden Mitte und bei Dateien; zusätzlich gehen die Ergebnisse je **Freigabemodus** (*Direkt zurücksenden · Nach Auswahl im Cockpit · Nur Cockpit*) als Dateien an die verifizierte Telegram-ID des Default-Kontakts zurück, damit der Betreiber vom Handy postet (Betreiberentscheidung 15.11.2026, PHASENPLAN_V0 §8.1); der Rückversand-Status erscheint als Ereignis im Default-Verlauf. Unter dem Operator-Feld **Influencerin** ist derselbe geschlossene Block *Influencerin · <Name> · gilt für alle Kunden* erreichbar wie in der Kundenakte (F4 V1.12 Punkt 12).
+
+#### F7.5 ComfyUI — jedes Feld und die beiden Instanzen
+
+**Ergänzung mit Vorrang für die KI-Ansicht (Betreiberfreigabe 16.11.2026):** Die konkrete Anordnung und Interaktion des KI-Studios ist in **F7.9** verbindlich. Sie erweitert F7.5 innerhalb von **ComfyUI → KI**, ohne das bestehende Drei-Spalten-Layout, die Medienfunktionen, das Graphite-Design oder die fünf Hauptreiter zu verändern. Der vom Betreiber am 16.11.2026 ausdrücklich freigegebene klickbare HTML-Prototyp `Darkfluenzer_KI_Studio_Klickprototyp.html` ist die exakte visuelle und interaktive Designreferenz; F7.9 fixiert dessen bedienbare Elemente, Zustände und den produktiven End-to-End-Vertrag. **DEMO-Daten sind niemals produktive Daten.**
+
+| Element | Exakte Funktion / Einschränkung |
+|---|---|
+| **Fotos / Videos** | Unterregister der Medieninstanz, Liste ausschließlich nach \`kind\` der registrierten Workflows. **KI** als ergänzender Zugang zu ComfyUI 2 erst bei implementierter KI-Instanz; keine Behauptung, diese sei bereits online. |
+| **Linke Workflowliste** | Sämtliche registrierten Workflows der passenden Kategorie samt Name, PASS/OFFEN, aktiviert/bereit nach echter Registry. Auswahl bestimmt Mittelpunkt und gesamte rechte Parametersteuerung. Ein fehlendes/ungeprüftes Modell darf keinen Render starten. |
+| **Motiv/Prompt** | In das konkrete Graph-Feld \`prompt\`; für Video bezeichnet es Szene/Bewegung. |
+| **Negativ-Prompt** | **Nur** wenn \`negative_prompt\` in der ausgewählten Workflow-Registry vorhanden ist. |
+| **Ausgangsbild / Aus Dateien** | Bild-/Dateiauswahl für workflowgebundenes \`image\`, sowohl lokal als auch mit exakter Artefakt-ID aus der vorhandenen Galerie. |
+| **Maske** | Nur bei maskenfähigem Workflow; weiße Fläche editieren, schwarze schützen; Auftrag hält SHA/Herkunft von Bild und Maske. |
+| **Ergebnis** | Nach abgeschlossener echter Ausführung die resultierende Bild-/Videodatei und zugeordnete Job-ID, nicht drei permanente fiktive Kandidatenflächen. |
+| **Rechte Steuerung – Charakter** | Auswahl der vorhandenen, versionierten synthetischen Influencerin; nachgewiesene Modell-/Identitätsbindung Voraussetzung für produktive Charakterläufe. |
+| **Rechte Steuerung – Workflow** | Nur Anzeige des links ausgewählten konkreten Graphen/Version; keine zweite, widersprüchliche Auswahl. |
+| **Erweiterte Workflow-Einstellungen** | **Initial zugeklappt**. Dynamisch **alle tatsächlich exponierten Eingänge** des gewählten Workflows anzeigen und serverseitig prüfen: seed, steps, cfg, width, height, denoise, mask_grow sowie künftig checkpoint, sampler, scheduler, guidance, batch, LoRA/Adapter, Frames/FPS/Dauer, Kamera-/Bewegungssteuerung, Refinement/Output, soweit die Nodes sie tatsächlich unterstützen. Keine Attrappen und keine erfundenen „Qualität“-Slider. |
+| **Trainingsdatenordner** | Für registrierten Trainingsworkflow Standard \`local/character/photos/\`. Sämtliche geeigneten Bilddateien im Verzeichnis werden gescannt, dedupliziert, zu einem versionierten Datensatz zusammengefasst und nach Bestätigung trainiert. Originale nicht löschen. Zunächst \`CHAIN-00/01\` OFFEN; kein Trainer-PASS ohne echten ComfyUI-1-/MPS-Trainingsnachweis. |
+| **Generieren / Training starten** | Typisierter Protobuf-Befehl an genau den ausgewählten geprüften Workflow, persistenter Auftrag mit FIFO-/Status-/Artefaktbezug. Bei gesperrten/fehlenden Modellen deaktiviert. |
+| **Warteschlange (rechts unter Steuerung)** | Persistente globale Medien-GPU-FIFO, echte Position/Status/Progress nur mit Backendquelle; ComfyUI 2 hat separate KI-Queue. Wartende Betreiberentscheidungen blockieren keinen anderen ausführbaren Medienjob. |
+| **Instanzen** | Medien-ComfyUI 1 Default \`127.0.0.1:8188\`, KI-ComfyUI 2 \`127.0.0.1:8189\`; eigenständige Prozesse/Queue, gemeinsamer GPU-Speicher. Keine fiktiven Health-Zustände. |
+| **Workflow öffnen / bearbeiten / übernehmen / löschen** | Bestehender F3a-Vertrag bleibt uneingeschränkt: exakten UI-/API-Graphen bearbeiten, validieren, versionieren; beim Löschen nur betroffenen Workflow entfernen, niemals Modell oder historische Artefakte. |
+
+#### F7.6 Dateien — Ergänzung, keine Neugestaltung
+
+Bestehende React-Bedienung und Sicherheitsbedingungen bleiben: In \`Files.tsx\` sind **Alle markieren**, Markierung aufheben, Einzel-X und Mehrfachlöschung samt Bestätigung bereits vorhanden. Kundenzugeordnete Medien dürfen durch die Betreiber-Galerie nicht per Einzel- oder Stapel-X gelöscht werden (bestehendes \`orderNo\`-Gate); dieser Schutz bleibt bestehen.
+
+**Neu pro tatsächlicher Mediendatei:** **Weiterverarbeiten** führt in die passende Workflow-Auswahl und übernimmt den exakten aktuellen Artefakt- und SHA-Verweis, niemals bloß einen Bildnamen. In der Datei-Detailansicht **Wiederholen · Variieren · Als Vorlage · Video erstellen · Hochskalieren** (2K/4K aus dem Original ohne Neugenerierung, PHASENPLAN_V0 §9.7). Zusätzlich vollständige lesbare Produktionsparameter und alle Versionen aus dem tatsächlichen Job/Graph-Snapshot, ohne leere oder erfundene Werte. Filter Alle/Fotos/Videos und chronologische Nummerierung unverändert.
+
+#### F7.7 Bild-/Designreferenz, Integration und Abnahme
+
+Die freigegebene **Übersicht** und **Nachrichtenansicht** sind im Betreiber-Chat durch zwei Original-Screenshots vom **14.11.2026** dokumentiert: dunkelgrauer Graphite-Hintergrund, pinkes C, kompakte Registerleiste, drei KPI-Karten bei Übersicht; bei Nachrichten **Kunden links, mittig Kundenregisterkarten und kanalgefilterte Zeitleiste, am rechten äußersten Rand die detaillierte Kundensteuerung**. Diese Screenshots sind die verbindliche visuelle Prüfreferenz; der HTML-Prototyp stellt die Layoutstrukturen und die Bedienwege zusätzlich interaktiv bereit. Originalbilder sind weder automatisch Git-Assets noch ComfyUI-Ausgaben und dürfen nicht als solche ausgegeben werden.
+
+**Testfälle:** Hauptnavigation (fünf Reiter), Kundenliste/Öffnen/Schließen, Kanalfilter und Gesamt-Leseschutz, wechselnde rechte Steuerung, Default-Kontakt nur als interne Identität, einklappbare KI-Felder, ComfyUI-Workflowtypen und zielgenaue Parameter, initial geschlossenes Expertenmenü, Trainingsordner, rechts Warteschlange, Dateien-Markierung und Löschbestätigung, Weiterverarbeiten. Ein eigenständiger HTML-Klicktest belegt nur UI-Verhalten. F3/F4/CHAIN-00–06 benötigen jeweils echte Backend-/Mac-/Plattform-Abnahme.
+
+**Umsetzungsauftrag an Claude:** Die HTML-Referenz und **diesen** Abschnitt F7 als genaue visuelle/bedienlogische Abnahmequelle lesen, mit dem bestehenden React-Code abgleichen und nur die tatsächlich fehlenden Funktionen ändern. Kein Repo-Rewrite, keine neue UI-Bibliothek, keine neue Persistenz- oder Render-Engine. Vor jedem Layout-Umbau Ausgangsscreenshot und vorhandene Komponenten vergleichen. Vor Implementierung technische Abweichungen zur Registry bzw. zum Graph ausdrücklich benennen. Nach Anpassung echte Mac-Screenshots gegen die Betreiber-Screenshots und HTML-Referenz prüfen.
+
+#### F7.8 Wallet — fünfter Hauptreiter (verbindlich, V1.12 / PHASENPLAN_V0 §8.5, C5a)
+
+**Vorlage:** die Darstellung der DarkBot-BSC-Wallet-Ansicht (`frontend/src/features/bsc/pages/WalletsPanel.tsx`, `WalletAccounts.tsx`, `WalletHistory.tsx`, `WalletParts.tsx` im DarkBot-Repository) als **eigenständige Kopie** in `frontend/src/pages/Wallet.tsx` (bei Bedarf `pages/WalletParts.tsx`); Stil ausschließlich über `shared/graphite.css`; keine Imports, keine Laufzeitverbindung zu DarkBot. **Nicht übernommen:** PnL- und Tages-PnL-Kurven und -Tabellen, Transfer, Auszahlung, Richtlinien (Refill/Profit/Payout), BUYER-Schalter, Budgets, Touch-ID-Dialoge, Signier- und Sendewege, technische Owner-Zeilen der BSC-Engine.
+
+| Bereich | Inhalt / Backend-Vertrag |
+|---|---|
+| **Kopf** | Titel „Wallet“, rechts nur der belegte Zustand der Datenquellen (STATE 10). |
+| **Konten** (Kontokarten wie DarkBot: Titel + Chevron, großer Wert) | *Bitcoin* (BTC-Guthaben), *BSC* (USDT, USDC), *PayPal* (bestätigte Eingänge im laufenden Monat, kein Kontosaldo), *Amazon-Gutscheine* (eingelöst im Monat · zu prüfen). Euro-Wert und Kurszeit je Karte; ohne frische Daten „veraltet“, nie ein alter Wert als aktuell. |
+| **Konto-Schublade** (Chevron) | vollständige öffentliche Adresse mit **Kopieren** und QR-Code, Netz, letzte geprüfte Block-/Zeitangabe, Datenquelle; kein Seed, kein Schlüssel, kein Senden. |
+| **Zahlungseingänge** (Verlaufstabelle wie DarkBot) | Datum · Weg · Betrag · Euro-Wert · Kunde/Auftrag (Link in die Akte) · Transaktion (gekürzt, vollständig in den Details) · Status; Filter *Alle · Offen · Bestätigt · Nicht zugeordnet*; Seiten über `GET /api/v1/payment-page` (Protobuf, bei Aufruf), neue Einträge per EVENT 30. |
+| **Nicht zugeordnet** | je Eingang **Zuordnen** (Auftrag wählen, Bestätigung, Befehl 41 mit Receipt); protokolliert. |
+| **Gutscheine zu prüfen** | Code (nur hier sichtbar, maskiert mit Aufdecken), Kunde, Zeit; **Eingelöst · Betrag eintragen** (Befehl 42, Bestätigungsdialog); erst danach `ZAHLUNG BESTÄTIGT`. Einzige zulässige manuelle Zahlungsbestätigung. |
+| **Monatsliste** | Download je Monat (`GET /api/v1/payment-export/{monat}`) mit Euro-Wert und Kurs beim Eingang. |
+| **Technische Details** (Schublade) | Datenquellen (Kursquelle, BTC-Schnittstelle, BSC-RPC, PayPal), letzte erfolgreiche Abfrage, Fehler. |
+
+**Abnahme:** echte Adressen aus `config.toml` mit QR; eine echte kleine BTC- und USDT-Zahlung erscheint live per Push und wechselt nach den Bestätigungen auf *Bestätigt* mit Kundenzuordnung; ein falscher Betrag steht unter *Nicht zugeordnet* → Zuordnen mit Receipt; ein Gutschein wird erst nach Betragseintrag bestätigt; Reconnect ohne Dubletten; kein Sende-Element im DOM; Build- und Stylesheet-Wächter grün.
+
+
+---
+
+#### F7.9 KI-Studio – verbindliche klickbare ComfyUI-2-Referenz (Betreiberfreigabe 16.11.2026)
+
+**Verbindliche Betreiberentscheidung:** Der am 16.11.2026 im Chat freigegebene klickbare **Darkfluenzer-KI-Studio-HTML-Prototyp** ist die maßgebliche Gestaltung und Interaktion für die KI-Seite in **ComfyUI**. Die im Prototyp sichtbaren Register, Formularanordnungen, Button-Texte, Spalten und Arbeitsabläufe sind umzusetzen; echte Zustände und Modellantworten dürfen nicht durch Beispielwerte ersetzt werden. Die HTML-Vorschau selbst ist ausschließlich eine **offline lauffähige Designreferenz**: ihre simulierten Antworten, Modellnamen, Werte und sechs geplanten Workflows beweisen keine installierte KI. **Bei Konflikt mit einer älteren generischen ComfyUI-Anweisung gilt für den KI-Reiter dieses F7.9; für Fotos/Videos F7.5.**
+
+**1. Einbettung und visuelle Übereinstimmung**
+
+- **Keine neue App, kein weiterer Hauptreiter, kein neues Design.** Kopfzeile mit pinkem **C** links, genau **Übersicht · Nachrichten · ComfyUI · Dateien · Wallet**; **ComfyUI** aktiv. Darunter die Unterregister **Fotos · Videos · KI**, jeweils mit einer **real aus Registry/Backend ermittelten** Workflow-Anzahl. Der Vorschau-Zähler \`KI 6*\` bedeutet sechs **vorgesehene** Workflowtypen, **nicht sechs fertige** Workflows; im Produkt nie als sechs bereit anzeigen, wenn nicht registriert.
+- **Graphite** aus dem freigegebenen F7-Stil: dunkelgraue Hauptflächen (Referenz \`#1c1c1f\`), dunklere Sidebar, feine graue Grenzen (Referenz \`#414149\`), helle Schrift, zurückhaltende pinke Selektion/Aktion (Referenz \`#ed2287\`). **Nur bestehendes Stylesheet \`shared/graphite.css\`** im React-Produkt; kein eigenständiges Designsystem.
+- **Drei feste Desktop-Spalten:** **links ausschließlich Workflowliste**, **Mitte Arbeits-/Ergebnisbereich**, **rechts äußerster Rand Steuerung**. Die KI-Seite ersetzt in der Mitte je nach Workflow Testchat, Persona, Memos, Bildanalyse, Training oder Audio; **sie baut kein zweites Chat-Cockpit** unter Nachrichten auf. Bei schmalen Ansichten darf die rechte Steuerung untergeordnet werden, nicht die fachliche Zuordnung ändern.
+- Links Überschrift **KI-Workflows**, darunter **ComfyUI-Instanz 2** und eine Liste aktivierbarer **registrierter** Workflows. Jede Zeile zeigt Workflowname, Funktion sowie tatsächlichen Zustand **bereit / offen / Fehler**, selektiert pink. Es gibt **keine** alternative linke Job-/Projekt-/Kundenliste.
+- Rechts **Steuerung** mit Gruppen für die **konkrete** Workflowauswahl, danach persistente **KI-Warteschlange** und **ComfyUI-2-Instanzstatus**. Erweiterte Parametergruppen sind **anfangs geschlossen**. Keine Anzeigen \`Verbunden\`, \`PASS\` oder Leistungswerte ohne reale Backendnachweise.
+
+**2. Sechs verbindliche Workflowklassen in ComfyUI-Instanz 2**
+
+| KI-Workflow im linken Bereich | Zentrale Arbeitsfläche | Umsetzungsphase |
+|---|---|---|
+| **Textdialog · Melody1437 v2.0** | Direkter mehrteiliger Chat-Test mit Clara, gleicher Workflow wie im Kundenbetrieb | **B5 sofort** |
+| **Bildverständnis · VLM** | Referenzbild → Bildbeschreibung, Kamera/Licht/Pose/Kleidung/Szene → strukturierter Prompt-Vorschlag | B5, nach Chat-End-to-End |
+| **Gesprächsmemos** | Erinnerungen, Quellen, Korrekturen, Abrufvorschau und Verwaltung | B5/C5 sofort für Textchat |
+| **Text-LoRA · Training** | Eigene Beispiele, Import, Datensatzprüfung, Training und A/B-Abnahme | **Später; keine Vorabdownloads** |
+| **Sprache → Text** | Audiodatei/Mikrofon → lokale Transkription, Fehler und Laufzeit | **Später; ASR** |
+| **Text → Sprache** | Testtext → Clara-Stimme, Ton/Sprechgeschwindigkeit → Audio-Wiedergabe und Latenz | **Später; TTS** |
+
+Alle **wirklich ausführbaren** KI-Stufen laufen als versionierte, im echten **ComfyUI-2-Editor** öffnungs-/bearbeitbare Graphen mit korrektem UI-/API-Graph, Registry-Bindings und Rückübernahme. **Kein Ollama, keine dritte KI-Engine, kein externer LLM-Server.** Das Python-Backend orchestriert Kontext/Identität/Regeln, speichert Daten dauerhaft in derselben SQLite und ruft für KI-Arbeit **ComfyUI 2** auf. Text-LoRA-Training darf intern native Trainingsbibliotheken benötigen; Steuerung, Workflowregistrierung, Status und Ergebnisse bleiben über ComfyUI 2 und das bestehende Cockpit angebunden. Der bloße Titel \`Gesprächsmemos\` bedeutet **nicht**, dass SQLite-Operationen fälschlich innerhalb der GPU-Engine ausgeführt werden.
+
+**3. Textdialog → Chat-Test: exakter Bedienweg**
+
+- In der **Mitte** Kopf **Textdialog · Melody1437 v2.0 Q6_K**, Untertitel *Direkt im Cockpit testen · dieselbe KI wie später auf Telegram und Instagram*.
+- Direkt darunter die vier **inneren** Ansichten **Chat-Test · Persona · Gedächtnis · Vergleich**; sie ändern **nur die Mitte**, die linke Workflowauswahl und die rechte Steuerung bleiben an derselben Position.
+- **Chat-Test:** scrollbarer echter Gesprächsverlauf, links eingehende/botseitige und rechts operatorseitige Nachrichtenblasen; Textfeld **„Nachricht an Clara …“** mit Enter=Senden, Shift+Enter=Zeilenumbruch, **Neue Sitzung** und **Testantwort**. Beispiel-Prompts (*Hallo Clara!*, *Was hast du heute gemacht?*, *Ich hätte gern ein Strandfoto von dir.*) sind anklickbare **Testeingaben**, keine automatischen Behauptungen über eine Modellantwort. Für jeden Test eine eindeutige Test-Sitzung; **keine Telegram-Verbindung erforderlich** und keine Kundenakte, kein Kundenversand.
+- Nach jeder **echten** Inferenz: vollständige Antwort und technische Messwerte **Erstes Token (TTFT), Tokens/s, Gesamtzeit**, ergänzt um Modellversion, Persona-Revision, Workflowversion, Antworttokens, Context-/Cache-Metriken und Fehlerstatus. **Keine fingierten Messwerte**. Streaming im lokalen Testchat zulässig, an externe Kanäle erst nach abgeschlossener Antwortprüfung.
+- **Persona** (mittig): editierbares Feld **Charakterprofil und Gesprächsregeln**, zweites Feld **Beispieldialoge · gewünschter Schreibstil**, Button **Persona übernehmen**. Speichern **versioniert per Protobuf**, beeinflusst unmittelbar nach Wahl derselben Version die nächste Testantwort; vorherige Tests verweisen weiterhin auf ihre Originalrevision. Enthält Hintergrund/Alter (erwachsen), Gesprächsstil, Antwortlänge, Eigenheiten, Flirtstil, verbotene Wörter/Themen, Eskalation und Admin-Warnung. Hard-Fails und Freigaben bleiben **serverseitig**, nicht bloß als LLM-Prompt.
+- **Gedächtnis** (mittig): *Gedächtnis · Sitzung*, **Notiz manuell hinzufügen**, Liste gespeicherter Memos mit Quellen/Nachrichten-IDs, Zeit, Status, **Korrektur/Löschen** (mit fachlichem Audit), sichtbarer **Kontextinspektor**: welche Memos werden für die nächste Antwort abgerufen und warum. Getrennte Kunden-/Test-Sitzungen; kein Überspringen der Identity-Grenze. Betriebskonzept: letzte Nachrichten + relevante Langzeitmemos, SQLite/FTS5-Retrieval; neues oder widersprochenes Wissen wird mit Herkunft behandelt; Zusammenfassungen nachrangig zur Chatlatenz.
+- **Vergleich** (mittig): nebeneinander **A: Melody Q6_K** und **B: andere Persona-/Parametereinstellung oder LoRA** (weitere Chatmodelle nur nach neuer Freigabe), **dieselbe** Testeingabe, Persona und relevanter Kontext, getrennte Antwort, Latenz, qualitative Prüfergebnisse; B ist gesperrt, solange Gewichte/Workflow fehlen. Vergleichsergebnisse mit Versions-/Parameterbezug. **Keine Modelle nur wegen der Vorschau laden.**
+
+**4. Rechte Steuerung bei Textdialog**
+
+- Gruppe **MODELL & FIGUR**: verifiziertes Charakter-/Influencerin-Profil **Clara**, **qualifizierte** Textmodellvariante, Gesprächsstil; keine Fake-Optionen im produktiven Selector.
+- Gruppe **TEXTGENERIERUNG**: echte exponierte Workflow-Parameter als Zahlen-/Slider-Eingaben, **Temperature, Top-P, Repeat Penalty, Max. Antwort-Tokens**. Unter **Erweiterte Workflow-Einstellungen** bei Unterstützung weitere Parameter wie **Top-K, Min-P, DRY, Seed, Kontextfenster, KV-/Prompt-Cache, Modell-/Graphrevision**. **Nur tatsächlich vom Workflow unterstützte Parameter**, mit Typ/Grenzen/Schritt/Default aus Registry statt festen Platzhalter-Slidern; serverseitige Validierung.
+- Gruppe **GESPRÄCHSLOGIK**: **Langzeitgedächtnis verwenden**, **Antworten gegen Regeln prüfen**, gesonderte administrativ unabschaltbare Basissperren beachten, **Einstellungen übernehmen**; Settings gelten nur nach erfolgreichem Backend-Receipt, Session-/Profil-/Modellrevision werden im Ergebnis erfasst. Test kann zwischen Persona-/Parameterprofilen umschalten; **keine Änderung an laufenden Kundenakten ohne freigegebene explizite Betreiberaktion**.
+- Unterhalb **KI-WARTESCHLANGE**, zuletzt **INSTANZ** mit realem Status der zweiten ComfyUI-Instanz (Default \`127.0.0.1:8189\`), Queue, Fehler, Ressourcenbelegung und belegter Erreichbarkeit. Gemeinsame Zulassung der beiden ComfyUI-Prozesse aus V0 §4.2; Chat-Latenz priorisiert. Alle Buttons führen über typisierte Protobuf-Befehle zum Python-Backend, Rückmeldungen per Receipt + STATE/EVENT statt Browserpolling.
+
+**5. Übrige KI-Arbeitsflächen**
+
+- **Bildverständnis:** Dateiauswahl über echte Referenz-/Dateien-ID oder lokalen Upload, Anweisungsfeld, \`Analyse starten\` **nur bei qualifiziertem Modell**, reale Ausgabe mit Beschreibung, Pose, Kamera, Licht, Szene, identitätsrelevanten Angaben und Promptentwurf, vor Weitergabe bearbeitbar, versionsgebunden. Der Vision-Workflow darf NICHT als Textchat-LLM ausgegeben werden.
+- **Gesprächsmemos:** eigenes linkes Workflowziel kann dieselbe Gedächtnisverwaltung aus dem Testdialog öffnen; serverseitige Faktenablage und Kontexterstellung, kein zweiter Speicher. Status und Audit (Quelle, Korrektur, Ablauf/Retention).
+- **Text-LoRA:** eigener Trainingsdialog mit Import von selbst geschriebenen/kurierten Beispieldialogen, Validierung, Dubletten-/Herkunftskontrolle, Trainings-/Prüfsatz, trainierbaren Modellgewichten/Adapter, Start/Fortschritt/Abbruch, Rückfall und A/B-Vergleich. **Erst nach abgenommenem ungefinetuntem Melody-Test (B5.1) freischalten**. Eine quantisierte GGUF-Datei (auch Q6_K) ist kein automatisch trainierbares Basischeckpoint.
+- **Sprache → Text:** lokale Audioaufnahme/Datei, reale Transkription mit Wiedergabe/Status, Sprache, gemessene Latenz; erst später an Telegram-/Instagram-Sprachnachrichten anschließen.
+- **Text → Sprache:** editierbarer Testtext, Stimme, Sprache/Tempo/Stil nur soweit vom TTS-Graphen unterstützt, **echter** lokaler Audioplayer und Zeitmessung; Antworten aus **demselben** Clara-Dialog/Persona/Gedächtnis. Kein zweites getrenntes Dialogmodell für Stimme.
+- Ist der Workflow nicht installiert oder noch nicht abgenommen, zeigt die Mittelspalte **„Workflow noch nicht eingerichtet“** bzw. konkreten Backendfehler; **Generieren, Training oder Transkribieren bleiben deaktiviert**, statt ein angeblich reales Ergebnis zu simulieren.
+
+**6. Abnahme (bindender, realer End-to-End-Vertrag)**
+
+1. Aus **ComfyUI → KI → Textdialog → Chat-Test** mindestens 20 zusammenhängende deutsche Nachrichten mit Melody1437 v2.0 Q6_K **real auf dem M4 Max** erzeugen, ohne Telegram oder weiteren LLM-Server; Antworttexte, TTFT p50/p95, Gesamtzeit p50/p95, Tokens/s und Speicherverhalten belegbar.
+2. Persona/Beispieldialoge/Generierungsparameter im Cockpit ändern, **Receipt und neue Revision** nachweisen, danach echten Modellantwort-Unterschied messen; erneuter Start übernimmt gespeicherte Version. Die Wahl eines unqualifizierten Modells führt zu klarer Sperre.
+3. Gedächtnis: Fakten über mehr als das aktive Kontextfenster konsistent wieder abrufen, widersprochene Fakten korrigieren, Wiederholungen detektieren, mindestens einen Backend-Neustart überstehen; **Testidentitäten und fremde Kunden strikt getrennt**.
+4. Antwortprüfung: harte Regelverletzung **vor externem Versand** abgefangen, Entwurf/Manuell möglich, Admin-Eskalation als echte Ereigniskarte; Anweisungen aus Kundentext ersetzen keine serverseitigen Fakten-, Zahlungs- oder Freigabestatus.
+5. Gleicher registrierter Dialog-Workflow wird nach bestandener Studioabnahme in **Nachrichten/Telegram** für Claras Persona verwendet, nicht parallel neu implementiert. Kundentext → Wunsch → Preis aus Preisliste → vorbereiteter Prompt → echte Zahlung oder isolierter Testbetrieb → echter ComfyUI-1-Bildauftrag → Freigabe → Datei-Rückversand, keine fiktiven Bild- oder Zahlungsnachweise.
+6. Trainings-/ASR-/TTS-Bereiche werden erst dann als **bereit** gezählt, wenn Modell, Graph, Backend, Frontend, wirklicher Job, Ergebnis und M4-Abnahme vorhanden sind; bis dahin sichtbar **OFFEN**, nicht ein irreführendes \`KI 6\`.
+7. Vor dem produktiven Deploy: Vergleich mit dem **freigegebenen KI-Studio-Klickprototyp vom 16.11.2026** auf Desktopbreite, Werkzeuge/Panelpositionen, kompakten Abstand, Graphite-Farben, Texte, Start-/Leer-/Fehlerzustände und Interaktionen; Abweichungen begründen, nicht stillschweigend neu gestalten.
+
+**Reihenfolge:** **B5.1 Melody direkt testbar → B5.2 Chat-/Persona-/Parameter-Studio → B5.3 Langzeitgedächtnis → B5.4 Wunsch/Angebot/Prompt → B5.5 isolierter Telegram-Sofatest mit realem Bild**. Bildverständnis danach; Text-LoRA und ASR/TTS nur nach gesonderter späterer Freigabe. Dieser UX-Vertrag ergänzt die technischen Abhängigkeiten von V0 B5/C5, ohne deren Zahlungs-, Absender- und Sicherheitsgates für Live-Kunden aufzuheben.
+
+**Ergänzung 16.11.2026 (verbindliche Betreiberentscheidung B5, Details in V0 „B5 – Detailplan Clara-Chat-KI“):** Erstes und einziges freigegebenes Chatmodell ist **Melody1437 v2.0 (Gemma 4 MoE) GGUF Q6_K**. Kopfzeile „Textdialog · …“, linke Workflowliste und Auswahl **MODELL & FIGUR** zeigen den Modellnamen **aus der Registry**, nicht fest verdrahtet; „Vergleich“ (B) bleibt gesperrt bis zu einer neuen Modellfreigabe. Reihenfolge damit: P0 aus `docs/bugs_v1.md` → **B5.1 Melody1437 direkt testbar** → B5.2 Studio → B5.3 Gedächtnis (vier Ebenen, FTS5) → B5.4 Wunsch/Angebot/Prompt → B5.5 Telegram-Sofatest (`Cash` nur im isolierten Testbetrieb) → B5.6 VLM, B5.7 Text-LoRA, B5.8 STT/TTS später.

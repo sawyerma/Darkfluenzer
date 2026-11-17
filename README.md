@@ -2,11 +2,12 @@
 
 Lokaler, freigabegesteuerter KI-Medien-Dienst auf Apple Silicon.
 
-**Verbindliche Dokumente:** [`docs/PHASENPLAN_V0.md`](docs/PHASENPLAN_V0.md) (Gesamtplan, Reihenfolge, Status),
-[`docs/PHASENPLAN_FRONT_V1.md`](docs/PHASENPLAN_FRONT_V1.md) (UI/UX, Push, Protobuf) und die Gestaltungsreferenz
-[`docs/design/Darkfluenzer_Cockpit_Interaktiv.html`](docs/design/Darkfluenzer_Cockpit_Interaktiv.html).
-[`docs/PHASENPLAN_BACK_V1.md`](docs/PHASENPLAN_BACK_V1.md) ist technische Backend-Referenz, soweit V0 nicht widerspricht.
-`docs/archiv/` ist nicht verbindlich.
+**Verbindliche Dokumente (genau drei):** [`docs/PHASENPLAN_BACKEND.md`](docs/PHASENPLAN_BACKEND.md)
+(Produktziel, Regeln, Ketten, Reihenfolge, Status), [`docs/PHASENPLAN_FRONTEND.md`](docs/PHASENPLAN_FRONTEND.md)
+(Cockpit, Push, Protobuf; Anhang A = Klickreferenz F7) und [`docs/bugs_v1.md`](docs/bugs_v1.md) (Befundregister).
+Gestaltungsreferenz: [`docs/design/Darkfluenzer_Cockpit_Interaktiv.html`](docs/design/Darkfluenzer_Cockpit_Interaktiv.html).
+Modelle und Workflows: `workflows/manifest.toml`. `docs/archiv/` (V0, FRONT/BACK V1, ki_modelle, ältere bugs_v1)
+ist nicht verbindlich.
 
 ## Was heute funktioniert (S1)
 
@@ -109,7 +110,7 @@ backend/            pyproject.toml, uv.lock, src/darkfluenzer/ (CLI, Runtime, Co
 frontend/           React/TypeScript/Vite-Cockpit
 launcher/           Darkfluenzer.swift, make_icon.swift, install.sh, setup_comfyui.sh, comfyui.lock.txt
 workflows/          manifest.toml, image/, video/ (UI- und API-Export je Workflow)
-docs/               PHASENPLAN_BACK_V1.md, PHASENPLAN_FRONT_V1.md
+docs/               PHASENPLAN_BACKEND.md, PHASENPLAN_FRONTEND.md, bugs_v1.md, design/, archiv/
 local/              NICHT in Git: config.toml, .venv, ComfyUI, Modelle, Evaluation, Kunden, Logs
 ```
 
