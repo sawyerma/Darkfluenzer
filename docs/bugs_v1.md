@@ -212,7 +212,9 @@ Nachweis: tests/test_checks.py::test_video_checks_sample_frames_before_create_vi
   echter Lauf 18.11. (Job 101, LTX 2.5 i2v 512×320, 2 s, 49 Frames, 135 s): Stichprobe 0,8,…,48 (7),
   Inhalt 7× neutral ≥ 0,99, Technik 7 Werte, Hände keine erkannt, zeitlich 0 Sprünge, 0 Standbilder,
   Änderung Ø 6,8; alle Werte am Videomedium 104 (Ziel SaveVideo 75)
-Ergebnis: TEIL (Implementierung am Mac belegt; Schwellen, Langvideo-Abschnitte OFFEN)
+Nachtrag 18.11.: Langvideo – Prüfknoten nur im Zusammensetzen (alle Frames des fertigen Videos,
+  Ziel SaveVideo „save“), Abschnitte ohne Prüfung; test_video.py::test_long_video_segments_… (vorher rot)
+Ergebnis: TEIL (Einzellauf am Mac belegt; Langvideo CODE, kein langer Lauf; Schwellen OFFEN)
 Bearbeiter/Datum: Claude, 18.11.2026
 
 ID: FABLE-014 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-122“) – Teil

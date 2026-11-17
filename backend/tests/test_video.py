@@ -191,6 +191,19 @@ def test_long_video_segments_resume_after_failure_and_join(video_cfg):
         (1, 32),
     ]
     assert joined["create"]["inputs"]["fps"] == 16.0
+
+    # Prüfkette (SP5 Schritt 7): nur im Zusammensetzen, auf allen Frames des fertigen Videos
+    def kinds(graph: dict) -> list[str]:
+        return sorted(
+            n["class_type"] for n in graph.values() if "darkfluenzer_save" in n.get("_meta", {})
+        )
+
+    assert kinds(seg2) == kinds(seg3) == []
+    assert kinds(joined) == ["DarkfluenzerFrameSample", "DarkfluenzerImageQuality",
+                             "DarkfluenzerTemporal"]  # fmt: skip
+    checks = {n["class_type"]: n for n in joined.values() if "_meta" in n}
+    assert checks["DarkfluenzerTemporal"]["inputs"]["image"] == joined["create"]["inputs"]["images"]
+    assert set(comfy.check_targets(joined).values()) == {"save"}
     done = store.job(retry)
     assert done["status"] == "done"
     media = store.db.execute("SELECT path FROM media WHERE job_id = ?", (retry,)).fetchall()

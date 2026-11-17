@@ -523,6 +523,7 @@ def run_render(
                     cfg, man, wf, job_id, values, uploads, timeout_s, client_id, store=store,
                     plan=plan, on_submit=submitted, unload_first=unload_first,
                     is_cancelled=is_cancelled,
+                    checks=check_plan(cfg, man, wf, lora_use(store, man, wf, params), values),
                 )  # fmt: skip
             else:
                 result, outputs = _render(
@@ -821,10 +822,12 @@ def _render_video(
     on_submit: Callable[[str, dict], None],
     unload_first: bool,
     is_cancelled: Callable[[], bool],
+    checks: list[tuple[models.CheckSpec, dict]] | None = None,
 ) -> tuple[comfy.RenderResult, list[dict]]:
     """Langvideo (V0 §10): Abschnitte nacheinander, jeder Folgeabschnitt startet mit dem letzten
     Bild des vorigen; danach in ComfyUI zusammengesetzt (doppeltes Übergangsbild entfernt). Fertige
-    Abschnitte überstehen einen Neustart; fortgesetzt wird nur der unfertige."""
+    Abschnitte überstehen einen Neustart; fortgesetzt wird nur der unfertige. Die Prüfkette läuft
+    nur im Zusammensetzen, auf den Frames des fertigen Videos (SP5 Schritt 7)."""
 
     spec = wf.video
     assert spec is not None
@@ -925,6 +928,7 @@ def _render_video(
         "inputs": {**plain(create), "images": prev, "fps": plan["fps"]},
     }
     joined["save"] = {"class_type": "SaveVideo", "inputs": {**plain(save), "video": ["create", 0]}}
+    joined = comfy.inject_checks(joined, wf, checks or [], man.check_frames)
     joined = comfy.unique_outputs(joined, f"job{job_id}")
     dest = evaluation_dir(cfg, wf.engine)
     base = comfy.RenderResult(
