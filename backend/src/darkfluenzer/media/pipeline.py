@@ -192,6 +192,31 @@ def _input_tier(store: Store, rel: str) -> str | None:
 
 LORA_KEY = "character_lora"  # Schlüssel der Charakter-LoRA in Job- und Stufenparametern
 CHARACTER_KEY = "character"  # Kürzel der Figur, gegen deren Referenzsatz geprüft wird
+KEYFRAMES_KEY = "keyframes"  # weitere Schlüsselbilder (Zeitachse B4) in den Jobparametern
+
+
+def check_keyframes(wf: Workflow, plan: dict | None, frames: list[dict], limit: int) -> list[dict]:
+    """Weitere Schlüsselbilder prüfen: nur Workflows mit Schlüsselbild-Kette, Zeitpunkt innerhalb
+    der Videolänge (ohne Anfang und Ende, die Start- und Endbild tragen), Stärke 0…1, höchstens
+    ``limit``. Liefert sie nach Zeit sortiert (``at_s``, ``image`` unter local/, ``strength``)."""
+    if not frames:
+        return []
+    if wf.keyframes is None or not plan:
+        raise PipelineError(f"{wf.title} nimmt keine weiteren Schlüsselbilder.")
+    if len(frames) > limit:
+        raise PipelineError(f"Höchstens {limit} weitere Schlüsselbilder.")
+    duration = float(plan["duration_s"])
+    out = []
+    for f in frames:
+        at, strength = float(f["at_s"]), float(f.get("strength", 1.0))
+        if not 0 < at < duration:
+            raise PipelineError(
+                f"Schlüsselbild bei {at:g} s liegt nicht innerhalb 0…{duration:g} s."
+            )
+        if not 0 < strength <= 1:
+            raise PipelineError(f"Schlüsselbild-Stärke {strength:g} muss in (0, 1] liegen.")
+        out.append({"at_s": at, "image": str(f["image"]), "strength": strength})
+    return sorted(out, key=lambda f: f["at_s"])
 
 
 # Einstellungen, die einen Trainingslauf bestimmen (Gesamtschritte und Checkpoint-Abstand nicht:
@@ -276,6 +301,17 @@ def identity_overrides(cfg: Config, wf: Workflow, character: str) -> dict[tuple[
     }
 
 
+def _fps(man: Manifest, wf: Workflow, values: dict) -> float:
+    """Bildrate eines Video-Workflows: Wert des Auftrags, sonst aus dem Graphen."""
+    name = wf.video.fps if wf.video else ""
+    if name in values:
+        return float(values[name])
+    spec = wf.params.get(name)
+    if spec is None:
+        raise PipelineError(f"{wf.title}: Bildrate unbekannt (Schlüsselbilder).")
+    return float(comfy.load_graph(man, wf)[spec.node]["inputs"][spec.input])
+
+
 def check_lora(man: Manifest, wf: Workflow, key: str, character: str | None = None) -> Lora:
     """Die LoRA ist registriert, der Workflow hat einen Lader, und seine Engine darf sie laden
     (Trainings-Engine oder eingetragen in ``compatible``, SP3 Schritt 4). ``character``: Kürzel
@@ -334,6 +370,8 @@ def create_render(
     inherit_tier: str | None = None,
     lora: str = "",
     character: str = "",
+    keyframes: list[dict] | None = None,
+    keyframes_max: int = 0,
 ) -> int:
     """Prüft einen Renderauftrag gegen die Registry und legt ihn als Job (Status queued) an.
     ``dataset``: Datensatzversion eines Trainingsworkflows (beim Anlegen festgelegt).
@@ -364,6 +402,7 @@ def create_render(
         check_lora(man, wf, lora)
     if wf.identity and not character:
         raise PipelineError(f"{wf.title}: eine Figur wählen (Referenzsatz für die Prüfung).")
+    keyframes = check_keyframes(wf, plan, list(keyframes or []), keyframes_max)
     seeds = [values["seed"]] if "seed" in values else []
     prompt = str(values.get("prompt", ""))
     # Inhaltsstufe (Regel 13) an einer Stelle (SP2 Schritt 2, BUG-047): höchste Stufe aus
@@ -396,6 +435,7 @@ def create_render(
             **({"dataset": dataset} if dataset else {}),
             **({LORA_KEY: lora} if lora else {}),
             **({CHARACTER_KEY: character} if character else {}),
+            **({KEYFRAMES_KEY: keyframes} if keyframes else {}),
             **(
                 {"duration_s": plan["duration_s"], "segment_s": plan["segment_s"], "video": plan}
                 if plan
@@ -478,6 +518,7 @@ def run_render(
                     timeout_s,
                     client_id,
                     lora=lora_use(store, man, wf, params),
+                    keyframes=params.get(KEYFRAMES_KEY),
                     resume=job["prompt_id"],
                     on_submit=submitted,
                     unload_first=unload_first,
@@ -630,6 +671,7 @@ def _render(
     dataset: str | None = None,
     overrides: dict[tuple[str, str], object] | None = None,
     lora: comfy.LoraUse | None = None,
+    keyframes: list[dict] | None = None,
 ) -> tuple[comfy.RenderResult, list[dict]]:
     workflow_key = wf.key
 
@@ -665,6 +707,14 @@ def _render(
         client = comfy.ComfyClient(inst.url)
         for name, path in uploads.items():
             values[name] = client.upload_image(path)
+        frames = [  # weitere Schlüsselbilder: Bildindex aus Zeit und Bildrate (Zeitachse B4)
+            comfy.Keyframe(
+                client.upload_image(cfg.local / kf["image"]),
+                round(float(kf["at_s"]) * _fps(man, wf, values)),
+                float(kf["strength"]),
+            )
+            for kf in keyframes or []
+        ]
         result = comfy.run_workflow(
             cfg,
             man,
@@ -680,6 +730,7 @@ def _render(
             overrides=overrides,
             lora=lora,
             checks=check_plan(cfg, man, wf, lora),
+            keyframes=frames,
         )
     checks: dict = {}
     masked: tuple[Path, int, list] | None = None  # (Maske, Randerweiterung, geprüfte Ausgaben)

@@ -863,6 +863,11 @@ fps = "fps"
 start_image = "image"
 seconds_max = 20
 
+[workflows.ltx25_flf2v.keyframes]
+after = "206"
+before = "204"
+chain = ["214", "195"]
+
 [workflows.wan22_remix_v30_i2v]
 engine = "wan22_remix_v30"
 ui = "video/wan22_remix_v30_i2v.ui.json"

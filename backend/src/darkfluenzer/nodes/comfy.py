@@ -424,6 +424,64 @@ def inject_checks(graph: dict, wf: Workflow, checks: list[tuple[CheckSpec, dict]
     return out
 
 
+KEYFRAME_IDS = 8000  # erste Knoten-ID der eingesetzten Schlüsselbilder (Zeitachse)
+
+
+@dataclass(frozen=True)
+class Keyframe:
+    """Ein weiteres Schlüsselbild: bei ComfyUI hochgeladener Name, Bildindex, Stärke."""
+
+    image: str
+    frame: int
+    strength: float
+
+
+def add_keyframes(graph: dict, wf: Workflow, frames: list[Keyframe]) -> dict:
+    """Setzt je Schlüsselbild Laden, Bildvorbereitung (Kopie von ``chain``) und Guide (Kopie von
+    ``before``) zwischen ``after`` und ``before`` in die Guide-Kette (Zeitachse B4)."""
+    slot = wf.keyframes
+    if not frames:
+        return graph
+    if slot is None:
+        raise ComfyError(f"{wf.key} nimmt keine weiteren Schlüsselbilder.")
+    out = copy.deepcopy(graph)
+    next_id = max([KEYFRAME_IDS - 1, *(int(k) for k in out if str(k).isdigit())]) + 1
+    prev = slot.after
+    for frame in sorted(frames, key=lambda f: f.frame):
+        load = str(next_id)
+        out[load] = {"class_type": "LoadImage", "inputs": {"image": frame.image},
+                     "_meta": {"title": f"Schlüsselbild · Bild {frame.frame}"}}  # fmt: skip
+        next_id += 1
+        source = load
+        for i, nid in enumerate(slot.chain):
+            node = copy.deepcopy(graph[nid])
+            for name, value in node["inputs"].items():
+                if not _is_link(value):
+                    continue
+                first_reads_image = i == 0 and graph[value[0]]["class_type"] == "LoadImage"
+                if first_reads_image or (i > 0 and value[0] == slot.chain[i - 1]):
+                    node["inputs"][name] = [source, 0]
+            out[str(next_id)] = node
+            source = str(next_id)
+            next_id += 1
+        guide = copy.deepcopy(graph[slot.before])
+        guide["inputs"] |= {
+            "positive": [prev, 0], "negative": [prev, 1], "latent": [prev, 2],
+            slot.image_input: [source, 0], slot.frame_input: frame.frame,
+            slot.strength_input: frame.strength,
+        }  # fmt: skip
+        guide["_meta"] = {"title": f"Schlüsselbild · Guide {frame.frame}"}
+        prev = str(next_id)
+        out[prev] = guide
+        next_id += 1
+    out[slot.before]["inputs"] |= {
+        "positive": [prev, 0],
+        "negative": [prev, 1],
+        "latent": [prev, 2],
+    }
+    return out
+
+
 def check_targets(graph: dict) -> dict[str, str]:
     """Eingesetzter Prüfknoten -> geprüfter SaveImage-Knoten (aus dem eingereichten Graphen)."""
     return {
@@ -511,6 +569,7 @@ def run_workflow(
     extra: dict | None = None,
     lora: LoraUse | None = None,
     checks: list[tuple[CheckSpec, dict]] | None = None,
+    keyframes: list[Keyframe] | None = None,
 ) -> RenderResult:
     """Server sicherstellen, Workflow ausführen, alle Ausgabedateien unter ``dest`` sichern.
     ``overrides``: (Node, Eingang) -> Wert, die das Backend selbst setzt (z. B. Trainingsdaten).
@@ -528,6 +587,7 @@ def run_workflow(
     tag = f"job{job_id}" if job_id is not None else stem.rsplit("_", 1)[-1]
     graph = apply_params(load_graph(man, wf), wf, with_trigger(wf, values, lora))
     graph = bind_lora(graph, wf, lora, values)  # ohne LoRA: Lader entfernt (SP3 Schritt 5)
+    graph = add_keyframes(graph, wf, keyframes or [])  # weitere Schlüsselbilder (Zeitachse)
     for (node, name), value in (overrides or {}).items():
         graph[node]["inputs"][name] = value
     graph.update(extra or {})

@@ -174,6 +174,8 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 | **SP5 Verkauf automatisch** | Frontend-Teil nach §4.3 (Produkte, Zahlungswege, Angebot, Zahlung, Prüfwerte, Systemfreigabe, Zustellung, Nachlauf, Wallet mit PayPal, Vorrang in der Warteschlange, Kundentest mit Bild) | Kundentest ohne Klick bis zum Foto mit Begleittext; Testauftrag nie im Wallet, nie an eine Kundenidentität; echte Zahlung je Weg |
 | **SP3 (B1)** | Bereich Charakter §3.3 (Liste, Fotostatus, Training, Versionen, Aktiv setzen, LoRA-Auswahl im Formular) | echter Ordner → Training → LoRA → Bild; Browser-Test Anlegen, Fotostatus, gesperrter Start, Umschalten |
 | **B4** | Zeitachse §3.3 | 15 s mit vier Marken → ein Auftrag mit vier Schlüsselbildern |
+
+**Umgesetzt 17.11.2026 (B4 Teil):** Formular „Weitere Schlüsselbilder“ für Workflows mit Schlüsselbild-Kette (`WorkflowInfo.keyframes`): je Zeile Zeitpunkt (s), Bild, Stärke, Entfernen; „Schlüsselbild hinzufügen“. Offen: Auswahl aus Dateien, Zeitleiste mit Marken.
 | **B5.6** | Referenzanalyse §3.3 | eigenes Bild → Prompt → echte Generierung |
 | **SP6 Betrieb, Recht, Abnahme** | Frontend-Teil nach §4.4 (Betriebsanzeige, erneutes Neuladen nach Schemawechsel, Auskunft und Löschung je Akte, Pflichttexte, Release-Kennung) | ein Browser-Lauf über die ganze Kette; Screenshots aller sechs Reiter gegen die Referenz; Betreiberabnahme nach der Probephase |
 

@@ -88,6 +88,8 @@ export function Workbench({
       w.params.every((p) => !p.required || p.name === "image"),
   );
   const [count, setCount] = useState("");
+  // weitere Schlüsselbilder zwischen Start- und Endbild (Zeitachse B4): Zeit (s), Bild, Stärke
+  const [keyframes, setKeyframes] = useState<{ at: string; file?: File; strength: string }[]>([]);
   const [finish, setFinish] = useState("");
   // Kundenauftrag: nur bezahlte (Status paid) und nur Workflows der Inhaltsstufe standard (Regel 13)
   const awaiting = ordersState?.awaitingProduction ?? [];
@@ -178,20 +180,29 @@ export function Workbench({
         }),
     );
     const parentMediaId = picked.image?.mediaId ?? 0n;
+    const frames = await Promise.all(
+      keyframes
+        .filter((k) => k.file)
+        .map(async (k) => ({
+          atS: Number(k.at),
+          strength: Number(k.strength),
+          file: { param: "", filename: k.file!.name, data: new Uint8Array(await k.file!.arrayBuffer()) },
+        })),
+    );
     const asOrder = forOrder !== "" || lora !== "" || (canCandidates && (candidates > 1 || finish !== ""));
     const jobs = canCandidates ? candidates : 1;
     const done = asOrder
       ? await cmd.run(
           {
             case: "createOrder",
-            value: { workflow: wf.key, values, files: inputs, parentMediaId, candidates: jobs, finishWorkflow: finish, customerOrderNo: forOrder, lora },
+            value: { workflow: wf.key, values, files: inputs, parentMediaId, candidates: jobs, finishWorkflow: finish, customerOrderNo: forOrder, lora, keyframes: frames },
           },
           { version, done: forOrder ? `Kundenauftrag ${forOrder}: ${jobs} Kandidaten eingereiht.` : `${jobs} Kandidaten eingereiht.` },
         )
       : await cmd.run(
           {
             case: "render",
-            value: { workflow: wf.key, values, files: inputs, parentMediaId, characterId: wf.usesCharacter && character ? BigInt(character.id) : 0n },
+            value: { workflow: wf.key, values, files: inputs, parentMediaId, characterId: wf.usesCharacter && character ? BigInt(character.id) : 0n, keyframes: frames },
           },
           { version, acceptedOnly: true, done: "Eingereiht." },
         );
@@ -401,6 +412,47 @@ export function Workbench({
             {customerOrder && !awaiting.some((o) => o.orderNo === customerOrder) ? (
               <small>{customerOrder} wartet nicht mehr auf die Produktion.</small>
             ) : null}
+          </div>
+        ) : null}
+        {wf.keyframes ? (
+          <div className="g-field">
+            <label>Weitere Schlüsselbilder</label>
+            {keyframes.map((k, i) => (
+              <span key={i} className="g-between">
+                <input
+                  className="g-input"
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  aria-label="Zeitpunkt (s)"
+                  value={k.at}
+                  onChange={(e) => setKeyframes(keyframes.map((x, j) => (j === i ? { ...x, at: e.target.value } : x)))}
+                />
+                <input
+                  className="g-input"
+                  type="file"
+                  accept="image/*"
+                  aria-label="Bild"
+                  onChange={(e) => setKeyframes(keyframes.map((x, j) => (j === i ? { ...x, file: e.target.files?.[0] } : x)))}
+                />
+                <input
+                  className="g-input"
+                  type="number"
+                  min={0.1}
+                  max={1}
+                  step={0.05}
+                  aria-label="Stärke"
+                  value={k.strength}
+                  onChange={(e) => setKeyframes(keyframes.map((x, j) => (j === i ? { ...x, strength: e.target.value } : x)))}
+                />
+                <button type="button" className="g-button" onClick={() => setKeyframes(keyframes.filter((_, j) => j !== i))}>
+                  Entfernen
+                </button>
+              </span>
+            ))}
+            <button type="button" className="g-button" onClick={() => setKeyframes([...keyframes, { at: "1", strength: "0.8" }])}>
+              Schlüsselbild hinzufügen
+            </button>
           </div>
         ) : null}
         {wf.loraSlot ? (

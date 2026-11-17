@@ -33,6 +33,14 @@ message ParamValue {
 // Eingabebild für einen Upload-Parameter (Quellbild, Maske, Startbild): entweder hochgeladene
 // Bytes oder ein vorhandenes Medium der Galerie über seine unveränderliche ID (exakte Datei,
 // SHA-256 vom Backend geprüft).
+// Weiteres Schlüsselbild eines Videos (Zeitachse B4): Zeitpunkt in Sekunden (zwischen Anfang und
+// Ende; Start- und Endbild sind eigene Parameter), Bild als Datei oder Galerie-Medium, Stärke 0…1.
+message Keyframe {
+  double at_s = 1;
+  InputFile file = 2;
+  double strength = 3;
+}
+
 message InputFile {
   string param = 1;
   string filename = 2;
@@ -54,6 +62,8 @@ message Render {
   uint64 repeat_job_id = 5;
   // Charakterprofil eines Trainingsworkflows (Datensatz aus dessen Trainingsdatenordner)
   uint64 character_id = 6;
+  // weitere Schlüsselbilder (Zeitachse B4), nur Workflows mit Schlüsselbild-Kette
+  repeated Keyframe keyframes = 7;
 }
 
 // Betreiberentscheidung je Workflow, gespeichert in workflows/manifest.toml.
@@ -144,6 +154,8 @@ message CreateOrder {
   // Schlüssel der Charakter-LoRA (SP3 Schritt 5); leer: ohne Charakter-LoRA. Kundenaufträge mit
   // einem Workflow mit LoRA-Lader nie ohne.
   string lora = 9;
+  // weitere Schlüsselbilder (Zeitachse B4)
+  repeated Keyframe keyframes = 10;
 }
 
 // Auswahl an der kreativen Stufe; geprüft wird im Backend: Stufe wartet, Medium stammt aus ihr.

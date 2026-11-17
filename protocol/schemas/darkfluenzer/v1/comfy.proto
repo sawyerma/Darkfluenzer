@@ -170,6 +170,8 @@ message WorkflowInfo {
   // Training: Median Sekunden je Schritt aus den letzten Läufen dieses Workflows (0 = keine
   // Messung); das Cockpit zeigt damit vor dem Start Gesamtschritte und geschätzte Dauer
   double step_s = 21;
+  // nimmt weitere Schlüsselbilder zwischen Start- und Endbild (Zeitachse B4)
+  bool keyframes = 22;
 }
 
 message OutputFormat {

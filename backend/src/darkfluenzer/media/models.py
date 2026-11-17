@@ -169,6 +169,21 @@ class LoraSlot:
 
 
 @dataclass(frozen=True)
+class KeyframeSlot:
+    """Weitere Schlüsselbilder eines Video-Workflows (Zeitachse B4): je Schlüsselbild kopiert das
+    Backend die Bildvorbereitung ``chain`` (erster Knoten liest das Bild) und den Guide-Knoten
+    ``before`` und setzt sie in die Kette zwischen ``after`` und ``before``
+    (Ausgänge 0, 1, 2 = positive, negative, latent; z. B. ``LTXVAddGuide``)."""
+
+    after: str
+    before: str
+    chain: tuple[str, ...]
+    image_input: str = "image"  # Bildeingang des Guide-Knotens
+    frame_input: str = "frame_idx"
+    strength_input: str = "strength"
+
+
+@dataclass(frozen=True)
 class Workflow:
     key: str
     title: str
@@ -197,6 +212,7 @@ class Workflow:
     # Prüfknoten Gesichtsidentität (SP3 Schritt 7): Referenzordner der Figur, Mindestgröße und
     # -sicherheit setzt das Backend; der Knoten liefert Messwerte (ui.darkfluenzer_checks)
     identity: str = ""
+    keyframes: KeyframeSlot | None = None  # weitere Schlüsselbilder (Zeitachse B4)
 
     @property
     def training(self) -> bool:
@@ -387,6 +403,20 @@ def edit_local(root: Path, change: Callable[[tomlkit.TOMLDocument], None]) -> Ma
             else:
                 path.unlink(missing_ok=True)
             raise
+
+
+def _keyframe_slot(t: object, w: str) -> KeyframeSlot | None:
+    if t is None:
+        return None
+    if not isinstance(t, dict):
+        raise ManifestError(f"Manifest: {w}.keyframes muss eine Tabelle sein.")
+    try:
+        slot = KeyframeSlot(**{**t, "chain": tuple(str(x) for x in t.get("chain", ()))})
+    except TypeError as exc:
+        raise ManifestError(f"Manifest: {w}.keyframes: {exc}") from exc
+    if not slot.chain:
+        raise ManifestError(f"Manifest: {w}.keyframes.chain fehlt.")
+    return slot
 
 
 def _lora_slot(t: object, params: dict[str, Param], w: str) -> LoraSlot | None:
@@ -591,6 +621,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             video=_video(t.get("video"), params, w),
             lora=_lora_slot(t.get("lora"), params, w),
             identity=str((t.get("identity") or {}).get("node", "")),
+            keyframes=_keyframe_slot(t.get("keyframes"), w),
         )
         for name, prm in params.items():
             if prm.below and prm.below not in params:
@@ -685,6 +716,22 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
             value = (graph.get(v.length_node) or {}).get("inputs", {}).get(v.length_input)
             if not isinstance(value, (int, float)) or not 1 <= value <= v.seconds_max:
                 problems.append(f"video.length: Graph-Wert {value} außerhalb 1…{v.seconds_max:g}.")
+    if wf.keyframes:
+        k = wf.keyframes
+        for node in (k.after, k.before, *k.chain):
+            if node not in graph:
+                problems.append(f"keyframes -> Knoten {node} fehlt im API-Graph.")
+        guide = (graph.get(k.before) or {}).get("inputs", {})
+        for name in (
+            "positive",
+            "negative",
+            "latent",
+            k.image_input,
+            k.frame_input,
+            k.strength_input,
+        ):
+            if name not in guide:
+                problems.append(f"keyframes.before -> {k.before} hat keinen Eingang '{name}'.")
     if wf.identity:
         inputs = (graph.get(wf.identity) or {}).get("inputs", {})
         missing = [n for n in IDENTITY_INPUTS if n not in inputs]

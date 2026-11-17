@@ -581,6 +581,8 @@ class RenderMixin:
             video_max_s=self.cfg.production.video_max_s,
             dataset=dataset,
             character=character,
+            keyframes=await self._keyframes(msg.keyframes),
+            keyframes_max=self.cfg.production.keyframes_max,
             parent_media_id=msg.parent_media_id or None,
             command={
                 "request_id": call.request_id,
@@ -623,6 +625,21 @@ class RenderMixin:
             if p.reference:
                 await self._register_reference(inputs[f.param], source)
         return inputs
+
+    async def _keyframes(self, frames) -> list[dict]:
+        """Weitere Schlüsselbilder eines Befehls (Zeitachse B4): Galerie-Medium per ID oder Upload,
+        abgelegt unter local/evaluation/inputs wie andere Eingaben."""
+        out = []
+        for kf in frames:
+            f = kf.file
+            if f.media_id:
+                rel = await asyncio.to_thread(pipeline.input_from_media, self.cfg, f.media_id)
+            elif f.data:
+                rel = await asyncio.to_thread(pipeline.store_input, self.cfg, f.data, f.filename)
+            else:
+                raise pipeline.PipelineError("Schlüsselbild ohne Bild.")
+            out.append({"at_s": kf.at_s, "image": rel, "strength": kf.strength or 1.0})
+        return out
 
     def _workflow(self, key: str) -> models.Workflow:
         wf = self.manifest.workflows.get(key)

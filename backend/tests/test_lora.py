@@ -258,3 +258,63 @@ def test_lora_activate_command_and_characters_state(cfg):
         assert not state().loras[0].active and cockpit.store.active_loras(1) == {}
 
     _run(cfg, scenario)
+
+
+def test_more_keyframes_join_the_guide_chain(setup, monkeypatch):
+    """Zeitachse B4: weitere Schlüsselbilder als eigene Guides zwischen Start- und Endbild-Guide,
+    Bild wie das Endbild vorbereitet; Zeit mal Bildrate ergibt den Bildindex; Prüfung der Zeiten."""
+    cfg, store, man = setup
+    wf = man.workflows["ltx25_flf2v"]
+    graph = comfy.load_graph(man, wf)
+    frames = [comfy.Keyframe("b.png", 48, 0.5), comfy.Keyframe("a.png", 24, 0.8)]
+    out = comfy.add_keyframes(graph, wf, frames)
+    k = wf.keyframes
+    chain, node = [], out[k.before]["inputs"]["positive"][0]
+    while node != k.after:  # vom Endbild-Guide rückwärts bis zum Start-Guide
+        chain.append(node)
+        node = out[node]["inputs"]["positive"][0]
+    assert [out[n]["inputs"]["frame_idx"] for n in reversed(chain)] == [24, 48]
+    assert [out[n]["inputs"]["strength"] for n in reversed(chain)] == [0.8, 0.5]
+    first = out[list(reversed(chain))[0]]
+    pre = out[first["inputs"]["image"][0]]
+    assert pre["class_type"] == graph[k.chain[-1]]["class_type"]
+    resize = out[pre["inputs"]["image"][0]]
+    load = out[resize["inputs"]["input"][0]]
+    assert (load["class_type"], load["inputs"]) == ("LoadImage", {"image": "a.png"})
+    assert all(out[n] == graph[n] for n in graph if n != k.before)  # sonst nichts geändert
+    with pytest.raises(comfy.ComfyError, match="keine weiteren"):
+        comfy.add_keyframes({}, man.workflows["ltx25_i2v"], frames)
+
+    image = cfg.local / "evaluation" / "inputs" / "kf.png"
+    image.parent.mkdir(parents=True, exist_ok=True)
+    image.write_bytes(b"x")
+    rel = "evaluation/inputs/kf.png"
+    inputs = {"image": rel, "end_image": rel}
+
+    def render(keyframes, limit=4, **values):
+        return pipeline.create_render(
+            store, man, "ltx25_flf2v", {"prompt": "p", "duration_s": 2.0, **values}, inputs,
+            video_max_s=cfg.production.video_max_s, keyframes=keyframes, keyframes_max=limit,
+        )  # fmt: skip
+
+    with pytest.raises(pipeline.PipelineError, match="nicht in"):
+        render([{"at_s": 2.0, "image": rel}])
+    with pytest.raises(pipeline.PipelineError, match="Stärke"):
+        render([{"at_s": 1.0, "image": rel, "strength": 1.5}])
+    with pytest.raises(pipeline.PipelineError, match="Höchstens 1"):
+        render([{"at_s": 0.5, "image": rel}, {"at_s": 1.0, "image": rel}], limit=1)
+    job = render(
+        [{"at_s": 1.5, "image": rel, "strength": 0.6}, {"at_s": 0.5, "image": rel}], fps=24
+    )
+    assert [f["at_s"] for f in store.job(job)["params"][pipeline.KEYFRAMES_KEY]] == [0.5, 1.5]
+    sent: list = []
+    monkeypatch.setattr(comfy.ComfyClient, "upload_image", lambda self, path: path.name)
+
+    def run_workflow(cfg_, man_, key, values, dest, **kw):
+        sent.append(kw["keyframes"])
+        raise comfy.ComfyError("Probe")
+
+    monkeypatch.setattr(comfy, "run_workflow", run_workflow)
+    with pytest.raises(Exception, match="Probe"):
+        pipeline.run_render(cfg, man, job)
+    assert [(f.frame, f.strength) for f in sent[0]] == [(12, 1.0), (36, 0.6)]

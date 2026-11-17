@@ -226,6 +226,8 @@ class ProductionConfig:
     estimate_runs: int
     # Vorrang auf der Renderbahn (SP5 Schritt 5): Klassen in dieser Reihenfolge, je Klasse FIFO
     priority: tuple[str, ...]
+    # weitere Schlüsselbilder je Videoauftrag (Zeitachse B4), ohne Start- und Endbild
+    keyframes_max: int = 8
 
 
 @dataclass(frozen=True)
@@ -656,6 +658,7 @@ def load(root: Path | None = None) -> Config:
         comfy_lost_s=float(_positive(prod, "comfy_lost_s", 60, "production")),
         stall_notice_s=float(_positive(prod, "stall_notice_s", 900, "production")),
         estimate_runs=int(_positive(prod, "estimate_runs", 5, "production")),
+        keyframes_max=int(_positive(prod, "keyframes_max", 8, "production")),
         priority=_priority(prod),
     )
     if production.candidates_default > production.candidates_max:

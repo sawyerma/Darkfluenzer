@@ -9,6 +9,7 @@ import json
 from ..config import Config
 from ..media.models import Manifest
 from ..media.pipeline import (
+    KEYFRAMES_KEY,
     LORA_KEY,
     VIDEO_KEYS,
     PipelineError,
@@ -49,6 +50,8 @@ def create_order(
     video_max_s: float | None = None,
     lora: str = "",
     character_id: int | None = None,
+    keyframes: list[dict] | None = None,
+    keyframes_max: int = 0,
 ) -> tuple[str, list[int]]:
     """Auftrag des Betreibers: Stufe 1 rendert ``count`` Kandidaten mit fortlaufenden Seeds und
     wartet dann auf die Auswahl; optional wird der ausgewählte Kandidat mit ``finish_workflow``
@@ -128,6 +131,8 @@ def create_order(
                 stage_id=stage.id,
                 video_max_s=video_max_s,
                 lora=lora,
+                keyframes=keyframes,
+                keyframes_max=keyframes_max,
             )
             for i in range(count)
         ]
@@ -256,6 +261,8 @@ def retry_stage(
                     video_max_s=video_max_s,
                     inherit_tier=old["content_tier"],  # „Wiederholen“ erbt die Stufe
                     lora=str(old["params"].get(LORA_KEY) or ""),
+                    keyframes=old["params"].get(KEYFRAMES_KEY),
+                    keyframes_max=len(old["params"].get(KEYFRAMES_KEY) or []),
                 )
             )
             store.copy_segments(j["id"], jobs[-1])  # Langvideo: fertige Abschnitte behalten
@@ -377,6 +384,8 @@ class OrdersMixin:
             command=self._journal_entry(call),
             customer_order_no=msg.customer_order_no,
             lora=msg.lora,
+            keyframes=await self._keyframes(msg.keyframes),
+            keyframes_max=self.cfg.production.keyframes_max,
             video_max_s=self.cfg.production.video_max_s,
         )
         call.entity, call.recorded = f"order:{order_no}", True
