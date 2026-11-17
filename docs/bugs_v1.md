@@ -80,10 +80,11 @@
 | BUG-066 | `cockpit_restart` prüft nur Renderjobs, nicht laufende Sendungen. | CODE | Sperre auch bei `sending`. | B D2 |
 | BUG-067 | `secret set` kennt nur Telegram. | TEST | Ein Katalog für Cockpit und CLI, Instagram und PayPal ergänzt. | B S1 |
 | BUG-068 | Zwei Trainingswege: alter diffusers-Trainer neben dem ComfyUI-Trainingsworkflow. | CODE | Alten Weg samt CLI entfernen, wenn B1 belegt ist. | B B1 |
-| BUG-069 | Trigger `dfchar`, Klasse `woman` und Beschriftung fest im Code; neuer Trigger erzeugt keine neue Datensatzversion. | CODE, TEST | Felder im Charakterprofil, Teil der Datensatz-ID. | B B1 |
+| BUG-069 | Trigger `dfchar`, Klasse `woman` und Beschriftung fest im Code; neuer Trigger erzeugt keine neue Datensatzversion. Die Klasse `woman` ist für männliche Figuren falsch. | CODE, TEST | Trigger und Klasse im Charakterprofil, Teil der Datensatz-ID. | B B1 |
 | BUG-070 | Übersicht zählt bezahlte Aufträge in Produktion und Freigabe nicht. | CODE | Eigene Zähler. | F H |
 | BUG-071 | Ereignislisten im Browser wachsen unbegrenzt (`state.applyEvent`). | CODE | Begrenzen, älteres seitenweise. | F H |
 | BUG-072 | Nachrichten, Wallet, ComfyUI ohne Browser-Test; Smoke klickt Wallet nicht. | CODE | Je Seite ein Browser-Test. | F H |
+| BUG-078 | Zwei Ordnerschemata: Profil 1 liegt unter `local/character/`, weitere unter `local/characters/<nr>/`. (Im B1-Änderungsblatt als „BUG-076“ geführt; 076 ist bereits vergeben.) | TEST | Ein Schema `local/characters/<kürzel>/` mit Migration. | B B1 |
 | BUG-076 | Nach einem Deploy mit Schemawechsel weist das Backend offene Cockpits ab („Frontend-Build passt nicht zum Backend-Schema“); der Betreiber muss selbst neu laden. | LIVE | Cockpit lädt nach Schemawechsel automatisch neu. | B D3, F H |
 
 ## 4. P3
