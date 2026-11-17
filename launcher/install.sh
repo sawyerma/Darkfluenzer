@@ -17,7 +17,7 @@ command -v swiftc >/dev/null || die "swiftc fehlt: xcode-select --install"
 [ -f "$ROOT/local/config.toml" ] || die "local/config.toml fehlt. Vorlage: config.example.toml"
 
 echo "1/4 Python-Umgebung (local/.venv, gesperrt durch backend/uv.lock)"
-# --inexact: zusätzlich installierte Extras (z. B. --extra train) bleiben erhalten.
+# --inexact: zusätzlich installierte Pakete bleiben erhalten.
 UV_PROJECT_ENVIRONMENT="$ROOT/local/.venv" uv sync --frozen --inexact --project "$ROOT/backend"
 
 echo "2/4 App kompilieren"

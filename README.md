@@ -86,18 +86,16 @@ Evaluationsläufe landen mit Herkunfts-JSON unter `local/evaluation/<engine>/`.
 
 ## Charakter-LoRA
 
-Bilder der eigenen, rein synthetischen Figur nach `local/character/photos/` kopieren (JPG/PNG/WebP,
-kurze Seite ≥ 768 px, besser ≥ 1024 px, mindestens 15 Bilder). Originale bleiben unverändert.
+Bilder der eigenen, rein synthetischen Figur nach `local/characters/<kürzel>/photos/` legen (im
+Cockpit: ComfyUI → Charakter → „Im Finder öffnen“ oder Fotos auf die Ablagefläche ziehen; Regeln in
+`[training]` der Konfiguration). Eine gleichnamige `.txt` neben einem Foto ist dessen Beschriftung.
+Trainiert wird im Cockpit über die Trainings-Workflows (`krea2_raw_lora_train`, `lustify_sdxl_lora_train`)
+in ComfyUI; ein Training startet nur per Knopf und läuft nach allen anderen Aufträgen.
 
 ```bash
-UV_PROJECT_ENVIRONMENT=local/.venv uv sync --project backend --inexact --extra train  # einmalig
-local/.venv/bin/python -m darkfluenzer character scan            # Prüfung je Bild
-local/.venv/bin/python -m darkfluenzer character dataset         # versionierter Datensatz ds_…
-local/.venv/bin/python -m darkfluenzer character train-sdxl --dataset ds_…   # SDXL-LoRA (LUSTIFY)
+local/.venv/bin/python -m darkfluenzer character scan --character 1     # Prüfung je Bild
+local/.venv/bin/python -m darkfluenzer character dataset --character 1  # versionierter Datensatz ds_…
 ```
-
-Ergebnis: `local/models/loras/sdxl_character/<datensatz>_<engine>_r<rang>_s<schritte>.safetensors`
-mit Herkunfts-JSON, Status „trainiert, nicht freigegeben“ bis zur Sichtfreigabe.
 
 Logs: `local/logs/comfyui.log` (ComfyUI-Ausgabe, 3 Generationen), `local/logs/darkfluenzer.log`
 (Launcher-Aktionen), `local/logs/app.log` (App-Ereignisse und angezeigte Dialoge).

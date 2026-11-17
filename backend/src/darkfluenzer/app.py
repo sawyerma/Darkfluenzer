@@ -5,7 +5,7 @@
     python -m darkfluenzer models download|verify (--wave N | --engine ID ...) [--json]
     python -m darkfluenzer workflows check|export-ui|install [--json]
     python -m darkfluenzer render WORKFLOW --set name=wert ... [--input name=datei ...] [--json]
-    python -m darkfluenzer character scan|dataset|train-sdxl [--dataset ID] [--steps N] [--json]
+    python -m darkfluenzer character scan|dataset [--character ID] [--json]
     python -m darkfluenzer serve          (Cockpit: React-Build + Protobuf-API, blockierend)
     python -m darkfluenzer up|restart|down [--json]  (Cockpit starten / nur Cockpit neu starten /
                                                       Cockpit + eigene ComfyUI stoppen)
@@ -260,31 +260,7 @@ def _character(args: argparse.Namespace) -> tuple[dict, int]:
         )
         meta = json.loads((path / "dataset.json").read_text())
         return {"ok": True, "dataset": path.name, "images": len(meta["items"])}, 0
-    # train-sdxl: Architekturbindung – nur SDXL-Basismodelle
-    man = models.load_manifest(cfg.root)
-    engine = man.engines.get(args.engine)
-    if engine is None or engine.arch != "sdxl":
-        raise training.TrainerUnavailable(
-            f"Engine '{args.engine}' ist keine SDXL-Engine – SDXL-LoRAs nur für arch=sdxl."
-        )
-    if not args.dataset:
-        raise training.DatasetIncomplete("--dataset ds_… angeben (siehe character dataset).")
-    dataset = folders.datasets / args.dataset
-    if not (dataset / "dataset.json").is_file():
-        raise training.DatasetIncomplete(f"Datensatz {args.dataset} existiert nicht.")
-    if node_for(cfg, cfg.comfyui).status()["state"] == "running":  # keine parallelen GPU-Jobs
-        queue = comfy.ComfyClient(cfg.comfyui.url).queue()
-        if queue.get("queue_running") or queue.get("queue_pending"):
-            raise training.TrainingError("ComfyUI rendert gerade – Training erst danach starten.")
-    base = models.models_dir(cfg.root) / man.engine_files(args.engine)[0].target
-    out = (
-        models.models_dir(cfg.root)
-        / "loras"
-        / "sdxl_character"
-        / f"{args.dataset}_{args.engine}_r{args.rank}_s{args.steps}.safetensors"
-    )
-    params = training.TrainParams(steps=args.steps, rank=args.rank, seed=args.seed)
-    return {"ok": True, **training.train_sdxl_lora(base, dataset, out, params)}, 0
+    raise training.TrainingError(f"Unbekannte Aktion {args.action}.")
 
 
 # Zugangsdaten, die der Betreiber selbst einträgt (Dienstnamen aus config.toml). Wie bei Project_0
@@ -377,15 +353,10 @@ def main(argv: list[str] | None = None) -> int:
     ren.add_argument("--input", action="append", metavar="NAME=DATEI")
     ren.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     chp = sub.add_parser("character", help="Charakter-LoRA: Bilder prüfen, Datensatz, Training")
-    chp.add_argument("action", choices=["scan", "dataset", "train-sdxl"])
+    chp.add_argument("action", choices=["scan", "dataset"])  # Training: Cockpit (Workflow)
     chp.add_argument("--character", type=int, default=1, help="Charakterprofil (ID)")
     chp.add_argument("--trigger", default="")  # leer: Trigger des Profils
     chp.add_argument("--class-word", default="")  # leer: Klasse des Profils
-    chp.add_argument("--dataset")
-    chp.add_argument("--engine", default="lustify_sdxl")
-    chp.add_argument("--steps", type=int, default=1500)
-    chp.add_argument("--rank", type=int, default=16)
-    chp.add_argument("--seed", type=int, default=1)
     chp.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     sec = sub.add_parser("secret", help="Zugangsdaten im macOS-Schlüsselbund (verdeckte Eingabe)")
     sec.add_argument("action", choices=["status", "set"])
