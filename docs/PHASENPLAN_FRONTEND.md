@@ -1,6 +1,6 @@
 # Darkfluenzer – PHASENPLAN_FRONTEND.md
 
-**Stand:** 17.11.2026 (Frontend-Teile der Sammelpakete SP1–SP6, Änderungsblätter und Korrektur nach den Prüfberichten) · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
+**Stand:** 17.11.2026 (Frontend-Teile der Sammelpakete SP1–SP6, Änderungsblätter und Korrektur nach den Prüfberichten) · **Status:** **freigegeben** durch den Betreiber am 17.11.2026, verbindlich. Umsetzung in der Reihenfolge des Backend-Plans §6, Priorität CODE FIRST.
 **Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Produktziel, Regeln, Entscheidungen E1–E19, PASS-Definition, Reihenfolge, Paketnummern) und `docs/bugs_v1.md`.
 **Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; laufendes Cockpit am 17.11.2026.
 **Gestaltungsreferenz:** `docs/design/Darkfluenzer_Cockpit_Interaktiv.html` und Anhang A (F7, wörtlich aus dem archivierten FRONT V1).
@@ -84,7 +84,7 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
 - **B1 Charakter (Bereich Charakter, FL-3; Paket SP3):**
   - Liste der Charaktere; „Neuer Charakter“ mit Name, Kürzel, Klasse und Trigger.
   - Je Charakter: Ordnerpfad zum Kopieren und „Im Finder öffnen“; Fotos auch per Ziehen/Ablegen hinzufügen (kopiert nach `photos/`); Fotoliste mit Status und Grund; Zähler „x von y brauchbar“; Auswahl der Referenzfotos.
-  - Training: Engine-Auswahl, Knopf „Trainieren“ (gesperrt mit Grund, solange Fotos fehlen oder ein Training läuft), Fortschritt, Abbrechen.
+  - Training: Engine-Auswahl, Knopf „Trainieren“ (gesperrt mit Grund, solange Fotos fehlen oder ein Training läuft), Fortschritt, Abbrechen. **[17.11.]** Trainingsweg Krea 2 oder LUSTIFY/SDXL wählbar (E14 offen); dieselben Fotos, Versionen und aktive LoRA je Architektur getrennt.
   - Versionen: Tabelle mit Datum, Datensatz, Dauer und Identitätswert; Probebilder als Vergleichsraster; „Aktiv setzen“.
   - Influencerin-Block: zugeordneter Charakter und aktive LoRA je Engine.
   - Workflow-Formular: LoRA-Auswahl, aktive Version vorbelegt, dazu „ohne“.
@@ -147,7 +147,7 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 
 ## 4. Pakete (Nummern wie im Backend-Plan)
 
-**Reihenfolge:** Die Frontend-Teile folgen den Etappen des Backend-Plans (§6):
+**Reihenfolge:** Die Frontend-Teile folgen den Etappen des Backend-Plans (§6). **[17.11., CODE FIRST]** Zuerst vollständige Implementierung mit automatisierten Tests und kurzen echten Läufen; Modellqualifikationen (Training, lange Renders) danach. Zustände in der Oberfläche trennen beides: gebaut, aber nicht qualifiziert heißt `CODE` oder `TEIL`, nie PASS.
 
 - **A:** SP0 (Seiten in Komponenten teilen), `VideoSettings`, „Auftrag abbrechen“, Ganzzahlprüfung, Befehle mit Zeitlimit und Statusabfrage, Bereich Charakter mit Training und Versionen, Zeitachse, Vorrang in der Warteschlange.
 - **B:** KI-Studio (Chat-Test, Promptprofil mit Versionen, Gedächtnis, Prüfansicht; E19).

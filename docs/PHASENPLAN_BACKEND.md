@@ -1,6 +1,6 @@
 # Darkfluenzer – PHASENPLAN_BACKEND.md
 
-**Stand:** 17.11.2026 – sechs Sammelpakete SP1–SP6 in Code-Tiefe (Code-Vergleiche von Fable), Änderungsblätter, Korrektur nach den Prüfberichten von ChatGPT und Fable · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
+**Stand:** 17.11.2026 – sechs Sammelpakete SP1–SP6 in Code-Tiefe (Code-Vergleiche von Fable), Änderungsblätter, Korrektur nach den Prüfberichten von ChatGPT und Fable · **Status:** **freigegeben** durch den Betreiber am 17.11.2026, verbindlich. Umsetzung ab SP0 Schritt 1 in der Reihenfolge von §6, Priorität CODE FIRST (§6).
 **Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; echte Läufe vom 16./17.11. auf dem Mac (§5).
 **Verbindlich sind genau drei Dateien:** diese, `docs/PHASENPLAN_FRONTEND.md` und `docs/bugs_v1.md` (Befundregister).
 **Archiv (nicht verbindlich):** `docs/archiv/` mit `PHASENPLAN_V0.md`, `PHASENPLAN_BACK_V1.md`, `PHASENPLAN_FRONT_V1.md`, `ki_modelle.md`, `bugs_v1_20261117_vor_neufassung.md`. Code-Kommentare mit Verweisen auf V0/V1-Abschnitte beziehen sich auf diese Archivfassungen.
@@ -58,7 +58,7 @@ Video läuft genauso: erst das Bild, dann die Animation. Der Betreiber gibt die 
 | E11 | Kundenkette vollautomatisch: Wunsch, Angebot, Zahlung, Produktion, Prüfung, Freigabe und Zustellung ohne Klick. Ausnahme: Amazon-Gutscheine bestätigt der Betreiber. | entschieden |
 | E12 | Der Default ist der Admin. Sein Chat hat drei Betriebsarten: Produktion, Kundentest, Aus. | entschieden |
 | E13 | Zugangsdaten und Einstellungen werden im Cockpit im Reiter „Einstellungen“ gepflegt (S1). | entschieden |
-| E14 | Vorschlag: Kundenbilder entstehen mit `krea2_raw_turbo_lora_t2i` (Krea 2 Raw + Turbo-LoRA + Charakter-LoRA, Inhaltsstufe `standard`, 234 s je Bild gemessen). Die Charakter-LoRA wird mit `krea2_raw_lora_train` trainiert (gemessen 23,9 s je Schritt bei 768 px, 1500 Schritte ≈ 10 h). Vorbehalt: BUG-023 und der erste vollständige Trainingslauf. Bis zur Entscheidung ist kein Produkt lieferbar (SP5 Schritt 1). | **offen**, Betreiberantwort fehlt |
+| E14 | Vorschlag: Kundenbilder entstehen mit `krea2_raw_turbo_lora_t2i` (Krea 2 Raw + Turbo-LoRA + Charakter-LoRA, Inhaltsstufe `standard`, 234 s je Bild gemessen). Die Charakter-LoRA wird mit `krea2_raw_lora_train` trainiert (gemessen 23,9 s je Schritt bei 768 px, 1500 Schritte ≈ 10 h). Vorbehalt: BUG-023 und der erste vollständige Trainingslauf. Bis zur Entscheidung ist kein Produkt lieferbar (SP5 Schritt 1). **Betreiberentscheidung 17.11.2026:** vorerst keine Festlegung, weder auf Krea 2 noch auf LUSTIFY/SDXL, ebenso auf keine Video-Engine. Beide Bildwege werden als getrennte, auswählbare Produktions- und Trainingswege vorbereitet; dieselben Charakterfotos, LoRA je Architektur getrennt. Gewählt wird nach den Qualifikationsläufen anhand der Messwerte. | **offen** (bewusst, bis nach den Qualifikationsläufen) |
 | E15 | Chat neben Video: Melody bleibt immer geladen. Ein Videojob startet nur, wenn er daneben in den Speicher passt; sonst wartet er auf ein Videofenster, in dem Clara ohnehin langsam antwortet. Die Regel wird nach der Messung in SP4 (Schritt 1) festgelegt. | **offen**, nach Messung |
 | E16 | Inhaltsprüfung als Knoten im Workflow auf ComfyUI 1 (Kandidat: Rating Checker mit NudeNet). Regeln je Körperstelle eigens eingestellt; Schwellen aus einem Kalibrierlauf mit je 100 eigenen Bildern beider Stufen. Zeigt der Lauf Fehltreffer, kommt ein zweiter Prüfer dazu. | Vorschlag, Betreiberfreigabe **offen** |
 | E17 | Qualitätsprüfung als Knoten im Medien-Workflow auf ComfyUI 1: Anatomie (Kandidat: Evaluation Pack), Schärfe und Prompttreue, dazu ein bedingter Reparaturlauf (Impact Pack Detailer). Keine externe Schnittstelle in der ersten Umsetzung. | Vorschlag, Betreiberfreigabe **offen** |
@@ -109,6 +109,7 @@ Wörtlich aus V0 §2.1, ergänzt um die Betreiberregeln vom 14.–17.11.:
 
 - Ein **Paket** ist PASS, wenn Backend, Protobuf, Frontend und ein echter Lauf auf dem Mac vorliegen. Einzelne grüne Tests (auch mit FakeComfy/FakeTd) sind Teilnachweise.
 - Ein **Auftrag** ist PASS, wenn eine echte Eingangsnachricht mit den richtigen Referenzen und dem richtigen Charaktermodell zu einem korrekten Ergebnis führt, dieses in Dateien gespeichert und an denselben Chat zurückgesendet wurde und der Zustand nach einem Neustart stimmt.
+- **Zwei Nachweise (Betreiberentscheidung 17.11.2026, CODE FIRST):** (1) **Implementierungsstand**: Code, Graphen, Schnittstellen (Backend, Protobuf, Frontend) und automatisierte Tests fertig, Graphen registriert und an das Cockpit gebunden, kurze echte Funktionstests nur soweit nötig. (2) **Modellqualifikation**: vollständige Trainings, lange Renderläufe, Identitäts- und Qualitätsmessungen; folgt nach der Implementierung. Erst beide zusammen ergeben PASS. Nicht ausgeführte echte Tests werden nie als PASS bezeichnet (NO MOCK); fertiger, nicht qualifizierter Code steht auf `CODE` bzw. `TEIL`.
 - Status in allen Tabellen: **OFFEN · CODE** (gebaut, kein Mac-Lauf) **· TEIL** (Teil am Mac belegt) **· PASS · BLOCKIERT** (mit Grund).
 
 ### 2.4 Arbeitsweise des Bearbeiters
@@ -306,7 +307,9 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 
 ## 6. Reihenfolge (verbindlich, Betreiberentscheidung 17.11.2026)
 
-Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, Inhalt §7). Umgesetzt wird in sechs Etappen. Innerhalb einer Etappe gilt die genannte Reihenfolge. Die nächste Etappe beginnt erst nach der Abnahme der vorigen. SP0 steht ganz vorn, weil es die Datenbanksicherung und die Aufteilung von `server.py` enthält.
+Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, Inhalt §7). Umgesetzt wird in sechs Etappen. Innerhalb einer Etappe gilt die genannte Reihenfolge. **[17.11., CODE FIRST]** Die Umsetzung der nächsten Etappe beginnt, sobald der Implementierungsstand der vorigen erreicht ist (§2.3); die Abnahme einer Etappe bleibt offen, bis ihre vorgeschriebenen realen Tests bestanden sind. Fehlende Charakterfotos, ein ausstehendes Langtraining oder die offene Engine-Wahl (E14) blockieren die Umsetzung späterer Etappen nicht. SP0 steht ganz vorn, weil es die Datenbanksicherung und die Aufteilung von `server.py` enthält.
+
+**CODE FIRST (Betreiberentscheidung 17.11.2026):** Oberste Priorität ist die vollständige Implementierung von Darkfluenzer. Jetzt keine Langläufe: kein 10-h-Training, keine langen Videos, keine großen Bildserien; kurze echte Funktionstests nur, soweit erforderlich und wirtschaftlich sinnvoll. Graphen und Bindungen werden validiert, Knoten und Modelle auf tatsächliche Verträglichkeit geprüft, Unit-, Integrations-, Protobuf-, Backend- und Frontendtests laufen. Modellqualifikationen folgen nach der Implementierung; danach wählt der Betreiber anhand der Messwerte die Produktionsmodelle (E14). Arbeitsweise: höchstens zwei Agenten, direkt auf `main`, nach jedem Paket Tests, Dokumentation, Commit und Push; keine weiteren Plandateien.
 
 | Etappe | Inhalt | Am Ende kann der Betreiber |
 |---|---|---|
@@ -323,17 +326,21 @@ Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, 
 2. SP1 Schritt 2 (Render-Worker absichern, kein festes Zeitlimit), Schritt 10 (Video-Vertrag), Schritt 11 (Auftrag abbrechen); dazu BUG-064, 090, 093.
 3. SP2 Schritt 2 (Inhaltsstufe) und Schritt 11 (Befehlsstatus).
 4. SP5 Schritt 5 (Warteschlange mit Vorrang).
-5. SP3 Schritte 1 bis 7 (Ordner, Datensatz, Training, LoRA-Registry, LoRA im Workflow, aktive LoRA, Gesichtsprüfung).
+5. SP3 Schritte 1 bis 7 (Ordner, Datensatz, Training, LoRA-Registry, LoRA im Workflow, aktive LoRA, Gesichtsprüfung), jeweils für beide Wege Krea 2 und LUSTIFY/SDXL; dazu die Prüfkette E16/E17 als Knoten in den Medien-Workflows (SP5 Schritt 7, vorgezogen als Implementierung).
 6. B4 Video: Abnahme Wan, Vergleich LTX gegen Wan, Zeitachse; dazu aus SP3 die Ausgabe 2K/4K und die Instagram-Profile (Ergänzung, in der Etappenliste von Fable nicht genannt).
 
-**Abnahme A:**
-- Jeder registrierte Bild- und Video-Workflow läuft einmal echt aus dem Cockpit, Videos mit einheitlicher Steuerung.
-- Ein vollständiges Training ist gelaufen.
+**Abnahme A – Implementierungsstand:**
+- Jeder registrierte Bild- und Video-Workflow, beide Trainingswege eingeschlossen, ist mit allen Parametern, LoRA-Eingängen und Formaten an das Cockpit gebunden, registriert und mit kurzen echten Läufen geprüft; Videos mit einheitlicher Steuerung.
+- Die Prüfkette E16/E17 ist als Knoten in den Medien-Workflows gebaut und mit kurzen Läufen geprüft; Messwerte kommen im Backend an.
+- Abbruch und Neustart im Lauf sind bestanden (mit kurzen Läufen).
+- Automatisierte Tests grün.
+
+**Abnahme A – Modellqualifikation (nach der Implementierung):**
+- Ein vollständiges Training je Weg ist gelaufen.
 - Claras LoRA ist aktiv, und ein Bild liegt mit dem Identitätswert über der Schwelle.
 - Ein 15-s-Video mit vier Schlüsselbildern ist erzeugt.
-- Abbruch und Neustart im Lauf sind bestanden.
 
-**Braucht vom Betreiber:** Charakterfotos, Entscheidung E14. Fehlen sie, laufen die Punkte 1 bis 4 und 6 trotzdem.
+**Braucht vom Betreiber:** Charakterfotos und E14 erst für die Modellqualifikation; die Umsetzung läuft ohne sie.
 
 ### Etappe B – Chatbot (im KI-Studio)
 
@@ -745,7 +752,8 @@ Ersetzt C5a, C5.5, C5.6, C5.6a, C5.7, C5.8, C5.10 und T2. Grundlage: Code-Vergle
 7. **Automatische Prüfung und Auswahl (Workflow-Graphen, `comfy.py`, `checks.py`, `pipeline.advance_order`; SPEC-013; Fable 17.11.).**
    - Die Prüfkette liegt im Workflow zwischen Dekodieren und Speichern: Inhaltsprüfung, Qualitätsprüfung, ein bedingter Reparaturlauf, erneute Prüfung des ganzen Bildes.
    - Jeder Prüfknoten gibt seine Messwerte aus. Das Backend liest sie aus dem Lauf, speichert sie in `media_checks` und entscheidet gegen Schwellen aus der Konfiguration. Ein fehlender Wert gilt als nicht bestanden. Heute liest das Backend aus einem Lauf nur Dateien (dieselbe Lücke wie beim Chat, BUG-098; in Fables Blatt als „BUG-094“ geführt).
-   - Die Identitätsprüfung bleibt im Backend (`identity.py`), ebenso die Technikprüfung (Format, Auflösung, nicht leer; Video: Frame-Zahl, Dauer, Stichproben-Bilder).
+   - **[17.11., Betreiberentscheidung]** Prüfumfang im Graphen: Inhaltsstufe und Klassifikation, Gesichtsidentität (SP3 Schritt 7), Hände, Fingerzahl und anatomische Auffälligkeiten, Bildqualität, Artefakte, Prompttreue, Bewertung je Kandidat, ein bedingter maskierter Reparaturlauf (Inpainting), erneute Prüfung; bei Video Frameprüfung und zeitliche Konsistenz, soweit die qualifizierten Prüfer es können. Keine Python-Bildprüfarchitektur. Die Auswahl trifft das Backend aus den Werten gegen die Schwellen.
+   - Die Dateiprüfung beim Einsammeln (Format, Abmessungen, nicht leer; Video: Frame-Zahl, Dauer) bleibt im Backend; sie bewertet kein Bild.
    - Keine Schleife im Graphen. Weitere Versuche sind neue Kandidatenstufen.
    - Dieselbe Prüfkette läuft für die Default-Produktion; dort setzt sie nur die Inhaltsstufe und sperrt nichts.
    - Voraussetzung je Erweiterung: fester Stand, Durchsicht des Codes, Modelldateien mit SHA-256 im Manifest, kein automatischer Download, ein Probelauf auf dem Mac. Hinweise (Fable): Das Evaluation Pack war beim Abruf drei Tage alt, braucht SAM3 über ein weiteres Paket und lädt seine Pose-Modelle beim ersten Start selbst. Der Rating Checker ist für gezeichnete Bilder gebaut und stuft in der Standardeinstellung schon erkannte Achseln als R18 ein. In diesem Ökosystem hat schon ein Knotenpaket Zugangsdaten gestohlen.
@@ -800,6 +808,8 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
 **Braucht:** SP1 (kein festes Zeitlimit, Kloner-Kette), SP2 (Inhaltsstufe).
 **Dateien:** `training.py`, `models.py`, `identity.py`, `pipeline.py`, `server.py`, `store.py`, `comfy.py`, `config.py`, `workflows/manifest.toml`, Workflow-Graphen, `character.proto`, `commands.proto`.
 
+**Zwei Wege (Betreiberentscheidung 17.11.2026, E14 offen):** Krea 2 (`krea2_raw_lora_train`, `krea2_raw_turbo_lora_t2i`) und LUSTIFY/SDXL (`lustify_sdxl_lora_train`, LUSTIFY-Workflows) werden gleichwertig als auswählbare Produktions- und Trainingswege vorbereitet. Dieselben Charakterfotos dienen beiden; die LoRA wird je Architektur getrennt trainiert und verwaltet (`character_loras` je Figur und Architektur), weil eine Krea-LoRA nicht in SDXL lädt und umgekehrt.
+
 **Vorher zu wissen:** Ein Training läuft über Stunden (Krea 2 ≈ 10 h für 1500 Schritte bei 768 px) und blockiert die Medien-Warteschlange während des Laufs (Schritt 3); Start nur per Knopf. Für Kundenbilder gilt E14. Video braucht zunächst keine eigene LoRA, weil es aus dem fertigen Bild entsteht.
 
 **Umsetzung in dieser Reihenfolge**
@@ -839,9 +849,10 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
    - Tabelle `character_loras` (Charakter, Architektur, LoRA-Schlüssel): genau eine aktive je Paar.
    - Befehl 64 `lora_activate`. Probebilder: die Probe-Prompts des Profils in drei Charakterstärken bei fester Turbo-Stärke, je mit Identitätswert.
    - Ein Auftrag für eine Figur lädt nie die LoRA einer anderen Figur.
-7. **Gesichtsprüfung als Dienst (`identity.py`, `pipeline.py`, `store.py`).**
+7. **Gesichtsprüfung als Knoten in ComfyUI 1 (`identity.py` als Knoteninhalt, Manifest, `store.py`; Betreiberentscheidung 17.11.: alle Prüfungen als Knoten, keine Python-Bildprüfung im Backend).**
    - Heute: Baustein ohne Aufrufer. Die Dateien `face_yunet`, `face_sface`, `face_auraface` gehören zu keiner Engine (BUG-091).
-   - Neu: Engine `identity` im Manifest mit diesen drei Dateien, damit Bereitschaft und Download sichtbar sind. Referenzsatz ist `reference/` der Figur; der Schwerpunkt wird je Satz zwischengespeichert.
+   - Neu: Die Prüfung läuft als Knoten im Medien-Workflow: eigener, gepinnter Knoten mit YuNet, SFace und AuraFace (Code aus `identity.py`) oder ein geprüftes Paket. Der Knoten gibt Messwerte aus; das Backend speichert sie und entscheidet gegen die Schwellen (SP5 Schritt 7). Die Fotohinweise im Datensatz (Schritt 2) nutzen denselben Knoten über einen kurzen Prüf-Workflow.
+   - Engine `identity` im Manifest mit diesen drei Dateien, damit Bereitschaft und Download sichtbar sind. Referenzsatz ist `reference/` der Figur; der Schwerpunkt wird je Satz zwischengespeichert.
    - Schwellen je Modell in der Konfiguration. Ein Kalibrierlauf schlägt sie vor: Werte der Referenzfotos untereinander gegen Werte fremder Gesichter (ersetzt B2.1).
    - Prüfwerte je Medium in Tabelle `media_checks` (Identität, „nicht prüfbar“ als eigener Wert).
    - Gegenprüfung für den Kloner (Regel 4): Das Ergebnis darf dem Gesicht der fremden Vorlage nicht ähnlicher sein als die Schwelle; sonst wird es verworfen.
@@ -860,6 +871,8 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
 5. Zweite Figur mit eigenem Ordner: ein Auftrag für Figur A lädt nie die LoRA von Figur B.
 6. „clone“ mit fremder Vorlage: das Ergebnis zeigt Clara; ein Ergebnis mit dem fremden Gesicht wird verworfen.
 7. Abbruch und Neustart mitten im Training hinterlassen keinen halben Eintrag.
+
+Punkte 1, 5 und 7 gehören zum Implementierungsstand (mit kurzen Läufen), Punkte 2, 3, 4 und 6 zur Modellqualifikation (§2.3).
 
 **Unverändert aus dem bisherigen Plan (Teil von SP3):**
 - **B4 Video** (FL-2, FL-4): Wan-Abnahme, Vergleich LTX/Wan mit Messwerten, Registry gegen Platte (BUG-028, 029, 030). **Zeitachse:** Schlüsselbilder je Zeitpunkt (z. B. 0/5/10/15 s) mit Referenzbild aus Dateien, Prompt des folgenden Abschnitts, Kamera/Bewegung, Übergangsstärke. Bis zur Engine-Grenze ein LTX-Lauf mit `LTXVAddGuide` je Schlüsselbild (im ComfyUI-Kern vorhanden; `LTXVContextWindows` für Prompt je Fenster), darüber eine Abschnittskette mit `WanFirstLastFrameToVideo` (Start- und Endbild je Abschnitt) und Zusammensetzen mit Ton/FPS-Prüfung. Bewegungsübertragung mit Wan Animate 2 (Node vorhanden, Modell vor Nutzung qualifizieren). Abnahme: 15-s-Video mit vier Schlüsselbildern, Bilder zu diesen Zeitpunkten entsprechen den Referenzen, Übergänge ohne Sprung, Neustart mitten im Lauf. **Dazu (bisher H3-Rest):** Fortschritt langer Läufe (Schritt, Abschnitt) im STATE; ein Lauf über 3600 s besteht ohne festes Zeitlimit (SP1 Schritt 2).
