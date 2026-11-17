@@ -442,7 +442,7 @@ def test_server_routes_only_public_paths_through_tunnel(cfg, vault, monkeypatch)
     Eingang; das Cockpit selbst nie. Anmeldelink nur mit Sitzung; Webhook nur mit Signatur."""
     from test_server import _csrf, _run
 
-    from darkfluenzer import server
+    from darkfluenzer.web import http as server
 
     async def idle(self):  # kein Netz: Kontoprüfung gegen Meta läuft im Test nicht
         await asyncio.Event().wait()

@@ -9,9 +9,9 @@ import uuid
 import pytest
 from test_server import _csrf, _post, _run
 
-from darkfluenzer import server
 from darkfluenzer.store import Store, StoreError
 from darkfluenzer.v1 import channel_pb2, commands_pb2
+from darkfluenzer.web import http as server
 
 BOT = "7000001"
 

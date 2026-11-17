@@ -24,7 +24,7 @@ from pathlib import Path
 from aiohttp import WSCloseCode, WSMsgType, web
 from google.protobuf.message import DecodeError
 
-from .v1 import stream_pb2 as pb
+from ..v1 import stream_pb2 as pb
 
 PROTOCOL_MAJOR = 1
 PROTOCOL_MINOR = 0

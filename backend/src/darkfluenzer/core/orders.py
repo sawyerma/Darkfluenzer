@@ -3,11 +3,17 @@ bisher ``pipeline.py``)."""
 
 from __future__ import annotations
 
+import asyncio
+import json
+
 from ..config import Config
 from ..media.models import Manifest
 from ..media.pipeline import VIDEO_KEYS, PipelineError, create_render, input_from_media
 from ..nodes import comfy
 from ..store import Store
+from ..v1 import commands_pb2, order_pb2
+from ..v1 import stream_pb2 as spb
+from .base import _Call, _unix_ms, log
 
 
 def _journal(store: Store, command: dict | None, entity: str) -> None:
@@ -200,3 +206,178 @@ def retry_stage(
             store.copy_segments(j["id"], jobs[-1])  # Langvideo: fertige Abschnitte behalten
         _journal(store, command, f"order:{order_no}")
     return jobs
+
+
+def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
+    """Auftrag mit Stufen, Jobs und Kandidaten (STATE orders.active, Systemkarte)."""
+    item.order_no, item.source, item.kind = order.order_no, order.source, order.kind
+    item.request, item.status = order.request, order.status
+    for st in store.stages(order.id):
+        stage = item.stages.add(
+            seq=st.seq,
+            kind=st.kind,
+            status=st.status,
+            workflow=st.workflow,
+            count=st.count,
+            selected_media_id=st.selected_media_id or 0,
+            error=st.error or "",
+            finish_workflow=str(st.params.get("finish") or ""),
+            attempts=st.attempts,
+        )
+        for j in store.stage_jobs(st.id):
+            stage.jobs.add(
+                job_id=j["id"],
+                seed=int(j["seeds"][0]) if j["seeds"] else 0,
+                status=j["status"],
+                media_id=j["media_id"] or 0,
+                path=j["path"] or "",
+                error=j["error"] or "",
+                content_tier=j["content_tier"] or "",
+            )
+        if st.status == "done" and st.selected_media_id:
+            media = store.media_by_id(st.selected_media_id)
+            item.result_media_id = st.selected_media_id
+            item.result_path = media["path"] if media else ""
+            item.result_tier = (media["content_tier"] if media else "") or ""
+    if order.source != "customer":
+        return
+    item.customer_id, item.customer_no = order.customer_id or 0, order.customer_no or ""
+    offer = store.offer(order.id)
+    if offer is not None:
+        item.offer.product, item.offer.hd = offer["product"], bool(offer["hd"])
+        item.offer.price_cents, item.offer.expires_ms = (
+            offer["price_cents"],
+            _unix_ms(offer["expires_at"]),
+        )
+        item.offer.conversation_id = offer["conversation_id"]
+        for row in store.offer_amount_rows(order.id):
+            network = "bitcoin" if row["method"] == "btc" else "bsc"
+            item.offer.amounts.add(
+                method=row["method"],
+                asset=row["method"].upper(),
+                amount=row["amount"],
+                address=row["address"],
+                network=network,
+                rate=row["rate"],
+                rate_ms=row["rate_ms"],
+            )
+    for d in store.deliveries(order.id):
+        status = d["status"]
+        if status == "pending" and d["message_status"] == "unknown":
+            status = "unknown"
+        atts = json.loads(d["attachments"] or "[]")
+        item.deliveries.add(
+            delivery_id=d["id"],
+            status=status,
+            message_id=d["message_id"] or 0,
+            error=d["message_error"] or "",
+            at_ms=_unix_ms(d["sent_at"] or d["created_at"]),
+            path=atts[0]["path"] if atts else "",
+        )
+
+
+class OrdersMixin:
+    """Aufträge als Cockpit-Befehle; Teil von ``Cockpit``."""
+
+    def _orders_changed(self) -> None:
+        self.hub.set_state(spb.TOPIC_ORDERS_ACTIVE, self._orders_active())
+        self.hub.push_events(spb.TOPIC_ORDER_UPDATED)
+        self.hub.push_events(spb.TOPIC_CONVERSATION_EVENT)  # Systemkarten der Aufträge
+        self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
+
+    async def _create_order(self, msg: commands_pb2.CreateOrder, call: _Call) -> str:
+        """Auftrag mit Kandidaten (V0 §4.3); Auftrag, Stufe, Jobs und Befehl in einem Commit."""
+        wf = self._workflow(msg.workflow)
+        call.entity = f"workflow:{wf.key}"
+        prod = self.cfg.production
+        count = msg.candidates or prod.candidates_default
+        if count > prod.candidates_max:
+            return f"Höchstens {prod.candidates_max} Kandidaten je Auftrag."
+        for key in filter(None, (wf.key, msg.finish_workflow)):
+            target = self._workflow(key)
+            if self._lane_of(target) is None:
+                return "Die ausführende ComfyUI-Instanz ist nicht eingerichtet."
+            if reason := await asyncio.to_thread(self._not_startable, target):
+                return f"{target.title}: {reason}"
+        values = {
+            v.name: getattr(v, v.WhichOneof("value")) for v in msg.values if v.WhichOneof("value")
+        }
+        inputs = await self._inputs(wf, msg.files)
+        order_no, jobs = create_order(
+            self.store,
+            self.manifest,
+            wf.key,
+            values,
+            inputs,
+            count=count,
+            finish_workflow=msg.finish_workflow,
+            parent_media_id=msg.parent_media_id or None,
+            command=self._journal_entry(call),
+            customer_order_no=msg.customer_order_no,
+            video_max_s=self.cfg.production.video_max_s,
+        )
+        call.entity, call.recorded = f"order:{order_no}", True
+        log.info("Auftrag %s: %d Kandidaten von %s eingereiht", order_no, len(jobs), wf.key)
+        self._enqueue(jobs)
+        self._orders_changed()
+        if msg.customer_order_no:
+            self._message_changed(0)  # Auftragskarte im Kundenverlauf
+        return ""
+
+    async def _select_candidate(self, msg: commands_pb2.SelectCandidate, call: _Call) -> str:
+        call.entity = f"order:{msg.order_no}"
+        jobs = select_candidate(
+            self.cfg,
+            self.store,
+            self.manifest,
+            msg.order_no,
+            msg.media_id,
+            self._journal_entry(call),
+        )
+        call.recorded = True
+        log.info("Auftrag %s: Medium %s ausgewählt", msg.order_no, msg.media_id)
+        if not jobs:  # ohne Fertigstellen: das Gewählte geht ggf. an den Default-Nutzer
+            self._cloner_delivery(self.store.order(msg.order_no).id, selected=msg.media_id)
+        self._enqueue(jobs)
+        self._orders_changed()
+        return ""
+
+    async def _retry_stage(self, msg: commands_pb2.RetryStage, call: _Call) -> str:
+        call.entity = f"order:{msg.order_no}"
+        jobs = retry_stage(
+            self.store,
+            self.manifest,
+            msg.order_no,
+            msg.seq,
+            self.cfg.production.stage_attempts_max,
+            self._journal_entry(call),
+            video_max_s=self.cfg.production.video_max_s,
+        )
+        call.recorded = True
+        log.info("Auftrag %s: Stufe %s wiederholt (%d Jobs)", msg.order_no, msg.seq, len(jobs))
+        self._enqueue(jobs)
+        self._orders_changed()
+        return ""
+
+    def _orders_active(self) -> bytes:
+        """STATE orders.active: Aufträge in Produktion mit Stufen und deren Jobs/Kandidaten."""
+        prod = self.cfg.production
+        msg = order_pb2.OrdersActive(
+            version=self.store.domain_version("orders"),
+            candidates_default=prod.candidates_default,
+            candidates_max=prod.candidates_max,
+        )
+        for order in self.store.active_orders():
+            _fill_order(msg.orders.add(), self.store, order)
+        for order in self.store.active_orders("paid"):
+            _fill_order(msg.awaiting_production.add(), self.store, order)
+        return msg.SerializeToString()
+
+    def _order_result(self, order) -> dict | None:
+        """Ergebnis eines Auftrags in Prüfung: Medium der letzten fertigen Stufe."""
+        stages = self.store.stages(order.id)
+        last = stages[-1] if stages else None
+        if last is None or last.status != "done" or not last.selected_media_id:
+            return None
+        media = self.store.media_by_id(last.selected_media_id)
+        return media

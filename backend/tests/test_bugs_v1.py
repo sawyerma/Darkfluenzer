@@ -7,7 +7,7 @@ import hashlib
 from test_channels import BOT
 from test_server import _csrf, _run
 
-from darkfluenzer import server
+from darkfluenzer.web import http as server
 
 
 def test_bug001_active_attachments_never_render_in_cockpit_origin(cfg):

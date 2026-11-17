@@ -12,13 +12,11 @@ import uuid
 from aiohttp import WSServerHandshakeError
 from aiohttp.test_utils import TestClient, TestServer
 
-from darkfluenzer import server
 from darkfluenzer.config import project_root
 from darkfluenzer.media import models
 from darkfluenzer.nodes import comfy
 from darkfluenzer.nodes import local as runtime
 from darkfluenzer.store import Store
-from darkfluenzer.stream import PROTOCOL_MAJOR
 from darkfluenzer.v1 import (
     character_pb2,
     comfy_pb2,
@@ -28,6 +26,8 @@ from darkfluenzer.v1 import (
     order_pb2,
 )
 from darkfluenzer.v1 import stream_pb2 as pb
+from darkfluenzer.web import http as server
+from darkfluenzer.web.stream import PROTOCOL_MAJOR
 
 
 def _run(cfg, scenario) -> None:
@@ -406,7 +406,7 @@ def test_workflow_commands_enable_render_fifo_and_delete(cfg):
 
 
 def test_client_queue_keeps_latest_state_and_never_drops_events():
-    from darkfluenzer.stream import _Client
+    from darkfluenzer.web.stream import _Client
 
     client = _Client(ws=None, limit=2)
     client.put_state(1, b"alt")

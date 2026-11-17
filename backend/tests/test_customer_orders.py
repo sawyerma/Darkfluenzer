@@ -17,7 +17,6 @@ from PIL import Image
 from test_channels import _inbound
 from test_server import _csrf, _post, _run
 
-from darkfluenzer import server
 from darkfluenzer.config import TokenConfig, WalletConfig
 from darkfluenzer.core import orders
 from darkfluenzer.media import aimeta, pipeline
@@ -25,6 +24,7 @@ from darkfluenzer.payments import vouchers
 from darkfluenzer.payments.chain import WalletWatcher
 from darkfluenzer.store import Store, StoreError
 from darkfluenzer.v1 import commands_pb2
+from darkfluenzer.web import http as server
 
 BTC = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"  # BIP-173-Testvektor
 EVM = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"  # EIP-55-Testvektor

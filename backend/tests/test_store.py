@@ -333,7 +333,7 @@ def test_media_index_migrates_v1_dedupes_numbers_and_customer_names(tmp_path):
         older, _ = s.media_page(page[1]["id"], 10)
         assert [r["id"] for r in older] == [r["id"] for r in page[2:]]
         # Unterschrift: Kundenname bzw. Kundennummer, eigene Medien vierstellige Nummer
-        from darkfluenzer.server import _media_item
+        from darkfluenzer.web.mappers import _media_item
 
         captions = {_media_item(r).caption for r in page}
         assert captions == {"Mia", "0001", "0002"}

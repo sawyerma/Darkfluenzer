@@ -336,7 +336,7 @@ def _secret(args: argparse.Namespace) -> tuple[dict, int]:
 
 
 def _serve() -> tuple[dict, int]:
-    from . import server  # aiohttp nur für den Server laden
+    from .web import http as server  # aiohttp nur für den Server laden
 
     cfg = load()
     setup_logging(cfg)

@@ -12,11 +12,12 @@ import uuid
 
 from test_server import _csrf, _post, _run
 
-from darkfluenzer import config, server
+from darkfluenzer import config
 from darkfluenzer.channels import telegram
 from darkfluenzer.channels.tdjson import TdError
 from darkfluenzer.store import Store
 from darkfluenzer.v1 import commands_pb2
+from darkfluenzer.web import http as server
 
 CLARA = "555"
 TEST_CHAT = 42
