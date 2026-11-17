@@ -86,7 +86,14 @@ class RegistryMixin:
                 for name, (width, height) in eng.formats.items():
                     info.formats.add(name=name, width=width, height=height)
             graph = comfy.load_graph(self.manifest, wf)
-            if wf.video:  # Länge in Sekunden: Gesamtlänge (Grund) und Abschnittslänge (Experte)
+            if wf.video and wf.video.mode == "seconds":  # ein Lauf bis zur Engine-Grenze (LTX)
+                v = wf.video
+                top = min(self.cfg.production.video_max_s, v.seconds_max)
+                info.params.add(
+                    name="duration_s", type="int", min=1, max=top, label="Gesamtlänge (s)",
+                    expert=False, number=float(graph[v.length_node]["inputs"][v.length_input]),
+                )  # fmt: skip
+            elif wf.video:  # Länge in Sekunden: Gesamtlänge und Abschnittslänge (VideoSettings)
                 v = wf.video
                 fps_p = wf.params[v.fps]
                 fps = float(graph[fps_p.node]["inputs"][fps_p.input])
@@ -96,7 +103,7 @@ class RegistryMixin:
                     ("duration_s", "Gesamtlänge (s)", self.cfg.production.video_max_s,
                      (frames - 1) / fps, False),
                     ("segment_s", f"Abschnittslänge (s, höchstens {v.segment_frames_max} Frames)",
-                     segment, segment, True),
+                     segment, segment, False),
                 ):  # fmt: skip
                     info.params.add(
                         name=name, type="float", min=0.25, max=high, label=label, expert=expert,

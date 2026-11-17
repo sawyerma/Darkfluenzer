@@ -208,12 +208,18 @@ def test_ltx25_registration_binds_subgraph_nodes(video_cfg):
     assert {"ltx25_dev_bf16", "ltx25_distilled_lora"} <= set(man.engines["ltx25"].files)
     out = comfy.apply_params(
         comfy.load_graph(man, wf), wf,
-        {"image": "x.png", "prompt": "p", "duration": 8, "fps": 16, "sampler": "euler"},
+        {"image": "x.png", "prompt": "p", "fps": 16, "sampler": "euler"},
     )  # fmt: skip
-    assert (
-        out["398:362"]["inputs"]["value"] == 8
-        and out["398:341"]["inputs"]["sampler_name"] == "euler"
-    )
+    assert out["398:341"]["inputs"]["sampler_name"] == "euler"
+    # SP1 Schritt 10: Länge über den gemeinsamen Video-Vertrag (Sekunden, ein Lauf)
+    assert wf.video.mode == "seconds" and "duration" not in wf.params
+    values = {"duration_s": 8, "fps": 16}
+    plan = pipeline.video_plan(wf, comfy.load_graph(man, wf), values, 120)
+    assert plan["length"] == 8 and plan["frames"] == [] and "duration_s" not in values
+    with pytest.raises(pipeline.PipelineError, match="Abschnitte"):
+        pipeline.video_plan(wf, comfy.load_graph(man, wf), {"segment_s": 2.0}, 120)
+    with pytest.raises(pipeline.PipelineError, match="ganze Sekunden von 1 bis 20"):
+        pipeline.video_plan(wf, comfy.load_graph(man, wf), {"duration_s": 25}, 120)
     assert out["398:388"]["inputs"]["model"] == ["398:405", 0] == out["398:391"]["inputs"]["model"]
     with pytest.raises(comfy.ComfyError, match="nicht in"):
         comfy.apply_params(comfy.load_graph(man, wf), wf, {"image": "x", "prompt": "p", "fps": 25})

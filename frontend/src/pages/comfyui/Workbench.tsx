@@ -1,3 +1,4 @@
+import { VIDEO_ORDER, VideoSettings } from "./VideoSettings";
 import { Candidates } from "./Candidates";
 import { CharacterControl, TrainingFolder, useCharacter } from "./Character";
 import { Instances } from "./Instances";
@@ -13,6 +14,9 @@ import { mediaUrl } from "../../core/media";
 import { useCommand } from "../../core/commands";
 import { useEffect, useRef, useState } from "react";
 import { useStateTopic } from "../../core/state";
+
+/** Felder vor dem Startbild und der Videosteuerung (SP1 Schritt 10). */
+const FIRST_FIELDS = ["prompt", "negative_prompt"];
 
 /** Ein Befehl mit sichtbarem Ergebnis: läuft, Ablehnungsgrund oder Fehler. */
 function paramLabel(p: WorkflowParam, kind: string): string {
@@ -132,7 +136,7 @@ export function Workbench({
   async function generate() {
     setChecked(true);
     if (Object.values(errors).some(Boolean)) {
-      if (wf.params.some((p) => !inMain(p) && errors[p.name])) setExpert(true); // Fehler sichtbar machen
+      if (expertParams.some((p) => errors[p.name])) setExpert(true); // Fehler sichtbar machen
       return;
     }
     const values = wf.params
@@ -256,7 +260,7 @@ export function Workbench({
     );
   }
 
-  const expertParams = wf.params.filter((p) => !inMain(p));
+  const expertParams = wf.params.filter((p) => !inMain(p) && !(wf.kind === "video" && VIDEO_ORDER.includes(p.name)));
   return (
     <>
       <div className="g-workmain" ref={top}>
@@ -269,7 +273,16 @@ export function Workbench({
         ) : null}
         {wf.training ? <TrainingFolder character={character} /> : null}
         <div className="g-form">
-          {[...wf.params.filter((p) => inMain(p) && !p.upload), ...wf.params.filter((p) => p.upload && !p.reference)].map(field)}
+          {wf.kind === "video" ? (
+            <>
+              {wf.params.filter((p) => inMain(p) && !p.upload && FIRST_FIELDS.includes(p.name)).map(field)}
+              {wf.params.filter((p) => p.upload && !p.reference).map(field)}
+              <VideoSettings params={wf.params} field={field} />
+              {wf.params.filter((p) => inMain(p) && !p.upload && !FIRST_FIELDS.includes(p.name) && !VIDEO_ORDER.includes(p.name)).map(field)}
+            </>
+          ) : (
+            [...wf.params.filter((p) => inMain(p) && !p.upload), ...wf.params.filter((p) => p.upload && !p.reference)].map(field)
+          )}
         </div>
         <Candidates orders={myOrders} titles={titles} />
         <WorkflowResults wf={wf} running={running} waiting={waiting} onLoad={onLoad} canLoad={canLoad} />

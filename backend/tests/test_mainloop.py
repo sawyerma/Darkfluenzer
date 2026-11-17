@@ -56,9 +56,13 @@ def test_big_video_is_marked_off_the_main_loop(cfg):
 
         task = asyncio.create_task(probe())
         await asyncio.sleep(0.05)  # Probe läuft an
+        before = len(lags)
+        start = loop.time()
         result = cockpit._reply_internal(tg.conversation_id, "Ergebnis", [rel])
         if asyncio.iscoroutine(result):  # vor SP0 Schritt 5 synchron
             await result
+        work_ms = (loop.time() - start) * 1000
+        during = lags[before:]
         done.set()
         await task
         row = store.db.execute(
@@ -67,8 +71,15 @@ def test_big_video_is_marked_off_the_main_loop(cfg):
             (tg.conversation_id,),
         ).fetchone()
         assert row and "gross_ki.mp4" in row[0], row
-        assert len(lags) >= 5, lags
-        assert max(lags) < LAG_LIMIT_MS, f"Hauptstrang blockiert: {max(lags):.0f} ms"
+        # Frei heißt: der Loop kommt während der Arbeit immer wieder an die Reihe. Blockiert er,
+        # gibt es höchstens eine Messung, und die dauert so lange wie die ganze Arbeit. Unter
+        # fremder Last wächst die Grenze mit der Arbeitsdauer (Rechner war bis Load 130 belegt).
+        limit = max(LAG_LIMIT_MS, 0.5 * work_ms)
+        blocked = max(during, default=work_ms)
+        assert len(during) >= 5 and blocked < limit, (
+            f"Hauptstrang blockiert: {blocked:.0f} ms bei {work_ms:.0f} ms Arbeit, "
+            f"{len(during)} Messungen"
+        )
         # die Messung des Cockpits selbst landet im STATE resources
         cockpit._lags.append((loop.time(), max(lags) / 1000))
         res = comfy_pb2.Resources.FromString(cockpit._resources())

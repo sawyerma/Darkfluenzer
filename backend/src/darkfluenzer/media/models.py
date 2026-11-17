@@ -131,17 +131,23 @@ class Param:
 
 @dataclass(frozen=True)
 class VideoSpec:
-    """Videolänge in Sekunden (V0 §10 Langvideo): Darkfluenzer teilt die Gesamtlänge in Abschnitte
-    höchstens ``segment_frames_max`` Frames (Trainingslänge des Modells), jeder Folgeabschnitt
-    startet mit dem letzten Bild des vorigen; danach werden die Abschnitte zusammengesetzt."""
+    """Videolänge in Sekunden, für alle Video-Workflows gleich bedient (SP1 Schritt 10).
 
-    length_node: str  # Node/Eingang mit der Framezahl eines Abschnitts
+    ``frames`` (Wan, Remix; V0 §10 Langvideo): Darkfluenzer teilt die Gesamtlänge in Abschnitte
+    höchstens ``segment_frames_max`` Frames (Trainingslänge des Modells), jeder Folgeabschnitt
+    startet mit dem letzten Bild des vorigen; danach werden die Abschnitte zusammengesetzt.
+    ``seconds`` (LTX): die Gesamtlänge geht direkt auf den Sekunden-Eingang, ein Lauf bis zur
+    Engine-Grenze ``seconds_max``."""
+
+    length_node: str  # frames: Framezahl eines Abschnitts; seconds: Länge in Sekunden
     length_input: str
     fps: str  # Parameter mit der Bildrate
-    frames_multiple: int  # Framezahl = n · frames_multiple + 1 (Wan: 4)
-    segment_frames_max: int
     start_image: str  # Upload-Parameter des Startbilds
-    decode: str  # Node, dessen Bilder das Video ergeben (letztes Bild je Abschnitt)
+    mode: str = "frames"  # frames | seconds
+    frames_multiple: int = 0  # frames: Framezahl = n · frames_multiple + 1 (Wan: 4)
+    segment_frames_max: int = 0
+    decode: str = ""  # frames: Node, dessen Bilder das Video ergeben (letztes Bild je Abschnitt)
+    seconds_max: float = 0.0  # seconds: Engine-Grenze eines Laufs
 
 
 @dataclass(frozen=True)
@@ -231,24 +237,41 @@ def _video(t: object, params: dict[str, Param], w: str) -> VideoSpec | None:
         return None
     if not isinstance(t, dict):
         raise ManifestError(f"Manifest: {w}.video muss eine Tabelle sein.")
+    mode = str(t.get("mode", "frames"))
     try:
-        spec = VideoSpec(
-            length_node=str(t["length_node"]),
-            length_input=str(t["length_input"]),
-            fps=str(t["fps"]),
-            frames_multiple=int(t["frames_multiple"]),
-            segment_frames_max=int(t["segment_frames_max"]),
-            start_image=str(t["start_image"]),
-            decode=str(t["decode"]),
-        )
+        if mode == "frames":
+            spec = VideoSpec(
+                length_node=str(t["length_node"]),
+                length_input=str(t["length_input"]),
+                fps=str(t["fps"]),
+                start_image=str(t["start_image"]),
+                frames_multiple=int(t["frames_multiple"]),
+                segment_frames_max=int(t["segment_frames_max"]),
+                decode=str(t["decode"]),
+            )
+        elif mode == "seconds":
+            spec = VideoSpec(
+                length_node=str(t["length_node"]),
+                length_input=str(t["length_input"]),
+                fps=str(t["fps"]),
+                start_image=str(t["start_image"]),
+                mode="seconds",
+                seconds_max=float(t["seconds_max"]),
+            )
+        else:
+            raise ManifestError(f"Manifest: {w}.video.mode '{mode}' (frames | seconds).")
     except (KeyError, TypeError, ValueError) as exc:
         raise ManifestError(f"Manifest: {w}.video: {exc}") from exc
     if spec.fps not in params or spec.start_image not in params:
         raise ManifestError(f"Manifest: {w}.video: fps und start_image müssen Parameter sein.")
-    if not params[spec.start_image].upload or spec.frames_multiple < 1:
+    if not params[spec.start_image].upload:
         raise ManifestError(f"Manifest: {w}.video: start_image muss ein Upload sein.")
-    if (spec.segment_frames_max - 1) % spec.frames_multiple:
+    if mode == "frames" and (
+        spec.frames_multiple < 1 or (spec.segment_frames_max - 1) % spec.frames_multiple
+    ):
         raise ManifestError(f"Manifest: {w}.video.segment_frames_max passt nicht zum Raster.")
+    if mode == "seconds" and spec.seconds_max <= 0:
+        raise ManifestError(f"Manifest: {w}.video.seconds_max muss größer 0 sein.")
     return spec
 
 
@@ -493,8 +516,12 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
         v = wf.video
         if v.length_input not in (graph.get(v.length_node) or {}).get("inputs", {}):
             problems.append(f"video.length -> {v.length_node}.{v.length_input} fehlt im API-Graph.")
-        if v.decode not in graph:
+        if v.mode == "frames" and v.decode not in graph:
             problems.append(f"video.decode -> {v.decode} fehlt im API-Graph.")
+        if v.mode == "seconds":  # Sekunden-Eingang: Graph-Wert innerhalb der Engine-Grenze
+            value = (graph.get(v.length_node) or {}).get("inputs", {}).get(v.length_input)
+            if not isinstance(value, (int, float)) or not 1 <= value <= v.seconds_max:
+                problems.append(f"video.length: Graph-Wert {value} außerhalb 1…{v.seconds_max:g}.")
     if wf.mask_output and (graph.get(wf.mask_output) or {}).get("class_type") != "SaveImage":
         problems.append(f"mask_output -> {wf.mask_output} ist kein SaveImage-Node im API-Graph.")
     for role, node, name in (

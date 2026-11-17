@@ -710,7 +710,6 @@ content = "standard"
 image = { node = "395", input = "image", type = "str", required = true, upload = true }
 prompt = { node = "398:376", input = "value", type = "str", required = true }
 negative_prompt = { node = "398:373", input = "text", type = "str" }
-duration = { node = "398:362", input = "value", type = "int", min = 1, max = 20, expert = false, label = "Länge (s)" }
 width = { node = "398:372", input = "value", type = "int", min = 256, max = 1920, multiple_of = 64 }
 height = { node = "398:360", input = "value", type = "int", min = 256, max = 1920, multiple_of = 64 }
 seed = { node = "398:339", input = "noise_seed", type = "int", min = 0, max = 9223372036854775807 }
@@ -718,6 +717,14 @@ fps = { node = "398:361", input = "value", type = "int", choices = [16, 24], lab
 start_strength = { node = "398:357", input = "strength", type = "float", min = 0.3, max = 1.0, label = "Startbild-Stärke (Stufe 1)" }
 lora_strength = { node = "398:405", input = "strength_model", type = "float", min = 0.5, max = 1.0, label = "Distilled-LoRA-Stärke" }
 sampler = { node = "398:352", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, also = ["398:341:sampler_name"], label = "Sampler" }
+
+[workflows.ltx25_i2v.video]
+mode = "seconds"
+length_node = "398:362"
+length_input = "value"
+fps = "fps"
+start_image = "image"
+seconds_max = 20
 
 [workflows.wan22_remix_v30_i2v]
 engine = "wan22_remix_v30"

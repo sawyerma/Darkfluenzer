@@ -144,6 +144,17 @@ def video_plan(wf: Workflow, graph: dict, values: dict, max_s: float | None) -> 
         raise PipelineError("Obergrenze der Videolänge fehlt (production.video_max_s).")
     fps_param = wf.params[spec.fps]
     fps = float(values.get(spec.fps, graph[fps_param.node]["inputs"][fps_param.input]))
+    if spec.mode == "seconds":  # ein Lauf, Länge direkt in Sekunden (LTX, SP1 Schritt 10)
+        if "segment_s" in video:
+            raise PipelineError(f"{wf.title}: Abschnitte gibt es bei diesem Workflow nicht.")
+        top = min(max_s, spec.seconds_max)
+        default = float(graph[spec.length_node]["inputs"][spec.length_input])
+        duration = float(video.get("duration_s", default))
+        seconds = round(duration)
+        if not 1 <= seconds <= top or abs(duration - seconds) > 1e-9:
+            raise PipelineError(f"Gesamtlänge {duration:g} s: ganze Sekunden von 1 bis {top:g}.")
+        return {"fps": fps, "duration_s": float(seconds), "segment_s": 0.0, "frames": [],
+                "length": seconds}  # fmt: skip
     m = spec.frames_multiple
     segment_max = (spec.segment_frames_max - 1) / fps
     default_frames = int(graph[spec.length_node]["inputs"][spec.length_input])
@@ -162,7 +173,13 @@ def video_plan(wf: Workflow, graph: dict, values: dict, max_s: float | None) -> 
     while left > 0:
         frames.append(min(step, left) + 1)
         left -= min(step, left)
-    return {"fps": fps, "duration_s": duration, "segment_s": segment, "frames": frames}
+    return {
+        "fps": fps,
+        "duration_s": duration,
+        "segment_s": segment,
+        "frames": frames,
+        "length": frames[0],
+    }
 
 
 def create_render(
@@ -296,7 +313,7 @@ def run_render(
                     on_submit=submitted,
                     unload_first=unload_first,
                     dataset=params.get("dataset"),
-                    overrides={(wf.video.length_node, wf.video.length_input): plan["frames"][0]}
+                    overrides={(wf.video.length_node, wf.video.length_input): plan["length"]}
                     if plan and wf.video
                     else None,
                 )
