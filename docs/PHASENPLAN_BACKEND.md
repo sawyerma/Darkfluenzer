@@ -484,9 +484,12 @@ Ersetzt H0, H4, H5, H6a sowie aus H2 BUG-008/013/014 und aus H3 Zeitlimit, Auftr
    - Heute: `advance_order`, `_cloner_delivery`, die Pushes und `_admit` laufen ungeschützt. Ein Fehler beendet die Schleife der Instanz.
    - Neu: ganzer Schleifenkörper in `try/except Exception` mit Log; Nachbearbeitung in eigener Funktion `_after_job`.
    - Test: `_cloner_delivery` wirft, der nächste Job läuft trotzdem.
-   - **Kein festes Zeitlimit (Betreiberentscheidung 17.11.):** Das feste Zeitlimit (`timeout_s = 3600` in `pipeline.run_render`, `comfy.ComfyClient.wait`) entfällt ersatzlos. Ein Lauf endet nur durch: Ergebnis, Fehler von ComfyUI, Abbruch durch den Betreiber, oder wenn ComfyUI nicht mehr läuft oder den Auftrag nicht mehr kennt. **Umgesetzt 17.11. (6189956):** Lebenszeichen je Abfrage (Warteschlange oder Verlauf), Abbruch erst nach `production.comfy_lost_s` (Vorgabe 60 s) ohne Lebenszeichen.
-   - Kommt länger als `production.stall_notice_s` kein Fortschritt, erscheint ein Hinweis im Cockpit und beim Default. Der Lauf geht weiter. (offen)
-   - Vor dem Start und während des Laufs zeigt das Cockpit die geschätzte Dauer und die voraussichtliche Endzeit, aus den gemessenen Zeiten dieses Workflows. (offen)
+   - **Kein zeitbasierter Abbruch eines laufenden ComfyUI-Auftrags (Betreiberentscheidung 17.11., korrigiert nach Prüfung 17.11.).** Das feste Zeitlimit (`timeout_s = 3600`) entfällt ersatzlos. Verbindungsverlust und Stillstand sind Zustände zur Wiederherstellung, keine automatische Abbruchentscheidung.
+   - Das Backend prüft regelmäßig den tatsächlichen Status des Auftrags in ComfyUI (Warteschlange, Verlauf). Ein Lauf endet durch Ergebnis, Fehler von ComfyUI, Abbruch durch den Betreiber, oder wenn ComfyUI erreichbar ist und den Auftrag länger als `production.comfy_lost_s` weder in der Warteschlange noch im Verlauf kennt.
+   - Bei Verbindungsverlust gilt der Zustand `UNKNOWN`; nach der Wiederverbindung wird der Auftrag abgeglichen. Derselbe Auftrag wird nie automatisch erneut gestartet, solange sein ursprünglicher Status ungeklärt ist.
+   - Kommt länger als `production.stall_notice_s` kein Fortschritt, erscheint ein Hinweis im Cockpit und beim Default. Der Lauf geht weiter.
+   - Das Cockpit zeigt die voraussichtliche Dauer aus den bisherigen Messungen dieses Workflows, als Schätzung und nicht als zugesagte Endzeit.
+   - **Stand 17.11.:** Zeitlimit raus (6189956); Warten bei Verbindungsverlust und Abgleich nach Wiederverbindung (101bfc5). Offen: Zustand `UNKNOWN` im STATE, Stillstandshinweis, Schätzung.
 3. **Telegram-Eingang der Reihe nach (`telegram._on_update`, `_message`).**
    - Heute: je Nachricht eine eigene Aufgabe. Ein Befehl überholt das Foto, dessen Download noch läuft.
    - Neu: eine Warteschlange und ein Arbeiter je `chat_id`; `_reconcile` nutzt sie mit. `media_album_id` wird als `album_id` an der Nachricht gespeichert (Migration). Anhänge mit Status `pending` werden nach dem Start erneut geladen, nach drei Fehlversuchen `failed` mit Grund.
@@ -777,7 +780,7 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
 **Braucht:** SP1 (kein festes Zeitlimit, Kloner-Kette), SP2 (Inhaltsstufe).
 **Dateien:** `training.py`, `models.py`, `identity.py`, `pipeline.py`, `server.py`, `store.py`, `comfy.py`, `config.py`, `workflows/manifest.toml`, Workflow-Graphen, `character.proto`, `commands.proto`.
 
-**Vorher zu wissen:** Ein Training läuft über Stunden (Krea 2 ≈ 10 h für 1500 Schritte bei 768 px) und blockiert die Medien-Warteschlange je Welle (Schritt 3); Start nur per Knopf. Für Kundenbilder gilt E14. Video braucht zunächst keine eigene LoRA, weil es aus dem fertigen Bild entsteht.
+**Vorher zu wissen:** Ein Training läuft über Stunden (Krea 2 ≈ 10 h für 1500 Schritte bei 768 px) und blockiert die Medien-Warteschlange während des Laufs (Schritt 3); Start nur per Knopf. Für Kundenbilder gilt E14. Video braucht zunächst keine eigene LoRA, weil es aus dem fertigen Bild entsteht.
 
 **Umsetzung in dieser Reihenfolge**
 
@@ -790,18 +793,17 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
    - Heute: Trigger `dfchar`, Klasse `woman` und Beschriftung fest; die Datensatz-ID entsteht nur aus den Foto-Hashes.
    - Neu: Trigger und Klasse aus dem Profil. Eine gleichnamige `.txt` neben dem Foto ist dessen Beschriftung. Trigger, Klasse und Beschriftungen gehen in die Datensatz-ID ein.
    - Fotoprüfung mit `identity.FaceIdentity`: zusätzliche Hinweise „kein Gesicht“ und „andere Person“ (Abstand zum Schwerpunkt aller Fotos). `dataset.json` hält das Ergebnis fest.
-3. **Training in Wellen (`server._render`, `pipeline._render`, `pipeline._adopt_lora`).**
+3. **Training durchgehend mit Wiederaufnahme-Checkpoints (`server._render`, `pipeline._render`, `pipeline._adopt_lora`).**
    - `_render` übergibt Trigger und Klasse des gewählten Charakters an `build_dataset`.
-   - Kein festes Zeitlimit (SP1 Schritt 2). Vor dem Start zeigt das Cockpit Wellenlänge, Gesamtschritte, geschätzte Dauer und Endzeit aus den Messwerten der Engine.
+   - Kein zeitbasierter Abbruch (SP1 Schritt 2). Vor dem Start zeigt das Cockpit Gesamtschritte und die geschätzte Dauer aus den Messwerten der Engine.
    - Start nur per Befehl, nie automatisch. Ein Training startet nicht, solange bezahlte Kundenaufträge warten (§3.2).
    - Der alte Trainer `training.train_sdxl_lora` und die CLI `character train-sdxl` entfallen.
-   - Ein Training besteht aus Wellen zu je `wave_steps` Schritten (Wert im Trainingsdialog, Vorschlag aus der Registry) bis zur Gesamtzahl.
-   - Nach jeder Welle: LoRA speichern und als Zwischenstand registrieren (Schritte bisher, Status OFFEN), ein Probebild mit festem Prompt und Seed erzeugen, Identitätswert notieren.
-   - Die nächste Welle startet mit der LoRA der vorigen als Ausgangspunkt (Eingang des Trainingsknotens für eine vorhandene LoRA; neue Bindung im Manifest). Geprüft 17.11. in ComfyUI 0.45.3 (`comfy_extras/nodes_train.py`): `TrainLoraNode` hat den Eingang `existing_lora`. Er nimmt einen Namen aus dem Ordner `loras` und liest die bisherigen Schritte aus dem Dateinamen (`…_<N>_steps_…`). Das Backend legt die LoRA einer Welle deshalb unter diesem Namensmuster in `loras/` ab. Der Knoten lädt nur die Gewichte, der Optimierer beginnt je Welle neu.
-   - Abbruch, Fehler oder Neustart kosten nur die laufende Welle. Fortgesetzt wird ab dem letzten Zwischenstand, nach demselben Muster wie die Abschnitte eines Langvideos.
-   - Der Betreiber kann nach jeder Welle beenden („reicht“) oder weitere Wellen anhängen.
-   - Zwischen zwei Wellen kommen Aufträge mit höherem Vorrang an die Reihe.
-   - Abnahme: Training mit drei Wellen; Abbruch in Welle 2; Fortsetzen ergibt denselben Endstand an Schritten; jede Welle hat Probebild und Identitätswert.
+   - **Wellen gestrichen (Prüfung 17.11.).** `TrainLoraNode` lädt über `existing_lora` nur die bisherigen LoRA-Gewichte und erzeugt je Lauf einen neuen Optimierer (ComfyUI 0.45.3, `comfy_extras/nodes_train.py`). Mehrere kurze Läufe sind deshalb nicht gleichwertig zu einem durchgehenden, und `existing_lora` allein ist keine verlustfreie Trainingsfortsetzung.
+   - Ein Training ist ein durchgehender ComfyUI-Trainingslauf mit periodischen vollständigen Checkpoints: LoRA-Gewichte, Optimiererzustand, Schrittzahl und die übrigen für eine korrekte Fortsetzung nötigen Zustände (Lernratenverlauf, Zufallszustand, Position in den Trainingsdaten).
+   - Der vorhandene `TrainLoraNode` kann das nicht. Der Speichermechanismus wird im ComfyUI-Trainingsworkflow erweitert (eigener, gepinnter Trainingsknoten auf Basis von `TrainLoraNode`) oder ein geeigneter vorhandener Trainingsknoten wird nach Durchsicht eingesetzt. Keine zweite Trainingsarchitektur außerhalb von ComfyUI; Darkfluenzer startet, überwacht und zeigt die Ergebnisse.
+   - Der Betreiber entscheidet im Cockpit nach einem Checkpoint, ob das Training fortgesetzt oder beendet wird. Probebilder je Checkpoint sind optional; der Checkpoint-Abstand ist ein Wert im Trainingsdialog.
+   - Abbruch, Fehler oder Neustart setzen am letzten gültigen Checkpoint fort. Bis der Trainingsknoten das kann, gilt ein Training als Ganzes: ein Abbruch kostet den ganzen Lauf.
+   - Abnahme: Abbruch nach einem Checkpoint, Fortsetzen; Schrittzahl und Optimiererzustand laufen weiter (Verlustkurve ohne Sprung), der Endstand an Schritten stimmt.
 4. **LoRA-Registry (`models.Lora`, `models.engine_model_names`).**
    - Heute: `Lora` ohne Figur; ladbar nur in Workflows mit `base_engine` gleich der Engine des Workflows (BUG-094).
    - Neu: `Lora` bekommt `character` (Kürzel). Ablage `loras/characters/<kürzel>/<key>.safetensors`.
@@ -832,7 +834,7 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
 **Abnahme am echten System**
 
 1. Fotos in `local/characters/clara/photos/`: jedes Foto zeigt Status und Gesichtshinweis.
-2. Ein vollständiges Training mit `krea2_raw_lora_train` in Wellen (Schritt 3); Dauer und Speicherverlauf notiert; die LoRA steht in `local/registry.toml`.
+2. Ein vollständiges Training mit `krea2_raw_lora_train`, durchgehend mit Checkpoints (Schritt 3); Dauer und Speicherverlauf notiert; die LoRA steht in `local/registry.toml`.
 3. Probebilder in drei Stärken mit Identitätswert; „Aktiv setzen“.
 4. `krea2_raw_turbo_lora_t2i` mit Claras LoRA: Identitätswert über der Schwelle; ohne LoRA darunter.
 5. Zweite Figur mit eigenem Ordner: ein Auftrag für Figur A lädt nie die LoRA von Figur B.
