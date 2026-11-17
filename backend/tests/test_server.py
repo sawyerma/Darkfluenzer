@@ -774,3 +774,36 @@ def test_order_cancel_stops_all_jobs_of_the_order(cfg):
         assert "keine wartenden oder laufenden" in again.detail
 
     _run(cfg, scenario)
+
+
+def test_command_status_endpoint(cfg):
+    """SP2 Schritt 11 (SPEC-011): Quittung aus dem Journal, ACCEPTED während der Ausführung,
+    404 nur ohne beides; ohne Sitzung 401."""
+    import asyncio
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        anon = await client.get("/api/v1/command/egal")
+        assert anon.status == 401
+        csrf = await _csrf(client)
+        rid = str(uuid.uuid4())
+        req = commands_pb2.CommandRequest(
+            request_id=rid, pause_queue=commands_pb2.PauseQueue(paused=False)
+        )
+        status, _ = await _post(client, origin, csrf, req)
+        assert status == 200
+        resp = await client.get(f"/api/v1/command/{rid}")
+        assert resp.status == 200 and resp.headers["Content-Type"].startswith(server.PROTOBUF)
+        receipt = commands_pb2.CommandReceipt.FromString(await resp.read())
+        assert receipt.request_id == rid and receipt.command == "pause_queue"
+        assert receipt.status == commands_pb2.COMMAND_STATUS_COMPLETED
+        running = str(uuid.uuid4())
+        cockpit._inflight[running] = asyncio.get_running_loop().create_future()
+        resp = await client.get(f"/api/v1/command/{running}")
+        assert commands_pb2.CommandReceipt.FromString(await resp.read()).status == (
+            commands_pb2.COMMAND_STATUS_ACCEPTED
+        )
+        del cockpit._inflight[running]
+        assert (await client.get(f"/api/v1/command/{uuid.uuid4()}")).status == 404
+
+    _run(cfg, scenario)

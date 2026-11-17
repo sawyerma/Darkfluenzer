@@ -49,6 +49,7 @@ from ..v1 import stream_pb2 as spb
 from .commands import CommandsMixin
 from .mappers import (
     MappersMixin,
+    _command_receipt,
     _conversation_item,
     _customer_summary,
     _media_item,
@@ -63,6 +64,7 @@ SESSION_COOKIE = "df_session"
 
 
 CSRF_HEADER = "X-CSRF-Token"
+COMMAND_WAIT_HEADER = "X-Command-Wait-S"  # Wartezeit auf eine Quittung (BUG-024)
 
 
 PROTOBUF = "application/x-protobuf"
@@ -206,7 +208,11 @@ async def _session(request: web.Request) -> web.Response:
     ):
         return web.Response(status=403, text="Fremde Herkunft")
     sid, csrf = guard.open_session(request)
-    resp = web.Response(status=204, headers={CSRF_HEADER: csrf, "Cache-Control": "no-store"})
+    wait = str(request.app[COCKPIT_KEY].cfg.server.command_wait_s)  # bis STATE Einstellungen (S1)
+    resp = web.Response(
+        status=204,
+        headers={CSRF_HEADER: csrf, COMMAND_WAIT_HEADER: wait, "Cache-Control": "no-store"},
+    )
     resp.set_cookie(SESSION_COOKIE, sid, httponly=True, samesite="Strict", path="/")
     return resp
 
@@ -415,6 +421,29 @@ async def _provenance_route(request: web.Request) -> web.Response:
     return web.Response(body=msg.SerializeToString(), content_type=PROTOBUF, headers=headers)
 
 
+async def _command_status(request: web.Request) -> web.Response:
+    """Befehlsstatus (SP2 Schritt 11, SPEC-011): Quittung aus dem Journal; ``ACCEPTED``, solange
+    die Kennung in der laufenden Ausführung steht; 404 nur, wenn beides nicht zutrifft. 404 heißt
+    nicht „nie angekommen“: die Oberfläche sendet denselben Befehl mit derselben ``request_id``
+    erneut, das Backend führt ihn höchstens einmal aus."""
+    if request.app[GUARD_KEY].csrf_of(request) is None:
+        return web.Response(status=401, text="Keine gültige Sitzung")
+    rid = request.match_info["request_id"]
+    cockpit = request.app[COCKPIT_KEY]
+    row = cockpit.store.command(rid)
+    if row is not None:
+        msg = _command_receipt(row)
+    elif rid in cockpit._inflight:
+        msg = commands_pb2.CommandReceipt(
+            request_id=rid, status=commands_pb2.COMMAND_STATUS_ACCEPTED
+        )
+    else:
+        raise web.HTTPNotFound()
+    return web.Response(
+        body=msg.SerializeToString(), content_type=PROTOBUF, headers={"Cache-Control": "no-store"}
+    )
+
+
 async def _customer_page(request: web.Request) -> web.Response:
     """Alle Kundenakten (bei Aufruf, nach Lücken/Reconnect), Protobuf."""
     if request.app[GUARD_KEY].csrf_of(request) is None:
@@ -573,6 +602,7 @@ def create_app(cfg: Config) -> web.Application:
     app.router.add_get("/assets/{name}", asset)
     app.router.add_get("/api/v1/session", _session)
     app.router.add_post("/api/v1/command", _command)
+    app.router.add_get("/api/v1/command/{request_id}", _command_status)
     app.router.add_get("/ws/v1/stream", _stream)
     app.router.add_get("/api/v1/media/{path:.+}", _media(cfg.local))
     app.router.add_get("/api/v1/media-page", _media_page)

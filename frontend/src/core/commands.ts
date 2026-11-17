@@ -1,13 +1,14 @@
 import { create, fromBinary, toBinary, type MessageInitShape } from "@bufbuild/protobuf";
 import { useState } from "react";
 import {
+  CommandReceiptSchema,
   CommandRequestSchema,
   CommandResponseSchema,
   CommandStatus,
   type CommandReceipt,
 } from "./generated/darkfluenzer/v1/commands_pb";
 import { Topic } from "./generated/darkfluenzer/v1/stream_pb";
-import { csrfToken, refreshSession } from "./realtime";
+import { commandWaitMs, csrfToken, refreshSession } from "./realtime";
 import { eventLogOf, onReceipt } from "./state";
 
 // Benutzeraktionen als Protobuf-POST mit eindeutiger request_id (PHASENPLAN_FRONT_V1 DF-PUSH C).
@@ -39,8 +40,7 @@ export interface CommandResult {
 }
 
 /** Sendet einen Befehl; ``expectedVersion`` = gesehene Domain-Version (CAS, z. B. Workflows.version). */
-export async function sendCommand(command: Command, expectedVersion = 0n): Promise<CommandResult> {
-  const requestId = crypto.randomUUID();
+export async function sendCommand(command: Command, expectedVersion = 0n, requestId: string = crypto.randomUUID()): Promise<CommandResult> {
   const body = toBinary(CommandRequestSchema, create(CommandRequestSchema, { requestId, expectedVersion, command }));
   let failure = "";
   for (let attempt = 0; attempt < SEND_ATTEMPTS; attempt++) {
@@ -66,8 +66,9 @@ function post(body: Uint8Array, csrf: string): Promise<Response> {
   });
 }
 
-/** Wartet auf die terminale Receipt dieser request_id (auch wenn sie vor der HTTP-Antwort kam). */
-export function terminalReceipt(requestId: string): Promise<CommandReceipt> {
+/** Wartet höchstens ``timeoutMs`` auf die terminale Receipt dieser request_id (auch wenn sie vor
+ *  der HTTP-Antwort kam); ``null`` = Zeit abgelaufen. */
+export function terminalReceipt(requestId: string, timeoutMs: number): Promise<CommandReceipt | null> {
   const known = eventLogOf(Topic.COMMAND_RECEIPT)?.items.find(
     (e) => e.value.requestId === requestId && TERMINAL.has(e.value.status),
   );
@@ -76,10 +77,52 @@ export function terminalReceipt(requestId: string): Promise<CommandReceipt> {
     const off = onReceipt((r) => {
       if (r.requestId === requestId && TERMINAL.has(r.status)) {
         off();
+        clearTimeout(timer);
         resolve(r);
       }
     });
+    const timer = setTimeout(() => {
+      off();
+      resolve(null);
+    }, timeoutMs);
   });
+}
+
+type StatusAnswer = { kind: "receipt"; receipt: CommandReceipt } | { kind: "missing" } | { kind: "error" };
+
+/** Befehlsstatus beim Backend (SP2 Schritt 11): Quittung, „nicht bekannt“ (404) oder Fehler. */
+export async function commandStatus(requestId: string): Promise<StatusAnswer> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const resp = await fetch(`/api/v1/command/${encodeURIComponent(requestId)}`, { credentials: "same-origin", cache: "no-store" });
+      if (resp.status === 401) {
+        await refreshSession();
+        continue;
+      }
+      if (resp.status === 404) return { kind: "missing" };
+      if (!resp.ok) return { kind: "error" };
+      return { kind: "receipt", receipt: fromBinary(CommandReceiptSchema, new Uint8Array(await resp.arrayBuffer())) };
+    } catch {
+      return { kind: "error" };
+    }
+  }
+  return { kind: "error" };
+}
+
+export const UNKNOWN_NOTICE = "Ergebnis unbekannt, Status wird geprüft";
+
+/** Bis zum Endzustand warten (BUG-024): Zeit abgelaufen oder Verbindung weg -> Status abfragen;
+ *  „in Bearbeitung“ -> weiter warten; 404 -> DENSELBEN Befehl mit derselben request_id erneut
+ *  senden (das Backend führt ihn höchstens einmal aus), nie eine neue request_id. */
+export async function settle(command: Command, version: bigint, requestId: string, onUnknown: () => void): Promise<CommandReceipt> {
+  for (;;) {
+    const receipt = await terminalReceipt(requestId, commandWaitMs());
+    if (receipt) return receipt;
+    onUnknown();
+    const answer = await commandStatus(requestId);
+    if (answer.kind === "receipt" && TERMINAL.has(answer.receipt.status)) return answer.receipt;
+    if (answer.kind === "missing") await sendCommand(command, version, requestId);
+  }
 }
 
 export interface RunOptions {
@@ -104,7 +147,7 @@ export function useCommand() {
       if (!result.accepted) {
         setNotice(result.detail);
         if (result.detail.startsWith("Verbindung unterbrochen")) {
-          const late = await terminalReceipt(result.requestId);
+          const late = await settle(command, opts.version ?? 0n, result.requestId, () => setNotice(UNKNOWN_NOTICE));
           setNotice(late.status === CommandStatus.COMPLETED ? (opts.done ?? "") : `${OUTCOME[late.status] ?? ""} ${late.detail}`.trim());
           return late.status === CommandStatus.COMPLETED ? { ...result, accepted: true, entity: late.entity } : null;
         }
@@ -114,7 +157,7 @@ export function useCommand() {
         setNotice(opts.done ?? "");
         return result;
       }
-      const receipt = await terminalReceipt(result.requestId);
+      const receipt = await settle(command, opts.version ?? 0n, result.requestId, () => setNotice(UNKNOWN_NOTICE));
       if (receipt.status !== CommandStatus.COMPLETED) {
         setNotice(`${OUTCOME[receipt.status] ?? ""}${receipt.detail ? `: ${receipt.detail}` : ""}`);
         return null;

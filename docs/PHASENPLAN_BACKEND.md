@@ -600,7 +600,7 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
     - `_command` leert den Wert vor dem Hash, wie bei `channel_account_login`.
     - `keychain.store_secret` lehnt `"`, `\` und Zeilenumbruch heute still ab: den Wert vor dem Speichern kodieren oder mit klarer Meldung abweisen.
     - `config_update` schreibt `local/config.toml` atomar über den Parser aus `config.py`; Werte, die einen Neustart brauchen, melden das.
-11. **Befehlsstatus (neu: `GET /api/v1/command/<request_id>`; SPEC-011).** Liefert die Quittung aus dem Journal; oder „in Bearbeitung“, solange die Kennung in der laufenden Ausführung steht; 404 nur, wenn beides nicht zutrifft. 404 heißt nicht „nie angekommen“: die Oberfläche sendet dann denselben Befehl mit derselben `request_id` erneut; das Backend führt ihn höchstens einmal aus. Grundlage für BUG-024.
+11. **Befehlsstatus (neu: `GET /api/v1/command/<request_id>`; SPEC-011).** Liefert die Quittung aus dem Journal; oder „in Bearbeitung“, solange die Kennung in der laufenden Ausführung steht; 404 nur, wenn beides nicht zutrifft. 404 heißt nicht „nie angekommen“: die Oberfläche sendet dann denselben Befehl mit derselben `request_id` erneut; das Backend führt ihn höchstens einmal aus. Grundlage für BUG-024. **Umgesetzt 17.11.2026:** Route mit `CommandReceipt` (laufend = `ACCEPTED`), Wartezeit `server.command_wait_s` als Kopfzeile `X-Command-Wait-S` der Sitzung, bis der STATE Einstellungen (S1) sie übernimmt; Frontend wartet mit Zeitlimit, fragt den Status ab, sendet bei 404 denselben Befehl mit derselben `request_id`, Knopf gesperrt bis zum Endzustand.
 12. **Starter (`launcher/Darkfluenzer.swift`).** Rückgabe von `down` je Instanz auswerten.
 
 **Frontend im selben Paket:** FRONTEND §4.1.

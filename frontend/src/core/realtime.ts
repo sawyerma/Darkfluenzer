@@ -50,12 +50,22 @@ function setStatus(status: ConnectionStatus, reason = ""): void {
 }
 
 /** Sitzung (HttpOnly-Cookie) herstellen und CSRF-Token für Befehle holen. */
+// Bis zur ersten Sitzung die Vorgabe aus config.example.toml, danach der Wert des Backends.
+let commandWait = 30_000;
+
 export async function refreshSession(): Promise<string> {
   const resp = await fetch("/api/v1/session", { credentials: "same-origin", cache: "no-store" });
   const token = resp.headers.get("X-CSRF-Token");
   if (!resp.ok || !token) throw new Error(`Sitzung nicht verfügbar (HTTP ${resp.status})`);
   csrf = token;
+  const wait = Number(resp.headers.get("X-Command-Wait-S"));
+  if (wait > 0) commandWait = wait * 1000;
   return token;
+}
+
+/** Wartezeit auf die Quittung eines Befehls (Backend-Konfiguration server.command_wait_s). */
+export function commandWaitMs(): number {
+  return commandWait;
 }
 
 export function csrfToken(): string {

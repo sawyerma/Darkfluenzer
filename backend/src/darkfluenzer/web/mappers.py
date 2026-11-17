@@ -254,6 +254,18 @@ def _window(adapter: Channel | None, ident: dict) -> dict:
     }
 
 
+def _command_receipt(row: dict) -> commands_pb2.CommandReceipt:
+    """Quittung eines Befehls aus dem Befehlsjournal (Zeile der Tabelle ``commands``)."""
+    return commands_pb2.CommandReceipt(
+        request_id=row["request_id"],
+        status=_RECEIPT_STATUS[row["status"]],
+        command=row["command"],
+        entity=row["entity"],
+        detail=row["detail"],
+        version=row["version"],
+    )
+
+
 class MappersMixin:
     """Protobuf-Abbildungen und Ereignisseiten für den Stream; Teil von ``Cockpit``."""
 

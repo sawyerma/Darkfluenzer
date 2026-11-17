@@ -86,9 +86,10 @@ class ServerConfig:
     media_settle_s: float
     loop_probe_s: float  # Messabstand für die Verzögerung des Hauptstrangs (SP0 Schritt 5)
     loop_lag_window_s: float  # Fenster für den angezeigten Höchstwert
-    folder_scan_s: (
-        float  # Abstand der Ordner-Scans der Galerie; Job-Ausgaben sofort (SP0 Schritt 6)
-    )
+    # Abstand der Ordner-Scans der Galerie; Job-Ausgaben sofort (SP0 Schritt 6)
+    folder_scan_s: float
+    # so lange wartet das Cockpit auf eine Quittung, dann fragt es den Status ab (BUG-024)
+    command_wait_s: float
     client_queue_max: int
     memory_reserve_gb: float
     # Öffentlicher Eingang (nur Webhook/OAuth/signierte Medien) auf 127.0.0.1 – einziges Tunnel-Ziel
@@ -559,6 +560,7 @@ def _parse_server(t: dict) -> ServerConfig:
         loop_probe_s=_positive(t, "loop_probe_s", 0.25, w),
         loop_lag_window_s=_positive(t, "loop_lag_window_s", 60, w),
         folder_scan_s=_positive(t, "folder_scan_s", 30, w),
+        command_wait_s=_positive(t, "command_wait_s", 30, w),
         catchup_limit=int(_positive(t, "catchup_limit", 200, w)),
         timeout_s=_positive(t, "timeout_s", 20, w),
         max_upload_mb=_positive(t, "max_upload_mb", 50, w),

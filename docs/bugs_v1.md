@@ -196,6 +196,18 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-024 (SP2 Schritt 11, Etappe A)
+Commit: siehe git log „SP2 step 11“ / web.http._command_status, frontend core/commands.ts settle
+Behauptung: BESTÄTIGT (terminalReceipt wartete ohne Zeitlimit; kein Befehlsstatus abfragbar)
+Nachweis: tests/test_server.py::test_command_status_endpoint, frontend tests/commands.test.ts (404 -> erneutes
+  Senden mit derselben request_id, danach Endzustand)
+Mac-Lauf 17.11.2026: Sitzung liefert X-Command-Wait-S 30; Anhalten/Fortsetzen im Cockpit quittiert; unbekannte
+  Kennung -> 404
+Ergebnis: PASS (Implementierung); Verbindungsabbruch mitten im Befehl am echten System gehört zur SP2-Abnahme
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-090 (Etappe A, Backend-Teil)
 Commit: siehe git log „BUG-090“ / core.orders.create_order, select_candidate, CreateOrder.finish_values (Feld 8)
 Behauptung: BESTÄTIGT (Fertigstellen mit leeren Werten; ltx25_i2v als Fertigstellen scheitert am Pflicht-Prompt)

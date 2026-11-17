@@ -15,6 +15,8 @@ loop_probe_s = 0.25
 loop_lag_window_s = 60
 # Ordner-Scan der Galerie (evaluation, ComfyUI-Ausgabe); Ausgaben von Renderjobs erscheinen sofort.
 folder_scan_s = 30
+# So lange wartet das Cockpit auf die Quittung eines Befehls, dann fragt es den Status ab (BUG-024).
+command_wait_s = 30
 # Höchstzahl nachgeladener Ereignisse je Topic nach einem Reconnect.
 catchup_limit = 200
 # Höchstzahl ungesendeter Ereignis-Frames je Browser; darüber wird er getrennt und holt nach
