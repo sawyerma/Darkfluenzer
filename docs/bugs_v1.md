@@ -199,6 +199,24 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: E17 Fingerzahl (CountHallu-Fingerzähler) – Durchsicht und Probe
+Commit: – (nicht eingebaut)
+Behauptung: Fingerzahl sollte nach Durchsicht des YOLO-v13-Codes folgen
+Befund: Checkpoint ShyFoo/CountHallu-counting_model-RealHand, Revision 7b7ecac, model.pt SHA-256 8a10818f…12b0
+  (stimmt mit LFS). Statische Prüfung ohne Entpicklen: nur torch-Module/Rebuild-Funktionen und
+  ultralytics.nn (A2C2f, AAttn, ABlock, C3k2, Detect, DetectionModel); gespeichert mit Ultralytics 8.3.179,
+  Modell yolov12x.yaml, Klasse „fingertip“ – kein Fork nötig. Laden mit torch.load(weights_only=True) und fester
+  Klassenliste in getrennter Umgebung (Scratchpad, YOLO_CONFIG_DIR umgelenkt), Export ONNX/TorchScript;
+  ONNX in OpenCV identisch zur Referenz (Abweichung < 0,001, 23/23 gleiche Zählungen, 2,2 s je Ausschnitt CPU)
+Probe (Modellqualifikation, 23 Handausschnitte aus der Galerie, Ausschnitt wie DarkfluenzerHandCheck):
+  18× 0 Fingerspitzen, auch bei klar sichtbaren Händen mit fünf Fingern; eine Hand mit fünf Fingern → 7;
+  auf 256 px wie im Datensatz verkleinert unverändert. Trainiert auf handzentrierten Fotos, nicht auf Händen im
+  Bildkontext
+Ergebnis: Modellqualifikation NICHT BESTANDEN – nicht als Prüfknoten eingebaut (irreführende Werte). Fingerzahl
+  OFFEN (anderer Prüfer nötig); bedingter Reparaturlauf BLOCKIERT, bis ein qualifiziertes Anatomie-Signal
+  vorliegt („zählbar“ von CountHallu ist kein Anatomie-Urteil)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: BUG-126 (Langvideo-Zusammensetzen: Eingabe-Vorschauen als Ergebnis)
 Commit: siehe git log „BUG-126“ / nodes.comfy (Ausgaben sammeln)
 Behauptung: BESTÄTIGT im echten Lauf 18.11. (Job 103, Wan 2.2 Remix 480×320, 2 Abschnitte à 33 Frames,
