@@ -16,8 +16,9 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from PIL import Image
 
-from darkfluenzer import models, pipeline
 from darkfluenzer.config import project_root
+from darkfluenzer.core import orders
+from darkfluenzer.media import models, pipeline
 from darkfluenzer.nodes import comfy
 from darkfluenzer.nodes import local as runtime
 from darkfluenzer.store import Store
@@ -154,7 +155,7 @@ def test_long_video_segments_resume_after_failure_and_join(video_cfg):
     man = models.load_manifest(cfg.root)
     store = Store(cfg.local)
     start = pipeline.store_input(cfg, _png(), "start.png")
-    no, (job,) = pipeline.create_order(
+    no, (job,) = orders.create_order(
         store, man, "wan22_i2v", {"prompt": "Strand", "duration_s": 12.0}, {"image": start},
         count=1, video_max_s=120.0,
     )  # fmt: skip
@@ -164,8 +165,8 @@ def test_long_video_segments_resume_after_failure_and_join(video_cfg):
         pipeline.run_render(cfg, man, job)
     assert store.job(job)["status"] == "failed"
     assert [i for i, r in store.job_segments(job).items() if r["done_at"]] == [0]
-    pipeline.advance_order(store, job)
-    (retry,) = pipeline.retry_stage(
+    orders.advance_order(store, job)
+    (retry,) = orders.retry_stage(
         store, man, no, 1, 3, {"request_id": str(uuid.uuid4()), "payload_sha": "0" * 64,
                                "command": "retry_stage", "status": "accepted"},
         video_max_s=120.0,
@@ -250,7 +251,7 @@ def test_cancel_before_submit_and_result_after_cancel_are_never_done(video_cfg):
     start = pipeline.store_input(cfg, _png(), "start.png")
 
     def job() -> int:
-        _, (jid,) = pipeline.create_order(
+        _, (jid,) = orders.create_order(
             store, man, "wan22_i2v", {"prompt": "Strand"}, {"image": start}, count=1,
             video_max_s=120.0,
         )  # fmt: skip

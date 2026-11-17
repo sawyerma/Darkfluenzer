@@ -16,7 +16,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from .config import Config
+from ..config import Config
 from .models import Manifest, models_dir
 
 # Registry-Schlüssel der Modelldateien

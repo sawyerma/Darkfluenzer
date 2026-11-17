@@ -250,8 +250,9 @@ def test_bug006_customer_order_jobs_and_media_carry_the_order(cfg):
     import pytest
     from test_channels import _inbound
 
-    from darkfluenzer import models, pipeline
     from darkfluenzer.config import project_root
+    from darkfluenzer.core import orders
+    from darkfluenzer.media import models
     from darkfluenzer.store import Store, StoreError
 
     shutil.copytree(project_root() / "workflows", cfg.root / "workflows", dirs_exist_ok=True)
@@ -268,7 +269,7 @@ def test_bug006_customer_order_jobs_and_media_carry_the_order(cfg):
         block=1, confirmations=15, required=15, eur=25.0, rate=0.9, rate_ms=1,
     )  # fmt: skip
     assert store.order(order.order_no).status == "paid"
-    _, (job,) = pipeline.create_order(
+    _, (job,) = orders.create_order(
         store, man, "krea2_turbo_t2i", {"prompt": "Strand"}, {}, count=1,
         customer_order_no=order.order_no,
     )  # fmt: skip

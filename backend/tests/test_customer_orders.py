@@ -17,8 +17,10 @@ from PIL import Image
 from test_channels import _inbound
 from test_server import _csrf, _post, _run
 
-from darkfluenzer import aimeta, pipeline, server
+from darkfluenzer import server
 from darkfluenzer.config import TokenConfig, WalletConfig
+from darkfluenzer.core import orders
+from darkfluenzer.media import aimeta, pipeline
 from darkfluenzer.payments import vouchers
 from darkfluenzer.payments.chain import WalletWatcher
 from darkfluenzer.store import Store, StoreError
@@ -216,16 +218,16 @@ def test_customer_order_chain(cfg):
 
         # Produktion nur mit Inhaltsstufe standard
         with pytest.raises(pipeline.PipelineError, match="standard"):
-            pipeline.create_order(
+            orders.create_order(
                 store, man, "lustify_sdxl_t2i", {"prompt": "p"}, {}, count=1,
                 customer_order_no=o1.order_no,
             )  # fmt: skip
         with pytest.raises(pipeline.PipelineError, match="kein bezahlter"):
-            pipeline.create_order(
+            orders.create_order(
                 store, man, "krea2_turbo_t2i", {"prompt": "p"}, {}, count=1,
                 customer_order_no=o2.order_no,
             )  # fmt: skip
-        no, (job,) = pipeline.create_order(
+        no, (job,) = orders.create_order(
             store, man, "krea2_turbo_t2i", {"prompt": "Strand"}, {}, count=1,
             customer_order_no=o1.order_no,
         )  # fmt: skip
@@ -238,8 +240,8 @@ def test_customer_order_chain(cfg):
             "evaluation/kunde.png", hashlib.sha256(data).hexdigest(), len(data), job_id=job
         )
         store.db.execute("UPDATE jobs SET status = 'done' WHERE id = ?", (job,))
-        pipeline.advance_order(store, job)
-        pipeline.select_candidate(cfg, store, man, no, media, None)
+        orders.advance_order(store, job)
+        orders.select_candidate(cfg, store, man, no, media, None)
         assert store.order(no).status == "review" and store.media_tier(media) == "standard"
 
         approve = commands_pb2.ApproveArtifact(order_no=no, media_id=media)

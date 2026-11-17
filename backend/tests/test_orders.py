@@ -8,8 +8,9 @@ import shutil
 import pytest
 from PIL import Image
 
-from darkfluenzer import models, pipeline
 from darkfluenzer.config import project_root
+from darkfluenzer.core import orders
+from darkfluenzer.media import models, pipeline
 from darkfluenzer.store import Store, StoreError
 
 
@@ -26,7 +27,7 @@ def _finish(cfg, store: Store, job_id: int, ok: bool = True) -> int | None:
     store.set_job_status(job_id, "running")
     if not ok:
         store.set_job_status(job_id, "failed", error="ComfyUI-Fehler")
-        pipeline.advance_order(store, job_id)
+        orders.advance_order(store, job_id)
         return None
     rel = f"evaluation/test/job{job_id}.png"
     (cfg.local / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -34,7 +35,7 @@ def _finish(cfg, store: Store, job_id: int, ok: bool = True) -> int | None:
     sha = hashlib.sha256((cfg.local / rel).read_bytes()).hexdigest()
     media = store.add_media(rel, sha, (cfg.local / rel).stat().st_size, job_id=job_id)
     store.set_job_status(job_id, "done", outputs=[{"path": rel, "sha256": sha}])
-    pipeline.advance_order(store, job_id)
+    orders.advance_order(store, job_id)
     return media
 
 
@@ -45,7 +46,7 @@ def _command(name: str) -> dict:
 def test_candidates_selection_and_finish(setup):
     cfg, store, man = setup
     values = {"prompt": "portrait", "seed": 4294967294}
-    order_no, jobs = pipeline.create_order(
+    order_no, jobs = orders.create_order(
         store,
         man,
         "lustify_sdxl_t2i",
@@ -68,15 +69,15 @@ def test_candidates_selection_and_finish(setup):
     assert store.stages(order.id)[0].status == "waiting"
 
     with pytest.raises(pipeline.PipelineError, match="kein Kandidat"):
-        pipeline.select_candidate(cfg, store, man, order_no, 999, _command("bad"))
-    (finish_job,) = pipeline.select_candidate(cfg, store, man, order_no, third, _command("s1"))
+        orders.select_candidate(cfg, store, man, order_no, 999, _command("bad"))
+    (finish_job,) = orders.select_candidate(cfg, store, man, order_no, third, _command("s1"))
     done, finishing = store.stages(order.id)
     assert done.status == "done" and done.selected_media_id == third != first
     assert finishing.kind == "finish" and finishing.status == "running"
     job = store.job(finish_job)
     assert job["workflow"] == "lustify_sdxl_refine" and job["parent_media_id"] == third
     with pytest.raises(pipeline.PipelineError, match="wartet nicht"):
-        pipeline.select_candidate(cfg, store, man, order_no, first, _command("s2"))
+        orders.select_candidate(cfg, store, man, order_no, first, _command("s2"))
 
     _finish(cfg, store, finish_job)
     assert store.stages(order.id)[1].status == "done"
@@ -85,27 +86,27 @@ def test_candidates_selection_and_finish(setup):
 
 def test_failed_stage_retry_has_a_limit(setup):
     cfg, store, man = setup
-    order_no, jobs = pipeline.create_order(
+    order_no, jobs = orders.create_order(
         store, man, "lustify_sdxl_t2i", {"prompt": "p"}, {}, count=2
     )
     for job in jobs:
         _finish(cfg, store, job, ok=False)
     (stage,) = store.stages(store.order(order_no).id)
     assert stage.status == "failed" and stage.error == "ComfyUI-Fehler"
-    again = pipeline.retry_stage(store, man, order_no, 1, 2, _command("r1"))
+    again = orders.retry_stage(store, man, order_no, 1, 2, _command("r1"))
     assert len(again) == 2 and store.stages(stage.order_id)[0].attempts == 2
     for job in again:
         _finish(cfg, store, job, ok=False)
     with pytest.raises(pipeline.PipelineError, match="höchstens 2"):
-        pipeline.retry_stage(store, man, order_no, 1, 2, _command("r2"))
+        orders.retry_stage(store, man, order_no, 1, 2, _command("r2"))
 
 
 def test_order_rules(setup):
     _, store, man = setup
     with pytest.raises(pipeline.PipelineError, match="kein Kandidatenauftrag"):
-        pipeline.create_order(store, man, "lustify_sdxl_lora_train", {}, {}, count=1)
+        orders.create_order(store, man, "lustify_sdxl_lora_train", {}, {}, count=1)
     with pytest.raises(pipeline.PipelineError, match="braucht zusätzlich"):
-        pipeline.create_order(
+        orders.create_order(
             store,
             man,
             "lustify_sdxl_t2i",

@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from darkfluenzer import training
+from darkfluenzer.media import training
 
 
 def _img(path: Path, w: int, h: int, seed: int) -> Path:

@@ -30,10 +30,12 @@ from pathlib import Path
 from aiohttp import web
 from google.protobuf.message import DecodeError
 
-from . import aimeta, approval, cloner, models, pipeline, training
+from . import approval, cloner
 from .channels.instagram import InstagramAccount, InstagramError
 from .channels.telegram import TelegramAccount
 from .config import ComfyConfig, Config
+from .core import orders
+from .media import aimeta, gallery, models, pipeline, training
 from .nodes import comfy
 from .nodes import local as runtime
 from .payments.chain import SATOSHI, WalletWatcher, decimal_text
@@ -304,7 +306,7 @@ class Cockpit:
                     lane.engine = ""
                 except comfy.ComfyError as exc:
                     log.warning("Speicherfreigabe nach Abbruch von Job %s: %s", job_id, exc)
-            pipeline.advance_order(self.store, job_id)  # Stufe vollständig? (SQLite im Loop)
+            orders.advance_order(self.store, job_id)  # Stufe vollständig? (SQLite im Loop)
             if (stage_id := self.store.job(job_id).get("stage_id")) is not None:
                 self._cloner_delivery(self.store.stage(stage_id).order_id)
             self._orders_changed()
@@ -409,7 +411,7 @@ class Cockpit:
                 self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
                 self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
                 await asyncio.to_thread(
-                    pipeline.scan_media, self.cfg, self._seen_media, self.cfg.server.media_settle_s
+                    gallery.scan_media, self.cfg, self._seen_media, self.cfg.server.media_settle_s
                 )
                 self.hub.push_events(spb.TOPIC_MEDIA_ADDED)
             except Exception:  # eine fehlerhafte Runde beendet die Beobachtung nicht
@@ -911,7 +913,7 @@ class Cockpit:
             v.name: getattr(v, v.WhichOneof("value")) for v in msg.values if v.WhichOneof("value")
         }
         inputs = await self._inputs(wf, msg.files)
-        order_no, jobs = pipeline.create_order(
+        order_no, jobs = orders.create_order(
             self.store,
             self.manifest,
             wf.key,
@@ -934,7 +936,7 @@ class Cockpit:
 
     async def _select_candidate(self, msg: commands_pb2.SelectCandidate, call: _Call) -> str:
         call.entity = f"order:{msg.order_no}"
-        jobs = pipeline.select_candidate(
+        jobs = orders.select_candidate(
             self.cfg,
             self.store,
             self.manifest,
@@ -952,7 +954,7 @@ class Cockpit:
 
     async def _retry_stage(self, msg: commands_pb2.RetryStage, call: _Call) -> str:
         call.entity = f"order:{msg.order_no}"
-        jobs = pipeline.retry_stage(
+        jobs = orders.retry_stage(
             self.store,
             self.manifest,
             msg.order_no,
@@ -1632,7 +1634,7 @@ class Cockpit:
         for name, p in wf.params.items():  # Pflichtwerte ohne Angabe: geprüfter Graph-Standard
             if p.required and not p.upload and name not in values:
                 values[name] = graph[p.node]["inputs"][p.input]
-        order_no, jobs = pipeline.create_order(
+        order_no, jobs = orders.create_order(
             self.store,
             self.manifest,
             key,
@@ -2003,7 +2005,7 @@ class Cockpit:
                 msg.job_id, "failed", error="Aus der Warteschlange entfernt.", cancelled=True
             )
             log.info("Job %s aus der Warteschlange entfernt", msg.job_id)
-            pipeline.advance_order(self.store, msg.job_id)
+            orders.advance_order(self.store, msg.job_id)
             self._orders_changed()
             return ""
         if job["status"] != "running":
@@ -2050,7 +2052,7 @@ class Cockpit:
         if not msg.media_ids:
             return "Keine Datei gewählt."
         call.entity = "media:" + ",".join(str(i) for i in msg.media_ids[:20])
-        removed = await asyncio.to_thread(pipeline.delete_media, self.cfg, list(msg.media_ids))
+        removed = await asyncio.to_thread(gallery.delete_media, self.cfg, list(msg.media_ids))
         # Freigewordene Pfade neu prüfen: ComfyUI vergibt gelöschte Dateinamen erneut.
         self._seen_media.difference_update(removed)
         self.hub.push_events(spb.TOPIC_MEDIA_REMOVED)
@@ -2218,7 +2220,7 @@ def _provenance(cockpit: Cockpit, media_id: int) -> media_pb2.MediaProvenance | 
     msg.duration_s = float(done.get("duration_s") or 0)
     if memory := done.get("memory"):
         msg.memory.CopyFrom(media_pb2.MemoryTrace(**memory_fields(memory)))
-    sidecar = pipeline.sidecar_for(cockpit.cfg, row["path"]) or {}
+    sidecar = gallery.sidecar_for(cockpit.cfg, row["path"]) or {}
     for param, inp in (sidecar.get("inputs") or {}).items():
         path = Path(inp["file"])
         rel = path.relative_to(cockpit.cfg.local).as_posix() if path.is_absolute() else str(path)

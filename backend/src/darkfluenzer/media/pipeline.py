@@ -14,8 +14,7 @@ import logging
 import os
 import re
 import shutil
-import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,11 +22,11 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from ..config import ComfyConfig, Config
+from ..nodes import comfy
+from ..store import MEDIA_KINDS, Store, sha256_file
 from . import models, training
-from .config import ComfyConfig, Config
 from .models import Lora, Manifest, Workflow
-from .nodes import comfy
-from .store import MEDIA_KINDS, Store, sha256_file
 
 log = logging.getLogger("darkfluenzer.pipeline")
 
@@ -233,198 +232,6 @@ def create_render(
 # ------------------------------------------------------------------ Auftrag mit Stufen (V0 §4.3)
 
 
-def _journal(store: Store, command: dict | None, entity: str) -> None:
-    """Befehl im selben Commit wie sein Effekt festhalten und abschließen."""
-    if command:
-        store.record_command(**command, entity=entity)
-        store.finish_command(command["request_id"], "completed")
-
-
-def create_order(
-    store: Store,
-    man: Manifest,
-    workflow_key: str,
-    values: dict,
-    inputs: dict,
-    *,
-    count: int,
-    finish_workflow: str = "",
-    parent_media_id: int | None = None,
-    command: dict | None = None,
-    source: str = "operator",
-    origin: int | None = None,
-    customer_order_no: str = "",
-    video_max_s: float | None = None,
-) -> tuple[str, list[int]]:
-    """Auftrag des Betreibers: Stufe 1 rendert ``count`` Kandidaten mit fortlaufenden Seeds und
-    wartet dann auf die Auswahl; optional wird der ausgewählte Kandidat mit ``finish_workflow``
-    (Eingang ``image``) fertiggestellt. Auftrag, Stufe, Jobs und Befehl in einem Commit.
-    ``customer_order_no``: bezahlter Kundenauftrag, der so produziert wird (V0 §8.4 Punkt 5) –
-    nur mit Workflows der Inhaltsstufe standard (Regel 13)."""
-    wf = man.workflows.get(workflow_key)
-    if wf is None:
-        raise PipelineError(f"Workflow '{workflow_key}' ist nicht registriert.")
-    if wf.training:
-        raise PipelineError("Ein Training ist kein Kandidatenauftrag.")
-    seed = wf.params.get("seed")
-    if count < 1 or (count > 1 and seed is None):
-        raise PipelineError(f"{workflow_key}: mehrere Kandidaten brauchen einen Seed-Parameter.")
-    if finish_workflow:
-        fw = man.workflows.get(finish_workflow)
-        if fw is None or "image" not in fw.params or not fw.params["image"].upload or fw.training:
-            raise PipelineError(f"Fertigstellen mit '{finish_workflow}' ist nicht möglich.")
-        extra = [n for n, p in fw.params.items() if p.required and n != "image"]
-        if extra:
-            raise PipelineError(f"Fertigstellen mit {fw.title} braucht zusätzlich: {extra}.")
-    if customer_order_no:
-        for key in filter(None, (workflow_key, finish_workflow)):
-            if man.workflows[key].content != "standard":
-                raise PipelineError(
-                    f"{man.workflows[key].title}: an Kunden nur Inhaltsstufe standard."
-                )
-        if parent_media_id is not None and store.media_tier(parent_media_id) != "standard":
-            raise PipelineError("Ausgangsmedium ist nicht Inhaltsstufe standard.")
-        existing = store.order(customer_order_no)
-        if existing.source != "customer" or existing.status != "paid":
-            raise PipelineError(f"{customer_order_no} ist kein bezahlter Kundenauftrag.")
-    graph = comfy.load_graph(man, wf)
-    base = int(values.get("seed", graph[seed.node]["inputs"][seed.input])) if seed else 0
-    top = int(seed.max) if seed and seed.max is not None else 2**32 - 1
-    params = {"values": values, "inputs": inputs, "finish": finish_workflow, "origin": origin}
-    kind = man.engines[wf.engine].kind
-    with store.tx():
-        if customer_order_no:
-            order = store.transition(customer_order_no, "producing", workflow=workflow_key)
-            store.set_order_kind(customer_order_no, kind)
-        else:
-            order = store.create_production_order(
-                source, kind, str(values.get("prompt", "")) or wf.title
-            )
-        stage = store.add_stage(order.id, "candidates", workflow_key, params, count)
-        jobs = [
-            create_render(
-                store,
-                man,
-                workflow_key,
-                {**values, "seed": (base + i) % (top + 1)} if seed else dict(values),
-                inputs,
-                parent_media_id=parent_media_id,
-                stage_id=stage.id,
-                video_max_s=video_max_s,
-            )
-            for i in range(count)
-        ]
-        _journal(store, command, f"order:{order.order_no}")
-    return order.order_no, jobs
-
-
-def advance_order(store: Store, job_id: int) -> None:
-    """Nach dem Ende eines Jobs: ist seine Stufe vollständig, wartet sie auf die Auswahl
-    (Kandidaten), ist fertig (Fertigstellen -> Auftrag zur Prüfung) oder fehlgeschlagen."""
-    stage_id = store.job(job_id).get("stage_id")
-    if not stage_id:
-        return
-    stage = store.stage(stage_id)
-    jobs = store.stage_jobs(stage_id)
-    if stage.status != "running" or any(j["status"] in ("queued", "running") for j in jobs):
-        return
-    done = [j for j in jobs if j["status"] == "done" and j["media_id"]]
-    with store.tx():
-        if not done:
-            error = next((j["error"] for j in reversed(jobs) if j["error"]), "kein Ergebnis")
-            store.set_stage(stage_id, "failed", error=error)
-        elif stage.kind == "candidates":  # die kreative Auswahl trifft immer der Betreiber
-            store.set_stage(stage_id, "waiting")
-        else:
-            store.set_stage(stage_id, "done", selected_media_id=done[-1]["media_id"])
-            store.transition(store.order_by_id(stage.order_id).order_no, "review")
-
-
-def select_candidate(
-    cfg: Config, store: Store, man: Manifest, order_no: str, media_id: int, command: dict
-) -> list[int]:
-    """Auswahl des Betreibers; danach Fertigstellen (falls gewählt) mit genau diesem Medium,
-    sonst geht der Auftrag zur Prüfung. Liefert neu angelegte Jobs."""
-    order = store.order(order_no)
-    stages = store.stages(order.id)
-    stage = stages[-1] if stages else None
-    if stage is None or stage.kind != "candidates" or stage.status != "waiting":
-        raise PipelineError(f"{order_no} wartet nicht auf eine Auswahl.")
-    if media_id not in {j["media_id"] for j in store.stage_jobs(stage.id)}:
-        raise PipelineError(f"Medium {media_id} ist kein Kandidat von {order_no}.")
-    finish = str(stage.params.get("finish") or "")
-    image = input_from_media(cfg, media_id) if finish else ""
-    with store.tx():
-        store.set_stage(stage.id, "done", selected_media_id=media_id)
-        jobs = []
-        if finish:
-            nxt = store.add_stage(order.id, "finish", finish, {"inputs": {"image": image}}, 1)
-            jobs.append(
-                create_render(
-                    store,
-                    man,
-                    finish,
-                    {},
-                    {"image": image},
-                    parent_media_id=media_id,
-                    stage_id=nxt.id,
-                )
-            )
-        else:
-            store.transition(order_no, "review")
-        _journal(store, command, f"order:{order_no}")
-    return jobs
-
-
-def retry_stage(
-    store: Store,
-    man: Manifest,
-    order_no: str,
-    seq: int,
-    max_attempts: int,
-    command: dict,
-    video_max_s: float | None = None,
-) -> list[int]:
-    """Fehlgeschlagene Jobs einer Stufe mit denselben Parametern erneut anlegen."""
-    order = store.order(order_no)
-    stage = next((st for st in store.stages(order.id) if st.seq == seq), None)
-    if stage is None or stage.status not in ("failed", "waiting"):
-        raise PipelineError(f"{order_no}: Stufe {seq} ist nicht wiederholbar.")
-    failed = [j for j in store.stage_jobs(stage.id) if j["status"] == "failed"]
-    if not failed:
-        raise PipelineError(f"{order_no}: Stufe {seq} hat keine fehlgeschlagenen Jobs.")
-    if stage.attempts >= max_attempts:
-        raise PipelineError(f"{order_no}: höchstens {max_attempts} Versuche je Stufe.")
-    wf = man.workflows.get(stage.workflow)
-    if wf is None:
-        raise PipelineError(f"Workflow '{stage.workflow}' ist nicht mehr registriert.")
-    with store.tx():
-        store.set_stage(stage.id, "running", retry=True)
-        jobs = []
-        for j in failed:
-            old = store.job(j["id"])
-            uploads = {n for n, p in wf.params.items() if p.upload}
-            jobs.append(
-                create_render(
-                    store,
-                    man,
-                    stage.workflow,
-                    {
-                        n: v
-                        for n, v in old["params"].items()
-                        if (n in wf.params or n in VIDEO_KEYS) and n not in uploads
-                    },
-                    {n: v for n, v in old["params"].items() if n in uploads},
-                    parent_media_id=old["parent_media_id"],
-                    stage_id=stage.id,
-                    video_max_s=video_max_s,
-                )
-            )
-            store.copy_segments(j["id"], jobs[-1])  # Langvideo: fertige Abschnitte behalten
-        _journal(store, command, f"order:{order_no}")
-    return jobs
-
-
 def run_render(
     cfg: Config,
     man: Manifest,
@@ -557,7 +364,7 @@ def _render(
     overrides: dict[tuple[str, str], object] | None = None,
 ) -> tuple[comfy.RenderResult, list[dict]]:
     workflow_key = wf.key
-    from .nodes import local as runtime
+    from ..nodes import local as runtime
 
     inst = comfy.instance_of(cfg, man, wf)
     runtime.start(cfg, inst.name)
@@ -668,7 +475,7 @@ def _render_video(
     """Langvideo (V0 §10): Abschnitte nacheinander, jeder Folgeabschnitt startet mit dem letzten
     Bild des vorigen; danach in ComfyUI zusammengesetzt (doppeltes Übergangsbild entfernt). Fertige
     Abschnitte überstehen einen Neustart; fortgesetzt wird nur der unfertige."""
-    from .nodes import local as runtime
+    from ..nodes import local as runtime
 
     spec = wf.video
     assert spec is not None
@@ -872,108 +679,3 @@ def _adopt_lora(
         "sha256": lora.sha256,
         "size": lora.size,
     }
-
-
-def sidecar_for(cfg: Config, output_rel: str) -> dict | None:
-    """Herkunftsdatei eines Laufs zu einer Ausgabe (``<stem>_NN.ext`` -> ``<stem>.json``)."""
-    out = Path(output_rel)
-    sidecar = cfg.local / out.parent / f"{out.stem.rsplit('_', 1)[0]}.json"
-    try:
-        return json.loads(sidecar.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-
-
-def _gallery_files(cfg: Config) -> Iterator[tuple[int, Path, str]]:
-    """Bild-/Videodateien der Galerie-Quellen mit Vorrang: ``local/evaluation`` (ohne Eingaben)
-    und die Ausgabe der verwalteten ComfyUI. Liefert (Vorrang, Datei, Pfad relativ zu local/)."""
-    local = cfg.local.resolve()
-    for prio, root, skip in (
-        (1, cfg.local / "evaluation", "inputs"),
-        (2, cfg.comfyui.path / "output", WORK_PREFIX),  # Zwischenstände der Videoabschnitte
-    ):
-        if not root.is_dir() or not root.resolve().is_relative_to(local):
-            continue
-        for path in root.rglob("*"):
-            if (
-                path.name.startswith(".")
-                or path.suffix.lower() not in MEDIA_KINDS
-                or not path.is_file()
-                or (skip and path.relative_to(root).parts[0] == skip)
-            ):
-                continue
-            yield prio, path, path.resolve().relative_to(local).as_posix()
-
-
-def media_candidates(cfg: Config, store: Store, seen: set[str], settle_s: float) -> list[tuple]:
-    """Noch nicht erfasste erzeugte Bilder/Videos, chronologisch: Ausgaben abgeschlossener Jobs
-    (mit Job-Bezug), Dateien unter ``local/evaluation`` (ohne Eingaben) und direkt in der
-    verwalteten ComfyUI erzeugte Ausgaben. Gleiche Bytes zählen einmal (Job vor Evaluation vor
-    ComfyUI); nur ruhende Dateien. Liefert (mtime, Pfad, SHA-256, Größe, Job-ID) und ergänzt
-    ``seen`` um alle geprüften Pfade."""
-    cutoff = time.time() - settle_s
-    found: dict[str, tuple] = {}  # sha -> (Vorrang, mtime, Pfad, Größe, Job-ID)
-
-    def offer(prio: int, path: Path, rel: str, sha: str, job_id: int | None) -> None:
-        stat = path.stat()
-        best = found.get(sha)
-        if best is None or (prio, stat.st_mtime) < best[:2]:
-            found[sha] = (prio, stat.st_mtime, rel, stat.st_size, job_id)
-
-    for row in store.finished_jobs(0, 1_000_000)[0]:
-        for out in row["data"].get("outputs") or []:
-            rel, path = out["path"], cfg.local / out["path"]
-            if rel in seen or Path(rel).suffix.lower() not in MEDIA_KINDS or not path.is_file():
-                continue
-            seen.add(rel)
-            offer(0, path, rel, out["sha256"], row["job_id"])
-    # Seit dem Start eines laufenden Jobs in ComfyUI entstandene Dateien gehören wahrscheinlich ihm
-    # (frühe Zwischenausgaben wie eine Maske): erst nach seinem Abschluss aufnehmen, damit die
-    # Job-Ausgabe mit Auftragsbezug Vorrang hat.
-    busy = store.running_since()
-    for prio, path, rel in _gallery_files(cfg):
-        if rel in seen:
-            continue
-        mtime = path.stat().st_mtime
-        if mtime > cutoff or (prio == 2 and busy is not None and mtime >= busy):
-            continue  # wird noch geschrieben bzw. gehört zu einem laufenden Job: später
-        seen.add(rel)
-        offer(prio, path, rel, sha256_file(path), None)
-    return sorted((m, rel, sha, size, job) for sha, (_, m, rel, size, job) in found.items())
-
-
-def delete_media(cfg: Config, ids: list[int]) -> list[str]:
-    """Löscht Galerie-Einträge ohne Kundenbezug endgültig: Index-Eintrag (Journal 'removed')
-    und Datei samt aller byte-gleichen Kopien in den Galerie-Quellen (z. B. ComfyUIs eigene
-    Ausgabe eines Renderjobs), damit nichts beim nächsten Durchlauf wieder auftaucht. Liefert
-    die entfernten Pfade relativ zu ``local/``."""
-    store = Store(cfg.local)
-    try:
-        with store.tx():
-            rows = store.remove_media(ids)
-            wanted = {(r["size"], r["sha256"]) for r in rows}
-            doomed = {r["path"]: cfg.local / r["path"] for r in rows}
-            sizes = {size for size, _ in wanted}
-            for _, path, rel in _gallery_files(cfg):
-                size = path.stat().st_size
-                if rel not in doomed and size in sizes and (size, sha256_file(path)) in wanted:
-                    doomed[rel] = path
-            for path in doomed.values():  # Fehler -> Index bleibt unverändert (Rollback)
-                path.unlink(missing_ok=True)
-        return list(doomed)
-    finally:
-        store.close()
-
-
-def scan_media(cfg: Config, seen: set[str], settle_s: float) -> int:
-    """Nimmt alle noch nicht erfassten erzeugten Medien chronologisch in den Galerie-Index auf;
-    liefert die Zahl neuer Einträge."""
-    store = Store(cfg.local)
-    try:
-        added = 0
-        for mtime, rel, sha, size, job_id in media_candidates(cfg, store, seen, settle_s):
-            created = datetime.fromtimestamp(mtime, UTC).isoformat(timespec="milliseconds")
-            added += bool(store.add_media(rel, sha, size, job_id=job_id, created_at=created))
-        return added
-    finally:
-        store.close()

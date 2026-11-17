@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from darkfluenzer.models import Param, Workflow
+from darkfluenzer.media.models import Param, Workflow
 from darkfluenzer.nodes import comfy
 
 PNG = b"\x89PNG\r\n\x1a\nfake"

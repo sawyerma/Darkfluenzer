@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from darkfluenzer import models
 from darkfluenzer.config import project_root
+from darkfluenzer.media import models
 
 REPO_ROOT = project_root()
 

@@ -1370,7 +1370,7 @@ class Store:
     def backfill_content_tiers(self, workflow_tiers: dict[str, str]) -> int:
         """Erstzuordnung für Jobs/Medien vor Migration 14: Stufe des Workflows (unbekannter
         Workflow = explizit) und höhere Stufe des Ausgangsmediums; Medien erben vom Job."""
-        from .models import higher_tier
+        from .media.models import higher_tier
 
         with self.tx() as db:
             rows = db.execute(

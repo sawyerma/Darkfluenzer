@@ -168,8 +168,8 @@ def cloner_cfg(cfg):
     """Projekt mit den echten Workflows und (leeren) LUSTIFY-Modelldateien."""
     import shutil
 
-    from darkfluenzer import models
     from darkfluenzer.config import project_root
+    from darkfluenzer.media import models
 
     shutil.copytree(project_root() / "workflows", cfg.root / "workflows", dirs_exist_ok=True)
     for mf in models.load_manifest(cfg.root).engine_files("lustify_sdxl"):  # Modell vorhanden
@@ -382,7 +382,7 @@ def test_content_tier_age_mark_and_ai_notice(cloner_cfg):
     Befehl 44 Altersangabe; Regel 12 b: KI-Hinweis genau einmal, Karte erst beim Versand."""
     import hashlib
 
-    from darkfluenzer import pipeline
+    from darkfluenzer.media import pipeline
 
     cfg = cloner_cfg
 
@@ -497,7 +497,7 @@ def test_default_sender_by_click_moves_identity_and_history(cfg):
 def test_cloner_command_workflows_reference_and_edit(cloner_cfg):
     """FL-6: Workflow je Befehl (Befehl 37); ein Vorlagen-Workflow erhält das Referenzbild als
     `reference` samt Befehlsanweisung; edit nur auf eigene Bilder, Bereich aus „edit dress: …“."""
-    from darkfluenzer import models
+    from darkfluenzer.media import models
 
     cfg = cloner_cfg
     man = models.load_manifest(cfg.root)
