@@ -147,7 +147,7 @@ def _wallet(cfg) -> WalletConfig:
     )  # fmt: skip
 
 
-def test_customer_order_chain(cfg):
+def test_customer_order_chain(cfg, monkeypatch):
     async def scenario(client, app, origin):
         cockpit = app[server.COCKPIT_KEY]
         store = cockpit.store
@@ -244,6 +244,24 @@ def test_customer_order_chain(cfg):
         orders.select_candidate(cfg, store, man, no, media, None)
         assert store.order(no).status == "review" and store.media_tier(media) == "standard"
 
+        # FABLE-003: Freigabe, Liefer-Gate und Wiederholung hashen nie im Hauptstrang
+        import threading
+
+        from darkfluenzer import approval as approval_module
+        from darkfluenzer.core import delivery as delivery_module
+        from darkfluenzer.store import orders as store_orders
+
+        main_hashes: list[str] = []
+        for module in (approval_module, delivery_module, store_orders):
+            real = module.sha256_file
+
+            def spy(path, _real=real):
+                if threading.current_thread() is threading.main_thread():
+                    main_hashes.append(str(path))
+                return _real(path)
+
+            monkeypatch.setattr(module, "sha256_file", spy)
+
         approve = commands_pb2.ApproveArtifact(order_no=no, media_id=media)
         assert "nicht explizit" in await send(approve_artifact=approve)
         approve.not_explicit = True
@@ -271,6 +289,7 @@ def test_customer_order_chain(cfg):
         store.set_message_status(d2["message_id"], "sent", platform_message_id="77")
         cockpit._message_changed(d2["message_id"])
         assert store.order(no).status == "delivered"
+        assert main_hashes == []
         texts = [i["text"] for i in store.conversation_items(cust, 0, 50)[0]]
         assert any(t.startswith("ANGEBOT · Foto + HD · 25,00 €") for t in texts)
         assert any(t.startswith("ZUSTELLUNG FEHLGESCHLAGEN") for t in texts)

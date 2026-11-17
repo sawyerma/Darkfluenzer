@@ -11,8 +11,11 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from .store import Store, StoreError, now, sha256_file
+
+READ = object()  # Hash der Artefaktdatei hier lesen (Kommandozeile, Tests)
 
 
 @dataclass
@@ -21,8 +24,26 @@ class GateResult:
     reasons: list[str] = field(default_factory=list)
 
 
-def check_gate(store: Store, order_no: str, artifact_id: int, customer_no: str) -> GateResult:
-    """Prüft alle vier Bedingungen frisch gegen Datenbank UND Datei auf der Platte."""
+def file_sha(path: Path) -> str | None:
+    """SHA-256 der Datei, None wenn unlesbar – ohne Datenbank, für den Arbeiter-Thread."""
+    try:
+        return sha256_file(path)
+    except OSError:
+        return None
+
+
+def check_gate(
+    store: Store,
+    order_no: str,
+    artifact_id: int,
+    customer_no: str,
+    *,
+    disk_sha: str | None | object = READ,
+    check_file: bool = True,
+) -> GateResult:
+    """Prüft alle vier Bedingungen frisch gegen Datenbank UND Datei auf der Platte. Das Cockpit
+    übergibt ``disk_sha`` (im Arbeiter-Thread gelesen, FABLE-003); ``check_file=False`` nur nach
+    dem Versand: die Datei gehört zum Versandmoment."""
     reasons: list[str] = []
     try:
         order = store.order(order_no)
@@ -65,23 +86,27 @@ def check_gate(store: Store, order_no: str, artifact_id: int, customer_no: str) 
     ]
     if not tiers or any(t != "standard" for t in tiers):
         reasons.append("CONTENT_TIER: nur Inhaltsstufe standard an Kunden")
-    path = store.local / art.path
-    try:
-        disk_sha = sha256_file(path)
-    except OSError:
-        disk_sha = None
-    if disk_sha != art.sha256 or (last is not None and last["artifact_sha256"] != art.sha256):
-        reasons.append("ARTIFACT_HASH_MISMATCH: Datei fehlt oder wurde verändert")
+    if check_file:
+        if disk_sha is READ:
+            disk_sha = file_sha(store.local / art.path)
+        if disk_sha != art.sha256 or (last is not None and last["artifact_sha256"] != art.sha256):
+            reasons.append("ARTIFACT_HASH_MISMATCH: Datei fehlt oder wurde verändert")
 
     return GateResult(not reasons, reasons)
 
 
 def prepare_delivery(
-    store: Store, order_no: str, artifact_id: int, customer_no: str, attempt: int = 0
+    store: Store,
+    order_no: str,
+    artifact_id: int,
+    customer_no: str,
+    attempt: int = 0,
+    *,
+    disk_sha: str | None | object = READ,
 ) -> int:
     """Legt genau eine Lieferung je Auftrag und Versuch an (idempotent). Gate wird vorher
     geprüft. ``attempt`` > 0: erneute Zustellung nach endgültig fehlgeschlagener (Befehl 47)."""
-    gate = check_gate(store, order_no, artifact_id, customer_no)
+    gate = check_gate(store, order_no, artifact_id, customer_no, disk_sha=disk_sha)
     if not gate.ok:
         raise StoreError("Lieferung gesperrt: " + "; ".join(gate.reasons))
     order = store.order(order_no)
@@ -107,8 +132,9 @@ def prepare_delivery(
 
 def confirm_sent(store: Store, delivery_id: int, external_id: str) -> list[str]:
     """Nach der Annahme durch die Plattform festschreiben (FABLE-012). Gesendet ist eine
-    Tatsache: die Zustellung wird immer ``sent``. Das Gate wird erneut geprüft; ist es jetzt
-    verletzt (z. B. Erstattung während des Sendens), steht der Grund in ``gate_violation`` und
+    Tatsache: die Zustellung wird immer ``sent``. Das Gate wird erneut geprüft (ohne die Datei:
+    Artefakt und Zustellkopie prüft der Postausgang im Versandmoment); ist es jetzt verletzt
+    (z. B. Erstattung während des Sendens), steht der Grund in ``gate_violation`` und
     kommt zurück (Karte für den Betreiber). Der Auftrag wird nur aus ``approved`` zu ``delivered``.
     Leere Liste = sauber oder schon festgeschrieben."""
     row = store.db.execute(
@@ -123,7 +149,9 @@ def confirm_sent(store: Store, delivery_id: int, external_id: str) -> list[str]:
         return []  # idempotent: Retry nach Timeout liefert nicht doppelt
     if row["status"] != "pending":
         raise StoreError(f"Lieferung {delivery_id} ist {row['status']}, nicht offen.")
-    gate = check_gate(store, row["order_no"], row["artifact_id"], row["customer_no"])
+    gate = check_gate(
+        store, row["order_no"], row["artifact_id"], row["customer_no"], check_file=False
+    )
     violation = "; ".join(gate.reasons) or None
     with store.tx() as db:
         try:

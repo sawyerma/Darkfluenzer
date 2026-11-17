@@ -198,6 +198,19 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-003 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-111“)
+Commit: siehe git log „FABLE-003“ / approval.check_gate (disk_sha, check_file), core.delivery
+Behauptung: BESTÄTIGT – Freigabe, Wiederholung, Gate im Versandmoment und Bestätigung nach dem Versand
+  hashten die Artefaktdatei im Hauptstrang (bei Videos Blockade über der SP0-Grenze)
+Korrektur: Hash im Arbeiter-Thread (approval.file_sha) und an check_gate/prepare_delivery/add_artifact
+  übergeben; nach dem Versand ohne Dateiprüfung (Artefakt und Zustellkopie prüft der Postausgang im
+  Versandmoment); ohne übergebenen Hash liest check_gate wie bisher selbst (Kommandozeile, Tests)
+Nachweis: tests/test_customer_orders.py::test_customer_order_chain zählt Hash-Läufe im Hauptstrang von
+  der Freigabe bis zur zweiten Zustellung: vorher 6 (rot), danach 0 (grün);
+  tests/test_store.py::test_file_check_belongs_to_the_send_moment
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
+Bearbeiter/Datum: Claude, 17.11.2026
+
 ID: FABLE-009 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-117“)
 Commit: siehe git log „FABLE-009“ / frontend/src/core/commands.ts
 Behauptung: BESTÄTIGT – sendCommand behandelte jede Nicht-2xx-Antwort wie Verbindungsverlust: drei
@@ -232,7 +245,7 @@ Korrektur: gesendet ist eine Tatsache – Zustellung immer sent; verletztes Gate
   deliveries.gate_violation (Migration 25, Versand-Trigger lässt sent nur mit Grund zu) und in der Karte
   „VERSENDET · … · GATE NACH VERSAND: …“; Auftrag nur aus approved zu delivered
 Nachweis: tests/test_store.py::test_refund_during_sending_is_recorded_and_reported,
-  ::test_file_changed_during_sending_still_counts_as_delivered (vor der Korrektur rot, danach grün),
+  ::test_file_check_belongs_to_the_send_moment (seit FABLE-003: Datei nur im Versandmoment; vorher rot),
   ::test_cockpit_card_names_the_gate_violation_after_sending; Migration 24→25 an einer Kopie der echten
   Datenbank (Integrität ok)
 Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)

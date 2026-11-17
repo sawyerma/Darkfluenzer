@@ -295,15 +295,17 @@ class OrdersMixin:
         job_id: int | None = None,
         parent_id: int | None = None,
         provenance: dict | None = None,
+        sha256: str | None = None,
     ) -> Artifact:
-        """Registriert eine Datei im Auftragsordner als unveränderliches Artefakt (Hash + 0444)."""
+        """Registriert eine Datei im Auftragsordner als unveränderliches Artefakt (Hash + 0444).
+        ``sha256``: vom Aufrufer im Arbeiter-Thread geprüfter Hash (FABLE-003), sonst gelesen."""
         if role not in ARTIFACT_ROLES:
             raise StoreError(f"Artefaktrolle {role!r} unbekannt.")
         order = self.order(order_no)
         file = file.resolve()
         if not file.is_relative_to(self.order_dir(order).resolve()) or not file.is_file():
             raise StoreError(f"{file} liegt nicht im Ordner von {order_no}.")
-        sha, size = sha256_file(file), file.stat().st_size
+        sha, size = sha256 or sha256_file(file), file.stat().st_size
         rel = file.relative_to(self.local.resolve()).as_posix()
         with self.tx() as db:
             cur = db.execute(

@@ -238,19 +238,24 @@ def test_refund_during_sending_is_recorded_and_reported(store):
     assert approval.confirm_sent(store, did, "tg-1") == []  # idempotent
 
 
-def test_file_changed_during_sending_still_counts_as_delivered(store):
-    """FABLE-012: Datei nach dem Senden verändert – gesendet ist gesendet: Auftrag geliefert,
-    Verletzung in der Zustellung festgehalten und zurückgegeben."""
+def test_file_check_belongs_to_the_send_moment(store):
+    """FABLE-012/FABLE-003: die Datei prüft der Postausgang vor dem Senden (Hash aus dem
+    Arbeiter-Thread); nach dem Versand zählt sie nicht mehr – gesendet ist gesendet."""
     customer, order, arts = _paid_order_in_review(store)
     store.record_approval(order.order_no, arts[0].id, "approved", "betreiber")
     did = approval.prepare_delivery(store, order.order_no, arts[0].id, customer.customer_no)
     path = store.local / arts[0].path
     os.chmod(path, 0o644)
     path.write_bytes(b"manipuliert")
-    reasons = approval.confirm_sent(store, did, "tg-2")
-    assert [r.split(":")[0] for r in reasons] == ["ARTIFACT_HASH_MISMATCH"]
+    before = approval.check_gate(store, order.order_no, arts[0].id, customer.customer_no)
+    assert [r.split(":")[0] for r in before.reasons] == ["ARTIFACT_HASH_MISMATCH"]
+    given = approval.check_gate(
+        store, order.order_no, arts[0].id, customer.customer_no, disk_sha=arts[0].sha256
+    )
+    assert given.ok  # übergebener Hash wird verwendet, die Datei nicht erneut gelesen
+    assert approval.confirm_sent(store, did, "tg-2") == []
     assert store.order(order.order_no).status == "delivered"
-    assert store.delivery(did)["gate_violation"].startswith("ARTIFACT_HASH_MISMATCH")
+    assert store.delivery(did)["gate_violation"] is None
     events = [e["event"] for e in store.events("delivery", did)]
     assert events.count("sent") == 1
 

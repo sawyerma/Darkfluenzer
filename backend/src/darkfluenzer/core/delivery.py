@@ -96,10 +96,12 @@ class DeliveryMixin:
         copy = await asyncio.to_thread(self._delivery_copy, order, master)
         attachment = await asyncio.to_thread(_document_attachment, self.cfg.local, copy)
         with self.store.tx():
-            art = self.store.add_artifact(order.order_no, "master", master, job_id=result["job_id"])
+            art = self.store.add_artifact(  # Hash eben in _place_copy geprüft (FABLE-003)
+                order.order_no, "master", master, job_id=result["job_id"], sha256=result["sha256"]
+            )
             self.store.record_approval(order.order_no, art.id, "approved", "Betreiber")
             delivery = approval.prepare_delivery(
-                self.store, order.order_no, art.id, order.customer_no
+                self.store, order.order_no, art.id, order.customer_no, disk_sha=result["sha256"]
             )
             message_id = self._queue_delivery(order, delivery, attachment)
             self._card(order, f"FREIGEGEBEN · {order.order_no} · Zustellung im Postausgang")
@@ -120,12 +122,13 @@ class DeliveryMixin:
             return reason
         last = deliveries[-1]
         master = self.cfg.local / self.store.artifact(last["artifact_id"]).path
+        disk_sha = await asyncio.to_thread(approval.file_sha, master)
         copy = await asyncio.to_thread(self._delivery_copy, order, master)
         attachment = await asyncio.to_thread(_document_attachment, self.cfg.local, copy)
         with self.store.tx():
             delivery = approval.prepare_delivery(
                 self.store, order.order_no, last["artifact_id"], order.customer_no,
-                attempt=len(deliveries),
+                attempt=len(deliveries), disk_sha=disk_sha,
             )  # fmt: skip
             message_id = self._queue_delivery(order, delivery, attachment)
             self._card(order, f"ERNEUT GESENDET · {order.order_no} · Zustellung im Postausgang")
@@ -142,9 +145,15 @@ class DeliveryMixin:
         delivery = self.store.delivery(item["delivery_id"])
         if delivery is None or delivery["status"] != "pending":
             return "Zustellung ist nicht mehr offen."
+        master = self.cfg.local / self.store.artifact(delivery["artifact_id"]).path
+        disk_sha = await asyncio.to_thread(approval.file_sha, master)
+        delivery = self.store.delivery(item["delivery_id"])  # nach dem Warten frisch
+        if delivery is None or delivery["status"] != "pending":
+            return "Zustellung ist nicht mehr offen."
         gate = approval.check_gate(
-            self.store, delivery["order_no"], delivery["artifact_id"], delivery["customer_no"]
-        )
+            self.store, delivery["order_no"], delivery["artifact_id"], delivery["customer_no"],
+            disk_sha=disk_sha,
+        )  # fmt: skip
         if not gate.ok:
             return "Zustellung gesperrt: " + "; ".join(gate.reasons)
         return await asyncio.to_thread(_copies_intact, self.cfg.local, item["attachments"])
