@@ -97,7 +97,7 @@ Wörtlich aus V0 §2.1, ergänzt um die Betreiberregeln vom 14.–17.11.:
 - **NO DUPLICATION:** vorhandene Funktionen wiederverwenden, keine doppelte Architektur.
 - **MAIN ONLY:** keine Branches oder Worktrees. **MAX 2 AGENTS.**
 - **GIT:** je abgeschlossenem Paket Tests, Commit, Push auf `main`.
-- **Geheimnisse nur im macOS-Schlüsselbund** (Konto `darkfluenzer`): `darkfluenzer.telegram.api_id`, `darkfluenzer.telegram.api_hash`, `darkfluenzer.telegram.db_key`, Instagram-Token, Meta-App-Secret, PayPal-Zugang. Nie in `.env`, TOML, Git, Logs, gespeicherten oder gesendeten Protobuf-Nachrichten (STATE, EVENT, Receipt, Befehlsjournal) oder LLM-Kontext. Einzige Ausnahme ist der flüchtige Eingabeweg von Befehl 60 `secret_set` (S1): der Wert geht über die angemeldete lokale Cockpit-Verbindung (Sitzung + CSRF) direkt in den Schlüsselbund; im Journal steht nur der Hash ohne Wert. Eingabe über `darkfluenzer secret set` (verdeckt bzw. stdin, Übergabe an `security -i` über stdin); vorhandene Einträge nur nach ausdrücklicher Bestätigung ersetzen. Telegram-Code und 2FA-Passwort gehen nur temporär an TDLib.
+- **Geheimnisse nur im macOS-Schlüsselbund** (Konto `darkfluenzer`): `darkfluenzer.telegram.api_id`, `darkfluenzer.telegram.api_hash`, `darkfluenzer.telegram.db_key`, Instagram-Token, Meta-App-Secret, PayPal-Zugang. Nie in `.env`, TOML, Git, Logs, STATE, EVENT, Receipt, Befehlsjournal oder LLM-Kontext. In den Befehlen `secret_set` und `channel_account_login` reist der Wert einmal über die angemeldete lokale Cockpit-Verbindung (Sitzung + CSRF) zum Backend und wird dort nicht gespeichert; der Journal-Hash wird ohne den Wert gebildet. Eingabe über `darkfluenzer secret set` (verdeckt bzw. stdin, Übergabe an `security -i` über stdin); vorhandene Einträge nur nach ausdrücklicher Bestätigung ersetzen. Telegram-Code und 2FA-Passwort gehen nur temporär an TDLib.
 - **Ein Stylesheet:** `frontend/src/shared/graphite.css`, keine Datei je Seite (FRONTEND §1).
 - **Datenbank-Migrationen** nur mit vorheriger Sicherung (`darkfluenzer.sqlite3.bak-<Zeit>-vor-migrationNN`), danach `PRAGMA integrity_check` und Fremdschlüsselprüfung.
 - **Echte Kettenprüfung (Betreiberregel 17.11.):** Eine Kette gilt erst als funktionierend nach einem Lauf vom echten Eingang bis zum Ergebnis im Chat (Handy → Telegram → Cockpit → ComfyUI → Rückversand). Voraussetzungen (Workflows, Influencerin, Charakter) werden vorher eingerichtet oder offen als fehlend gemeldet. Jede Ablehnung wird im Chat beantwortet, aus dem sie kam, nicht nur als Cockpit-Karte.
@@ -283,7 +283,7 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 | Instagram | CODE | Adapter + Tests | Meta-App, Tunnel |
 | Zahlungen | CODE | Krypto-Beobachter, Gutschein-Erkennung, Zuordnung, Monatsliste | PayPal, echte Zahlung, SP2/C5a |
 | Kundenauftrag von Hand | CODE | Hinweis, Alter, Angebot, Produktion, Freigabe, Zustellung | kein echter Kunde |
-| Einstellungen (Reiter) | OFFEN | Geheimnisse bisher nur per CLI `darkfluenzer secret set` (Telegram) | S1 |
+| Einstellungen (Reiter) | OFFEN | Geheimnisse bisher nur per CLI `darkfluenzer secret set` (Telegram) | SP2 (S1) |
 | Chat-KI | OFFEN | Melody Q6_K geladen und SHA-geprüft (17.11. 01:14); Node ComfyUI-LLM-Session geprüft, Setup-Skript vorbereitet (nicht installiert) | B5.1 ff. |
 
 ### 5.1 Nachweise der abgenommenen Pakete (aus V0, gekürzt; Volltext im Archiv)
@@ -305,8 +305,8 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 | Paket | Inhalt (bisherige Nummern) | Steht am Ende |
 |---|---|---|
 | **SP1 Default-Kette** (§7.1, ausgeschrieben) | H0, H4, H5, H6a; aus H2 BUG-008/013/014; aus H3 Zeitlimit, Auftrag abbrechen, BUG-064 | Bild mit Befehl vom Handy, Datei kommt zurück |
-| **SP2 Fundament** | H1, H2-Rest, H3-Rest, S1 mit Kanalkonten als Liste, Frontend-Härtung | alle P0 zu, Einstellungen im Cockpit |
-| **SP3 Charakter und Medien** | B1, B1.7, B2, H6b, B4, B5.6 | „clone“ liefert Clara, Video mit Zeitachse |
+| **SP2 Fundament** (§7.2, ausgeschrieben) | H1, H2-Rest, S1 mit Kanalkonten als Liste, Kontenteil von C5.1, Frontend-Härtung | kein stiller Stillstand, alle P0 zu, mehrere Konten, Einstellungen im Cockpit |
+| **SP3 Charakter und Medien** | B1, B1.7, B2, H6b, H3-Rest, B4, B5.6 | „clone“ liefert Clara, Video mit Zeitachse |
 | **SP4 Clara chattet** | B5.1–B5.4 (mit B5.4a), C5.1–C5.4, T1; BUG-085 | Kundentest-Chat mit Latenzen |
 | **SP5 Verkauf automatisch** | C5a, C5.5–C5.10 mit C5.6a, T2 | Zahlung rein, Bild raus, ohne Klick |
 | **SP6 Betrieb und Abnahme** | D1–D3, C4, C6 | Probephase bestanden |
@@ -373,32 +373,81 @@ Ersetzt H0, H4, H5, H6a sowie aus H2 BUG-008/013/014 und aus H3 Zeitlimit, Auftr
 7. Neustart im Lauf: der Auftrag läuft weiter, genau eine Datei kommt zurück.
 8. `trace` zeigt jeden dieser Läufe vollständig.
 
-### 7.1a Block H – Rest (wird mit SP2 bzw. SP3 ausgeschrieben)
+### 7.1a Offene Teile für SP3
 
-**H1 Inhaltsstufe schließen (→ SP2).** BUG-047. Stufe = höchste Stufe aus Workflow und allen Eingabebildern (Upload, Vorlage, Galerie, Eltern). Uploads per SHA-256 gegen `media`; unbekanntes Eingabebild in einem abgeleiteten Workflow = `explizit`. Abnahme: explizites Bild über alle Wege, Ergebnis `explizit`, Liefer-Gate sperrt, auch bei manipuliertem Befehl.
+**H3-Rest Render-Betrieb.** Fortschritt langer Läufe (Schritt, Abschnitt) im STATE; ein Lauf über 3600 s besteht mit dem Zeitlimit aus SP1.
 
-**H2-Rest Fehler auf dem Kettenpfad (→ SP2).** BUG-015, 016, 021, 031, 048, 049, 050, 062. Je Befund ein vorher roter Test plus Mac-Lauf, soweit Kanal und Tunnel vorhanden.
+**H6b Default-Kette mit Claras LoRA.** Dieselben Läufe wie die SP1-Abnahme, nach B1 und B1.7 mit Claras LoRA; erst H6b ist der Auftrags-PASS der Default-Kette.
 
-**H3-Rest Render-Betrieb (→ SP2).** Fortschritt langer Läufe (Schritt, Abschnitt) im STATE; ein Lauf über 3600 s besteht mit dem Zeitlimit aus SP1.
+### 7.2 SP2 Fundament
 
-**H6b Default-Kette mit Claras LoRA (→ SP3).** Dieselben Läufe wie die SP1-Abnahme, nach B1 und B1.7 mit Claras LoRA; erst H6b ist der Auftrags-PASS der Default-Kette.
+Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich von Fable (17.11.) mit dem Rest von `server.py`, `tdjson.py`, `vouchers.py`, `keychain.py`, `commands.ts`, `state.ts` und dem Großteil von `store.py`.
 
-### 7.2 S1 – Einstellungen (Reiter, Schlüsselbund)
+**Ziel:** Kein stiller Stillstand mehr, die Inhaltsstufe ist dicht, mehrere Konten sind möglich, Zugangsdaten werden im Cockpit gepflegt.
+**Schließt:** BUG-015, 016, 021, 024 (Backend-Teil), 031, 047, 048, 049, 050, 062, 067, 087 bis 089.
+**Dateien:** `server.py`, `store.py`, `pipeline.py`, `models.py`, `channels/telegram.py`, `channels/tdjson.py`, `channels/instagram.py`, `payments/vouchers.py`, `keychain.py`, `config.py`, `app.py`, `launcher/Darkfluenzer.swift`, neue `settings.proto`, `channel.proto`, `commands.proto`.
 
-- **Dateien:** `keychain.py`, `app.py`, `config.py`, `server.py`, neue `settings.proto`.
-- **Katalog** aller Einträge mit Gruppe, Format und Prüfer; derselbe Katalog für Cockpit und CLI `secret set` (schließt BUG-067).
-- **Geheimnisse** liegen nur im macOS-Schlüsselbund. Ihr Wert steht nie in SQLite, STATE, Logs oder im Befehlsjournal (Hash ohne Wert, wie bei der Telegram-Anmeldung).
-- **Übrige Werte** stehen in `local/config.toml`. Änderungen prüft der Parser aus `config.py`, geschrieben wird atomar; Werte, die einen Neustart brauchen, melden das.
-- **STATE 12 Einstellungen:** Gruppen, Einträge, Status (gesetzt, fehlt, ungültig), zuletzt geändert, letzte Prüfung.
-- **Befehle:** 60 `secret_set`, 61 `config_update`, 62 `connection_test`.
-- **Gruppen:**
-  - Kanäle: Telegram (API-ID, API-Hash, Anmeldung, Test-Chats), Instagram (App-ID, App-Secret, Verify-Token, Tunnel-Adresse, Anmeldung); später WhatsApp, Fansly.
-  - Zahlung: PayPal (Client-ID, Secret, Webhook-ID, Umgebung), Krypto-Adressen, Kulanzgrenze (E10).
-  - KI und Render: Instanzen, Speicherreserve, Hugging-Face-Zugang, falls ein Modell ihn verlangt.
-  - Admin und Test: Default-Identität, Betriebsart, Chat-Wörter.
-  - Betrieb: Autostart, Sicherung, Ruhezustand.
-- **Kanalkonten als Liste** (statt je Plattform ein Abschnitt in `config.toml`): SQLite `channel_accounts` (Plattform, Konto-ID, Anzeigename, Datenordner, Status); Geheimnisse je Konto im Schlüsselbund mit Konto-Kennung; je Konto ein eigener Adapter (eigene TDLib-Instanz und Sitzung, eigener Instagram-Token), Webhook-Routing nach Empfänger-ID, Versand-IDs je Konto; Migration der heutigen Einzelkonten; der Fix für BUG-049 wird gleich mehrkontenfähig gebaut. Befehl 66 `channel_account_update` (anlegen, umbenennen, entfernen).
-- **Abnahme:** PayPal-Zugang im Cockpit eintragen, Verbindungsprüfung besteht, der Wert ist danach nirgends lesbar; falsches Format wird abgewiesen; zwei Telegram-Konten laufen nebeneinander, jede Nachricht landet beim richtigen Konto.
+**Umsetzung in dieser Reihenfolge**
+
+1. **Daueraufgaben beaufsichtigen (`server.create_app`, `lifecycle`).**
+   - Heute: `outbox_worker`, `adapter.run` und `wallet.run` laufen als nackte Aufgaben. Ein unerwarteter Fehler beendet sie still.
+   - Neu: jede Daueraufgabe läuft in einer Aufsicht, die den Fehler protokolliert, im STATE des Kanals oder der Datenquelle anzeigt und mit wachsender Pause neu startet.
+   - Test: Fehler in `_send`, die nächste Nachricht geht trotzdem raus.
+2. **Inhaltsstufe an einer Stelle (`pipeline.create_render`).**
+   - Heute: Stufe aus Workflow und `parent_media_id`.
+   - Neu: zusätzlich jede Eingabedatei eines Upload-Parameters. SHA-256 der Datei, Suche in `media`: Treffer ergibt dessen Stufe, kein Treffer `explizit`. Masken sind ausgenommen (Kennzeichen am Parameter im Manifest). „Wiederholen“ erbt die Stufe des Ursprungsjobs.
+   - Folge: Ergebnisse aus fremden Vorlagen sind `explizit` und gehen nur über Telegram an den Default.
+   - Test: explizites Bild als Upload, als Vorlage, als Medien-ID ohne Eltern und über „Wiederholen“.
+3. **Kundenereignisse (`store.customer_events`).**
+   - Heute: nur `created`, `named`, `read`, `age`, `updated`. Ein Eingang schreibt ein Nachrichtenereignis.
+   - Neu: die Abfrage liefert zusätzlich die Nachrichtenereignisse `added`, die `customer_id` tragen. Keine Datenbankänderung.
+4. **Ein TDLib-Empfänger (`channels/tdjson.py`).**
+   - Heute: je `TdJson` ein Thread, der `td_receive` aufruft und Ereignisse anderer Clients verwirft. Nach dem Abmelden entsteht ein zweiter Thread.
+   - Neu: genau ein Empfangsthread je Prozess, der nach `@client_id` an registrierte Clients verteilt. `TdJson.close()` meldet ab.
+   - Test: zwei Clients erhalten je ihre Ereignisse; Abmelden und Anmelden ohne Verlust.
+5. **Telegram-Eingang vervollständigen (`channels/telegram.py`).**
+   - Chats aus `telegram.ignored_chat_ids` (Vorgabe 777000) werden nie gespeichert.
+   - `updateMessageContent` und `updateDeleteMessages` ändern den Verlauf: neuer Text mit Ereignis, Löschmarke an der Nachricht. Ob der Inhalt gelöschter Nachrichten entfernt wird, entscheidet D1.
+   - Ausgang: die Beschriftung steht nur am ersten Anhang.
+6. **Ungeklärter Versand (`telegram.py`, `instagram.py`, `store.py`).**
+   - Heute: `unknown` wird nie geklärt. Nach einem Neustart legt der Abgleich die eigene Nachricht als fremde an und erzeugt „ÜBERGABE AN BETREIBER“.
+   - Neu: vor `record_external_outgoing` Abgleich mit Nachrichten derselben Konversation im Status `unknown` (gleicher Text oder gleiche Datei, Zeitfenster aus der Konfiguration); Treffer wird `sent` mit der Plattform-ID. Instagram hält seine offene Liste in `adapter_state`. Was nach dem Fenster offen bleibt, wird `failed` und ist erneut sendbar.
+7. **KI-Hinweis (`store.queue_ai_notice`).** Erneut möglich, wenn die verknüpfte Nachricht `failed` ist; nie bei `queued`, `sending`, `sent` oder `unknown`.
+8. **Gutscheine (`payments/vouchers.py`, `store.record_inbound`).** Erkennung nur mit Bindestrichen oder zusammenhängend in Großschreibung; Leerzeichen trennen nie. Neue Spalte `vouchers.original_text`. „Ablehnen“ im Wallet stellt den Text im Verlauf wieder her.
+9. **Kanalkonten als Liste.**
+   - Heute: je Plattform ein Konfigurationsabschnitt und ein Adapter (`Cockpit.telegram`, `Cockpit.instagram`). `default_contact` führt je Plattform eine Absender-ID. `channel_identities.account` und `adapter_state.account` tragen das Konto schon.
+   - Neu: Tabelle `channel_accounts` (Kürzel, Plattform, Plattform-Konto-ID, Influencerin, Testbetrieb, Test-Chats, Status). `Cockpit.adapters` je Konto, `_adapter(platform, account)`, STATE 8 listet alle Konten. Default-Identität und Betriebsart je Konto. Konten anlegen, zuordnen und entfernen über Befehl 66 `channel_account_update`.
+   - Die Abschnitte `[telegram_account]` und `[instagram]` entfallen; ihr Inhalt wird beim ersten Start als Konto übernommen.
+   - Schlüsselbund: App-Zugänge je Plattform, Sitzungsschlüssel und Token je Konto.
+   - Der Instagram-Webhook verteilt nach der Konto-ID im Ereignis.
+   - `influencers[0]` wird nirgends mehr verwendet (heute in `_send_ai_notice`).
+   - Regel: alle Identitäten einer Akte gehören zu Konten derselben Influencerin; dieselbe Person bei zwei Influencerinnen ergibt zwei Akten.
+10. **Einstellungen (S1).**
+    - Katalog aller Einträge mit Gruppe, Format und Prüfer, gemeinsam für Cockpit und CLI.
+    - Gruppen:
+      - Kanäle: Telegram (API-ID, API-Hash, Anmeldung, Test-Chats), Instagram (App-ID, App-Secret, Verify-Token, Tunnel-Adresse, Anmeldung); später WhatsApp, Fansly.
+      - Zahlung: PayPal (Client-ID, Secret, Webhook-ID, Umgebung), Krypto-Adressen, Kulanzgrenze (E10).
+      - KI und Render: Instanzen, Speicherreserve, Hugging-Face-Zugang, falls ein Modell ihn verlangt.
+      - Admin und Test: Default-Identität, Betriebsart, Chat-Wörter.
+      - Betrieb: Autostart, Sicherung, Ruhezustand.
+    - Befehle 60 `secret_set`, 61 `config_update`, 62 `connection_test`; STATE 12.
+    - `_command` leert den Wert vor dem Hash, wie bei `channel_account_login`.
+    - `keychain.store_secret` lehnt `"`, `\` und Zeilenumbruch heute still ab: den Wert vor dem Speichern kodieren oder mit klarer Meldung abweisen.
+    - `config_update` schreibt `local/config.toml` atomar über den Parser aus `config.py`; Werte, die einen Neustart brauchen, melden das.
+11. **Befehlsstatus (neu: `GET /api/v1/command/<request_id>`).** Liefert die gespeicherte Quittung als Protobuf oder 404. Grundlage für BUG-024.
+12. **Starter (`launcher/Darkfluenzer.swift`).** Rückgabe von `down` je Instanz auswerten.
+
+**Frontend im selben Paket:** FRONTEND §4.1.
+
+**Abnahme am echten System**
+
+1. Zwei Telegram-Konten sind angemeldet. Nachrichten an beide landen in getrennten Akten mit der richtigen Influencerin. Abmelden und Anmelden eines Kontos ohne Neustart verliert nichts.
+2. Ein Fehler im Versand ist im Kanalstatus sichtbar, die Aufgabe läuft weiter.
+3. Ein explizites Bild über vier Wege ergibt ein explizites Ergebnis.
+4. Die zweite Nachricht eines bekannten Kunden zählt in Liste und Übersicht, ohne die Akte zu öffnen.
+5. Versand bei getrennter Verbindung: nach der Wiederverbindung als gesendet erkannt, keine Übergabe-Karte, kein Doppelversand.
+6. PayPal-Zugang im Cockpit eingetragen und geprüft; der Wert ist nirgends lesbar; ein Wert mit Sonderzeichen funktioniert oder wird klar abgewiesen.
+7. 20 normale Sätze mit Zahlen bleiben unverändert; ein abgelehnter Fehltreffer wird wiederhergestellt.
 
 ### 7.3 Block B5 – Chat-KI (Melody)
 
@@ -423,8 +472,7 @@ Ersetzt H0, H4, H5, H6a sowie aus H2 BUG-008/013/014 und aus H3 Zeitlimit, Auftr
 ### 7.4 Block C5 – Kundenbetrieb und Kundentest
 
 **C5.1 Influencerin vollständig** (BUG-020). Influencerin je Kanalkonto und je Akte; Schalter Text-KI, automatische Antworten, Bildautomatik, Freigabeart (automatisch · Betreiber), Zahlungswege; nie `influencers[0]`.
-- Die Kanalkonten aus S1 werden Influencerinnen zugeordnet (Cockpit, Influencerin-Block).
-- Zuordnung: Kanalkonto gehört zu genau einer Influencerin, Influencerin zu genau einem Charakter. Eine Kundenakte gehört zu genau einer Influencerin und kann mehrere verifizierte Kanalidentitäten auf Konten dieser Influencerin haben (z. B. Claras Instagram und Claras Telegram, C5.9). Dieselbe Person bei zwei Influencerinnen ergibt zwei getrennte Akten.
+- Konten, Zuordnung Konto → Influencerin und die Akten-Regel liefert SP2 (Schritt 9); C5.1 ergänzt je Influencerin den Charakter und die Bedienung im Influencerin-Block.
 - Persona, Preise, Verhalten, Gedächtnis und LoRA gelten je Influencerin und werden nie über Figuren hinweg verwendet.
 - Jede Kundenakte trägt Kanalkonto und Influencerin ab dem ersten Eingang; `CustomerSummary` und die Kundenseiten liefern Influencerin (ID, Name, Farbe) und Konto mit, die Kundenliste ist serverseitig nach Influencerin filterbar (FRONTEND §3.2).
 - Abnahme: zwei Figuren auf zwei Konten ohne Vermischung; je eine Nachricht an Clara und an Lucy erscheint mit der richtigen Figur, der Filter zeigt nur die eigene.
@@ -610,7 +658,7 @@ Alter diffusers-Trainer und CLI `character train-sdxl` entfallen. `dfchar` und `
 ## 8. Datenmodell (additiv, je Paket mit Migration und Sicherung)
 
 - **Neue Tabellen:** Persona-Versionen, Verhaltensprofile, Erinnerungen (FTS5), KI-Läufe mit Messwerten, Medienwünsche, `cloner_returns` (SP1), Prüfwerte je Kandidat, Zeitachsen-Schlüsselbilder.
-- **Charakterprofil:** Kürzel (fest), Name, Trigger, Klasse, Mindestzahl Fotos, Probe-Prompts, aktive LoRA je Engine (Verweis auf die LoRA-Registry im Manifest, B1.3). **Nachricht:** `album_id` (SP1). **Kanalkonten:** `channel_accounts` (S1) mit Zuordnung Konto → Influencerin → Charakter (C5.1); Kundenakte → Influencerin, mehrere Identitäten je Akte. **Medienwunsch** an der Konversation.
+- **Charakterprofil:** Kürzel (fest), Name, Trigger, Klasse, Mindestzahl Fotos, Probe-Prompts, aktive LoRA je Engine (Verweis auf die LoRA-Registry im Manifest, B1.3). **Nachricht:** `album_id` (SP1). **Gutschein:** `original_text` (SP2). **Kanalkonten:** `channel_accounts` mit Default-Identität und Betriebsart je Konto (SP2). **Kanalkonten:** `channel_accounts` (S1) mit Zuordnung Konto → Influencerin → Charakter (C5.1); Kundenakte → Influencerin, mehrere Identitäten je Akte. **Medienwunsch** an der Konversation.
 - **Neue Spalten:** Influencerin je Akte und Kanalkonto, Antwortmodus und Kaufbereitschaft je Konversation, stabile ID je Preisposition, Zahlungswege je Influencerin, Trigger und Klasse je Charakter, Influencerin und LoRA-Version je Auftrag, `scheduled_at` je ausgehender Nachricht.
 - **Neue Zustände:** Nachricht „Entwurf“; Auftrag „abgelaufen“, „reklamiert“, „abgeschlossen“, „wartet auf Betreiber“.
 - **Default und Test:** Betriebsart und Chat-Wörter am Default-Kontakt, Ausgabeprofil je Befehl, Auftragsquelle `test`, Testakte (Art `test`), Prüfwerte je Kandidat, Freigeber `system`, Höchstlänge je Preisposition.
@@ -657,7 +705,7 @@ Frei laut `stream.proto` und `commands.proto` am 17.11.2026: Befehle 31–33, 36
 | C5.8 | – | – | 56 `order_aftercare` |
 | C5.9 | – | – | 36 `link_identity` |
 | D1 | – | – | 57 `customer_erase` |
-| S1 | 12 Einstellungen | – | 60 `secret_set` (Wert nur flüchtig, §2.2), 61 `config_update`, 62 `connection_test`, 66 `channel_account_update` |
+| SP2 | 8 (alle Konten), 12 Einstellungen | 26 additiv | 60 `secret_set`, 61 `config_update`, 62 `connection_test`, 66 `channel_account_update`; HTTP `GET /api/v1/command/<request_id>` |
 | T1, T2 | – | 31 additiv | 37 additiv, 63 `test_reset` |
 | C5.6a | 4 additiv | 23 additiv | 35 additiv |
 | B1 | 5 additiv | – | 25 additiv, 64 `lora_activate`, 65 `reveal_folder`, 67 `character_photos_add` (Ziehen/Ablegen im Cockpit) |

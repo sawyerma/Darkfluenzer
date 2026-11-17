@@ -129,9 +129,8 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 
 | Paket | Frontend-Umfang | Abnahme |
 |---|---|---|
-| **SP2 Frontend-Härtung** (bisher „H allgemein“) | Kundenliste/Übersicht folgen EVENT 26 bei jedem Eingang (BUG-048); Befehle mit Zeitlimit und Wiederaufnahme (BUG-024); Ganzzahlprüfung (BUG-025); mitlaufende Fristen (BUG-026); Video in der Auftragskarte als Player (BUG-027); Ereignislisten begrenzt (BUG-071); Wallet-Maskierung und Bestätigungen (BUG-032, 033); Übersichtszähler (BUG-070); automatisches Neuladen nach Schemawechsel (BUG-076) | je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet; Smoke klickt alle vorhandenen Reiter (ab S1 sechs; der Test für Einstellungen gehört zu S1) (BUG-072) |
+| **SP2 Fundament** | Frontend-Teil nach §4.1 (Befehle mit Zeitlimit und Statusabfrage, begrenzte Ereignislisten, Kundenliste/Übersicht per EVENT 26, Kanalstatus je Konto, Figur-Filter, Reiter Einstellungen mit Kanalkonten, kleinere Punkte) | je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet und Einstellungen; Smoke klickt alle sechs Reiter; Verbindungsabbruch während eines Befehls gibt den Knopf wieder frei |
 | **SP1 Default-Kette** | Karte je Zustand (gestartet, wartet auf Start mit Startknopf, abgelehnt mit Grund, zurückgesendet, Rückversand gesperrt, fehlgeschlagen, abgebrochen); Default-Kontakt mit Betriebsart, Kandidatenzahl, Ausgabeprofil je Befehl (z. B. Story 9:16) und Chat-Wörtern, ausgeschaltete Schalter und fehlende Workflows sichtbar; Stapel mit einer Karte je Bild und gemeinsamem Fortschritt; Auftragskarte nennt Influencerin, Workflow, Zahl der Referenzen, „ohne Charakter-LoRA“; `VideoSettings` für alle Video-Workflows; „Auftrag abbrechen“ an der Auftragskarte mit Abbruchzustand bis zur Quittung | Browser-Test für jeden Zustand; LTX, Wan, Remix mit denselben Feldern an derselben Stelle (Screenshot-Vergleich); echter Lauf vom Handy nach Backend SP1 |
-| **S1** | Reiter Einstellungen §3.7 | PayPal-Zugang eintragen, Verbindung prüfen, Wert danach nirgends lesbar |
 | **B5.1–B5.4** | KI-Studio §3.4 | 20 echte Testnachrichten im Chat-Test, Messwerte sichtbar |
 | **B5.4a** | Default-Verlauf zeigt die Deutung einer freien Anweisung (Befehl, Workflow, Prompt) in der Karte | 30 Anweisungen vom Handy |
 | **C5.1–C5.10** | rechte Kundensteuerung §3.2 je Paket; C5.1: Figur-Filter und Influencerin-Kennzeichen in Liste, Register und Aktenkopf, sichtbare Sortierung; C5.2: Status des KI-Hinweises, Karte und Sperre „minderjährig vermutet“, kein Altersblock; C5.6a: Prüfwerte je Kandidat (Identität, Inhaltsstufe, Technik, Qualität; bei Video Stichprobenbilder), Hinweis „keine automatische Freigabe“, solange ein Prüfmodell fehlt (E16), Karte „wartet auf Betreiber“ (Freigeben, Neu, Erstatten; „Freigeben“ nur bei technischem oder qualitativem Fehlschlag, harte Gates bleiben gesperrt), Schalter Freigabeart im Influencerin-Block; C5.10: Auftragskarte zeigt, ob System oder Betreiber freigegeben hat und über welchen Weg | je Paket echter Lauf mit Testkunden |
@@ -142,6 +141,18 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 | **B5.6** | Referenzanalyse §3.3 | eigenes Bild → Prompt → echte Generierung |
 | **D1–D3** | Auskunft/Löschen in der Akte; Betriebsanzeige (Sicherung, Autostart, Ruhezustand); Release-Kennung | – |
 | **C6** | ein Browser-Lauf über die ganze Kette, Screenshots aller Reiter gegen die Referenz | Betreiberabnahme |
+
+### 4.1 SP2 Fundament (Frontend-Teil)
+
+Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`, neue `pages/Settings.tsx`, `frontend/tests/`.
+
+- **Befehle (`commands.ts`, BUG-024):** `terminalReceipt` bekommt ein Zeitlimit (Wert aus dem STATE Einstellungen). Nach Ablauf und nach „Verbindung unterbrochen“ fragt `useCommand` den Befehlsstatus über `GET /api/v1/command/<request_id>` ab. Bei 404 ist der Befehl nie angekommen: Knopf frei, Meldung „nicht gesendet“.
+- **Ereignislisten (`state.ts`, BUG-071):** Obergrenze je Topic; ältere Einträge kommen über die Seitenabfragen. `applyEvent` kopiert die Liste nicht mehr je Ereignis; die Benachrichtigung wird gebündelt.
+- **Kundenliste und Übersicht:** folgen EVENT 26 bei jedem Eingang; Zähler „wartet auf Produktion“ und „wartet auf Freigabe“ (BUG-048, 070).
+- **Kanalstatus je Konto;** Figur-Filter in der Kundenliste (die Daten liefert SP2).
+- **Kleinere Punkte:** Ganzzahlprüfung (BUG-025), mitlaufende Fristen (BUG-026), Video in der Auftragskarte (BUG-027), Wallet-Maskierung und Bestätigungen (BUG-032, 033), Neuladen nach Schemawechsel (BUG-076).
+- **Reiter Einstellungen** nach §3.7, zusätzlich Kanalkonten anlegen, zuordnen und entfernen.
+- **Abnahme:** je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet und Einstellungen; der Smoke-Test klickt alle sechs Reiter; ein Test trennt die Verbindung während eines Befehls und prüft, dass der Knopf wieder frei wird.
 
 ---
 
