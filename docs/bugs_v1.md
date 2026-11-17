@@ -198,6 +198,20 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-001 (Audit Fable 17.11., P1; im Auditblatt vorläufig „BUG-109“)
+Commit: siehe git log „FABLE-001“ / web.commands._execute
+Behauptung: BESTÄTIGT – ein unerwarteter Fehler im Befehl (nicht in _COMMAND_ERRORS, z. B. der Wallet-Assert in
+  core.sales) ging als HTTP 500 ohne Journal hinaus; die Wiederholung derselben request_id lief erneut
+Korrektur: jeder sonstige Fehler wird protokolliert (Traceback im Log) und festgehalten: angenommen, dann
+  terminal „unknown“ mit Fehlerart („Ergebnis unbekannt, Zustand prüfen“), weil Teile schon gespeichert sein
+  können; dieselbe request_id führt nie ein zweites Mal aus. Der Wallet-Assert selbst bleibt SP5.
+Nachweis: tests/test_server.py::test_unexpected_command_error_is_journaled_and_never_repeated – vorher rot
+  (HTTP 500), danach grün; Gesamtlauf 193 bestanden
+Ergebnis: PASS
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: FABLE-002 und FABLE-004 (Audit Fable 17.11., P1; im Auditblatt vorläufig „BUG-110“, „BUG-112“)
 Commit: siehe git log „FABLE-002“ / core.render.render_worker, _admit; media.pipeline.run_render
 Behauptung FABLE-002: BESTÄTIGT – scheiterte free() der ruhenden anderen Instanz, ging der Fehler aus der

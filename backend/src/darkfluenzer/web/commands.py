@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from ..core.base import _Call
+from ..core.base import _Call, log
 from ..media import aimeta, models, pipeline, training
 from ..nodes import comfy
 from ..store import StoreError
@@ -125,6 +125,7 @@ class CommandsMixin:
             "delete_media": self._delete_media,
         }
         version = 0
+        crashed: BaseException | None = None  # unerwarteter Fehler im Befehl (FABLE-001)
         if which in ("comfy_start", "comfy_stop"):
             reason = self._comfy_command(which, getattr(req, which).instance or "media", call)
         elif which not in handlers:
@@ -138,6 +139,9 @@ class CommandsMixin:
                         reason = await handlers[which](getattr(req, which), call)
                     except _COMMAND_ERRORS as exc:
                         reason = str(exc)
+                    except Exception as exc:  # nie ohne Journal: Wiederholung führte erneut aus
+                        log.exception("Befehl %s (%s): interner Fehler", which, call.request_id)
+                        crashed, reason = exc, ""
                     if not reason and which in _REGISTRY_EDITS:
                         fingerprint = await asyncio.to_thread(self._fingerprint)
                         self._registry_version = self.store.bump("workflows", fingerprint)
@@ -155,7 +159,14 @@ class CommandsMixin:
                 entity=call.entity,
                 detail=reason,
             )
-            if not reason and which not in _ASYNC_COMMANDS:
+            if not reason and which not in _ASYNC_COMMANDS and crashed is None:
                 self.store.finish_command(call.request_id, "completed", version=version)
+        if crashed is not None:  # Teile können schon gespeichert sein: Ergebnis unbekannt, terminal
+            self.store.finish_command(
+                call.request_id,
+                "unknown",
+                detail=f"Interner Fehler ({type(crashed).__name__}) – Ergebnis unbekannt, "
+                "Zustand prüfen.",
+            )
         self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
         return _response(call.request_id, reason, call.entity)

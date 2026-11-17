@@ -983,3 +983,35 @@ def test_queue_survives_a_failing_free_of_the_other_instance(cfg, monkeypatch):
         assert ran == [1] and calls == [1, 1]
 
     _run(cfg, scenario)
+
+
+def test_unexpected_command_error_is_journaled_and_never_repeated(cfg, monkeypatch):
+    """FABLE-001: wirft ein Befehl einen unerwarteten Fehler, wird er trotzdem festgehalten
+    (angenommen, dann „unbekannt“ mit Fehlerart); dieselbe request_id führt ihn nicht erneut aus.
+    Vorher: HTTP 500 ohne Journal, die Wiederholung lief ein zweites Mal."""
+    calls = []
+
+    async def broken(msg, call):
+        calls.append(call.request_id)
+        raise KeyError("kaputt")
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        monkeypatch.setattr(cockpit, "_pause", broken)
+        csrf = await _csrf(client)
+        rid = str(uuid.uuid4())
+        req = commands_pb2.CommandRequest(
+            request_id=rid, expected_version=cockpit._registry_version,
+            pause_queue=commands_pb2.PauseQueue(paused=True),
+        )  # fmt: skip
+        status, body = await _post(client, origin, csrf, req)
+        assert status == 200
+        assert commands_pb2.CommandResponse.FromString(body).status == (
+            commands_pb2.COMMAND_STATUS_ACCEPTED
+        )
+        row = cockpit.store.command(rid)
+        assert row["status"] == "unknown" and "KeyError" in row["detail"]
+        status, again = await _post(client, origin, csrf, req)
+        assert status == 200 and calls == [rid]  # nicht ein zweites Mal ausgeführt
+
+    _run(cfg, scenario)
