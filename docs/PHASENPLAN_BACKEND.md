@@ -4,7 +4,7 @@
 **Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; echte Läufe vom 16./17.11. auf dem Mac (§5).
 **Verbindlich sind genau drei Dateien:** diese, `docs/PHASENPLAN_FRONTEND.md` und `docs/bugs_v1.md` (Befundregister).
 **Archiv (nicht verbindlich):** `docs/archiv/` mit `PHASENPLAN_V0.md`, `PHASENPLAN_BACK_V1.md`, `PHASENPLAN_FRONT_V1.md`, `ki_modelle.md`, `bugs_v1_20261117_vor_neufassung.md`. Code-Kommentare mit Verweisen auf V0/V1-Abschnitte beziehen sich auf diese Archivfassungen.
-**Quellen dieser Fassung:** die bisherigen Pläne, die Konsolidierungen und Prüfberichte von ChatGPT und Fable, die Betreiberantworten E1–E16 vom 17.11.2026 und der Code.
+**Quellen dieser Fassung:** die bisherigen Pläne, die Konsolidierungen und Prüfberichte von ChatGPT und Fable, die Betreiberantworten E1–E18 vom 17.11.2026 und der Code.
 **Wahrheit für Details:** Code auf `main`, `protocol/schemas/darkfluenzer/v1/*.proto` (Vertrag), `workflows/manifest.toml` (Modelle, Workflows), `config.example.toml` (Konfiguration).
 
 ---
@@ -61,6 +61,8 @@ Video läuft genauso: erst das Bild, dann die Animation. Der Betreiber gibt die 
 | E14 | Vorschlag: Kundenbilder entstehen mit `krea2_raw_turbo_lora_t2i` (Krea 2 Raw + Turbo-LoRA + Charakter-LoRA, Inhaltsstufe `standard`, 234 s je Bild gemessen). Die Charakter-LoRA wird mit `krea2_raw_lora_train` trainiert (gemessen 23,9 s je Schritt bei 768 px, 1500 Schritte ≈ 10 h). Vorbehalt: BUG-023 und der erste vollständige Trainingslauf. Bis zur Entscheidung ist kein Produkt lieferbar (SP5 Schritt 1). | **offen**, Betreiberantwort fehlt |
 | E15 | Chat neben Video: Melody bleibt immer geladen. Ein Videojob startet nur, wenn er daneben in den Speicher passt; sonst wartet er auf ein Videofenster, in dem Clara ohnehin langsam antwortet. Die Regel wird nach der Messung in SP4 (Schritt 1) festgelegt. | **offen**, nach Messung |
 | E16 | Prüfmodell für die Inhaltsstufe (SP5 Schritt 7): noch nicht gewählt; Kandidat (Fable): NudeNet, erkennt unbedeckte Körperstellen einzeln und liefe wie die Gesichtsprüfung direkt im Backend. Download nur nach Freigabe. Bis dahin keine Systemfreigabe, die Freigabe bleibt beim Betreiber. | **offen**, Voreinstellung gilt |
+| E17 | Qualitätsprüfer für Bildfehler (Hände, Anatomie, Artefakte): lokales Bildmodell oder externe Schnittstelle. Eine externe Schnittstelle verlangt eine Änderung von „FREE ONLY“ und Regel 6, gilt nur für Bilder der Stufe `standard` und nie für Kundenchats (Regel 12 e). Solange E16 oder E17 offen ist, gibt es keine Systemfreigabe; die Vollautomatik endet an dieser Stelle. | **offen** |
+| E18 | Wiederanlauf ohne Anmeldung: automatische Anmeldung eines eigenen macOS-Benutzers (nur ohne FileVault) oder Anmeldung von Hand nach jedem Neustart. Bis zur Entscheidung: Anmeldung von Hand, automatische System-Neustarts aus, Meldung ans Handy nach jedem Wiederanlauf. | **offen** |
 
 ---
 
@@ -99,7 +101,7 @@ Wörtlich aus V0 §2.1, ergänzt um die Betreiberregeln vom 14.–17.11.:
 - **GIT:** je abgeschlossenem Paket Tests, Commit, Push auf `main`.
 - **Geheimnisse nur im macOS-Schlüsselbund** (Konto `darkfluenzer`): `darkfluenzer.telegram.api_id`, `darkfluenzer.telegram.api_hash`, `darkfluenzer.telegram.db_key`, Instagram-Token, Meta-App-Secret, PayPal-Zugang. Nie in `.env`, TOML, Git, Logs, STATE, EVENT, Receipt, Befehlsjournal oder LLM-Kontext. In den Befehlen `secret_set` und `channel_account_login` reist der Wert einmal über die angemeldete lokale Cockpit-Verbindung (Sitzung + CSRF) zum Backend und wird dort nicht gespeichert; der Journal-Hash wird ohne den Wert gebildet. Eingabe über `darkfluenzer secret set` (verdeckt bzw. stdin, Übergabe an `security -i` über stdin); vorhandene Einträge nur nach ausdrücklicher Bestätigung ersetzen. Telegram-Code und 2FA-Passwort gehen nur temporär an TDLib.
 - **Ein Stylesheet:** `frontend/src/shared/graphite.css`, keine Datei je Seite (FRONTEND §1).
-- **Datenbank-Migrationen** nur mit vorheriger Sicherung (`darkfluenzer.sqlite3.bak-<Zeit>-vor-migrationNN`), danach `PRAGMA integrity_check` und Fremdschlüsselprüfung. Ab SP6 Schritt 0 erledigt das `Store._migrate` selbst; bis dahin von Hand.
+- **Datenbank-Migrationen** nur mit vorheriger Sicherung (`darkfluenzer.sqlite3.bak-<Zeit>-vor-migrationNN`), danach `PRAGMA integrity_check` und Fremdschlüsselprüfung. Ab SP0 Schritt 1 erledigt das `Store._migrate` selbst; bis dahin von Hand.
 - **Echte Kettenprüfung (Betreiberregel 17.11.):** Eine Kette gilt erst als funktionierend nach einem Lauf vom echten Eingang bis zum Ergebnis im Chat (Handy → Telegram → Cockpit → ComfyUI → Rückversand). Voraussetzungen (Workflows, Influencerin, Charakter) werden vorher eingerichtet oder offen als fehlend gemeldet. Jede Ablehnung wird im Chat beantwortet, aus dem sie kam, nicht nur als Cockpit-Karte.
 
 ### 2.3 PASS-Definition
@@ -300,26 +302,91 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 
 ---
 
-## 6. Reihenfolge (nach Freigabe): sechs Sammelpakete
+## 6. Reihenfolge (nach Freigabe): Sammelpakete SP0 bis SP6
 
 | Paket | Inhalt (bisherige Nummern) | Steht am Ende |
 |---|---|---|
+| **SP0 Struktur und Laufzeit-Fundament** (§7.0, ausgeschrieben) | Migration mit Sicherung (bisher SP6 Schritt 0), Aufteilung von Backend und Frontend, Rechenknoten-Schnittstelle, Kanalvertrag, Entlastung des Hauptstrangs, Journal | gleiche Tests grün, kein geändertes Verhalten, Hauptstrang bleibt pünktlich |
 | **SP1 Default-Kette** (§7.1, ausgeschrieben) | H0, H4, H5, H6a; aus H2 BUG-008/013/014; aus H3 Zeitlimit, Auftrag abbrechen, BUG-064 | Bild mit Befehl vom Handy, Datei kommt zurück |
 | **SP2 Fundament** (§7.2, ausgeschrieben) | H1, H2-Rest, S1 mit Kanalkonten als Liste, Kontenteil von C5.1, Frontend-Härtung | kein stiller Stillstand, alle P0 zu, mehrere Konten, Einstellungen im Cockpit |
 | **SP3 Charakter und Medien** (§7.6, ausgeschrieben) | B1, B2, H6b, C1/C3-Rest; dazu unverändert B4 (mit H3-Rest) und B5.6 | „clone“ liefert Clara mit Prüfwert, Video mit Zeitachse |
 | **SP4 Clara chattet** (§7.3, ausgeschrieben) | B5.1–B5.4, B5.4a, C5.2–C5.4, T1; C5.1 (Influencerin-Block) | Kundentest-Chat mit Messwerten, Clara antwortet Kunden selbst |
 | **SP5 Verkauf automatisch** (§7.5, ausgeschrieben) | C5a, C5.5–C5.8, C5.6a, C5.10, T2; dazu unverändert Krypto (C5a.1) | Zahlung rein, Bild raus, ohne Klick |
-| **SP6 Betrieb, Recht, Abnahme** (§7.7, ausgeschrieben) | D1–D3, C6; Schritt 0 (Migration mit Sicherung) vor SP1; später mit eigener Freigabe C4, C5.9, C8 | unbeaufsichtigter Dauerbetrieb, Probephase bestanden |
+| **SP6 Betrieb, Recht, Abnahme** (§7.7, ausgeschrieben) | D1–D3, C6; später mit eigener Freigabe C4, C5.9, C8, SP7, Telegram-Bot-Adapter, zweiter Rechner | unbeaufsichtigter Dauerbetrieb, Probephase bestanden |
 
-- **DOK-1** ist erledigt (Pläne neu, Altdokumente im Archiv).
+- **Reihenfolge:** DOK-1 (erledigt) → SP0 → SP1 bis SP6 → später, je mit eigener Freigabe: SP7 Instagram-Signale, Telegram-Bot-Adapter, zweiter Rechner (SP6 Schritt 10).
 - SP2 bis SP6 werden wie SP1 in Code-Tiefe ausgeschrieben, bevor sie beginnen; bis dahin gelten die bisherigen Paketbeschreibungen in §7.
 - SP3 läuft parallel, sobald Charakterfotos vorliegen. Höchstens zwei Agenten, keine gleichzeitigen schweren GPU-Läufe.
-- **Vorgezogen:** SP6 Schritt 0 (Migration mit automatischer Sicherung und Integritätsprüfung, BUG-105) wird vor der ersten Migration aus SP1 umgesetzt.
 - **P0-Regel:** Die P0-Befunde auf dem Default-Pfad schließt SP1 vor seiner Abnahme; alle übrigen P0 sind vor dem ersten KI-Kanaltest mit Kunden (SP4) behoben.
 
 ---
 
 ## 7. Pakete
+
+### 7.0 SP0 Struktur und Laufzeit-Fundament
+
+**Ziel:** Der Code ist in Module geteilt, schwere Arbeit läuft nicht mehr im Hauptstrang, und die Stellen für zweiten Rechner und zweiten Telegram-Weg sind vorbereitet. Am Verhalten ändert sich nichts.
+**Schließt:** BUG-105 (Migration ohne Sicherung), 106, 107.
+
+1. **Migration mit Sicherung** (bisher SP6 Schritt 0, hierher verschoben). Vor jeder Migration eine Kopie der Datenbank `darkfluenzer.sqlite3.bak-<Zeit>-vor-migrationNN` über die SQLite-Sicherungsschnittstelle, danach `PRAGMA integrity_check` und `PRAGMA foreign_key_check`; bei Fehler Abbruch mit Hinweis auf die Sicherung. Test: Migration mit absichtlichem Fehler lässt die Datenbank unverändert, die Sicherung liegt vor.
+2. **Backend aufteilen.** Zielbaum:
+
+```
+backend/src/darkfluenzer/
+  app.py  config.py  keychain.py
+  web/       http.py  stream.py  commands.py  mappers.py
+  core/      registry.py  render.py  orders.py  cloner.py  messages.py
+             dialog.py  persona.py  memory.py  behavior.py  llm.py
+             sales.py  checks.py  delivery.py  characters.py
+             settings.py  ops.py
+  nodes/     base.py  local.py  remote.py  comfy.py
+  media/     pipeline.py  gallery.py  models.py  training.py  identity.py  aimeta.py
+  channels/  base.py  telegram.py  tdjson.py  instagram.py
+  payments/  paypal.py  vouchers.py  chain.py  addresses.py
+  store/     db.py  schema.py  migrations/  customers.py  messages.py
+             orders.py  payments.py  media.py  jobs.py  commands.py
+  v1/
+```
+
+| Heute | Künftig |
+|---|---|
+| `server.py`: Routen, `_Guard`, `create_app`, `create_public_app`, `serve` | `web/http.py` |
+| `server.py`: `command`, `_execute` | `web/commands.py` |
+| `server.py`: `_media_item`, `_fill_order`, `_conversation_item`, `_customer_summary`, `_payment`, `read_*` | `web/mappers.py` |
+| `server.py`: `render_worker`, `_admit`, `_measure`, `observe`, `_jobs_active`, `_resources`, `_instances` | `core/render.py` |
+| `server.py`: `_set_enabled`, `_open`, `_adopt`, `_create`, `_delete`, `_workflows` | `core/registry.py` |
+| `server.py`: `_cloner*`, `_reply_internal` | `core/cloner.py` |
+| `server.py`: `_send_reply`, `_mark_read`, `_send_ai_notice`, Default-Kontakt-Befehle, `_on_inbound` | `core/messages.py` |
+| `server.py`: `_create_offer`, `_offer_*`, Zahlungs- und Gutscheinbefehle, `_wallet_state` | `core/sales.py` |
+| `server.py`: `_approve_artifact`, `_retry_delivery`, `_delivery_*`, `_queue_delivery` | `core/delivery.py` |
+| `server.py`: `_character_update`, `_characters`, `_influencer_update`, `_influencers` | `core/characters.py` |
+| `pipeline.py`: `create_order`, `advance_order`, `select_candidate`, `retry_stage` | `core/orders.py` |
+| `pipeline.py`: `run_render`, `_render`, `_render_video`, `_adopt_lora` | `media/pipeline.py` |
+| `pipeline.py`: `media_candidates`, `scan_media`, `delete_media` | `media/gallery.py` |
+| `runtime.py`, Ordnerzugriffe auf ComfyUI | `nodes/local.py` |
+| `comfy.py` | `nodes/comfy.py` |
+| `store.py` | `store/`, nach Themen geteilt |
+
+   Regeln: rein mechanisch verschieben; je Modul ein Commit; `web/` kennt keine Fachlogik; `core/` importiert nie `web/`; Tests ändern sich nur in den Importen. Die Dateinamen in den Paketen SP1 bis SP6 beziehen sich auf den heutigen Stand; nach SP0 gilt die Zuordnung dieser Tabelle.
+3. **Rechenknoten-Schnittstelle (`nodes/base.py`).** Alles, was heute direkt auf Prozesse und Ordner einer ComfyUI zugreift, läuft über diese Schnittstelle: starten, stoppen, Zustand, Speicher messen, Eingabe hochladen, Trainingsdatensatz ablegen, LoRA abholen, Ausgabe holen und entfernen, Editor-Kopie, Modellstatus. `nodes/local.py` ist die heutige Logik. `nodes/remote.py` bleibt leer.
+4. **Kanalvertrag (`channels/base.py`).** Eine Schnittstelle für alle Kanäle: Zustand, Eingang, Versand, Versandprüfung, Antwortfenster, Gelesen, Tippen und eine Liste der Fähigkeiten (Dokument, selbstlöschend, Größen). Telegram und Instagram erfüllen sie.
+5. **Hauptstrang entlasten.**
+   - Datei-Hashes, Kennzeichnung (`aimeta.mark`) und Dateikopien laufen in Arbeiter-Threads. Heute läuft das in `_reply_internal` im Hauptstrang (BUG-106).
+   - Lange Datenbankabfragen laufen in einem eigenen Strang mit eigener Verbindung.
+   - Die Verzögerung des Hauptstrangs wird gemessen und in der Betriebsanzeige gezeigt.
+6. **Journal.**
+   - `media_candidates` liest nur Ereignisse nach der gemerkten Position. Heute liest es je Runde alle abgeschlossenen Jobs (BUG-107).
+   - Der Ordner-Scan läuft in großem Abstand.
+   - Index auf `events(entity, event, id)`.
+   - Medien-ID und laufende Nummer kommen aus einer Zählertabelle statt aus dem Maximum über das Journal.
+
+**Frontend im selben Paket:** FRONTEND §4.0.
+
+**Abnahme:**
+- Gleiche Zahl grüner Tests vor und nach der Aufteilung.
+- Ein Prüfskript belegt die Importrichtung.
+- Während ein 500-MB-Video gekennzeichnet wird, bleibt der Herzschlag des Cockpits pünktlich.
+- Mit einer Million Ereignissen in einer Testdatenbank bleibt eine Beobachterrunde schnell.
 
 ### 7.1 SP1 Default-Kette lauffähig
 
@@ -404,9 +471,11 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
    - Chats aus `telegram.ignored_chat_ids` (Vorgabe 777000) werden nie gespeichert.
    - `updateMessageContent` und `updateDeleteMessages` ändern den Verlauf: neuer Text mit Ereignis, Löschmarke an der Nachricht. Ob der Inhalt gelöschter Nachrichten entfernt wird, klärt SP6 Schritt 8.
    - Ausgang: die Beschriftung steht nur am ersten Anhang.
-6. **Ungeklärter Versand (`telegram.py`, `instagram.py`, `store.py`).**
+6. **Ungeklärter Versand (`telegram.py`, `instagram.py`, `store.py`; SPEC-009).**
    - Heute: `unknown` wird nie geklärt. Nach einem Neustart legt der Abgleich die eigene Nachricht als fremde an und erzeugt „ÜBERGABE AN BETREIBER“.
-   - Neu: vor `record_external_outgoing` Abgleich mit Nachrichten derselben Konversation im Status `unknown` (gleicher Text oder gleiche Datei, Zeitfenster aus der Konfiguration); Treffer wird `sent` mit der Plattform-ID. Instagram hält seine offene Liste in `adapter_state`. Was nach dem Fenster offen bleibt, wird `failed` und ist erneut sendbar.
+   - Neu: vor `record_external_outgoing` Abgleich mit Nachrichten derselben Konversation im Status `unknown` (gleicher Text oder gleiche Datei); Treffer wird `sent` mit der Plattform-ID. Instagram hält seine offene Liste in `adapter_state`.
+   - Eine Sendung im Status `unknown` wird nie allein durch Zeitablauf zu `failed`. `sent` wird sie durch den Abgleich mit Echo oder Verlauf. `failed` wird sie nur mit Beleg der Plattform, dass sie nicht angekommen ist: der Verlauf des Chats ab der Sendezeit enthält keine passende eigene Nachricht.
+   - Ohne Beleg bleibt sie `unknown`, mit Karte. Der Betreiber entscheidet von Hand: „als gesendet markieren“ oder „erneut senden“ mit Warnhinweis. Zustellungen an Kunden werden aus `unknown` nie automatisch wiederholt.
 7. **KI-Hinweis (`store.queue_ai_notice`).** Erneut möglich, wenn die verknüpfte Nachricht `failed` ist; nie bei `queued`, `sending`, `sent` oder `unknown`.
 8. **Gutscheine (`payments/vouchers.py`, `store.record_inbound`).** Erkennung nur mit Bindestrichen oder zusammenhängend in Großschreibung; Leerzeichen trennen nie. Neue Spalte `vouchers.original_text`. „Ablehnen“ im Wallet stellt den Text im Verlauf wieder her.
 9. **Kanalkonten als Liste.**
@@ -417,6 +486,7 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
    - Der Instagram-Webhook verteilt nach der Konto-ID im Ereignis.
    - `influencers[0]` wird nirgends mehr verwendet (heute in `_send_ai_notice`).
    - Regel: alle Identitäten einer Akte gehören zu Konten derselben Influencerin; dieselbe Person bei zwei Influencerinnen ergibt zwei Akten.
+   - `channel_accounts.customer_transport`: `tdlib` oder `business_bot`. Je Konto beantwortet immer nur ein Weg die Kundenchats (Bot-Adapter später, SP6 Schritt 10).
 10. **Einstellungen (S1).**
     - Katalog aller Einträge mit Gruppe, Format und Prüfer, gemeinsam für Cockpit und CLI.
     - Gruppen:
@@ -429,7 +499,7 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
     - `_command` leert den Wert vor dem Hash, wie bei `channel_account_login`.
     - `keychain.store_secret` lehnt `"`, `\` und Zeilenumbruch heute still ab: den Wert vor dem Speichern kodieren oder mit klarer Meldung abweisen.
     - `config_update` schreibt `local/config.toml` atomar über den Parser aus `config.py`; Werte, die einen Neustart brauchen, melden das.
-11. **Befehlsstatus (neu: `GET /api/v1/command/<request_id>`).** Liefert die gespeicherte Quittung als Protobuf oder 404. Grundlage für BUG-024.
+11. **Befehlsstatus (neu: `GET /api/v1/command/<request_id>`; SPEC-011).** Liefert die Quittung aus dem Journal; oder „in Bearbeitung“, solange die Kennung in der laufenden Ausführung steht; 404 nur, wenn beides nicht zutrifft. 404 heißt nicht „nie angekommen“: die Oberfläche sendet dann denselben Befehl mit derselben `request_id` erneut; das Backend führt ihn höchstens einmal aus. Grundlage für BUG-024.
 12. **Starter (`launcher/Darkfluenzer.swift`).** Rückgabe von `down` je Instanz auswerten.
 
 **Frontend im selben Paket:** FRONTEND §4.1.
@@ -440,7 +510,7 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
 2. Ein Fehler im Versand ist im Kanalstatus sichtbar, die Aufgabe läuft weiter.
 3. Ein explizites Bild über vier Wege ergibt ein explizites Ergebnis.
 4. Die zweite Nachricht eines bekannten Kunden zählt in Liste und Übersicht, ohne die Akte zu öffnen.
-5. Versand bei getrennter Verbindung: nach der Wiederverbindung als gesendet erkannt, keine Übergabe-Karte, kein Doppelversand.
+5. Versand bei getrennter Verbindung: nach der Wiederverbindung als gesendet erkannt, keine Übergabe-Karte, kein Doppelversand; eine Sendung ohne Beleg bleibt `unknown` mit Karte und wird nicht automatisch wiederholt.
 6. PayPal-Zugang im Cockpit eingetragen und geprüft; der Wert ist nirgends lesbar; ein Wert mit Sonderzeichen funktioniert oder wird klar abgewiesen.
 7. 20 normale Sätze mit Zahlen bleiben unverändert; ein abgelehnter Fehltreffer wird wiederhergestellt.
 
@@ -489,6 +559,7 @@ Ersetzt B5.1 bis B5.4, B5.4a, C5.2, C5.3, C5.4 und T1. Grundlage: Code-Vergleich
    - `channel_conversations.mode`: `auto`, `draft`, `manual`. Eine Nachricht vom Handy schaltet auf `manual`.
    - `channel_messages.status` bekommt `draft` und `cancelled`, dazu die Spalte `scheduled_at`. Das ist ein Tabellenumbau wie in Migration 7 (BUG-097).
    - Die Altersbedingung in `_create_offer` entfällt; geprüft wird nur noch `under_18` (BUG-077).
+   - Das Antwortfenster ist Teil des Kanalvertrags (SP0 Schritt 4). Dialog und Verhalten fragen nur den Vertrag, nie Instagram direkt. Ein Kanal ohne Fenster meldet „offen“.
 7. **Verhalten (`behavior.py`, `channels/telegram.py`, `channels/instagram.py`).**
    - Verhaltensprofil je Influencerin in SQLite, versioniert. `reply_delay_min_s`, `reply_delay_max_s` und `typing_chars_per_s` entfallen aus der Konfiguration; `max_messages_per_minute` bleibt als Schutz.
    - Bündeln: nach der letzten Kundennachricht ein Wartefenster aus dem Profil, erst dann eine Antwort für alle.
@@ -553,9 +624,9 @@ Ersetzt C5a, C5.5, C5.6, C5.6a, C5.7, C5.8, C5.10 und T2. Grundlage: Code-Vergle
    - Neu: `[server] public_base_url` unabhängig von Instagram.
    - PayPal: Zahlungslink je Auftrag mit der Auftragsnummer als Bezug, Webhook mit Signaturprüfung, Zahlung einziehen, Eingang als `paypal` in `payment_inflows`, Zuordnung über `assign_inflow`. Erstattung über die PayPal-Schnittstelle, danach `record_refund`.
    - Zugang über die Einstellungen (SP2), Verbindungstest inklusive.
-4. **Gutschein und Fehlbetrag.**
+4. **Gutschein und Fehlbetrag (SPEC-010).**
    - Gutschein: Hinweistext im Angebot; nach Eingang eine Meldung an den Default; die Bestätigung bleibt beim Betreiber (`redeem_voucher`). Erstattung bei Gutschein-Zahlung manuell durch den Betreiber, Status erst mit seinem Beleg.
-   - Fehlbetrag (E10): `assign_inflow` nimmt bei manueller Zuordnung einen Fehlbetrag bis zur Grenze aus der Konfiguration (Vorgabe 0) an, mit Ereignis im Journal.
+   - Fehlbetrag (E10): neue unveränderliche Tabelle `payment_waivers` (Auftrag, Eingang, Fehlbetrag, Grenze, Betreiber, Zeit). `assign_inflow` nimmt einen Fehlbetrag nur per Betreiberbefehl mit Bestätigung an, höchstens bis zur Grenze aus der Konfiguration (Startwert 0). `payments.amount` trägt den tatsächlich gedeckten Betrag. `approval.check_gate` und die Trigger `deliveries_gate` und `deliveries_send_gate` verlangen: gedeckter Betrag plus Kulanz gleich Angebotspreis.
 5. **Warteschlange mit Vorrang (`server.render_worker`, `jobs`).**
    - Heute: reines FIFO (BUG-101).
    - Neu: Spalte `jobs.priority`. Reihenfolge nach §3.2: bezahlter Kundenauftrag, Default-Produktion, Cockpit, Training.
@@ -565,15 +636,16 @@ Ersetzt C5a, C5.5, C5.6, C5.6a, C5.7, C5.8, C5.10 und T2. Grundlage: Code-Vergle
    - Video: Kandidaten als Bild, danach die Animation als Fertigstellen-Stufe. Dafür trägt die Fertigstellen-Stufe eigene Werte (Prompt, `duration_s` bis zur Höchstlänge des Produkts; BUG-090).
    - Kundenproduktion nur auf Engines mit `usage = production` und allen Gates nach §9.1.
    - Nach dem Start schreibt Clara Dank und Lieferzeit aus den gemessenen Laufzeiten; bei Verzug genau eine Zwischennachricht.
-7. **Automatische Prüfung und Auswahl (`checks.py`, `pipeline.advance_order`).**
-   - Nach der Kandidatenstufe je Kandidat: Identität (SP3), Inhaltsstufe über das Prüfmodell (E16), Technik (Format, Auflösung, nicht leer; Video: Frame-Zahl, Dauer, Stichproben-Bilder durch Identität und Prüfmodell). Ergebnisse in `media_checks`.
-   - Qualität (Anatomie, Bildfehler, Treue zum Wunsch; bei Video zeitliche Konsistenz), sobald ein Bewertungsmodell mit B5.6 freigegeben ist.
-   - Auswahl: unter den bestandenen Kandidaten der beste Gesamtwert aus Identität und Qualität (Gewichte in der Konfiguration); solange kein Qualitätsmodell freigegeben ist, der beste Identitätswert.
+7. **Automatische Prüfung und Auswahl (`checks.py`, `pipeline.advance_order`; SPEC-013).**
+   - Nach der Kandidatenstufe je Kandidat vier Prüfungen, Ergebnisse in `media_checks`: Identität (SP3), Inhaltsstufe über das Prüfmodell (E16), Technik (Format, Auflösung, nicht leer; Video: Frame-Zahl, Dauer, Stichproben-Bilder), Qualität (Hände, Anatomie, Artefakte, Treue zum Wunsch; bei Video zeitliche Konsistenz) über den Qualitätsprüfer (E17).
+   - Jede Prüfung braucht ein als geprüft eingetragenes Modell. `checks.py` führt die Qualitätsprüfung als austauschbaren Baustein.
+   - Auswahl: unter den Kandidaten, die alle vier Prüfungen bestehen, der beste Gesamtwert aus Identität und Qualität (Gewichte in der Konfiguration).
    - Kein bestandener Kandidat: neue Kandidatenstufe mit neuen Seeds (`pipeline.regenerate_order`), bis zur Obergrenze aus der Konfiguration; danach bleibt der Auftrag in `review` und der Betreiber wird benachrichtigt.
-8. **Systemfreigabe (`server._approve_artifact`, `store.py`).**
+   - Kennzahlen je Workflow: Anteil bestandener Kandidaten, Reklamationen, Neuauflagen.
+8. **Systemfreigabe (`server._approve_artifact`, `store.py`; SPEC-013).**
    - Heute: Freigabe nur per Befehl mit der Betreiberbestätigung „nicht explizit“.
-   - Neu: derselbe Ablauf als Funktion mit Freigeber. Freigeber „system“ ist nur zulässig, wenn alle Prüfwerte gespeichert und bestanden sind und der SHA des geprüften Kandidaten übereinstimmt; ein Trigger auf `approvals` erzwingt das. Vor dem Versand prüft das Liefer-Gate erneut (Zahlung, Inhaltsstufe, Zustellkopie aus genau diesem SHA).
-   - Ohne freigegebenes Prüfmodell gibt es keine Systemfreigabe; der Auftrag wartet auf den Betreiber.
+   - Neu: derselbe Ablauf als Funktion mit Freigeber. Die Systemfreigabe verlangt vier bestandene Prüfungen (Identität, Inhaltsstufe, Technik, Qualität) und den übereinstimmenden SHA des geprüften Kandidaten; der Trigger auf `approvals` prüft alle vier Werte. Vor dem Versand prüft das Liefer-Gate erneut (Zahlung, Inhaltsstufe, Zustellkopie aus genau diesem SHA).
+   - Fehlt ein Prüfmodell (E16, E17), gibt es keine Systemfreigabe; der Auftrag wartet auf den Betreiber.
    - Harte Gates (Inhaltsstufe `explizit` oder unbekannt, fehlende Zahlung, gesperrter Kanal, LoRA einer fremden Figur) lassen sich durch keine Freigabe umgehen.
 9. **Zustellung (`server._queue_delivery`, `telegram._send`, `instagram._parts`).**
    - Heute: Anhang immer als Dokument, Text leer (BUG-099).
@@ -585,12 +657,12 @@ Ersetzt C5a, C5.5, C5.6, C5.6a, C5.7, C5.8, C5.10 und T2. Grundlage: Code-Vergle
     - Neu: Übergänge `delivered → producing` (Neuauflage) und `delivered → refunded`. Der Index gilt je Auftrag und Artefakt. Höchstzahl der Neuauflagen aus der Konfiguration.
     - Reklamation erkennt der Dialog als Absicht; sie erzeugt eine Karte. Die erste Neuauflage ist frei, alles Weitere entscheidet der Betreiber. Eine Erstattung sperrt jede weitere Zustellung.
 11. **Ausnahmeweg Handy (bisher C5.10).** Wartet ein Auftrag auf den Betreiber, bekommt der Default über Telegram die Vorschau. Er antwortet mit den Wörtern aus dem Default-Kontakt für Freigeben, Neu oder Erstatten. Nur die verifizierte Default-Identität wirkt. „Freigeben“ wirkt nur bei technischen oder qualitativen Fehlschlägen, nie gegen harte Gates.
-12. **Kundentest mit Bild (bisher T2).**
-    - Der Testauftrag ist ein Auftrag der internen Akte. `_create_offer` lässt das nur in der Betriebsart `test` zu. Der Testverlauf bleibt in der eigenen Testkonversation (SP4 Schritt 8).
-    - Statt der Zahlung gilt die Testfreigabe: automatisch oder per Wort (Startwert „Cash“).
-    - `approval.check_gate` und der Trigger `deliveries_gate` verzichten auf die Zahlung nur, wenn die Akte `kind = internal` hat. Ein echter Kunde kann so nie ohne Zahlung beliefert werden.
+12. **Kundentest mit Bild (bisher T2; SPEC-008).**
+    - Der Testauftrag ist ein Auftrag der internen Akte. Der Testverlauf bleibt in der eigenen Testkonversation (SP4 Schritt 8). Statt der Zahlung gilt die Testfreigabe: automatisch oder per Wort (Startwert „Cash“).
+    - Die Ausnahme „ohne Zahlung“ gilt nur, wenn alle Bedingungen zutreffen: `orders.test = 1` (gesetzt nur von `_create_offer` in der Betriebsart `test`, ein Trigger macht es unveränderlich); der Auftrag gehört zur internen Akte; das Lieferziel ist genau die Konversation, in der der Testauftrag entstand; deren Identität ist verifiziert (`verified = 1`) und ist die Default-Identität dieses Kontos; die Betriebsart `test` ist beim Anlegen der Lieferung und im Versandmoment aktiv.
+    - `approval.check_gate` und beide Trigger (`deliveries_gate`, `deliveries_send_gate`) prüfen dieselben Bedingungen. Ein echter Kunde kann so nie ohne Zahlung beliefert werden.
     - Es entsteht kein Eingang in `payment_inflows`; im Wallet und in der Monatsliste erscheint nichts.
-    - Testmedien dürfen gelöscht werden (Ausnahme im Trigger `media_order_no_delete` für die interne Akte).
+    - Testmedien dürfen gelöscht werden (Ausnahme im Trigger `media_order_no_delete` für Testaufträge der internen Akte).
 
 **Weiter gültig (Teil von SP5):** **C5a.1 Krypto** (BUG-009, 010, 011): robuste Beobachter, Blockzeit statt Erkennungszeit; je eine kleine echte Zahlung.
 
@@ -637,16 +709,18 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
    - Der alte Trainer `training.train_sdxl_lora` und die CLI `character train-sdxl` entfallen.
 4. **LoRA-Registry (`models.Lora`, `models.engine_model_names`).**
    - Heute: `Lora` ohne Figur; ladbar nur in Workflows mit `base_engine` gleich der Engine des Workflows (BUG-094).
-   - Neu: `Lora` bekommt `character` (Kürzel). Ladbar in jeder Engine derselben Architektur (`arch`). Ablage `loras/characters/<kürzel>/<key>.safetensors`.
+   - Neu: `Lora` bekommt `character` (Kürzel). Ablage `loras/characters/<kürzel>/<key>.safetensors`.
+   - Verträglichkeit (SPEC-012): Eine LoRA gilt für ihre Trainings-Engine als geprüft. Für jede weitere Engine derselben Architektur wird sie erst nach einem bestandenen Probelauf mit Identitätswert eingetragen (`compatible` an der LoRA). Nur eingetragene Engines dürfen sie laden.
    - Lokale Einträge (`[loras]`, `enabled`) wandern in eine nicht versionierte Datei `local/registry.toml`, die derselbe Lader einliest. Das versionierte Manifest bleibt unverändert (BUG-092, Ursache von BUG-037).
 5. **LoRA im Workflow (Manifest, Graphen, `comfy.py`).**
    - Neuer Abschnitt je Workflow: `[workflows.<key>.lora]` mit Lader-Knoten, Namens- und Stärke-Eingang.
    - Lader einbauen und neu abnehmen in: `krea2_raw_turbo_lora_t2i`, `lustify_v10_krea_t2i`, `lustify_sdxl_t2i`, `lustify_sdxl_refine`, `lustify_sdxl_inpaint`, `lustify_sam31_edit`. Der Weg ist der vorhandene: im Editor öffnen, übernehmen (0 Abweichungen), ein echter Lauf.
    - Das Backend setzt den LoRA-Namen aus der aktiven LoRA der Figur und stellt dem Prompt den Trigger voran (Vorlage im Charakterprofil).
    - Ohne LoRA entfernt das Backend den Lader und reicht dessen Eingänge durch. Kundenaufträge laufen nie ohne LoRA; Default-Aufträge nur mit Kennzeichnung „ohne Charakter-LoRA“.
+   - Krea 2 (SPEC-012): Der Graph `krea2_raw_turbo_lora_t2i` enthält schon den Turbo-Lader. Reihenfolge: Modell, Turbo-LoRA, danach Charakter-LoRA als eigener Lader. Zwei getrennte Stärken: `turbo_strength` (vorhanden) und `character_strength` (neu, Startwert aus der LoRA).
 6. **Aktive LoRA und Probebilder (`store.py`, `server.py`).**
    - Tabelle `character_loras` (Charakter, Architektur, LoRA-Schlüssel): genau eine aktive je Paar.
-   - Befehl 64 `lora_activate`. Probebilder: die Probe-Prompts des Profils in drei Stärken, je mit Identitätswert.
+   - Befehl 64 `lora_activate`. Probebilder: die Probe-Prompts des Profils in drei Charakterstärken bei fester Turbo-Stärke, je mit Identitätswert.
    - Ein Auftrag für eine Figur lädt nie die LoRA einer anderen Figur.
 7. **Gesichtsprüfung als Dienst (`identity.py`, `pipeline.py`, `store.py`).**
    - Heute: Baustein ohne Aufrufer. Die Dateien `face_yunet`, `face_sface`, `face_auraface` gehören zu keiner Engine (BUG-091).
@@ -680,23 +754,24 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
 Ersetzt D1, D2, D3 und C6. Grundlage: Code-Vergleich von Fable (17.11.) mit `runtime.py` und `realtime.ts`.
 
 **Ziel:** Darkfluenzer läuft unbeaufsichtigt rund um die Uhr, meldet Störungen aufs Handy, lässt sich im Betrieb aktualisieren und ist rechtlich geklärt, bevor der erste Kunde zahlt.
-**Schließt:** BUG-035, 061, 065, 066, 076, 103 bis 105.
+**Schließt:** BUG-035, 061, 065, 066, 076, 103, 104 (BUG-105 schließt SP0).
 **Dateien:** `store.py`, `runtime.py`, `app.py`, `server.py`, `pipeline.py`, `config.py`, `launcher/*`, `frontend/src/core/realtime.ts`.
 
-**Schritt 0 wird vorgezogen: vor der ersten Migration aus SP1.**
-
-0. **Migration mit Sicherung (`store.Store._migrate`).**
-   - Heute: Migrationen laufen ohne Sicherung; geprüft werden nur Fremdschlüssel bei Tabellenumbauten (BUG-105).
-   - Neu: vor jeder ausstehenden Migration eine Kopie `darkfluenzer.sqlite3.bak-<Zeit>-vor-migrationNN` über die SQLite-Sicherungsschnittstelle. Danach `PRAGMA integrity_check` und `PRAGMA foreign_key_check`; bei Fehler Abbruch mit Hinweis auf die Sicherung.
-   - Test: Migration mit absichtlichem Fehler lässt die Datenbank unverändert, die Sicherung liegt vor.
+0. **Migration mit Sicherung:** nach SP0 Schritt 1 verschoben.
 1. **Dienst und Wächter (`app.py`, `runtime.py`, `launcher/*`).**
    - Heute: `cockpit_up` startet den Server losgelöst; niemand überwacht ihn; kein Start nach der Anmeldung.
    - Neu: `darkfluenzer service install|uninstall|status` legt einen launchd-Dienst des Benutzers an, der `serve` nach der Anmeldung startet und bei Absturz neu startet. `up`, `down` und `restart` steuern den Dienst, wenn er installiert ist.
    - Das Backend startet beim Hochfahren beide ComfyUI-Instanzen und wärmt Melody an (SP4).
    - Der Starter wertet die Rückgabe je Instanz aus (BUG-031, SP2).
+   - Der Dienst startet nach der Anmeldung des Benutzers. Ein Neustart des Macs ohne Anmeldung stellt Clara nicht bereit (SPEC-014). Lösung nach E18; bis zur Entscheidung gilt: Anmeldung von Hand, automatische System-Neustarts sind ausgeschaltet, und nach jedem Wiederanlauf geht eine Meldung ans Handy.
 2. **Ruhezustand.** Der Server hält einen Schlafschutz, solange er läuft. Die Betriebsanzeige zeigt Netzteil und Schlafschutz. Dokumentiert wird: Betrieb am Netzteil, Deckel offen oder mit externem Bildschirm.
 3. **Betriebsmeldungen ans Handy (`server.py`).** Der Default bekommt über Telegram eine Meldung bei: Neustart nach Absturz, Kanal länger als die Grenze nicht bereit, Warteschlange steht, Speicherplatz unter der Reserve, Auslagerung über der Grenze, Zahlungseingang ohne Zuordnung. Grenzen in der Konfiguration; je Störung höchstens eine Meldung, dazu eine Entwarnung.
-4. **Sicherung (`app.py`).** `darkfluenzer backup` schreibt eine konsistente Kopie der Datenbank nach `local/backup/` (Anzahl aus der Konfiguration) und läuft täglich aus dem Dienst. Die Dateien unter `local/` außer Modellen sichert der Betreiber verschlüsselt. Die Betriebsanzeige zeigt die letzte Sicherung. Abnahme: Rücksicherung auf einen leeren Ordner startet fehlerfrei.
+4. **Sicherung (`app.py`; SPEC-015).**
+   - `darkfluenzer backup` sichert auf ein Ziel aus den Einstellungen: Datenbankkopie, `local/customers`, `local/channels`, `local/characters`, Charakter-LoRAs, `local/registry.toml`, `local/config.toml` und die Galerie. Nicht gesichert werden geladene Modelle, die ComfyUI-Installation und Zwischenstände. Läuft täglich aus dem Dienst.
+   - Geheimnisse stehen nicht in der Sicherung. Nach einer Rücksicherung zeigen die Einstellungen, was neu einzutragen ist.
+   - Aufbewahrung: Anzahl täglicher und wöchentlicher Stände aus der Konfiguration; ältere entfallen. Die Betriebsanzeige zeigt die letzte Sicherung.
+   - Löschprotokoll: Jede Löschung einer Akte steht in einer eigenen Liste neben den Sicherungen. `darkfluenzer restore` wendet die Liste nach der Rücksicherung erneut an.
+   - Abnahme: Rücksicherung samt Medien auf einen leeren Ordner startet fehlerfrei; eine zuvor gelöschte Akte ist danach wieder gelöscht.
 5. **Aufräumen (`pipeline.py`, `runtime.py`).**
    - Heute: jede Ausgabe liegt in ComfyUIs `output/` und in `local/evaluation/`; `darkfluenzer_work/job<id>` und hochgeladene Eingaben bleiben für immer; Logs werden nur beim Start rotiert (BUG-103, 104).
    - Neu: nach erfolgreicher Übernahme entfällt die Kopie in ComfyUIs Ausgabe. Zwischenstände eines fertigen Langvideos entfallen nach einer Frist aus der Konfiguration. Eingaben, die kein Job mehr braucht, entfallen. Logs rotieren nach Größe.
@@ -714,6 +789,7 @@ Ersetzt D1, D2, D3 und C6. Grundlage: Code-Vergleich von Fable (17.11.) mit `run
    - Anwaltlich klären: KI-Offenlegung, Jugendschutz ohne Altersfrage (E2), Verbraucherrecht für digitale Inhalte, Impressum und Datenschutz, Steuer, Plattformbedingungen von Telegram und Instagram für automatisierte Konten und Verkauf, Bedingungen von PayPal und Amazon-Gutscheinen, Fansly für synthetische Personen, Modell-Lizenzen, Umgang mit gelöschten Nachrichten.
    - Produktteile: Pflichttexte als Felder der Influencerin. Auskunft je Akte als Export. Löschung je Akte (Befehl 57 `customer_erase`): Nachrichten, Anhänge, Gedächtnis, Gutscheintexte und die Zuordnung zur Plattform-Identität entfallen; Aufträge und Zahlungen bleiben ohne Personenbezug für die Aufbewahrung. Die unveränderlichen Tabellen (`events`, `artifacts`, `approvals`) enthalten nur Kennungen.
    - Abnahme: nach der Löschung findet eine Volltextsuche über Datenbank und `local/` keinen Namen, keine Kennung und keinen Text der Akte.
+   - Die unveränderlichen Ereignisse tragen weiter interne Kundennummern. Ob das nach Löschung der Zuordnung genügt, klärt diese rechtliche Prüfung (SPEC-015).
 9. **Probephase und Gesamtabnahme (bisher C6).**
    - Sieben Tage Dauerbetrieb mit Testkunden auf beiden Kanälen.
    - Je einmal echt: Flirt bis Kauf, Bild, Video, Gutschein, PayPal, Reklamation, Erstattung, Default-Produktion mit Stapel, Training einer zweiten Figur.
@@ -721,6 +797,9 @@ Ersetzt D1, D2, D3 und C6. Grundlage: Code-Vergleich von Fable (17.11.) mit `run
    - Last: Videorender, zwei Chats und eine Zustellung gleichzeitig.
    - Freigabe vom Handy im Ausnahmefall.
 10. **Später, je mit eigener Freigabe:** Wechsel Instagram zu Telegram (C5.9), Default über Instagram (C4: geteilter Beitrag/Reel als Referenz, sofern Meta die Datei liefert; kein Scraping), WhatsApp und Fansly (C8, über die Kanalfähigkeiten aus SP4 Schritt 7), Bildverständnis (B5.6, in SP3 vorgesehen, braucht die Modellfreigabe), Text-LoRA, Sprache.
+    - **Telegram-Bot-Adapter:** zweiter Adapter für Kundenchats über „Telegram Business“ mit eigenem Bot. Antworten nur im 24-Stunden-Fenster. Die Default-Produktion bleibt auf dem Privatkonto. Beim Umstieg an einem Testchat prüfen, ob die Kundenkennung gleich bleibt. Umschalten je Konto über `channel_accounts.customer_transport` (SP2).
+    - **Zweiter Rechner:** `nodes/remote.py` und ein Knotendienst auf dem zweiten MacBook, nur im privaten Netz. Verlangt eine Änderung der Regel „keine neuen Laufzeitdienste“. Entscheidet E15 mit.
+    - **SP7 Instagram-Signale:** Beiträge mit Kennzahlen im Cockpit; Kommentare und Erwähnungen als Eingang mit Abgleich zur Akte; private Antwort auf Kommentare; Signale in der Akte. Verlangt eine zusätzliche Berechtigung der Meta-App.
 
 **Frontend im selben Paket:** FRONTEND §4.4.
 
@@ -751,11 +830,12 @@ Ersetzt D1, D2, D3 und C6. Grundlage: Code-Vergleich von Fable (17.11.) mit `run
 ## 8. Datenmodell (additiv, je Paket mit Migration und Sicherung)
 
 - **Neue Tabellen:** `persona_versions`, Verhaltensprofile, Erinnerungen (FTS5), `ai_runs` (Messwerte je KI-Lauf), Medienwünsche, `cloner_returns` (SP1), Prüfwerte je Kandidat, Zeitachsen-Schlüsselbilder.
-- **Charakter (SP3):** `characters.slug`, `trigger`, `class_word`, Probe-Prompts; `character_loras` (genau eine aktive LoRA je Figur und Architektur); `media_checks` (Prüfwerte je Medium); LoRA-Einträge und lokale Schalter in der nicht versionierten `local/registry.toml`. **Nachricht:** `album_id` (SP1). **Gutschein:** `original_text` (SP2). **Kanalkonten:** `channel_accounts` mit Default-Identität und Betriebsart je Konto (SP2). **Kanalkonten:** `channel_accounts` (S1) mit Zuordnung Konto → Influencerin → Charakter (C5.1); Kundenakte → Influencerin, mehrere Identitäten je Akte. **Medienwunsch** an der Konversation.
+- **Charakter (SP3):** `characters.slug`, `trigger`, `class_word`, Probe-Prompts; `character_loras` (genau eine aktive LoRA je Figur und Architektur); `media_checks` (Prüfwerte je Medium); LoRA-Einträge und lokale Schalter in der nicht versionierten `local/registry.toml`. **Nachricht:** `album_id` (SP1). **Gutschein:** `original_text` (SP2). **Kanalkonten:** `channel_accounts` mit Default-Identität, Betriebsart und `customer_transport` (`tdlib`/`business_bot`) je Konto (SP2). **Kanalkonten:** `channel_accounts` (S1) mit Zuordnung Konto → Influencerin → Charakter (C5.1); Kundenakte → Influencerin, mehrere Identitäten je Akte. **Medienwunsch** an der Konversation.
 - **Neue Spalten:** Influencerin je Akte und Kanalkonto, `channel_conversations.mode` (`auto`/`draft`/`manual`) und Kaufbereitschaft je Konversation, stabile ID je Preisposition, Zahlungswege je Influencerin, Trigger und Klasse je Charakter, Influencerin und LoRA-Version je Auftrag, `scheduled_at` je ausgehender Nachricht.
 - **Neue Zustände:** Nachricht `draft` und `cancelled` mit `scheduled_at` (Tabellenumbau, SP4); Auftrag „abgelaufen“, „reklamiert“, „abgeschlossen“, „wartet auf Betreiber“.
 - **Default und Test:** Betriebsart und Chat-Wörter am Default-Kontakt, Ausgabeprofil je Befehl; Testkonversation der internen Akte; Testaufträge sind Aufträge der internen Akte (Zahlungsausnahme nur für `kind = internal`); Prüfwerte je Kandidat (`media_checks`), Freigeber `system`.
-- **Verkauf (SP5):** feste ID, Art, Workflow, Kandidatenzahl, Höchstlänge und Zusatzleistungen je Preisposition; Zahlungswege und Angebotsgültigkeit je Influencerin; `offer_payments`; `jobs.priority`; Übergänge `delivered → producing|refunded`; Liefer-Index je Auftrag und Artefakt.
+- **SP0:** Zählertabelle für Medien-ID und laufende Nummer; Index `events(entity, event, id)`.
+- **Verkauf (SP5):** feste ID, Art, Workflow, Kandidatenzahl, Höchstlänge und Zusatzleistungen je Preisposition; Zahlungswege und Angebotsgültigkeit je Influencerin; `offer_payments`; `payment_waivers` (unveränderlich); `orders.test` (unveränderlich); `jobs.priority`; Übergänge `delivered → producing|refunded`; Liefer-Index je Auftrag und Artefakt.
 
 ## 9. Modelle, Workflows, Reproduzierbarkeit
 

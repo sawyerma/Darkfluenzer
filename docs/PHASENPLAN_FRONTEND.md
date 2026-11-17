@@ -136,6 +136,7 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 | Paket | Frontend-Umfang | Abnahme |
 |---|---|---|
 | **SP2 Fundament** | Frontend-Teil nach §4.1 (Befehle mit Zeitlimit und Statusabfrage, begrenzte Ereignislisten, Kundenliste/Übersicht per EVENT 26, Kanalstatus je Konto, Figur-Filter, Reiter Einstellungen mit Kanalkonten, kleinere Punkte) | je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet und Einstellungen; Smoke klickt alle sechs Reiter; Verbindungsabbruch während eines Befehls gibt den Knopf wieder frei |
+| **SP0 Struktur** | Frontend-Teil nach §4.0 (Aufteilung von `Messages.tsx` und `ComfyUI.tsx` in Komponenten je Block) | Screenshots aller Reiter vorher und nachher gleich; alle Tests grün |
 | **SP1 Default-Kette** | Karte je Zustand (gestartet, wartet auf Start mit Startknopf, abgelehnt mit Grund, zurückgesendet, Rückversand gesperrt, fehlgeschlagen, abgebrochen); Default-Kontakt mit Betriebsart, Kandidatenzahl, Ausgabeprofil je Befehl (z. B. Story 9:16) und Chat-Wörtern, ausgeschaltete Schalter und fehlende Workflows sichtbar; Stapel mit einer Karte je Bild und gemeinsamem Fortschritt; Auftragskarte nennt Influencerin, Workflow, Zahl der Referenzen, „ohne Charakter-LoRA“; `VideoSettings` für alle Video-Workflows; „Auftrag abbrechen“ an der Auftragskarte mit Abbruchzustand bis zur Quittung | Browser-Test für jeden Zustand; LTX, Wan, Remix mit denselben Feldern an derselben Stelle (Screenshot-Vergleich); echter Lauf vom Handy nach Backend SP1 |
 | **SP4 Clara chattet** | Frontend-Teil nach §4.2 (KI-Studio mit Messwerten, Modus je Konversation, Entwürfe, geplante und stornierte Antworten, Kaufbereitschaft, Sperre „minderjährig vermutet“, Verhaltensprofil, Automatik je Konto, Kundentest, KI-Instanz „bleibt geladen“; Deutung freier Default-Anweisungen in der Karte) | 20 echte Testnachrichten im Kundentest mit Messwerten; Browser-Test für Modus, Entwurf, Storno, Sperre |
 | **C5.1** (SP4) | Figur-Filter und Influencerin-Kennzeichen in Liste, Register und Aktenkopf, sichtbare Sortierung; Influencerin-Block mit Charakter | zwei Figuren ohne Vermischung |
@@ -145,16 +146,22 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 | **B5.6** | Referenzanalyse §3.3 | eigenes Bild → Prompt → echte Generierung |
 | **SP6 Betrieb, Recht, Abnahme** | Frontend-Teil nach §4.4 (Betriebsanzeige, erneutes Neuladen nach Schemawechsel, Auskunft und Löschung je Akte, Pflichttexte, Release-Kennung) | ein Browser-Lauf über die ganze Kette; Screenshots aller sechs Reiter gegen die Referenz; Betreiberabnahme nach der Probephase |
 
+### 4.0 SP0 Struktur (Frontend-Teil)
+
+- `Messages.tsx` und `ComfyUI.tsx` werden in Komponenten je Block geteilt (Kundenliste, Verlauf, je ein Block der rechten Spalte, Workflowliste, Formular, Warteschlange).
+- Keine sichtbare Änderung. Abnahme: Screenshots aller Reiter vorher und nachher gleich; alle Tests grün.
+
 ### 4.1 SP2 Fundament (Frontend-Teil)
 
 Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`, neue `pages/Settings.tsx`, `frontend/tests/`.
 
-- **Befehle (`commands.ts`, BUG-024):** `terminalReceipt` bekommt ein Zeitlimit (Wert aus dem STATE Einstellungen). Nach Ablauf und nach „Verbindung unterbrochen“ fragt `useCommand` den Befehlsstatus über `GET /api/v1/command/<request_id>` ab. Bei 404 ist der Befehl nie angekommen: Knopf frei, Meldung „nicht gesendet“.
+- **Befehle (`commands.ts`, BUG-024, SPEC-011):** `terminalReceipt` bekommt ein Zeitlimit (Wert aus dem STATE Einstellungen). Nach Zeitlimit oder Verbindungsabbruch fragt die Oberfläche den Befehlsstatus über `GET /api/v1/command/<request_id>` ab. Antwort „in Bearbeitung“: weiter warten. Antwort 404: denselben Befehl mit derselben `request_id` erneut senden, nie automatisch eine neue `request_id`. Bei Befehlen mit wirtschaftlicher Wirkung (Angebot, Freigabe, Zuordnen, Erstatten, Rückversand) bleibt der Knopf gesperrt, bis ein Endzustand vorliegt; angezeigt wird „Ergebnis unbekannt, Status wird geprüft“.
 - **Ereignislisten (`state.ts`, BUG-071):** Obergrenze je Topic; ältere Einträge kommen über die Seitenabfragen. `applyEvent` kopiert die Liste nicht mehr je Ereignis; die Benachrichtigung wird gebündelt.
 - **Kundenliste und Übersicht:** folgen EVENT 26 bei jedem Eingang; Zähler „wartet auf Produktion“ und „wartet auf Freigabe“ (BUG-048, 070).
 - **Kanalstatus je Konto;** Figur-Filter in der Kundenliste (die Daten liefert SP2).
 - **Kleinere Punkte:** Ganzzahlprüfung (BUG-025), mitlaufende Fristen (BUG-026), Video in der Auftragskarte (BUG-027), Wallet-Maskierung und Bestätigungen (BUG-032, 033). Das Neuladen nach Schemawechsel (BUG-076) kommt mit SP6.
-- **Reiter Einstellungen** nach §3.7, zusätzlich Kanalkonten anlegen, zuordnen und entfernen.
+- **Reiter Einstellungen** nach §3.7, zusätzlich Kanalkonten anlegen, zuordnen und entfernen; Schalter „Kundenkanal über Privatkonto oder Bot“ je Konto (der Bot-Weg kommt später).
+- **Nachrichten:** Sendung im Status `unknown` zeigt „als gesendet markieren“ und „erneut senden“ mit Warnhinweis (SPEC-009).
 - **Abnahme:** je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet und Einstellungen; der Smoke-Test klickt alle sechs Reiter; ein Test trennt die Verbindung während eines Befehls und prüft, dass der Knopf wieder frei wird.
 
 ### 4.2 SP4 Clara chattet (Frontend-Teil)
@@ -171,14 +178,15 @@ Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`,
 - **Influencerin-Block:** Produktliste mit Art, Workflow, Kandidatenzahl, Höchstlänge und Zusatzleistungen; Zahlungswege; Angebotsgültigkeit; Schalter Bildautomatik und Freigabeart.
 - **Kundenakte rechts:** Medienwunsch mit Quellnachrichten; Angebot mit gesperrtem Faktenblock und Zahlungswegen; Zahlungsstatus; Produktion mit Prüfwerten je Kandidat und „Neu erzeugen“; Zustellung mit Versandart und Begleittext; Nachlauf mit Neuauflage und Erstattung.
 - **Auftragskarte:** zeigt, ob das System oder der Betreiber freigegeben hat; „wartet auf Betreiber“ mit Freigeben, Neu, Erstatten („Freigeben“ nur bei technischem oder qualitativem Fehlschlag).
-- **Wallet:** PayPal-Konto und -Eingänge; Kulanz-Zuordnung mit Bestätigung des Betrags (E10).
+- **Wallet:** PayPal-Konto und -Eingänge; Kulanz-Zuordnung zeigt Fehlbetrag und Grenze und verlangt eine Bestätigung (E10, SPEC-010).
+- **Kandidaten:** vier Prüfwerte (Identität, Inhaltsstufe, Technik, Qualität); ohne geprüftes Modell steht dort „Prüfmodell fehlt, Freigabe durch Betreiber“ (E16, E17).
 - **Warteschlange:** Vorrang je Job sichtbar.
 - **Kundentest:** Marke TEST an Auftrag, Medien und Karten; Testaufträge nie im Wallet.
-- **Übersicht:** Zähler „wartet auf Betreiber“.
+- **Übersicht:** Zähler „wartet auf Betreiber“; Kennzahlen je Workflow (bestanden, Reklamationen, Neuauflagen).
 
 ### 4.4 SP6 Betrieb, Recht, Abnahme (Frontend-Teil)
 
-- **Betriebsanzeige (Einstellungen, Gruppe Betrieb):** Dienst installiert, Laufzeit seit dem letzten Start, Netzteil, Schlafschutz, letzte Sicherung, freier Speicherplatz, Auslagerung, offene Störungen.
+- **Betriebsanzeige (Einstellungen, Gruppe Betrieb):** Dienst installiert, Laufzeit seit dem letzten Start, Netzteil, Schlafschutz, letzte Sicherung, freier Speicherplatz, Auslagerung, offene Störungen. Dazu: Verzögerung des Hauptstrangs (SP0), Sicherungsziel und Zahl der Stände, Hinweis „Anmeldung nach Neustart nötig“ (E18).
 - **Verbindung (`realtime.ts`):** bei Sperre wegen des Schemas erneutes Neuladen in Abständen; Anzeige „Update läuft“ (BUG-076).
 - **Kundenakte:** „Auskunft exportieren“ und „Akte löschen“ mit Bestätigung und Quittung.
 - **Influencerin-Block:** Pflichttexte.

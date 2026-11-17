@@ -33,7 +33,7 @@
 | BUG-083 | `_on_inbound` fängt nur `PipelineError`, `ComfyError`, `StoreError`. Jeder andere Fehler im Kloner endet ohne Karte und ohne Antwort; die Nachricht wird nicht als gelesen markiert. | CODE | Jede Ausnahme endet im Zustand `failed` mit Karte und Antwort im Chat. | B SP1 |
 | BUG-086 | Kloner: bei Fehlschlag oder Abbruch der Stufe bekommt der Default keine Antwort (`_cloner_delivery` sendet nur Ergebnisse). (In Fables SP1-Blatt als „BUG-079“ geführt; 079 ist bereits vergeben.) | CODE | Zustand `failed` oder `cancelled` mit Grund als Karte und im Chat. | B SP1 |
 | BUG-089 | **Daueraufgaben ohne Aufsicht:** `outbox_worker`, `adapter.run` und `wallet.run` enden bei einem unerwarteten Fehler still; bis zum Neustart wird nichts mehr gesendet. (In Fables SP2-Blatt als „BUG-086“ geführt; 086 ist bereits vergeben.) | CODE | Aufsicht mit Protokoll, Anzeige im STATE und Neustart. | B SP2 |
-| BUG-105 | `Store._migrate` führt Migrationen ohne Sicherung und ohne Integritätsprüfung aus, obwohl die Entwicklungsregeln beides verlangen. (In Fables SP6-Blatt als „BUG-102“ geführt; 102 ist bereits vergeben.) | CODE | Sicherung vor, Prüfung nach jeder Migration. Vor der ersten neuen Migration umsetzen. | B SP6 Schritt 0 (vor SP1) |
+| BUG-105 | `Store._migrate` führt Migrationen ohne Sicherung und ohne Integritätsprüfung aus, obwohl die Entwicklungsregeln beides verlangen. (In Fables SP6-Blatt als „BUG-102“ geführt; 102 ist bereits vergeben.) | CODE | Sicherung vor, Prüfung nach jeder Migration. Vor der ersten neuen Migration umsetzen. | B SP0 Schritt 1 |
 
 ## 2. P1
 
@@ -111,6 +111,8 @@
 | BUG-092 | Lokaler Zustand steht im versionierten `workflows/manifest.toml`: LoRA-Einträge (`register_lora`) und der Schalter `enabled`. Ursache von BUG-037. | CODE | Nicht versionierte `local/registry.toml`. | B SP3 |
 | BUG-093 | Die Wan-Engines haben keine `formats`; die einheitliche Videosteuerung hat dort keine benannten Formate. | CODE | Formate im Manifest ergänzen. | B SP1 |
 | BUG-103 | Plattenverbrauch: jede Ausgabe liegt in ComfyUIs `output/` und in `local/evaluation/`; `darkfluenzer_work/job<id>` und hochgeladene Eingaben werden nie aufgeräumt. | CODE | Aufräumen nach Übernahme und Frist. | B SP6 |
+| BUG-106 | Schwere Arbeit im Hauptstrang: `_reply_internal` hasht und kennzeichnet Dateien synchron; lange Datenbankabfragen laufen dort ebenfalls. | CODE | Arbeiter-Threads; Messwert für die Verzögerung. | B SP0 |
+| BUG-107 | `pipeline.media_candidates` liest je Beobachterrunde alle abgeschlossenen Jobs (`finished_jobs(0, 1_000_000)`); `add_media` bildet je Eintrag das Maximum über das Journal. (In Fables Blatt als „BUG-105“ geführt; 105 ist bereits vergeben.) | CODE | Position merken, Index, Zählertabelle. | B SP0 |
 
 ## 4. P3
 
@@ -151,13 +153,26 @@ Im Plan entschieden; die Umsetzung schließt sie im genannten Paket.
 
 | ID | Code heute | Plan | Paket |
 |---|---|---|---|
-| SPEC-001 | Liefer-Gate und Trigger verlangen bestätigte Zahlung | Testaufträge sind Aufträge der internen Akte; Gate und Trigger verzichten auf die Zahlung nur bei `kind = internal`, ohne künstliche Zahlung | SP5 |
+| SPEC-001 | Liefer-Gate und Trigger verlangen bestätigte Zahlung | Testaufträge sind Aufträge der internen Akte; Gate und Trigger verzichten auf die Zahlung nur unter den fünf Bedingungen von SPEC-008, ohne künstliche Zahlung | SP5 |
 | SPEC-002 | ein Konto je Plattform (`server.telegram`, `server.instagram`, `[telegram_account]`, `[instagram]`) | Kanalkonten als Liste mit eigenem Adapter je Konto | S1 |
 | SPEC-003 | Freigabe nur durch den Betreiber (`approval.py`) | Systemfreigabe mit Prüfwerten in einer Transaktion, Liefer-Gate prüft vor dem Versand erneut | C5.6a |
 | SPEC-004 | Angebot verlangt `self_declared_adult` (`server._create_offer`) | keine Altersfrage (E2); Befehl 44 nur noch Sperre „minderjährig vermutet“ | C5.2 (BUG-077) |
 | SPEC-005 | Engine-Gate `license_pass` im Code | Betreiber setzt es nach Dokumentation im Manifest; kein Auswahlkriterium (Regel 6) | Backend §9.1 |
 | SPEC-006 | zwei Ordnerschemata für Charaktere | ein Schema `local/characters/<kürzel>/` mit sicherer Migration | B1 (BUG-078) |
 | SPEC-007 | Anhang A (F7) enthält überholte Aussagen | im Kopf des Anhangs gelistet und inline mit [17.11.] markiert | DOK-1 |
+
+Plan-Korrekturen nach der Prüfung der Sammelpakete (Fable, 17.11.; dort als SPEC-001 bis 008 geführt):
+
+| ID | Stelle | Befund | Korrektur |
+|---|---|---|---|
+| SPEC-008 | SP5 Schritt 12 | Die Zahlungsausnahme für Tests war nur an `kind = internal` gebunden. | Fünf Bedingungen (`orders.test`, interne Akte, Ursprungskonversation, verifizierte Default-Identität, Betriebsart `test`) samt Trigger. |
+| SPEC-009 | SP2 Schritt 6 | `unknown` wurde nach Zeitablauf zu `failed` und war erneut sendbar; Doppelversand möglich. | `failed` nur mit Beleg der Plattform; sonst Entscheidung des Betreibers. |
+| SPEC-010 | SP5 Schritt 4 | Ein angenommener Fehlbetrag scheitert am Trigger, der den Angebotspreis verlangt. | Tabelle `payment_waivers`; Gates rechnen gedeckten Betrag plus Kulanz. |
+| SPEC-011 | SP2 Schritt 11 | 404 wurde als „nie angekommen“ gewertet; der Befehl kann noch in Bearbeitung sein. | Zustand „in Bearbeitung“; erneut nur mit derselben `request_id`. |
+| SPEC-012 | SP3 Schritte 4, 5 | Die Krea-Kombination aus Turbo- und Charakter-LoRA war nicht beschrieben; Verträglichkeit nur über die Architektur. | Lader-Reihenfolge, zwei Stärken, Liste geprüfter Engines (`compatible`). |
+| SPEC-013 | SP5 Schritte 7, 8 | Ohne Qualitätsprüfung konnte der identitätsstärkste Kandidat automatisch freigegeben werden. | Vier Pflichtprüfungen; sonst Betreiberfreigabe (E16, E17). |
+| SPEC-014 | SP6 Schritt 1 | Der Benutzerdienst startet erst nach der Anmeldung. | Entscheidung E18; bis dahin dokumentierte Einschränkung. |
+| SPEC-015 | SP6 Schritte 4, 8 | Die Sicherung erfasste nur die Datenbank; Löschung und Sicherung waren nicht abgestimmt. | Umfang, Aufbewahrung, Löschprotokoll. |
 
 ## 6. Protokollzeile je Befund
 
