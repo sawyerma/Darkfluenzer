@@ -247,6 +247,61 @@ def test_database_rejects_delivery_bypassing_code(store):
 # ---------------------------------------------------------------------- Medienindex (Galerie)
 
 
+def _v1_db(local: Path) -> None:
+    local.mkdir()
+    db = sqlite3.connect(local / "darkfluenzer.sqlite3")
+    for statement in store_module._statements(store_module.SCHEMA):
+        db.execute(statement)
+    db.execute("PRAGMA user_version = 1")
+    db.execute(
+        "INSERT INTO customers (bot_id, telegram_user_id, created_at) VALUES (?, ?, ?)",
+        (BOT, 77, "2026-11-14T00:00:00.000+00:00"),
+    )
+    db.commit()
+    db.close()
+
+
+def _version(path: Path) -> int:
+    db = sqlite3.connect(path)
+    try:
+        return db.execute("PRAGMA user_version").fetchone()[0]
+    finally:
+        db.close()
+
+
+def test_migration_backs_up_first_and_failure_leaves_db_unchanged(tmp_path, monkeypatch):
+    """SP0 Schritt 1 (BUG-105): vor jeder Migration eine Sicherung; scheitert die Migration,
+    bleibt die Datenbank unverändert und der Fehler nennt die Sicherung."""
+    local = tmp_path / "local"
+    _v1_db(local)
+    last = store_module.SCHEMA_VERSION
+    monkeypatch.setitem(
+        store_module.MIGRATIONS, last, store_module.MIGRATIONS[last] + ";\nSELECT * FROM fehlt"
+    )
+    with pytest.raises(StoreError, match="Datenbank unverändert; Sicherung: .*vor-migration2"):
+        Store(local)
+    assert _version(local / "darkfluenzer.sqlite3") == 1
+    (backup,) = local.glob("darkfluenzer.sqlite3.bak-*-vor-migration2")
+    assert _version(backup) == 1
+    assert not list(local.glob("*.part"))
+    db = sqlite3.connect(backup)
+    assert db.execute("SELECT telegram_user_id FROM customers").fetchall() == [(77,)]
+    db.close()
+
+
+def test_migration_checks_integrity_and_fresh_db_needs_no_backup(tmp_path):
+    local = tmp_path / "local"
+    _v1_db(local)
+    Store(local).close()  # 1 → aktuell: eine Sicherung, Prüfung bestanden
+    assert _version(local / "darkfluenzer.sqlite3") == store_module.SCHEMA_VERSION
+    assert len(list(local.glob("darkfluenzer.sqlite3.bak-*"))) == 1
+    Store(local).close()  # aktuell: keine weitere Sicherung
+    assert len(list(local.glob("darkfluenzer.sqlite3.bak-*"))) == 1
+    fresh = tmp_path / "fresh"
+    Store(fresh).close()
+    assert not list(fresh.glob("*.bak-*"))
+
+
 def test_media_index_migrates_v1_dedupes_numbers_and_customer_names(tmp_path):
     local = tmp_path / "local"
     local.mkdir()

@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import logging
 import os
 import sqlite3
 from collections.abc import Iterator
@@ -22,6 +23,7 @@ from .payments.vouchers import extract as extract_vouchers
 
 SCHEMA_VERSION = 17
 DB_NAME = "darkfluenzer.sqlite3"
+log = logging.getLogger("darkfluenzer.store")
 
 ORDER_KINDS = ("image", "video")
 ARTIFACT_ROLES = ("input", "master", "mask", "candidate", "preview", "edit", "refined", "sent")
@@ -756,10 +758,40 @@ class Store:
     def close(self) -> None:
         self.db.close()
 
+    def _backup(self, first_step: int) -> Path:
+        """Kopie der Datenbank über die SQLite-Sicherungsschnittstelle vor einer Migration
+        (SP0 Schritt 1, BUG-105); erst vollständig geschrieben, dann umbenannt."""
+        stamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        target = self.path.with_name(f"{self.path.name}.bak-{stamp}-vor-migration{first_step}")
+        n = 1
+        while target.exists():
+            n += 1
+            target = target.with_name(f"{self.path.name}.bak-{stamp}-{n}-vor-migration{first_step}")
+        part = target.with_name(target.name + ".part")
+        dest = sqlite3.connect(part)
+        try:
+            self.db.backup(dest)
+        finally:
+            dest.close()
+        part.replace(target)
+        return target
+
+    def _check_integrity(self) -> None:
+        """Nach einer Migration, noch in deren Transaktion: Fehler rollen alles zurück."""
+        result = [r[0] for r in self.db.execute("PRAGMA integrity_check").fetchall()]
+        if result != ["ok"]:
+            raise StoreError(f"Integritätsprüfung fehlgeschlagen: {result[:5]}")
+        if bad := self.db.execute("PRAGMA foreign_key_check").fetchall():
+            raise StoreError(f"Migration verletzt Fremdschlüssel: {[tuple(r) for r in bad]}")
+
     def _migrate(self) -> None:
         # Einzelne Statements statt executescript(): executescript würde die laufende
         # Transaktion implizit committen; so bleibt die Migration atomar und parallel sicher.
         pending = self.db.execute("PRAGMA user_version").fetchone()[0]
+        backup = None
+        if 1 <= pending < SCHEMA_VERSION:  # bestehende Datenbank: vorher sichern
+            backup = self._backup(pending + 1)
+            log.info("Sicherung vor Migration %d→%d: %s", pending, SCHEMA_VERSION, backup)
         rebuild = any(step in REBUILDS for step in range(max(pending, 1) + 1, SCHEMA_VERSION + 1))
         if rebuild:  # nur außerhalb einer Transaktion umschaltbar
             self.db.execute("PRAGMA foreign_keys = OFF")
@@ -773,14 +805,20 @@ class Store:
                     for statement in _statements(SCHEMA):
                         self.db.execute(statement)
                     version = 1
+                migrated = version < SCHEMA_VERSION
                 for step in range(version + 1, SCHEMA_VERSION + 1):
                     for statement in _statements(MIGRATIONS[step]):
                         self.db.execute(statement)
-                if rebuild and (bad := self.db.execute("PRAGMA foreign_key_check").fetchall()):
-                    raise StoreError(
-                        f"Migration verletzt Fremdschlüssel: {[tuple(r) for r in bad]}"
-                    )
+                if migrated:
+                    self._check_integrity()
                 self.db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        except Exception as exc:
+            if backup is None:
+                raise
+            raise StoreError(
+                f"Migration auf Version {SCHEMA_VERSION} abgebrochen, Datenbank unverändert; "
+                f"Sicherung: {backup}: {exc}"
+            ) from exc
         finally:
             if rebuild:
                 self.db.execute("PRAGMA legacy_alter_table = OFF")

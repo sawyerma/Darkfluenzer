@@ -196,6 +196,20 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-105 (SP0 Schritt 1)
+Commit: siehe git log „SP0 step 1“ / store.Store._migrate, _backup, _check_integrity
+Behauptung: BESTÄTIGT (Migration ohne Sicherung, Integritätsprüfung nur bei Tabellenumbau)
+Nachweis: tests/test_store.py::test_migration_backs_up_first_and_failure_leaves_db_unchanged und
+  ::test_migration_checks_integrity_and_fresh_db_needs_no_backup (beide rot vor der Korrektur)
+Mac-Lauf 17.11.2026: Kopie der echten Datenbank auf Version 16 gesetzt, Migration 17 scheitert →
+  Datenbank bleibt Version 16 mit 598 Ereignissen, Sicherung …bak-20261117174912-vor-migration17
+  (Version 16, integrity_check ok), Fehlermeldung nennt die Sicherung
+Ergebnis: PASS für das Abnahmekriterium von SP0 Schritt 1; eine erfolgreiche Migration der echten
+  Datenbank folgt mit der nächsten Migration
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-043 / BUG-046 (FL-7)
 Commit: ebbe773 / server._cancel, server.render_worker, pipeline.run_render, server._pause
 Behauptung: BESTÄTIGT (Abbruch vor prompt_id nicht möglich; Ergebnis nach Abbruch übernommen; kein /free;
