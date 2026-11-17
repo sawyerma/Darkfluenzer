@@ -383,7 +383,8 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 - Kanalkonten als Liste statt je Plattform ein Abschnitt in der Konfiguration: mehrere Telegram- und Instagram-Konten nebeneinander (z. B. Clara, Lucy, Ken), je Konto eigener Datenordner und eigene Zugangsdaten (Einstellungen, S1).
 - Zuordnung: Kanalkonto gehört zu genau einer Influencerin, Influencerin zu genau einem Charakter, Kundenakte zu genau einem Kanalkonto.
 - Persona, Preise, Verhalten, Gedächtnis und LoRA gelten je Influencerin und werden nie über Figuren hinweg verwendet.
-- Abnahme: zwei Figuren auf zwei Konten ohne Vermischung.
+- Jede Kundenakte trägt Kanalkonto und Influencerin ab dem ersten Eingang; `CustomerSummary` und die Kundenseiten liefern Influencerin (ID, Name, Farbe) und Konto mit, die Kundenliste ist serverseitig nach Influencerin filterbar (FRONTEND §3.2).
+- Abnahme: zwei Figuren auf zwei Konten ohne Vermischung; je eine Nachricht an Clara und an Lucy erscheint mit der richtigen Figur, der Filter zeigt nur die eigene.
 
 **C5.2 Erstkontakt** (BUG-077).
 - KI-Hinweis automatisch und genau einmal je Kanalidentität.

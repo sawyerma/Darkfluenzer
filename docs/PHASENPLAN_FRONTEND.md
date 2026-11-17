@@ -45,7 +45,13 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
 
 ### 3.2 Nachrichten
 
-**Spalten:** links Kunden (Suche, Avatar, Name, Kunden-ID, Kanalkennzeichen, letzte Aktivität, Ungelesen); Mitte Register mehrerer Akten (× schließt nur das Register), Unterregister Gesamter Verlauf · Instagram · Telegram · WhatsApp (Gesamt nur lesbar, ohne Composer; nicht verbundene Kanäle deaktiviert), eingehend links, ausgehend rechts, Kanalfarbe IG pink, TG blau, WA grün, Ereigniskarten zwischen den Nachrichten; rechts die vollständige Steuerung, eigene Scrollleiste.
+**Zuordnung zur Figur (Betreiberanforderung 17.11.):** Jede eingehende Nachricht gehört zu dem Konto, an das sie geschrieben wurde, und damit zu genau einer Influencerin (Clara, Lucy, Ken …, C5.1). Das ist überall sofort sichtbar:
+- **Kundenliste:** oben Filter je Influencerin – *Alle · Clara · Lucy · Ken* – jeweils mit Ungelesen-Zahl; jede Zeile trägt das Kennzeichen der Influencerin (Name und feste Farbe aus dem Profil) neben dem Kanalkennzeichen (IG/TG) und dem Kontonamen (z. B. „Clara · IG @clara…“).
+- **Sortierung sichtbar:** über der Liste steht die aktive Sortierung, Standard „neueste Nachricht zuerst“; innerhalb des Filters „Alle“ wahlweise gruppiert nach Influencerin. Die Wahl bleibt nur im Browser gespeichert.
+- **Register:** jeder Reiter zeigt Name des Kunden und das Kennzeichen der Influencerin; der Kopf der Akte nennt „schreibt an <Influencerin> über <Kanal> <Konto>“.
+- **Rechte Steuerung und Composer** arbeiten immer mit dieser Figur (Persona, Preise, LoRA) und senden nur über dieses Konto; ein Wechsel der Figur in einer Akte ist nicht möglich.
+
+**Spalten:** links Kunden (Figur-Filter, Suche, Avatar, Name, Kunden-ID, Kennzeichen von Influencerin und Kanal, letzte Aktivität, Ungelesen); Mitte Register mehrerer Akten (× schließt nur das Register), Unterregister Gesamter Verlauf · Instagram · Telegram · WhatsApp (Gesamt nur lesbar, ohne Composer; nicht verbundene Kanäle deaktiviert), eingehend links, ausgehend rechts, Kanalfarbe IG pink, TG blau, WA grün, Ereigniskarten zwischen den Nachrichten; rechts die vollständige Steuerung, eigene Scrollleiste.
 
 **Rechte Steuerung bei Kunden:**
 
@@ -128,7 +134,7 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 | **S1** | Reiter Einstellungen §3.7 | PayPal-Zugang eintragen, Verbindung prüfen, Wert danach nirgends lesbar |
 | **B5.1–B5.4** | KI-Studio §3.4 | 20 echte Testnachrichten im Chat-Test, Messwerte sichtbar |
 | **B5.4a** | Default-Verlauf zeigt die Deutung einer freien Anweisung (Befehl, Workflow, Prompt) in der Karte | 30 Anweisungen vom Handy |
-| **C5.1–C5.10** | rechte Kundensteuerung §3.2 je Paket; C5.2: Status des KI-Hinweises, Karte und Sperre „minderjährig vermutet“, kein Altersblock; C5.6a: Prüfwerte je Kandidat, Karte „wartet auf Betreiber“ (Freigeben, Neu, Erstatten), Schalter Freigabeart im Influencerin-Block; C5.10: Auftragskarte zeigt, ob System oder Betreiber freigegeben hat und über welchen Weg | je Paket echter Lauf mit Testkunden |
+| **C5.1–C5.10** | rechte Kundensteuerung §3.2 je Paket; C5.1: Figur-Filter und Influencerin-Kennzeichen in Liste, Register und Aktenkopf, sichtbare Sortierung; C5.2: Status des KI-Hinweises, Karte und Sperre „minderjährig vermutet“, kein Altersblock; C5.6a: Prüfwerte je Kandidat, Karte „wartet auf Betreiber“ (Freigeben, Neu, Erstatten), Schalter Freigabeart im Influencerin-Block; C5.10: Auftragskarte zeigt, ob System oder Betreiber freigegeben hat und über welchen Weg | je Paket echter Lauf mit Testkunden |
 | **T1, T2** | Kundentest §3.8 | Browser-Test Umschalten, Messwerte, Zurücksetzen; Testauftrag nie im Wallet |
 | **C5a** | Wallet §3.6 | echte Zahlung je Weg |
 | **B1** | Bereich Charakter §3.3 (Liste, Fotostatus, Training, Versionen, Aktiv setzen, LoRA-Auswahl im Formular) | echter Ordner → Training → LoRA → Bild; Browser-Test Anlegen, Fotostatus, gesperrter Start, Umschalten |
@@ -142,7 +148,7 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 ## 5. Klick-Abnahme (Checkliste)
 
 - [ ] Übersicht: echte Karten und Kunden, ohne Polling.
-- [ ] Nachrichten: drei Spalten; Register öffnen/schließen; Gesamt nur lesbar; Kanalregister kanalgebunden; rechte Steuerung wechselt mit dem Register.
+- [ ] Nachrichten: drei Spalten; Figur-Filter (Alle · Clara · Lucy · Ken) mit Ungelesen-Zahl; jede Akte zeigt Influencerin und Konto; Sortierung sichtbar; Register öffnen/schließen; Gesamt nur lesbar; Kanalregister kanalgebunden; rechte Steuerung wechselt mit dem Register.
 - [ ] Default: nur Betreiberfelder; Betriebsart; „Als Default festlegen“ an einer Kundenidentität; jede Default-Nachricht endet in einer sichtbaren Karte und einer Antwort im Chat; Stapel und Story-Profil.
 - [ ] ComfyUI: links nur Workflows; erweiterte Einstellungen zugeklappt; Video-Felder einheitlich; Abbrechen und Anhalten mit echtem Receipt.
 - [ ] KI-Studio: Melody aus der Registry, Messwerte echt.
