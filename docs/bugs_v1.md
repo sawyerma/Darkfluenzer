@@ -196,6 +196,18 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-090 (Etappe A, Backend-Teil)
+Commit: siehe git log „BUG-090“ / core.orders.create_order, select_candidate, CreateOrder.finish_values (Feld 8)
+Behauptung: BESTÄTIGT (Fertigstellen mit leeren Werten; ltx25_i2v als Fertigstellen scheitert am Pflicht-Prompt)
+Nachweis: tests/test_orders.py::test_finish_stage_carries_its_own_values (Pflichtwert fehlt -> Ablehnung, falscher
+  Wert -> Ablehnung, mit Werten -> Fertigstellen-Job mit Prompt und 3 s)
+Mac-Lauf: NICHT GELAUFEN (Eingabe der Werte im Cockpit folgt mit dem Ausgabeprofil des Default-Kontakts, Etappe C,
+  und dem Video-Produkt in SP5)
+Ergebnis: TEIL
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-093 (Etappe A)
 Commit: siehe git log „BUG-093“ / workflows/manifest.toml (Wan-Formate), media.models.format_problems
 Behauptung: BESTÄTIGT (Wan-Engines ohne formats)

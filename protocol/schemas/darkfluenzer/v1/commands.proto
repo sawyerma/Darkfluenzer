@@ -121,6 +121,9 @@ message CreateOrder {
   // Bezahlter Kundenauftrag (Status paid), der hiermit produziert wird (V0 §8.4 Punkt 5); nur
   // Workflows der Inhaltsstufe standard. Leer: neuer Auftrag des Betreibers.
   string customer_order_no = 7;
+  // Werte für die Fertigstellen-Stufe (BUG-090), z. B. Höhe 1920 für das Story-Format oder der
+  // Prompt eines Video-Workflows; geprüft gegen den Fertigstellen-Workflow.
+  repeated ParamValue finish_values = 8;
 }
 
 // Auswahl an der kreativen Stufe; geprüft wird im Backend: Stufe wartet, Medium stammt aus ihr.

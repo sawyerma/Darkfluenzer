@@ -33,6 +33,7 @@ def create_order(
     *,
     count: int,
     finish_workflow: str = "",
+    finish_values: dict | None = None,
     parent_media_id: int | None = None,
     command: dict | None = None,
     source: str = "operator",
@@ -57,9 +58,20 @@ def create_order(
         fw = man.workflows.get(finish_workflow)
         if fw is None or "image" not in fw.params or not fw.params["image"].upload or fw.training:
             raise PipelineError(f"Fertigstellen mit '{finish_workflow}' ist nicht möglich.")
-        extra = [n for n, p in fw.params.items() if p.required and n != "image"]
+        extra = [
+            n
+            for n, p in fw.params.items()
+            if p.required and n != "image" and n not in (finish_values or {})
+        ]
         if extra:
             raise PipelineError(f"Fertigstellen mit {fw.title} braucht zusätzlich: {extra}.")
+        # Werte der Fertigstellen-Stufe gleich hier prüfen (Typen, Grenzen, Namen; BUG-090)
+        probe = {k: v for k, v in (finish_values or {}).items() if k not in VIDEO_KEYS}
+        comfy.apply_params(comfy.load_graph(man, fw), fw, {**probe, "image": "pruefung.png"})
+    elif finish_values:
+        raise PipelineError(
+            "Werte für das Fertigstellen gibt es nur mit einem Fertigstellen-Workflow."
+        )
     if customer_order_no:
         for key in filter(None, (workflow_key, finish_workflow)):
             if man.workflows[key].content != "standard":
@@ -74,7 +86,13 @@ def create_order(
     graph = comfy.load_graph(man, wf)
     base = int(values.get("seed", graph[seed.node]["inputs"][seed.input])) if seed else 0
     top = int(seed.max) if seed and seed.max is not None else 2**32 - 1
-    params = {"values": values, "inputs": inputs, "finish": finish_workflow, "origin": origin}
+    params = {
+        "values": values,
+        "inputs": inputs,
+        "finish": finish_workflow,
+        "finish_values": dict(finish_values or {}),
+        "origin": origin,
+    }
     kind = man.engines[wf.engine].kind
     with store.tx():
         if customer_order_no:
@@ -137,21 +155,25 @@ def select_candidate(
     if media_id not in {j["media_id"] for j in store.stage_jobs(stage.id)}:
         raise PipelineError(f"Medium {media_id} ist kein Kandidat von {order_no}.")
     finish = str(stage.params.get("finish") or "")
+    finish_values = dict(stage.params.get("finish_values") or {})  # BUG-090
     image = input_from_media(cfg, media_id) if finish else ""
     with store.tx():
         store.set_stage(stage.id, "done", selected_media_id=media_id)
         jobs = []
         if finish:
-            nxt = store.add_stage(order.id, "finish", finish, {"inputs": {"image": image}}, 1)
+            nxt = store.add_stage(
+                order.id, "finish", finish, {"inputs": {"image": image}, "values": finish_values}, 1
+            )
             jobs.append(
                 create_render(
                     store,
                     man,
                     finish,
-                    {},
+                    finish_values,
                     {"image": image},
                     parent_media_id=media_id,
                     stage_id=nxt.id,
+                    video_max_s=cfg.production.video_max_s,
                 )
             )
         else:
@@ -304,6 +326,11 @@ class OrdersMixin:
             v.name: getattr(v, v.WhichOneof("value")) for v in msg.values if v.WhichOneof("value")
         }
         inputs = await self._inputs(wf, msg.files)
+        finish_values = {
+            v.name: getattr(v, v.WhichOneof("value"))
+            for v in msg.finish_values
+            if v.WhichOneof("value")
+        }
         order_no, jobs = create_order(
             self.store,
             self.manifest,
@@ -312,6 +339,7 @@ class OrdersMixin:
             inputs,
             count=count,
             finish_workflow=msg.finish_workflow,
+            finish_values=finish_values,
             parent_media_id=msg.parent_media_id or None,
             command=self._journal_entry(call),
             customer_order_no=msg.customer_order_no,

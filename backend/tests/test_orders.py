@@ -138,3 +138,33 @@ def test_bit_identical_result_counts_as_candidate(setup):
     stage = store.stages(store.order(order_no).id)[0]
     assert stage.status == "waiting"
     assert [j["media_id"] for j in store.stage_jobs(stage.id)] == [first, first]
+
+
+def test_finish_stage_carries_its_own_values(setup):
+    """BUG-090: die Fertigstellen-Stufe trägt eigene Werte am Auftrag – hier ein Video aus dem
+    gewählten Bild mit Pflicht-Prompt und Länge; ohne Prompt klare Ablehnung."""
+    from darkfluenzer.nodes import comfy
+
+    cfg, store, man = setup
+    with pytest.raises(pipeline.PipelineError, match="braucht zusätzlich"):
+        orders.create_order(
+            store, man, "lustify_sdxl_t2i", {"prompt": "p", "seed": 1}, {}, count=2,
+            finish_workflow="ltx25_i2v", command=_command("ohne"),
+        )  # fmt: skip
+    with pytest.raises(comfy.ComfyError):
+        orders.create_order(
+            store, man, "lustify_sdxl_t2i", {"prompt": "p", "seed": 1}, {}, count=2,
+            finish_workflow="ltx25_i2v", finish_values={"prompt": "dreht sich", "fps": 25},
+            command=_command("falsch"),
+        )  # fmt: skip
+    order_no, jobs = orders.create_order(
+        store, man, "lustify_sdxl_t2i", {"prompt": "p", "seed": 1}, {}, count=2,
+        finish_workflow="ltx25_i2v", finish_values={"prompt": "dreht sich", "duration_s": 3},
+        command=_command("mit"),
+    )  # fmt: skip
+    picked = _finish(cfg, store, jobs[0])
+    _finish(cfg, store, jobs[1])
+    (finish_job,) = orders.select_candidate(cfg, store, man, order_no, picked, _command("wahl"))
+    params = store.job(finish_job)["params"]
+    assert params["prompt"] == "dreht sich" and params["video"]["length"] == 3
+    assert params["image"].endswith(".png")
