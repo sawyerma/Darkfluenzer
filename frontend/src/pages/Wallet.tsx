@@ -5,7 +5,7 @@ import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
 import type { OpenOffer, Payment, Voucher, WalletAccount, WalletSource } from "../core/generated/darkfluenzer/v1/wallet_pb";
 import { useStateTopic } from "../core/state";
 import { usePayments, type PaymentFilter, type PaymentsStatus } from "../core/wallet";
-import { clock } from "./ComfyUI";
+import { clock } from "./comfyui/common";
 
 // Wallet (FRONT F7.8, V0 §8.5): Claras Konten werden nur beobachtet – Kontokarten mit Guthaben,
 // Schublade mit Adresse und QR, Zahlungseingänge mit Filter und Seiten (nicht zugeordnete einem

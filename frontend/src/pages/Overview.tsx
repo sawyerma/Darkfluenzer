@@ -1,7 +1,7 @@
 import { PLATFORM_LABEL, customerName, openRegister, shortTime, useCustomers } from "../core/channels";
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
 import { useStateTopic } from "../core/state";
-import { clock } from "./ComfyUI";
+import { clock } from "./comfyui/common";
 
 const RECENT_CUSTOMERS = 8;
 

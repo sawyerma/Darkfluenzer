@@ -174,6 +174,7 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 
 - `Messages.tsx` und `ComfyUI.tsx` werden in Komponenten je Block geteilt (Kundenliste, Verlauf, je ein Block der rechten Spalte, Workflowliste, Formular, Warteschlange).
 - Keine sichtbare Änderung. Abnahme: Screenshots aller Reiter vorher und nachher gleich; alle Tests grün.
+- **Umgesetzt 17.11.2026:** `pages/comfyui/` (common, Instances, Queue, Results, Character, Candidates, Workbench) und `pages/messages/` (common, Channels, CustomerList, Stream, Composer, CustomerPanel, DefaultPanel); mechanisch per TypeScript-Compiler, alle 83 Deklarationen zeichengleich. Abnahme: zehn Ansichten aller Reiter, normalisierter DOM vorher und nachher identisch (Vergleich vorher zweimal stabil), `npm run build` und 11 Frontend-Tests grün.
 
 ### 4.1 SP2 Fundament (Frontend-Teil)
 

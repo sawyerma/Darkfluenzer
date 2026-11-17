@@ -474,6 +474,8 @@ backend/src/darkfluenzer/
 
 **Frontend im selben Paket:** FRONTEND §4.0.
 
+**Stand 17.11.2026: SP0 umgesetzt (Implementierung PASS nach §2.3, mit echten Läufen).** Tests vor der Aufteilung 136, danach dieselben 136 grün plus neue (jetzt 150); Importrichtung `tests/test_layers.py`; Herzschlag bei 500-MB-Video unter 100 ms; 1 Mio. Ereignisse: Runde unter 50 ms; Frontend-Ansichten unverändert.
+
 **Abnahme:**
 - Gleiche Zahl grüner Tests vor und nach der Aufteilung.
 - Ein Prüfskript belegt die Importrichtung.
