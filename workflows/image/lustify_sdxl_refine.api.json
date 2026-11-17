@@ -22,7 +22,7 @@
   "inputs": {
    "text": "professional photorealistic adult fashion portrait, realistic natural anatomy, consistent facial characteristics, natural lighting and materials, no stylization",
    "clip": [
-    "1",
+    "10",
     1
    ]
   },
@@ -35,7 +35,7 @@
   "inputs": {
    "text": "CGI, painting, plastic skin, oversharpened, distorted face, duplicate limbs, unnatural lighting",
    "clip": [
-    "1",
+    "10",
     1
    ]
   },
@@ -60,7 +60,7 @@
   "class_type": "KSampler",
   "inputs": {
    "model": [
-    "1",
+    "10",
     0
    ],
    "seed": 123456,
@@ -125,6 +125,25 @@
   },
   "_meta": {
    "title": "Eingabe · auf 1K skalieren (kurze Seite)"
+  }
+ },
+ "10": {
+  "class_type": "LoraLoader",
+  "inputs": {
+   "model": [
+    "1",
+    0
+   ],
+   "clip": [
+    "1",
+    1
+   ],
+   "lora_name": "characters/charakter.safetensors",
+   "strength_model": 1.0,
+   "strength_clip": 1.0
+  },
+  "_meta": {
+   "title": "Charakter-LoRA"
   }
  }
 }

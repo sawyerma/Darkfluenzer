@@ -77,6 +77,11 @@ class ProfilesMixin:
             raise StoreError(f"Charakter {character_id} unbekannt.")
         return dict(row)
 
+    def character_by_slug(self, slug: str) -> dict | None:
+        """Charakter zum Kürzel (Ordner, LoRA-Ablage); None, wenn es keinen gibt."""
+        row = self.db.execute("SELECT * FROM characters WHERE slug = ?", (slug,)).fetchone()
+        return dict(row) if row else None
+
     def save_character(
         self, character_id: int, revision: int, name: str, trigger: str, class_word: str, slug: str
     ) -> dict:

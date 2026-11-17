@@ -20,6 +20,8 @@ export function Candidates({
 }) {
   const cmd = useCommand();
   const jobs = useStateTopic(Topic.JOBS_ACTIVE)?.value.jobs ?? [];
+  const workflows = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
+  const slotted = new Set(workflows.filter((w) => w.loraSlot).map((w) => w.key));
   const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
   if (orders.length === 0) return null;
   return (
@@ -47,6 +49,7 @@ export function Candidates({
                 <div className="g-line">
                   <span className="g-ellipsis">
                     {order.orderNo} · {stage.kind === "finish" ? `Fertigstellen · ${titles[stage.workflow] ?? stage.workflow}` : "Kandidaten"}
+                    {stage.lora ? ` · LoRA ${stage.lora}` : slotted.has(stage.workflow) ? " · ohne Charakter-LoRA" : ""}
                   </span>
                   <span className="g-value">
                     {stage.attempts > 1 ? <small>Versuch {stage.attempts}</small> : null}

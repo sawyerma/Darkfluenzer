@@ -190,6 +190,33 @@ def _input_tier(store: Store, rel: str) -> str | None:
     return store.media_tier(media["id"]) if media else "explizit"
 
 
+LORA_KEY = "character_lora"  # Schlüssel der Charakter-LoRA in Job- und Stufenparametern
+
+
+def check_lora(man: Manifest, wf: Workflow, key: str) -> Lora:
+    """Die LoRA ist registriert, der Workflow hat einen Lader, und seine Engine darf sie laden
+    (Trainings-Engine oder eingetragen in ``compatible``, SP3 Schritt 4)."""
+    lo = man.loras.get(key)
+    if lo is None:
+        raise PipelineError(f"LoRA '{key}' ist nicht registriert.")
+    if wf.lora is None:
+        raise PipelineError(f"{wf.title} hat keinen Lader für eine Charakter-LoRA.")
+    if lo.comfy_name not in models.engine_model_names(man.files, man.engines, man.loras, wf.engine):
+        raise PipelineError(f"LoRA '{key}' passt nicht zur Engine {wf.engine}.")
+    return lo
+
+
+def lora_use(store: Store, man: Manifest, wf: Workflow, params: dict) -> comfy.LoraUse | None:
+    """Charakter-LoRA eines Jobs mit Trigger und Klasse aus dem Charakterprofil der LoRA."""
+    key = str(params.get(LORA_KEY) or "")
+    if not key:
+        return None
+    lo = check_lora(man, wf, key)
+    row = store.character_by_slug(lo.character) if lo.character else None
+    class_word = str(row["class_word"]) if row else ""
+    return comfy.LoraUse(lo, " ".join(filter(None, (lo.trigger, class_word))))
+
+
 def create_render(
     store: Store,
     man: Manifest,
@@ -203,9 +230,11 @@ def create_render(
     stage_id: int | None = None,
     video_max_s: float | None = None,
     inherit_tier: str | None = None,
+    lora: str = "",
 ) -> int:
     """Prüft einen Renderauftrag gegen die Registry und legt ihn als Job (Status queued) an.
     ``dataset``: Datensatzversion eines Trainingsworkflows (beim Anlegen festgelegt).
+    ``lora``: Schlüssel der Charakter-LoRA (SP3 Schritt 5); leer = ohne Charakter-LoRA.
 
     ``inputs``: Upload-Parameter -> abgelegte Eingabedatei relativ zu ``local/``.
     ``command``: auslösender Befehl; Job und Befehlsjournal entstehen im selben Commit.
@@ -228,6 +257,8 @@ def create_render(
         raise PipelineError(f"Ausgangsmedium {parent_media_id} ist nicht in der Galerie.")
     if wf.training != bool(dataset):
         raise PipelineError(f"{workflow_key}: Datensatz nur und immer für Trainingsworkflows.")
+    if lora:
+        check_lora(man, wf, lora)
     seeds = [values["seed"]] if "seed" in values else []
     prompt = str(values.get("prompt", ""))
     # Inhaltsstufe (Regel 13) an einer Stelle (SP2 Schritt 2, BUG-047): höchste Stufe aus
@@ -258,6 +289,7 @@ def create_render(
             **values,
             **inputs,
             **({"dataset": dataset} if dataset else {}),
+            **({LORA_KEY: lora} if lora else {}),
             **(
                 {"duration_s": plan["duration_s"], "segment_s": plan["segment_s"], "video": plan}
                 if plan
@@ -335,6 +367,7 @@ def run_render(
                     uploads,
                     timeout_s,
                     client_id,
+                    lora=lora_use(store, man, wf, params),
                     resume=job["prompt_id"],
                     on_submit=submitted,
                     unload_first=unload_first,
@@ -423,6 +456,7 @@ def _render(
     unload_first: bool = False,
     dataset: str | None = None,
     overrides: dict[tuple[str, str], object] | None = None,
+    lora: comfy.LoraUse | None = None,
 ) -> tuple[comfy.RenderResult, list[dict]]:
     workflow_key = wf.key
 
@@ -468,6 +502,7 @@ def _render(
             on_submit=on_submit,
             unload_first=unload_first,
             overrides=overrides,
+            lora=lora,
         )
     checks: dict = {}
     masked: tuple[Path, int, list] | None = None  # (Maske, Randerweiterung, geprüfte Ausgaben)

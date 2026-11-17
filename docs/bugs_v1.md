@@ -196,6 +196,22 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-052 (LoRA-Teil) / SPEC-012 (SP3 Schritt 5)
+Commit: siehe git log „SP3 step 5“ / media.models.LoraSlot, nodes.comfy.bind_lora, with_trigger,
+  media.pipeline.check_lora, lora_use; core.orders (create_order, select_candidate, retry_stage)
+Behauptung: BESTÄTIGT (kein Workflow hatte einen Lader für die Charakter-LoRA)
+Nachweis: tests/test_lora.py (Lader entfernt und Eingänge durchgereicht in allen sechs Graphen; Name und
+  Stärke aus der LoRA, Trigger mit Klasse aus dem Profil vor dem Prompt; LoRA durch Kandidaten,
+  Wiederholen, Fertigstellen; Krea-LoRA nicht im SDXL-Fertigstellen; Kundenauftrag ohne LoRA abgelehnt;
+  eingereichter Graph über run_render); Graph ohne LoRA == abgenommener Graph (alle sechs gegen HEAD)
+Mac-Lauf 17.11.2026: lustify_sdxl_t2i Job 90 (20,5 s) und krea2_raw_turbo_lora_t2i Job 91 (74,2 s), je
+  8 Schritte 768 × 768, ohne Charakter-LoRA: Lader entfernt, Turbo-LoRA bleibt, echte Bilder
+Ergebnis: Implementierung PASS; Lauf mit geladener Charakter-LoRA OFFEN (keine Fotos, keine LoRA);
+  Bindung am Default-Auftrag (Influencerin, Charakter) bleibt SP1
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-092 / BUG-094 / BUG-037 (SP3 Schritt 4)
 Commit: siehe git log „SP3 step 4“ / media.models._merge_local, edit_local, register_lora, set_workflow_enabled,
   delete_workflow, engine_model_names; core.registry._fingerprint, _registry_mtime

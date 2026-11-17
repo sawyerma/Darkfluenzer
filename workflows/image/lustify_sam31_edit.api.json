@@ -8,14 +8,15 @@
  "7": {"class_type": "GrowMask", "inputs": {"mask": ["4", 0], "expand": 12, "tapered_corners": true}, "_meta": {"title": "Maske · Rand erweitern"}},
  "8": {"class_type": "MaskComposite", "inputs": {"destination": ["7", 0], "source": ["6", 0], "x": 0, "y": 0, "operation": "subtract"}, "_meta": {"title": "Maske · Aussparung abziehen"}},
  "9": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "sdxl/lustifySDXLNSFWSFW_v20.safetensors"}, "_meta": {"title": "Modell · LUSTIFY! v2.0 (SDXL)"}},
- "10": {"class_type": "CLIPTextEncode", "inputs": {"text": "photorealistic, faithful original identity, lighting and perspective, realistic skin and fabric texture, seamless", "clip": ["9", 1]}, "_meta": {"title": "Generierung · Änderung"}},
- "11": {"class_type": "CLIPTextEncode", "inputs": {"text": "blurry, extra fingers, incorrect anatomy, plastic skin, color mismatch, seams, artifacts", "clip": ["9", 1]}, "_meta": {"title": "Generierung · Negativ"}},
+ "10": {"class_type": "CLIPTextEncode", "inputs": {"text": "photorealistic, faithful original identity, lighting and perspective, realistic skin and fabric texture, seamless", "clip": ["20", 1]}, "_meta": {"title": "Generierung · Änderung"}},
+ "11": {"class_type": "CLIPTextEncode", "inputs": {"text": "blurry, extra fingers, incorrect anatomy, plastic skin, color mismatch, seams, artifacts", "clip": ["20", 1]}, "_meta": {"title": "Generierung · Negativ"}},
  "12": {"class_type": "VAEEncode", "inputs": {"pixels": ["1", 0], "vae": ["9", 2]}, "_meta": {"title": "Generierung · Kodieren"}},
  "13": {"class_type": "SetLatentNoiseMask", "inputs": {"samples": ["12", 0], "mask": ["8", 0]}, "_meta": {"title": "Generierung · nur in der Maske"}},
- "14": {"class_type": "KSampler", "inputs": {"model": ["9", 0], "seed": 32525, "steps": 32, "cfg": 5.5, "sampler_name": "dpmpp_2m", "scheduler": "karras", "positive": ["10", 0], "negative": ["11", 0], "latent_image": ["13", 0], "denoise": 0.9}, "_meta": {"title": "Generierung · Sampler"}},
+ "14": {"class_type": "KSampler", "inputs": {"model": ["20", 0], "seed": 32525, "steps": 32, "cfg": 5.5, "sampler_name": "dpmpp_2m", "scheduler": "karras", "positive": ["10", 0], "negative": ["11", 0], "latent_image": ["13", 0], "denoise": 0.9}, "_meta": {"title": "Generierung · Sampler"}},
  "15": {"class_type": "VAEDecode", "inputs": {"samples": ["14", 0], "vae": ["9", 2]}, "_meta": {"title": "Generierung · Dekodieren"}},
  "16": {"class_type": "ImageCompositeMasked", "inputs": {"destination": ["1", 0], "source": ["15", 0], "x": 0, "y": 0, "resize_source": false, "mask": ["8", 0]}, "_meta": {"title": "Ausgabe · nur Maske übernehmen"}},
  "17": {"class_type": "SaveImage", "inputs": {"images": ["16", 0], "filename_prefix": "darkfluenzer/lustify_sam31_edit"}, "_meta": {"title": "Ausgabe · Ergebnis"}},
  "18": {"class_type": "MaskToImage", "inputs": {"mask": ["8", 0]}, "_meta": {"title": "Ausgabe · Maske als Bild"}},
- "19": {"class_type": "SaveImage", "inputs": {"images": ["18", 0], "filename_prefix": "darkfluenzer/lustify_sam31_edit_mask"}, "_meta": {"title": "Ausgabe · Maske"}}
+ "19": {"class_type": "SaveImage", "inputs": {"images": ["18", 0], "filename_prefix": "darkfluenzer/lustify_sam31_edit_mask"}, "_meta": {"title": "Ausgabe · Maske"}},
+ "20": {"class_type": "LoraLoader", "inputs": {"model": ["9", 0], "clip": ["9", 1], "lora_name": "characters/charakter.safetensors", "strength_model": 1.0, "strength_clip": 1.0}, "_meta": {"title": "Charakter-LoRA"}}
 }

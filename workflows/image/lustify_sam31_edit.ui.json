@@ -1,8 +1,8 @@
 {
- "id": "4d97784c-c2b0-563a-9440-edca2eccfb9e",
+ "id": "8f553f23-5509-5de4-891e-040d8f93fe20",
  "revision": 0,
- "last_node_id": 19,
- "last_link_id": 29,
+ "last_node_id": 20,
+ "last_link_id": 31,
  "nodes": [
   {
    "id": 1,
@@ -146,7 +146,7 @@
     310
    ],
    "flags": {},
-   "order": 8,
+   "order": 7,
    "mode": 0,
    "inputs": [
     {
@@ -257,7 +257,7 @@
     310
    ],
    "flags": {},
-   "order": 9,
+   "order": 8,
    "mode": 0,
    "inputs": [
     {
@@ -329,7 +329,7 @@
     142
    ],
    "flags": {},
-   "order": 10,
+   "order": 11,
    "mode": 0,
    "inputs": [
     {
@@ -369,7 +369,7 @@
     190
    ],
    "flags": {},
-   "order": 11,
+   "order": 12,
    "mode": 0,
    "inputs": [
     {
@@ -425,7 +425,7 @@
      "name": "MODEL",
      "type": "MODEL",
      "links": [
-      18
+      30
      ],
      "slot_index": 0
     },
@@ -433,8 +433,7 @@
      "name": "CLIP",
      "type": "CLIP",
      "links": [
-      12,
-      13
+      31
      ],
      "slot_index": 1
     },
@@ -460,15 +459,15 @@
    "id": 10,
    "type": "CLIPTextEncode",
    "pos": [
-    460,
-    396
+    880,
+    780
    ],
    "size": [
     360,
     118
    ],
    "flags": {},
-   "order": 5,
+   "order": 9,
    "mode": 0,
    "inputs": [
     {
@@ -499,15 +498,15 @@
    "id": 11,
    "type": "CLIPTextEncode",
    "pos": [
-    460,
-    574
+    880,
+    958
    ],
    "size": [
     360,
     118
    ],
    "flags": {},
-   "order": 6,
+   "order": 10,
    "mode": 0,
    "inputs": [
     {
@@ -539,14 +538,14 @@
    "type": "VAEEncode",
    "pos": [
     460,
-    752
+    396
    ],
    "size": [
     360,
     118
    ],
    "flags": {},
-   "order": 7,
+   "order": 5,
    "mode": 0,
    "inputs": [
     {
@@ -588,7 +587,7 @@
     118
    ],
    "flags": {},
-   "order": 12,
+   "order": 13,
    "mode": 0,
    "inputs": [
     {
@@ -630,7 +629,7 @@
     334
    ],
    "flags": {},
-   "order": 14,
+   "order": 15,
    "mode": 0,
    "inputs": [
     {
@@ -690,7 +689,7 @@
     118
    ],
    "flags": {},
-   "order": 16,
+   "order": 17,
    "mode": 0,
    "inputs": [
     {
@@ -732,7 +731,7 @@
     214
    ],
    "flags": {},
-   "order": 17,
+   "order": 18,
    "mode": 0,
    "inputs": [
     {
@@ -783,7 +782,7 @@
     118
    ],
    "flags": {},
-   "order": 18,
+   "order": 19,
    "mode": 0,
    "inputs": [
     {
@@ -820,7 +819,7 @@
     94
    ],
    "flags": {},
-   "order": 13,
+   "order": 14,
    "mode": 0,
    "inputs": [
     {
@@ -857,7 +856,7 @@
     118
    ],
    "flags": {},
-   "order": 15,
+   "order": 16,
    "mode": 0,
    "inputs": [
     {
@@ -881,6 +880,61 @@
     "darkfluenzer/lustify_sam31_edit_mask"
    ],
    "title": "Ausgabe · Maske"
+  },
+  {
+   "id": 20,
+   "type": "LoraLoader",
+   "pos": [
+    460,
+    574
+   ],
+   "size": [
+    360,
+    214
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 30
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 31
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      18
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      12,
+      13
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoraLoader"
+   },
+   "widgets_values": [
+    "characters/charakter.safetensors",
+    1.0,
+    1.0
+   ],
+   "title": "Charakter-LoRA"
   }
  ],
  "links": [
@@ -974,7 +1028,7 @@
   ],
   [
    12,
-   9,
+   20,
    1,
    10,
    0,
@@ -982,7 +1036,7 @@
   ],
   [
    13,
-   9,
+   20,
    1,
    11,
    0,
@@ -1022,7 +1076,7 @@
   ],
   [
    18,
-   9,
+   20,
    0,
    14,
    0,
@@ -1115,6 +1169,22 @@
    19,
    0,
    "IMAGE"
+  ],
+  [
+   30,
+   9,
+   0,
+   20,
+   0,
+   "MODEL"
+  ],
+  [
+   31,
+   9,
+   1,
+   20,
+   1,
+   "CLIP"
   ]
  ],
  "groups": [],

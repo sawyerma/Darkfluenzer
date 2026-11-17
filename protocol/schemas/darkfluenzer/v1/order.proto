@@ -35,6 +35,8 @@ message OrderStage {
   // Workflow, mit dem der ausgewählte Kandidat fertiggestellt wird (leer: keiner)
   string finish_workflow = 9;
   uint32 attempts = 10;
+  // Charakter-LoRA der Stufe (SP3 Schritt 5); leer: ohne Charakter-LoRA
+  string lora = 11;
 }
 
 // Eindeutiger Betrag je Zahlungsweg eines Angebots (V0 §8.5 Punkt 2).

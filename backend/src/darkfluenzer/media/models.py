@@ -154,6 +154,19 @@ class VideoSpec:
 
 
 @dataclass(frozen=True)
+class LoraSlot:
+    """Lader der Charakter-LoRA im Graphen (SP3 Schritt 5). Name, Stärke und Trigger setzt das
+    Backend aus der LoRA des Auftrags; ohne LoRA entfernt es den Lader und reicht seine Eingänge
+    durch (``through``: Eingang des Laders je Ausgang, z. B. ``model``, ``clip``)."""
+
+    node: str
+    through: tuple[str, ...]
+    name: str = "lora_name"
+    strength: str = "character_strength"  # Parameter der Stärke; Startwert aus der LoRA
+    prompt: str = "prompt"  # Parameter, dem der Trigger vorangestellt wird
+
+
+@dataclass(frozen=True)
 class Workflow:
     key: str
     title: str
@@ -175,10 +188,21 @@ class Workflow:
     # „standard“ nur, wenn ausdrücklich so im Manifest markiert
     content: str = "explizit"
     video: VideoSpec | None = None
+    lora: LoraSlot | None = None  # Lader der Charakter-LoRA (SP3 Schritt 5)
 
     @property
     def training(self) -> bool:
         return bool(self.train_dataset)
+
+    @property
+    def runtime_inputs(self) -> set[tuple[str, str]]:
+        """Eingänge, die erst zur Laufzeit gesetzt werden (Uploads, Datensatz, LoRA-Name)."""
+        found = {(p.node, p.input) for p in self.params.values() if p.upload}
+        if self.training:
+            found.add((self.train_dataset, "folder"))
+        if self.lora:
+            found.add((self.lora.node, self.lora.name))
+        return found
 
 
 CONTENT_TIERS = ("standard", "explizit")
@@ -337,6 +361,25 @@ def edit_local(root: Path, change: Callable[[tomlkit.TOMLDocument], None]) -> Ma
             else:
                 path.unlink(missing_ok=True)
             raise
+
+
+def _lora_slot(t: object, params: dict[str, Param], w: str) -> LoraSlot | None:
+    if t is None:
+        return None
+    if not isinstance(t, dict):
+        raise ManifestError(f"Manifest: {w}.lora muss eine Tabelle sein.")
+    try:
+        slot = LoraSlot(**{**t, "through": tuple(str(x) for x in t.get("through", ()))})
+    except TypeError as exc:
+        raise ManifestError(f"Manifest: {w}.lora: {exc}") from exc
+    if not slot.through:
+        raise ManifestError(f"Manifest: {w}.lora.through fehlt.")
+    strength = params.get(slot.strength)
+    if strength is None or strength.node != slot.node or strength.type != "float":
+        raise ManifestError(f"Manifest: {w}.lora.strength: float-Parameter am Lader fehlt.")
+    if slot.prompt not in params or params[slot.prompt].type != "str":
+        raise ManifestError(f"Manifest: {w}.lora.prompt: Text-Parameter fehlt.")
+    return slot
 
 
 def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = None) -> Manifest:
@@ -519,6 +562,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             train_lora=str((t.get("training") or {}).get("lora", "")),
             content=str(t.get("content", "explizit")),
             video=_video(t.get("video"), params, w),
+            lora=_lora_slot(t.get("lora"), params, w),
         )
         for name, prm in params.items():
             if prm.below and prm.below not in params:
@@ -606,9 +650,18 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
     ):
         if node and name not in (graph.get(node) or {}).get("inputs", {}):
             problems.append(f"{role} -> {node} hat keinen Eingang '{name}' im API-Graph.")
+    if wf.lora:
+        loader = (graph.get(wf.lora.node) or {}).get("inputs", {})
+        for name in (wf.lora.name, *wf.lora.through):
+            if name not in loader:
+                problems.append(f"lora -> {wf.lora.node} hat keinen Eingang '{name}' im API-Graph.")
+            elif name in wf.lora.through and not isinstance(loader[name], list):
+                problems.append(f"lora.through -> {wf.lora.node}.{name} ist keine Verbindung.")
     for node_id, node in graph.items():
-        for value in node.get("inputs", {}).values():
+        for name, value in node.get("inputs", {}).items():
             is_model = isinstance(value, str) and value.endswith((".safetensors", ".gguf"))
+            if wf.lora and (node_id, name) == (wf.lora.node, wf.lora.name):
+                continue  # setzt das Backend aus der LoRA des Auftrags
             if is_model and value not in model_names:
                 problems.append(
                     f"Node {node_id} lädt '{value}', das nicht zur Engine {wf.engine} gehört."

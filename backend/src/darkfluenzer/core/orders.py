@@ -8,7 +8,14 @@ import json
 
 from ..config import Config
 from ..media.models import Manifest
-from ..media.pipeline import VIDEO_KEYS, PipelineError, create_render, input_from_media
+from ..media.pipeline import (
+    LORA_KEY,
+    VIDEO_KEYS,
+    PipelineError,
+    check_lora,
+    create_render,
+    input_from_media,
+)
 from ..nodes import comfy
 from ..store import Store
 from ..store.schema import OPERATOR_TRANSITIONS
@@ -40,6 +47,7 @@ def create_order(
     origin: int | None = None,
     customer_order_no: str = "",
     video_max_s: float | None = None,
+    lora: str = "",
 ) -> tuple[str, list[int]]:
     """Auftrag des Betreibers: Stufe 1 rendert ``count`` Kandidaten mit fortlaufenden Seeds und
     wartet dann auf die Auswahl; optional wird der ausgewählte Kandidat mit ``finish_workflow``
@@ -83,6 +91,8 @@ def create_order(
         existing = store.order(customer_order_no)
         if existing.source != "customer" or existing.status != "paid":
             raise PipelineError(f"{customer_order_no} ist kein bezahlter Kundenauftrag.")
+        if wf.lora is not None and not lora:  # SP3 Schritt 5
+            raise PipelineError("Kundenaufträge laufen nie ohne Charakter-LoRA.")
     graph = comfy.load_graph(man, wf)
     base = int(values.get("seed", graph[seed.node]["inputs"][seed.input])) if seed else 0
     top = int(seed.max) if seed and seed.max is not None else 2**32 - 1
@@ -92,6 +102,7 @@ def create_order(
         "finish": finish_workflow,
         "finish_values": dict(finish_values or {}),
         "origin": origin,
+        **({LORA_KEY: lora} if lora else {}),
     }
     kind = man.engines[wf.engine].kind
     with store.tx():
@@ -113,6 +124,7 @@ def create_order(
                 parent_media_id=parent_media_id,
                 stage_id=stage.id,
                 video_max_s=video_max_s,
+                lora=lora,
             )
             for i in range(count)
         ]
@@ -157,12 +169,14 @@ def select_candidate(
     finish = str(stage.params.get("finish") or "")
     finish_values = dict(stage.params.get("finish_values") or {})  # BUG-090
     image = input_from_media(cfg, media_id) if finish else ""
+    lora = _finish_lora(man, finish, str(stage.params.get(LORA_KEY) or ""))
     with store.tx():
         store.set_stage(stage.id, "done", selected_media_id=media_id)
         jobs = []
         if finish:
+            params = {"inputs": {"image": image}, "values": finish_values}
             nxt = store.add_stage(
-                order.id, "finish", finish, {"inputs": {"image": image}, "values": finish_values}, 1
+                order.id, "finish", finish, {**params, **({LORA_KEY: lora} if lora else {})}, 1
             )
             jobs.append(
                 create_render(
@@ -174,12 +188,25 @@ def select_candidate(
                     parent_media_id=media_id,
                     stage_id=nxt.id,
                     video_max_s=cfg.production.video_max_s,
+                    lora=lora,
                 )
             )
         else:
             store.transition(order_no, "review")
         _journal(store, command, f"order:{order_no}")
     return jobs
+
+
+def _finish_lora(man: Manifest, finish: str, lora: str) -> str:
+    """Die Fertigstellen-Stufe nutzt die LoRA des Auftrags, wenn ihr Workflow einen Lader hat und
+    seine Engine sie laden darf; sonst läuft sie ohne (z. B. Hochskalieren)."""
+    if not finish or not lora:
+        return ""
+    try:
+        check_lora(man, man.workflows[finish], lora)
+    except PipelineError:
+        return ""
+    return lora
 
 
 def retry_stage(
@@ -225,6 +252,7 @@ def retry_stage(
                     stage_id=stage.id,
                     video_max_s=video_max_s,
                     inherit_tier=old["content_tier"],  # „Wiederholen“ erbt die Stufe
+                    lora=str(old["params"].get(LORA_KEY) or ""),
                 )
             )
             store.copy_segments(j["id"], jobs[-1])  # Langvideo: fertige Abschnitte behalten
@@ -247,6 +275,7 @@ def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
             error=st.error or "",
             finish_workflow=str(st.params.get("finish") or ""),
             attempts=st.attempts,
+            lora=str(st.params.get(LORA_KEY) or ""),
         )
         for j in store.stage_jobs(st.id):
             stage.jobs.add(
@@ -344,6 +373,7 @@ class OrdersMixin:
             parent_media_id=msg.parent_media_id or None,
             command=self._journal_entry(call),
             customer_order_no=msg.customer_order_no,
+            lora=msg.lora,
             video_max_s=self.cfg.production.video_max_s,
         )
         call.entity, call.recorded = f"order:{order_no}", True

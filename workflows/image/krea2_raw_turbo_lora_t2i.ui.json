@@ -1,8 +1,8 @@
 {
- "id": "212fd860-db84-5847-9dff-7240b4927517",
+ "id": "a1cc0a67-4d03-53c8-8d17-fbc1a329f284",
  "revision": 0,
- "last_node_id": 10,
- "last_link_id": 10,
+ "last_node_id": 11,
+ "last_link_id": 11,
  "nodes": [
   {
    "id": 1,
@@ -64,7 +64,7 @@
      "name": "MODEL",
      "type": "MODEL",
      "links": [
-      4
+      11
      ],
      "slot_index": 0
     }
@@ -270,7 +270,7 @@
     334
    ],
    "flags": {},
-   "order": 7,
+   "order": 8,
    "mode": 0,
    "inputs": [
     {
@@ -330,7 +330,7 @@
     118
    ],
    "flags": {},
-   "order": 8,
+   "order": 9,
    "mode": 0,
    "inputs": [
     {
@@ -372,7 +372,7 @@
     118
    ],
    "flags": {},
-   "order": 9,
+   "order": 10,
    "mode": 0,
    "inputs": [
     {
@@ -396,6 +396,46 @@
     "darkfluenzer/krea2_raw_turbo_lora_t2i"
    ],
    "title": "Ausgabe · Ergebnis"
+  },
+  {
+   "id": 11,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    880,
+    194
+   ],
+   "size": [
+    360,
+    142
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 11
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      4
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "characters/charakter.safetensors",
+    1.0
+   ],
+   "title": "Charakter-LoRA"
   }
  ],
  "links": [
@@ -425,7 +465,7 @@
   ],
   [
    4,
-   2,
+   11,
    0,
    8,
    0,
@@ -478,6 +518,14 @@
    10,
    0,
    "IMAGE"
+  ],
+  [
+   11,
+   2,
+   0,
+   11,
+   0,
+   "MODEL"
   ]
  ],
  "groups": [],

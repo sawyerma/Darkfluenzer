@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..config import ComfyConfig, Config
-from ..media.models import Manifest, Workflow
+from ..media.models import Lora, Manifest, Workflow
 from .base import node_for
 
 log = logging.getLogger("darkfluenzer.comfy")
@@ -355,6 +355,48 @@ def apply_params(graph: dict, wf: Workflow, values: dict) -> dict:
     return out
 
 
+@dataclass(frozen=True)
+class LoraUse:
+    """Charakter-LoRA eines Auftrags (SP3 Schritt 5): Datei und Text, der dem Prompt vorangeht."""
+
+    lora: Lora
+    trigger: str  # „<Trigger> <Klasse>“ aus LoRA und Charakterprofil
+
+
+def bind_lora(graph: dict, wf: Workflow, use: LoraUse | None, values: dict) -> dict:
+    """Setzt die Charakter-LoRA in den Lader des Workflows. Ohne LoRA wird der Lader entfernt und
+    jede Verbindung von seinem Ausgang i auf seinen Eingang ``through[i]`` umgelegt."""
+    slot = wf.lora
+    if slot is None:
+        if use is not None:
+            raise ComfyError(f"{wf.key} hat keinen Lader für eine Charakter-LoRA.")
+        return graph
+    out = copy.deepcopy(graph)
+    if use is None:
+        loader = out.pop(slot.node)
+        for node in out.values():
+            for name, value in node["inputs"].items():
+                if _is_link(value) and value[0] == slot.node:
+                    node["inputs"][name] = loader["inputs"][slot.through[value[1]]]
+        return out
+    out[slot.node]["inputs"][slot.name] = use.lora.comfy_name
+    if slot.strength not in values:  # Startwert aus der LoRA
+        spec = wf.params[slot.strength]
+        for node, key in ((spec.node, spec.input), *spec.also):
+            out[node]["inputs"][key] = float(use.lora.strength)
+    return out
+
+
+def with_trigger(wf: Workflow, values: dict, use: LoraUse | None) -> dict:
+    """Stellt dem Prompt Trigger und Klasse voran, wenn er den Trigger nicht schon enthält."""
+    if use is None or wf.lora is None or not use.trigger:
+        return values
+    prompt = str(values.get(wf.lora.prompt, ""))
+    if use.lora.trigger in prompt.split():
+        return values
+    return {**values, wf.lora.prompt: f"{use.trigger}, {prompt}" if prompt else use.trigger}
+
+
 def unique_outputs(graph: dict, tag: str) -> dict:
     """Hängt ``tag`` an jedes ``filename_prefix`` (SaveImage, SaveVideo …): Speicher-Nodes laufen
     je Auftrag neu und schreiben eigene Dateien. Ohne das meldet ComfyUI für unveränderte
@@ -421,6 +463,7 @@ def run_workflow(
     unload_first: bool = False,
     overrides: dict[tuple[str, str], object] | None = None,
     extra: dict | None = None,
+    lora: LoraUse | None = None,
 ) -> RenderResult:
     """Server sicherstellen, Workflow ausführen, alle Ausgabedateien unter ``dest`` sichern.
     ``overrides``: (Node, Eingang) -> Wert, die das Backend selbst setzt (z. B. Trainingsdaten).
@@ -436,7 +479,8 @@ def run_workflow(
     if wf.status == "GESPERRT":
         raise ComfyError(f"Workflow '{workflow_key}' ist gesperrt.")
     tag = f"job{job_id}" if job_id is not None else stem.rsplit("_", 1)[-1]
-    graph = apply_params(load_graph(man, wf), wf, values)
+    graph = apply_params(load_graph(man, wf), wf, with_trigger(wf, values, lora))
+    graph = bind_lora(graph, wf, lora, values)  # ohne LoRA: Lader entfernt (SP3 Schritt 5)
     for (node, name), value in (overrides or {}).items():
         graph[node]["inputs"][name] = value
     graph.update(extra or {})

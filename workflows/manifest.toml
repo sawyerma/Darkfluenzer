@@ -546,6 +546,11 @@ width = { node = "4", input = "width", type = "int", min = 512, max = 2048, mult
 height = { node = "4", input = "height", type = "int", min = 512, max = 2048, multiple_of = 64 }
 sampler = { node = "5", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
 scheduler = { node = "5", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
+character_strength = { node = "8", input = "strength_model", also = ["8:strength_clip"], type = "float", min = 0.0, max = 1.5, label = "Charakter-LoRA-Stärke" }
+
+[workflows.lustify_sdxl_t2i.lora]
+node = "8"
+through = ["model", "clip"]
 
 [workflows.lustify_sdxl_inpaint]
 engine = "lustify_sdxl"
@@ -566,6 +571,11 @@ mask_grow = { node = "4", input = "expand", type = "int", min = 0, max = 64 }
 cfg = { node = "9", input = "cfg", type = "float", min = 1.0, max = 12.0, label = "CFG" }
 sampler = { node = "9", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
 scheduler = { node = "9", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
+character_strength = { node = "13", input = "strength_model", also = ["13:strength_clip"], type = "float", min = 0.0, max = 1.5, label = "Charakter-LoRA-Stärke" }
+
+[workflows.lustify_sdxl_inpaint.lora]
+node = "13"
+through = ["model", "clip"]
 
 [workflows.flux3_klein_base_t2i]
 engine = "flux3_klein_base"
@@ -776,6 +786,11 @@ short_side = { node = "9", input = "resize_type.shorter_size", type = "int", min
 cfg = { node = "6", input = "cfg", type = "float", min = 1.0, max = 12.0, label = "CFG" }
 sampler = { node = "6", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
 scheduler = { node = "6", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
+character_strength = { node = "10", input = "strength_model", also = ["10:strength_clip"], type = "float", min = 0.0, max = 1.5, label = "Charakter-LoRA-Stärke" }
+
+[workflows.lustify_sdxl_refine.lora]
+node = "10"
+through = ["model", "clip"]
 
 [workflows.lustify_sam31_edit]
 engine = "lustify_sam31_edit"
@@ -799,6 +814,11 @@ threshold = { node = "4", input = "threshold", type = "float", min = 0.05, max =
 cfg = { node = "14", input = "cfg", type = "float", min = 1.0, max = 12.0, label = "CFG" }
 sampler = { node = "14", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
 scheduler = { node = "14", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
+character_strength = { node = "20", input = "strength_model", also = ["20:strength_clip"], type = "float", min = 0.0, max = 1.5, label = "Charakter-LoRA-Stärke" }
+
+[workflows.lustify_sam31_edit.lora]
+node = "20"
+through = ["model", "clip"]
 
 [workflows.krea2_turbo_t2i]
 engine = "krea2_turbo"
@@ -892,6 +912,11 @@ width = { node = "7", input = "width", type = "int", min = 512, max = 2048, mult
 height = { node = "7", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
 sampler = { node = "8", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
 scheduler = { node = "8", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
+character_strength = { node = "11", input = "strength_model", type = "float", min = 0.0, max = 1.5, label = "Charakter-LoRA-Stärke" }
+
+[workflows.krea2_raw_turbo_lora_t2i.lora]
+node = "11"
+through = ["model"]
 
 [workflows.lustify_v10_krea_t2i]
 engine = "lustify_v10_krea"
@@ -911,3 +936,8 @@ width = { node = "7", input = "width", type = "int", min = 512, max = 2048, mult
 height = { node = "7", input = "height", type = "int", min = 512, max = 2048, multiple_of = 16 }
 sampler = { node = "8", input = "sampler_name", type = "str", choices_from = "samplers", expert = true, label = "Sampler" }
 scheduler = { node = "8", input = "scheduler", type = "str", choices_from = "schedulers", expert = true, label = "Scheduler" }
+character_strength = { node = "11", input = "strength_model", type = "float", min = 0.0, max = 1.5, label = "Charakter-LoRA-Stärke" }
+
+[workflows.lustify_v10_krea_t2i.lora]
+node = "11"
+through = ["model"]

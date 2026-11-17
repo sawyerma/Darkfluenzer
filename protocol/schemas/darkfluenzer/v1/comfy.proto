@@ -160,6 +160,11 @@ message WorkflowInfo {
   // Inhaltsstufe der Ergebnisse (Regel 13): standard | explizit (ohne Manifest-Eintrag explizit);
   // Kundenaufträge nur mit standard
   string content = 17;
+  // Lader für eine Charakter-LoRA im Graphen (SP3 Schritt 5); ohne LoRA läuft er „ohne
+  // Charakter-LoRA“
+  bool lora_slot = 18;
+  // Schlüssel der LoRAs, die diese Engine laden darf (Trainings-Engine oder eingetragen)
+  repeated string loras = 19;
 }
 
 message OutputFormat {

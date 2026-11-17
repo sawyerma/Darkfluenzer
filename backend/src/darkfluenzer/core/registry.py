@@ -93,7 +93,15 @@ class RegistryMixin:
                 training=wf.training,
                 role=eng.role,
                 content=wf.content,
+                lora_slot=wf.lora is not None,
             )
+            if wf.lora is not None:  # ladbare Charakter-LoRAs (SP3 Schritt 4/5)
+                names = models.engine_model_names(
+                    self.manifest.files, self.manifest.engines, self.manifest.loras, wf.engine
+                )
+                info.loras.extend(
+                    k for k, lo in sorted(self.manifest.loras.items()) if lo.comfy_name in names
+                )
             if {"width", "height"} <= set(wf.params):
                 for name, (width, height) in eng.formats.items():
                     info.formats.add(name=name, width=width, height=height)
@@ -177,8 +185,7 @@ class RegistryMixin:
             edited = json.loads(lane.node.editor_file(wf.key).read_text(encoding="utf-8"))
             registry_ui = json.loads((self.manifest.root / "workflows" / wf.ui).read_text())
             api = comfy.ui_to_api(edited, info)
-            uploads = {(p.node, p.input) for p in wf.params.values() if p.upload}
-            if problems := comfy.check_graph(api, info, uploads):
+            if problems := comfy.check_graph(api, info, wf.runtime_inputs):
                 raise comfy.ComfyError("; ".join(problems))
             changed = api != comfy.ui_to_api(registry_ui, info)
             man = models.replace_workflow_graph(

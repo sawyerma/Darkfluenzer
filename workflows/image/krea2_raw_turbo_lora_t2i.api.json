@@ -6,7 +6,8 @@
  "5": {"class_type": "CLIPTextEncode", "inputs": {"text": "candid photograph of an adult woman in her late twenties sitting at a sunlit cafe window, natural skin texture, soft daylight, 50mm lens, shallow depth of field", "clip": ["3", 0]}, "_meta": {"title": "Generierung · Motiv"}},
  "6": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["5", 0]}, "_meta": {"title": "Generierung · Negativ (leer, CFG 1)"}},
  "7": {"class_type": "EmptyLatentImage", "inputs": {"width": 1104, "height": 1472, "batch_size": 1}, "_meta": {"title": "Generierung · Format"}},
- "8": {"class_type": "KSampler", "inputs": {"model": ["2", 0], "seed": 20261115, "steps": 8, "cfg": 1.0, "sampler_name": "euler", "scheduler": "simple", "positive": ["5", 0], "negative": ["6", 0], "latent_image": ["7", 0], "denoise": 1.0}, "_meta": {"title": "Generierung · Sampler"}},
+ "8": {"class_type": "KSampler", "inputs": {"model": ["11", 0], "seed": 20261115, "steps": 8, "cfg": 1.0, "sampler_name": "euler", "scheduler": "simple", "positive": ["5", 0], "negative": ["6", 0], "latent_image": ["7", 0], "denoise": 1.0}, "_meta": {"title": "Generierung · Sampler"}},
  "9": {"class_type": "VAEDecode", "inputs": {"samples": ["8", 0], "vae": ["4", 0]}, "_meta": {"title": "Ausgabe · Dekodieren"}},
- "10": {"class_type": "SaveImage", "inputs": {"images": ["9", 0], "filename_prefix": "darkfluenzer/krea2_raw_turbo_lora_t2i"}, "_meta": {"title": "Ausgabe · Ergebnis"}}
+ "10": {"class_type": "SaveImage", "inputs": {"images": ["9", 0], "filename_prefix": "darkfluenzer/krea2_raw_turbo_lora_t2i"}, "_meta": {"title": "Ausgabe · Ergebnis"}},
+ "11": {"class_type": "LoraLoaderModelOnly", "inputs": {"model": ["2", 0], "lora_name": "characters/charakter.safetensors", "strength_model": 1.0}, "_meta": {"title": "Charakter-LoRA"}}
 }

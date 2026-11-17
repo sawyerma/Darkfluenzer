@@ -89,6 +89,7 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
   - Versionen: Tabelle mit Datum, Datensatz, Dauer und Identitätswert; Probebilder als Vergleichsraster; „Aktiv setzen“.
   - Influencerin-Block: zugeordneter Charakter und aktive LoRA je Engine.
   - Workflow-Formular: LoRA-Auswahl, aktive Version vorbelegt, dazu „ohne“.
+  - **Umgesetzt 17.11.2026 (Teil):** Auftragskarte nennt je Stufe „LoRA <Schlüssel>“ oder „ohne Charakter-LoRA“ (Workflows mit Lader). Die Auswahl im Formular folgt mit Backend SP3 Schritt 6 (aktive Version).
   - Fotoliste zeigt zusätzlich die Gesichtshinweise „kein Gesicht“ und „andere Person“ (SP3).
   - Profilfelder Trigger und Klasse; Probe-Prompts.
   - Vor „Trainieren“ steht die geschätzte Dauer; der Knopf ist gesperrt, solange bezahlte Aufträge warten.

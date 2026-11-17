@@ -141,6 +141,9 @@ message CreateOrder {
   // Werte für die Fertigstellen-Stufe (BUG-090), z. B. Höhe 1920 für das Story-Format oder der
   // Prompt eines Video-Workflows; geprüft gegen den Fertigstellen-Workflow.
   repeated ParamValue finish_values = 8;
+  // Schlüssel der Charakter-LoRA (SP3 Schritt 5); leer: ohne Charakter-LoRA. Kundenaufträge mit
+  // einem Workflow mit LoRA-Lader nie ohne.
+  string lora = 9;
 }
 
 // Auswahl an der kreativen Stufe; geprüft wird im Backend: Stufe wartet, Medium stammt aus ihr.

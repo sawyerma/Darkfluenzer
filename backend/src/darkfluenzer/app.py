@@ -189,10 +189,8 @@ def _workflows(action: str) -> tuple[dict, int]:
             ui_path.write_text(json.dumps(ui, indent=1, ensure_ascii=False) + "\n")
         if action == "install":
             comfy.install_editor_copy(cfg, man, key)
-        uploads = {(p.node, p.input) for p in wf.params.values() if p.upload}
-        if wf.training:  # Datensatzordner setzt das Backend zur Laufzeit
-            uploads.add((wf.train_dataset, "folder"))
-        problems = comfy.check_graph(graph, object_info, uploads)
+        # Uploads, Datensatzordner und LoRA-Name setzt das Backend zur Laufzeit
+        problems = comfy.check_graph(graph, object_info, wf.runtime_inputs)
         normal = comfy.ui_to_api(comfy.api_to_ui(graph, object_info), object_info)
         if (
             not ui_path.is_file()

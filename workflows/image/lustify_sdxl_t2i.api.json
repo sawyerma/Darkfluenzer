@@ -1,9 +1,10 @@
 {
   "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "sdxl/lustifySDXLNSFWSFW_v20.safetensors"}, "_meta": {"title": "LUSTIFY! v2.0 (SDXL)"}},
-  "2": {"class_type": "CLIPTextEncode", "inputs": {"text": "cinematic 35mm editorial photograph of one clearly adult fictional woman, consistent natural facial anatomy, realistic skin texture, subtle pores, natural proportions, coherent hands, physically plausible shadows, natural outdoor lighting, precise focus, professional photographic composition", "clip": ["1", 1]}, "_meta": {"title": "Prompt (A01 Photo HQ)"}},
-  "3": {"class_type": "CLIPTextEncode", "inputs": {"text": "illustration, CGI, plastic skin, overprocessed skin, distorted anatomy, duplicated limbs, extra fingers, asymmetrical eyes, bad hands, blurry, compression artifacts, text, watermark", "clip": ["1", 1]}, "_meta": {"title": "Negativ-Prompt"}},
+  "2": {"class_type": "CLIPTextEncode", "inputs": {"text": "cinematic 35mm editorial photograph of one clearly adult fictional woman, consistent natural facial anatomy, realistic skin texture, subtle pores, natural proportions, coherent hands, physically plausible shadows, natural outdoor lighting, precise focus, professional photographic composition", "clip": ["8", 1]}, "_meta": {"title": "Prompt (A01 Photo HQ)"}},
+  "3": {"class_type": "CLIPTextEncode", "inputs": {"text": "illustration, CGI, plastic skin, overprocessed skin, distorted anatomy, duplicated limbs, extra fingers, asymmetrical eyes, bad hands, blurry, compression artifacts, text, watermark", "clip": ["8", 1]}, "_meta": {"title": "Negativ-Prompt"}},
   "4": {"class_type": "EmptyLatentImage", "inputs": {"width": 896, "height": 1152, "batch_size": 1}, "_meta": {"title": "Format"}},
-  "5": {"class_type": "KSampler", "inputs": {"model": ["1", 0], "seed": 102416, "steps": 36, "cfg": 5.5, "sampler_name": "dpmpp_2m", "scheduler": "karras", "positive": ["2", 0], "negative": ["3", 0], "latent_image": ["4", 0], "denoise": 1.0}, "_meta": {"title": "Sampler"}},
+  "5": {"class_type": "KSampler", "inputs": {"model": ["8", 0], "seed": 102416, "steps": 36, "cfg": 5.5, "sampler_name": "dpmpp_2m", "scheduler": "karras", "positive": ["2", 0], "negative": ["3", 0], "latent_image": ["4", 0], "denoise": 1.0}, "_meta": {"title": "Sampler"}},
   "6": {"class_type": "VAEDecode", "inputs": {"samples": ["5", 0], "vae": ["1", 2]}},
-  "7": {"class_type": "SaveImage", "inputs": {"images": ["6", 0], "filename_prefix": "darkfluenzer/lustify_t2i"}, "_meta": {"title": "Ergebnis"}}
+  "7": {"class_type": "SaveImage", "inputs": {"images": ["6", 0], "filename_prefix": "darkfluenzer/lustify_t2i"}, "_meta": {"title": "Ergebnis"}},
+  "8": {"class_type": "LoraLoader", "inputs": {"model": ["1", 0], "clip": ["1", 1], "lora_name": "characters/charakter.safetensors", "strength_model": 1.0, "strength_clip": 1.0}, "_meta": {"title": "Charakter-LoRA"}}
 }
