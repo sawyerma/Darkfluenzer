@@ -311,3 +311,30 @@ def test_name_from_chat_title_fills_an_unnamed_file_once(cfg, tmp_path):
     asyncio.run(acc._message(_msg(TEST_CHAT, 6)))
     assert inbound[1].customer.display_name == "Mia Test"
     store.close()
+
+
+def test_auth_failure_is_visible_and_tasks_are_kept(cfg, tmp_path):
+    """FABLE-005: Hintergrundaufgaben behalten eine Referenz; ein unerwarteter Fehler im
+    Anmeldeschritt setzt ERROR, statt still im Event-Loop zu verschwinden."""
+    store = Store(cfg.local)
+    acc, _, _ = _account(cfg, tmp_path, store)
+    acc.account, acc.state, acc.login = "", "CONNECTING", ""
+
+    async def get_me(request, timeout):
+        assert request["@type"] == "getMe"
+        return {"@type": "user"}  # ohne id: unerwartete Antwort
+
+    acc._td.call = get_me
+
+    async def scenario():
+        state = {"@type": "authorizationStateReady"}
+        acc._on_update({"@type": "updateAuthorizationState", "authorization_state": state})
+        assert len(acc._tasks) == 1
+        await asyncio.gather(*acc._tasks)
+        assert acc.state == "ERROR" and "KeyError" in acc.error
+        assert not acc._tasks
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        store.close()

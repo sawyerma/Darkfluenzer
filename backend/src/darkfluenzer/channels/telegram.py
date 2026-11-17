@@ -136,6 +136,7 @@ class TelegramAccount(Channel):
         self._unread: dict[int, int] = {}
         self._sending: dict[int, int] = {}  # vorläufige TDLib-Nachrichten-ID -> Postausgang-ID
         self._open: dict[int, int] = {}  # Postausgang-ID -> noch unbestätigte Teilnachrichten
+        self._tasks: set[asyncio.Task] = set()  # laufende Hintergrundaufgaben (FABLE-005)
         self._sent_at: deque[float] = deque()
         # Testbetrieb: verworfene Einzelchats (ID, Zeit) nur im Speicher, damit der Betreiber die
         # ID seines Testpartners findet – nie in SQLite, nie in TDLib-Dateien, ohne Inhalt/Namen
@@ -295,7 +296,7 @@ class TelegramAccount(Channel):
     def _on_update(self, update: dict) -> None:
         kind = update.get("@type")
         if kind == "updateAuthorizationState":
-            asyncio.create_task(self._auth(update["authorization_state"]))
+            self._spawn(self._auth_step(update["authorization_state"]))
         elif kind == "updateNewChat":
             chat = update["chat"]
             self._chats[chat["id"]] = chat["type"]["@type"]
@@ -308,7 +309,7 @@ class TelegramAccount(Channel):
             else:
                 self._unread.pop(update["chat_id"], None)
         elif kind == "updateNewMessage":
-            asyncio.create_task(self._guard(self._message(update["message"])))
+            self._spawn(self._guard(self._message(update["message"])))
         elif kind == "updateMessageSendSucceeded":
             self._send_result(update["old_message_id"], str(update["message"]["id"]), None)
         elif kind == "updateMessageSendFailed":
@@ -320,6 +321,21 @@ class TelegramAccount(Channel):
             self._set("READY" if ready else "CONNECTING")
             if ready:
                 self.wake.set()
+
+    def _spawn(self, job: Awaitable[None]) -> None:
+        """Hintergrundaufgabe mit Referenz bis zum Ende; ohne sie kann der Event-Loop die Aufgabe
+        mitten im Lauf einsammeln (FABLE-005)."""
+        task = asyncio.ensure_future(job)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
+    async def _auth_step(self, state: dict) -> None:
+        """Anmeldeschritt; ein unerwarteter Fehler erscheint als ERROR am Kanal (FABLE-005)."""
+        try:
+            await self._auth(state)
+        except Exception as exc:
+            log.exception("Telegram: Anmeldeschritt %s fehlgeschlagen", state.get("@type"))
+            self._set("ERROR", error=f"Anmeldung: interner Fehler ({type(exc).__name__})")
 
     async def _guard(self, job: Awaitable[None]) -> None:
         try:

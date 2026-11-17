@@ -198,6 +198,18 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-005 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-113“)
+Commit: siehe git log „FABLE-005“ / channels.telegram (_spawn, _auth_step)
+Behauptung: BESTÄTIGT – Anmeldeschritte und eingehende Nachrichten liefen als asyncio-Aufgaben ohne
+  Referenz (können mitten im Lauf eingesammelt werden); ein unerwarteter Fehler in _auth ging verloren,
+  der Kanal blieb in einem alten Zustand
+Korrektur: Aufgaben in einer Menge bis zum Ende gehalten; Anmeldeschritt mit Fehlerfang: Log und
+  Kanalstatus ERROR „Anmeldung: interner Fehler (<Typ>)“ ohne Fehlertext (keine Anmeldewerte)
+Nachweis: tests/test_telegram.py::test_auth_failure_is_visible_and_tasks_are_kept (vor der Korrektur
+  rot, danach grün); test_telegram, test_channels grün
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
+Bearbeiter/Datum: Claude, 17.11.2026
+
 ID: FABLE-003 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-111“)
 Commit: siehe git log „FABLE-003“ / approval.check_gate (disk_sha, check_file), core.delivery
 Behauptung: BESTÄTIGT – Freigabe, Wiederholung, Gate im Versandmoment und Bestätigung nach dem Versand
