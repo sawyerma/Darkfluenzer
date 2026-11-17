@@ -502,6 +502,25 @@ ALTER TABLE media ADD COLUMN height INTEGER;
 ALTER TABLE media ADD COLUMN native_width INTEGER;
 ALTER TABLE media ADD COLUMN native_height INTEGER;
 """,
+    25: """
+-- Versand nach dem Gate (FABLE-012): eine von der Plattform angenommene Zustellung wird immer
+-- festgeschrieben. Ist das Gate danach verletzt (z. B. Erstattung während des Sendens), steht der
+-- Grund in gate_violation; nur mit diesem Grund darf der Versand-Trigger den Status sent zulassen.
+ALTER TABLE deliveries ADD COLUMN gate_violation TEXT;
+DROP TRIGGER deliveries_send_gate;
+CREATE TRIGGER deliveries_send_gate BEFORE UPDATE OF status ON deliveries
+WHEN NEW.status = 'sent' AND (
+    OLD.status != 'pending'
+    OR (NEW.gate_violation IS NULL AND (
+        NOT EXISTS (SELECT 1 FROM payments p WHERE p.order_id = NEW.order_id
+                    AND p.status = 'confirmed')
+        OR NOT EXISTS (SELECT 1 FROM approvals ap WHERE ap.id =
+                         (SELECT max(id) FROM approvals WHERE order_id = NEW.order_id)
+                       AND ap.decision = 'approved' AND ap.artifact_id = NEW.artifact_id)
+        OR NOT EXISTS (SELECT 1 FROM orders o WHERE o.id = NEW.order_id
+                       AND o.status = 'approved'))))
+BEGIN SELECT RAISE(ABORT, 'delivery: Gate beim Versand nicht erfüllt'); END;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

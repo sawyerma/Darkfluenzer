@@ -40,7 +40,7 @@ class MessagesMixin:
         if message_id:
             try:
                 self._delivery_update(message_id)
-            except StoreError as exc:  # Gate beim Festschreiben gesperrt: bleibt offen, sichtbar
+            except StoreError as exc:  # Datenbank weist ab (FABLE-012: nicht das Gate)
                 log.error("Zustellung zu Nachricht %s: %s", message_id, exc)
         self.hub.push_events(spb.TOPIC_CONVERSATION_EVENT)
         self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)

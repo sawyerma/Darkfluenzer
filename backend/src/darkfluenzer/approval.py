@@ -3,7 +3,8 @@
 
 Wird im Backend erzwungen (hier) und zusätzlich durch SQLite-Trigger (store.py). Weder LLM noch
 Frontend können das Gate umgehen. Diese Stufe bereitet Lieferungen nur vor und markiert sie –
-echter Versand (Telegram) folgt in S5 und muss ``confirm_sent`` im Versandmoment aufrufen.
+Im Versandmoment prüft der Postausgang das Gate (``DeliveryMixin._delivery_gate``); nach der
+Annahme durch die Plattform schreibt ``confirm_sent`` den Versand fest.
 """
 
 from __future__ import annotations
@@ -104,8 +105,12 @@ def prepare_delivery(
         return cur.lastrowid
 
 
-def confirm_sent(store: Store, delivery_id: int, external_id: str) -> None:
-    """Nach erfolgreichem Versand: Gate im Versandmoment erneut prüfen, dann festschreiben."""
+def confirm_sent(store: Store, delivery_id: int, external_id: str) -> list[str]:
+    """Nach der Annahme durch die Plattform festschreiben (FABLE-012). Gesendet ist eine
+    Tatsache: die Zustellung wird immer ``sent``. Das Gate wird erneut geprüft; ist es jetzt
+    verletzt (z. B. Erstattung während des Sendens), steht der Grund in ``gate_violation`` und
+    kommt zurück (Karte für den Betreiber). Der Auftrag wird nur aus ``approved`` zu ``delivered``.
+    Leere Liste = sauber oder schon festgeschrieben."""
     row = store.db.execute(
         "SELECT d.*, o.order_no, c.customer_no FROM deliveries d "
         "JOIN orders o ON o.id = d.order_id JOIN customers c ON c.id = d.customer_id "
@@ -115,17 +120,26 @@ def confirm_sent(store: Store, delivery_id: int, external_id: str) -> None:
     if row is None:
         raise StoreError(f"Lieferung {delivery_id} unbekannt.")
     if row["status"] == "sent":
-        return  # idempotent: Retry nach Timeout liefert nicht doppelt
+        return []  # idempotent: Retry nach Timeout liefert nicht doppelt
+    if row["status"] != "pending":
+        raise StoreError(f"Lieferung {delivery_id} ist {row['status']}, nicht offen.")
     gate = check_gate(store, row["order_no"], row["artifact_id"], row["customer_no"])
-    if not gate.ok:
-        raise StoreError("Versand gesperrt: " + "; ".join(gate.reasons))
+    violation = "; ".join(gate.reasons) or None
     with store.tx() as db:
         try:
             db.execute(
-                "UPDATE deliveries SET status = 'sent', external_id = ?, sent_at = ? WHERE id = ?",
-                (external_id, now(), delivery_id),
+                "UPDATE deliveries SET status = 'sent', external_id = ?, sent_at = ?,"
+                " gate_violation = ? WHERE id = ?",
+                (external_id, now(), violation, delivery_id),
             )
         except sqlite3.IntegrityError as exc:
             raise StoreError(f"Versand von der Datenbank abgewiesen: {exc}") from exc
-        store._event("delivery", delivery_id, "sent", external_id=external_id)
-        store.transition(row["order_no"], "delivered", delivery_id=delivery_id)
+        extra = {"gate_violation": violation} if violation else {}
+        store._event("delivery", delivery_id, "sent", external_id=external_id, **extra)
+        status = db.execute("SELECT status FROM orders WHERE id = ?", (row["order_id"],)).fetchone()
+        if status[0] == "approved":
+            store.transition(row["order_no"], "delivered", delivery_id=delivery_id)
+        else:  # Auftrag inzwischen erstattet o. Ä.: bleibt so, Karte zeigt den Widerspruch
+            store._event("order", row["order_id"], "delivery", status="sent", delivery=delivery_id)
+            store.bump("orders")
+    return gate.reasons

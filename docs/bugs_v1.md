@@ -198,6 +198,21 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-012 (Audit Fable 17.11., P2/P1-Kandidat; im Auditblatt vorläufig „BUG-120“)
+Commit: siehe git log „FABLE-012“ / approval.confirm_sent, core.delivery._confirm_delivery, Migration 25
+Behauptung: BESTÄTIGT – nach echtem Versand prüfte confirm_sent das Gate erneut und brach ab; Zustellung
+  blieb pending, Auftrag approved, „Erneut senden“ gesperrt, der Abgleich nach Neustart scheiterte
+  jedes Mal gleich, sichtbar nur im Log
+Korrektur: gesendet ist eine Tatsache – Zustellung immer sent; verletztes Gate steht in
+  deliveries.gate_violation (Migration 25, Versand-Trigger lässt sent nur mit Grund zu) und in der Karte
+  „VERSENDET · … · GATE NACH VERSAND: …“; Auftrag nur aus approved zu delivered
+Nachweis: tests/test_store.py::test_refund_during_sending_is_recorded_and_reported,
+  ::test_file_changed_during_sending_still_counts_as_delivered (vor der Korrektur rot, danach grün),
+  ::test_cockpit_card_names_the_gate_violation_after_sending; Migration 24→25 an einer Kopie der echten
+  Datenbank (Integrität ok)
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
+Bearbeiter/Datum: Claude, 17.11.2026
+
 ID: FABLE-011 (Audit Fable 17.11., P2/P1-Kandidat; im Auditblatt vorläufig „BUG-119“)
 Commit: siehe git log „FABLE-011“ / media.gallery.delete_media, core.registry._delete_media
 Behauptung: BESTÄTIGT – Ordner-Scan und Hashing liefen in der Schreibtransaktion (Sperre für alle anderen

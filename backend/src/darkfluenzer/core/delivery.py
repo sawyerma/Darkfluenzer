@@ -157,8 +157,7 @@ class DeliveryMixin:
         msg = self.store.message(message_id)
         order = self.store.order_by_id(delivery["order_id"])
         if msg["status"] == "sent":
-            approval.confirm_sent(self.store, delivery["id"], msg["platform_message_id"] or "")
-            self._card(order, f"VERSENDET · {order.order_no}")
+            self._confirm_delivery(delivery["id"], msg["platform_message_id"] or "", order)
         elif msg["status"] == "failed":
             if self.store.fail_delivery(delivery["id"], msg["error"] or ""):
                 self._card(
@@ -168,10 +167,21 @@ class DeliveryMixin:
             return
         self._orders_changed()
 
+    def _confirm_delivery(self, delivery_id: int, external_id: str, order=None) -> None:
+        """Von der Plattform angenommen: festschreiben; ein danach verletztes Gate erscheint als
+        Karte statt die Zustellung offen zu lassen (FABLE-012)."""
+        reasons = approval.confirm_sent(self.store, delivery_id, external_id)
+        if order is None:
+            order = self.store.order(self.store.delivery(delivery_id)["order_no"])
+        text = f"VERSENDET · {order.order_no}"
+        if reasons:
+            text += " · GATE NACH VERSAND: " + "; ".join(reasons)
+        self._card(order, text)
+
     def _settle_deliveries(self) -> None:
         """Nach einem Neustart: gesendete Zustellnachricht, deren Bestätigung fehlt."""
         for delivery_id, external in self.store.pending_sent_deliveries():
             try:
-                approval.confirm_sent(self.store, delivery_id, external)
+                self._confirm_delivery(delivery_id, external)
             except StoreError as exc:
                 log.error("Zustellung %s: %s", delivery_id, exc)

@@ -216,16 +216,61 @@ def test_only_latest_decision_counts(store):
     assert not approval.check_gate(store, order.order_no, arts[0].id, customer.customer_no).ok
 
 
-def test_refund_after_preparation_blocks_sending(store):
+def test_refund_during_sending_is_recorded_and_reported(store):
+    """FABLE-012: Erstattung zwischen Gate und Versandbestätigung. Vor dem Senden sperrt das Gate;
+    ist die Nachricht schon gesendet, wird das festgeschrieben (nie offen) und die Verletzung
+    kommt zurück; der Auftrag bleibt erstattet, ein Abgleich nach Neustart findet nichts mehr."""
     customer, order, arts = _paid_order_in_review(store)
     store.record_approval(order.order_no, arts[0].id, "approved", "betreiber")
     did = approval.prepare_delivery(store, order.order_no, arts[0].id, customer.customer_no)
     store.record_refund("telegram_stars", f"tx-{order.id}")
-    with pytest.raises(StoreError, match="Versand gesperrt"):
-        approval.confirm_sent(store, did, "tg-1")
-    # auch direkt per SQL am Code vorbei nicht möglich
+    assert not approval.check_gate(store, order.order_no, arts[0].id, customer.customer_no).ok
+    # direkt per SQL am Code vorbei (ohne festgehaltene Verletzung) weiterhin nicht möglich
     with pytest.raises(sqlite3.IntegrityError, match="Gate beim Versand"):
         store.db.execute("UPDATE deliveries SET status = 'sent' WHERE id = ?", (did,))
+    reasons = approval.confirm_sent(store, did, "tg-1")
+    assert any(r.startswith("ORDER_STATUS: refunded") for r in reasons)
+    d = store.delivery(did)
+    assert d["status"] == "sent" and d["external_id"] == "tg-1"
+    assert "ORDER_STATUS: refunded" in d["gate_violation"]
+    assert store.order(order.order_no).status == "refunded"
+    assert store.pending_sent_deliveries() == []
+    assert approval.confirm_sent(store, did, "tg-1") == []  # idempotent
+
+
+def test_file_changed_during_sending_still_counts_as_delivered(store):
+    """FABLE-012: Datei nach dem Senden verändert – gesendet ist gesendet: Auftrag geliefert,
+    Verletzung in der Zustellung festgehalten und zurückgegeben."""
+    customer, order, arts = _paid_order_in_review(store)
+    store.record_approval(order.order_no, arts[0].id, "approved", "betreiber")
+    did = approval.prepare_delivery(store, order.order_no, arts[0].id, customer.customer_no)
+    path = store.local / arts[0].path
+    os.chmod(path, 0o644)
+    path.write_bytes(b"manipuliert")
+    reasons = approval.confirm_sent(store, did, "tg-2")
+    assert [r.split(":")[0] for r in reasons] == ["ARTIFACT_HASH_MISMATCH"]
+    assert store.order(order.order_no).status == "delivered"
+    assert store.delivery(did)["gate_violation"].startswith("ARTIFACT_HASH_MISMATCH")
+    events = [e["event"] for e in store.events("delivery", did)]
+    assert events.count("sent") == 1
+
+
+def test_cockpit_card_names_the_gate_violation_after_sending(store):
+    """FABLE-012: die Karte VERSENDET nennt das nach dem Versand verletzte Gate."""
+    import types
+
+    from darkfluenzer.core.delivery import DeliveryMixin
+
+    customer, order, arts = _paid_order_in_review(store)
+    store.record_approval(order.order_no, arts[0].id, "approved", "betreiber")
+    did = approval.prepare_delivery(store, order.order_no, arts[0].id, customer.customer_no)
+    store.record_refund("telegram_stars", f"tx-{order.id}")
+    cards = []
+    cockpit = types.SimpleNamespace(store=store, _card=lambda o, t: cards.append((o.order_no, t)))
+    DeliveryMixin._confirm_delivery(cockpit, did, "tg-3")
+    ((no, text),) = cards
+    assert no == order.order_no
+    assert text.startswith(f"VERSENDET · {no} · GATE NACH VERSAND: ORDER_STATUS: refunded")
 
 
 def test_database_rejects_delivery_bypassing_code(store):
