@@ -83,6 +83,13 @@ class FakeComfy:
         graph = self.prompts[pid]
         outputs = {}
         for node_id, node in graph.items():
+            if node["class_type"] == "LoadVideo":  # wie ComfyUI: Vorschau der Eingabe (type input)
+                name = node["inputs"]["file"]
+                self.files[name] = b"eingabe"
+                outputs[node_id] = {
+                    "images": [{"filename": name, "subfolder": "", "type": "input"}],
+                    "animated": [True],
+                }
             if node["class_type"] in ("SaveVideo", "SaveImage"):
                 ext = ".mp4" if node["class_type"] == "SaveVideo" else ".png"
                 name = f"p{n}_{node_id}{ext}"
@@ -206,6 +213,9 @@ def test_long_video_segments_resume_after_failure_and_join(video_cfg):
     assert set(comfy.check_targets(joined).values()) == {"save"}
     done = store.job(retry)
     assert done["status"] == "done"
+    # Ergebnis ist das fertige Video, nie die Vorschau einer Eingabe (echter Lauf 18.11., Job 103)
+    final = store.db.execute("SELECT path FROM media WHERE id = ?", (done["media_id"],)).fetchone()
+    assert final is not None and final[0].startswith("evaluation/")
     media = store.db.execute("SELECT path FROM media WHERE job_id = ?", (retry,)).fetchall()
     assert len(media) == 1 and media[0][0].startswith("evaluation/")  # nur das fertige Video
     assert not any(pipeline.WORK_PREFIX in p for (p,) in store.db.execute("SELECT path FROM media"))

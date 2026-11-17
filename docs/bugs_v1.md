@@ -115,6 +115,7 @@
 | BUG-107 | `pipeline.media_candidates` liest je Beobachterrunde alle abgeschlossenen Jobs (`finished_jobs(0, 1_000_000)`); `add_media` bildet je Eintrag das Maximum über das Journal. (In Fables Blatt als „BUG-105“ geführt; 105 ist bereits vergeben.) | CODE | Position merken, Index, Zählertabelle. | B SP0 |
 | BUG-108 | `comfy.ui_to_api` bricht bei offiziellen Vorlagen aus älteren Knotenfassungen ab (dynamische Auswahl mit weniger gespeicherten Werten, z. B. `SaveVideo` in `video_ltx2_5_flf2v`: „pop from empty list“), setzt sonst fehlende Werte auf `None`; `check_graph` meldet wachsende Eingänge (`values.a` von `ComfyMathExpression`) als unbekannt, auch im abgenommenen `ltx25_i2v`. | CODE | Standard bzw. erste Option wie im Frontend; Autogrow-Unterreingänge anerkennen. | A (Zeitachse B4) |
 | BUG-109 | Wiederholen und „Wiederholen“ (repeat_job_id) eines Sekunden-Videos (LTX) scheitern: der Job speichert `segment_s = 0`, `video_plan` lehnt jedes `segment_s` ab („Abschnitte gibt es bei diesem Workflow nicht“). Gefunden mit dem Regressionstest zu FABLE-008. | CODE | `segment_s = 0` heißt keine Abschnitte; andere Werte bleiben abgelehnt. | A |
+| BUG-126 | Langvideo: das Zusammensetzen meldet die Vorschau jedes `LoadVideo` (Typ `input`) als Ausgabe; `comfy` übernahm sie als Ergebnis – die Abschnittsvideos landeten als Medien in der Galerie, das Job-Ergebnis zeigte auf das erste Abschnittsvideo statt auf das fertige Video (echter Lauf 18.11., Job 103: Medien 106/107 Abschnitte, 108 fertig). Nummer 126, weil 110–125 als vorläufige Nummern des Auditblatts im Text stehen. | CODE | Ausgaben vom Typ `input` sind nie Ergebnisse. | A |
 
 ## 4. P3
 
@@ -198,6 +199,20 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-126 (Langvideo-Zusammensetzen: Eingabe-Vorschauen als Ergebnis)
+Commit: siehe git log „BUG-126“ / nodes.comfy (Ausgaben sammeln)
+Behauptung: BESTÄTIGT im echten Lauf 18.11. (Job 103, Wan 2.2 Remix 480×320, 2 Abschnitte à 33 Frames,
+  271 s + 230 s, gesamt 504,5 s): ComfyUI-Historie meldet v0/v1 (LoadVideo) mit type input und save mit
+  type output; alle drei wurden als Medien 106/107/108 registriert, Job-Ergebnis 106 = Abschnitt 2
+Korrektur: Ausgaben vom Typ input werden übersprungen
+Nachweis: tests/test_video.py::test_long_video_segments_resume_after_failure_and_join mit Ersatz-ComfyUI,
+  die wie ComfyUI Eingabe-Vorschauen meldet: vorher rot (2 Medien), danach grün (1 Medium, Ergebnis = fertiges
+  Video). Derselbe Lauf belegt Abschnittskette und Prüfkette im Zusammensetzen real: 65 Frames, 9 geprüft,
+  Inhalt neutral, 0 Sprünge (Werte am fertigen Video 108). Altlast: Medien 106/107 aus Job 103 bleiben, bis
+  der Betreiber das Löschen freigibt
+Ergebnis: CODE (Korrektur), Langvideo-Kette TEIL (am Mac belegt)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: B4 Zeitachse (Teil 3): Schlüsselbild aus Dateien, Zeitleiste mit Marken
 Commit: f118978 (Workbench, graphite.css)
 Behauptung: Schlüsselbilder nur als Upload, keine Zeitleiste

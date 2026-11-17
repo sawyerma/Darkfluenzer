@@ -733,6 +733,8 @@ def collect_graph(
             # item: Stelle im Stapel des Prüfknotens (Bild im Stapel bzw. Frame der Stichprobe)
             result.checks.extend({**v, "node": node_id, "item": i} for i, v in enumerate(values))
         for item in out.get("images", []) + out.get("gifs", []) + out.get("videos", []):
+            if item.get("type") == "input":  # Vorschau einer Eingabe (LoadVideo), kein Ergebnis
+                continue
             index += 1
             data = client.fetch(item)
             suffix = Path(item["filename"]).suffix or ".bin"
