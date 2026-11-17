@@ -28,7 +28,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from .config import DATA_DIR_ARGS, ComfyConfig, Config
+from ..config import DATA_DIR_ARGS, ComfyConfig, Config
 
 log = logging.getLogger("darkfluenzer.runtime")
 
@@ -611,7 +611,7 @@ def cockpit_up(cfg: Config) -> dict:
 def cockpit_restart(cfg: Config) -> dict:
     """Nur den eigenen Cockpit-Server neu starten (z. B. nach einem Update); ComfyUI bleibt
     unberührt. Verweigert, solange Renderjobs warten oder laufen – sie würden abbrechen."""
-    from .store import Store
+    from ..store import Store
 
     store = Store(cfg.local)
     try:

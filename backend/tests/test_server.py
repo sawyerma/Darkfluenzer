@@ -12,8 +12,10 @@ import uuid
 from aiohttp import WSServerHandshakeError
 from aiohttp.test_utils import TestClient, TestServer
 
-from darkfluenzer import comfy, models, runtime, server
+from darkfluenzer import models, server
 from darkfluenzer.config import project_root
+from darkfluenzer.nodes import comfy
+from darkfluenzer.nodes import local as runtime
 from darkfluenzer.store import Store
 from darkfluenzer.stream import PROTOCOL_MAJOR
 from darkfluenzer.v1 import (

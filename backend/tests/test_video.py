@@ -16,8 +16,10 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from PIL import Image
 
-from darkfluenzer import comfy, models, pipeline, runtime
+from darkfluenzer import models, pipeline
 from darkfluenzer.config import project_root
+from darkfluenzer.nodes import comfy
+from darkfluenzer.nodes import local as runtime
 from darkfluenzer.store import Store
 
 

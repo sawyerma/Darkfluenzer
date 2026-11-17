@@ -16,7 +16,7 @@ ist nicht verbindlich.
   Health-Check (`/system_stats`). Ein zweiter Doppelklick startet keine zweite Instanz.
 - Fenster mit Status, **Stoppen**, **Starten**, **Im Browser öffnen**, **Logs**. Schließen des
   Fensters beendet ComfyUI nicht.
-- Eine einzige Start-/Stop-Logik in `backend/src/darkfluenzer/runtime.py`; App und künftiges Backend
+- Eine einzige Start-/Stop-Logik in `backend/src/darkfluenzer/nodes/local.py`; App und künftiges Backend
   rufen dieselbe CLI/Funktion auf. Gestoppt wird nur die eigene Prozessgruppe (PID + Startzeit +
   Kommandozeile geprüft), nie per `pkill`. Fremd gestartete ComfyUI-Instanzen werden erkannt,
   aber weder übernommen noch beendet.

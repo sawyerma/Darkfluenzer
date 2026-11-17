@@ -10,8 +10,9 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from darkfluenzer import comfy, models, pipeline
+from darkfluenzer import models, pipeline
 from darkfluenzer.config import project_root
+from darkfluenzer.nodes import comfy
 
 ROOT = project_root()
 

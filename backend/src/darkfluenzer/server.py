@@ -30,10 +30,12 @@ from pathlib import Path
 from aiohttp import web
 from google.protobuf.message import DecodeError
 
-from . import aimeta, approval, cloner, comfy, models, pipeline, runtime, training
+from . import aimeta, approval, cloner, models, pipeline, training
 from .channels.instagram import InstagramAccount, InstagramError
 from .channels.telegram import TelegramAccount
 from .config import ComfyConfig, Config
+from .nodes import comfy
+from .nodes import local as runtime
 from .payments.chain import SATOSHI, WalletWatcher, decimal_text
 from .store import Store, StoreError, sha256_file
 from .stream import Hub, schema_id

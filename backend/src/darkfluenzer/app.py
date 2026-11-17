@@ -24,9 +24,11 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
-from . import __version__, comfy, keychain, models, pipeline, runtime, training
+from . import __version__, keychain, models, pipeline, training
 from .config import INSTANCE_SECTIONS, ConfigError, load, project_root, setup_logging
 from .identity import FaceIdentity, IdentityError
+from .nodes import comfy
+from .nodes import local as runtime
 from .store import Store
 
 log = logging.getLogger("darkfluenzer.app")

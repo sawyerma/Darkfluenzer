@@ -13,8 +13,8 @@ from dataclasses import replace
 
 import pytest
 
-from darkfluenzer import runtime
 from darkfluenzer.config import Config, project_root
+from darkfluenzer.nodes import local as runtime
 from darkfluenzer.store import Store
 
 

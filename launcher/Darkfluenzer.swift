@@ -2,7 +2,7 @@
 //
 // Die App enthält KEINE eigene Prozesslogik und keine zweite Bedienoberfläche. Sie ruft
 // ausschließlich <projekt>/local/.venv/bin/python -m darkfluenzer up|down|comfy start --json
-// auf (backend/src/darkfluenzer/runtime.py) und öffnet das Cockpit erst nach dessen
+// auf (backend/src/darkfluenzer/nodes/local.py) und öffnet das Cockpit erst nach dessen
 // Health-Check. Der Projektordner steht als DFProjectRoot in Info.plist (launcher/install.sh).
 import AppKit
 

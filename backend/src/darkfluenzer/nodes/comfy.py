@@ -21,9 +21,9 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import runtime
-from .config import ComfyConfig, Config
-from .models import Manifest, Workflow
+from ..config import ComfyConfig, Config
+from ..models import Manifest, Workflow
+from . import local as runtime
 
 log = logging.getLogger("darkfluenzer.comfy")
 

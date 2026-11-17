@@ -59,7 +59,7 @@ def test_ai_instance_has_own_port_dirs_and_state(tmp_path, write_cfg):
     ai = cfg.instance("ai")
     assert ai.data_dir == tmp_path / "local" / "comfyui_ai" and ai.state_name == "comfyui_ai.json"
     assert cfg.comfyui.state_name == "comfyui.json"
-    from darkfluenzer import runtime
+    from darkfluenzer.nodes import local as runtime
 
     cmd = runtime.build_command(ai)
     assert cmd[cmd.index("--user-directory") + 1] == str(ai.data_dir / "user")

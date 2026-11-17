@@ -23,9 +23,10 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from . import comfy, models, training
+from . import models, training
 from .config import ComfyConfig, Config
 from .models import Lora, Manifest, Workflow
+from .nodes import comfy
 from .store import MEDIA_KINDS, Store, sha256_file
 
 log = logging.getLogger("darkfluenzer.pipeline")
@@ -556,7 +557,7 @@ def _render(
     overrides: dict[tuple[str, str], object] | None = None,
 ) -> tuple[comfy.RenderResult, list[dict]]:
     workflow_key = wf.key
-    from . import runtime
+    from .nodes import local as runtime
 
     inst = comfy.instance_of(cfg, man, wf)
     runtime.start(cfg, inst.name)
@@ -667,7 +668,7 @@ def _render_video(
     """Langvideo (V0 §10): Abschnitte nacheinander, jeder Folgeabschnitt startet mit dem letzten
     Bild des vorigen; danach in ComfyUI zusammengesetzt (doppeltes Übergangsbild entfernt). Fertige
     Abschnitte überstehen einen Neustart; fortgesetzt wird nur der unfertige."""
-    from . import runtime
+    from .nodes import local as runtime
 
     spec = wf.video
     assert spec is not None
