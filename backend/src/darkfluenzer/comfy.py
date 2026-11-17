@@ -225,39 +225,49 @@ class ComfyClient:
         lost_after_s: float | None = None,
     ) -> dict:
         """Auf das Ergebnis warten. Mit ``timeout_s`` gilt eine feste Frist (danach Abbruch).
-        Ohne Frist (``None``) endet das Warten nur durch Ergebnis, Fehler von ComfyUI oder fehlendes
-        Lebenszeichen: ComfyUI antwortet länger als ``lost_after_s`` nicht oder kennt den Auftrag so
-        lange weder in der Warteschlange noch im Verlauf. Lange Läufe (Training, Video) brechen so
-        nie wegen der Dauer ab."""
+        Ohne Frist (``None``) gibt es keinen zeitbasierten Abbruch. Das Warten endet durch Ergebnis,
+        Fehler von ComfyUI, Abbruch durch den Betreiber (Unterbrechung in ComfyUI) oder wenn ComfyUI
+        erreichbar ist und den Auftrag länger als ``lost_after_s`` weder in der Warteschlange noch
+        im Verlauf kennt. Antwortet ComfyUI nicht, ist der Zustand unbekannt: es wird weiter
+        gewartet und nach der Wiederverbindung abgeglichen, nie als Fehler gewertet."""
         if timeout_s is None and lost_after_s is None:
             raise ValueError("wait ohne Frist braucht lost_after_s")
         deadline = time.monotonic() + timeout_s if timeout_s is not None else None
         lost_since: float | None = None
+        unknown_since: float | None = None
         while True:
             if on_poll is not None:
                 on_poll()
             if deadline is not None:
                 entry = self.history(prompt_id)
-                alive, reachable = True, True
             else:
                 try:
                     entry = self.history(prompt_id)
                     alive = entry is not None or self._queued(prompt_id)
-                    reachable = True
-                except ComfyError:
-                    entry, alive, reachable = None, False, False
+                except ComfyError as exc:  # nicht erreichbar: Zustand unbekannt, weiter warten
+                    if unknown_since is None:
+                        unknown_since = time.monotonic()
+                        log.warning("Auftrag %s: Zustand unbekannt, %s", prompt_id, exc)
+                    lost_since = None
+                    time.sleep(poll_s)
+                    continue
+                if unknown_since is not None:
+                    log.info(
+                        "Auftrag %s: ComfyUI wieder erreichbar nach %.0f s, Abgleich",
+                        prompt_id,
+                        time.monotonic() - unknown_since,
+                    )
+                    unknown_since = None
                 if alive:
                     lost_since = None
                 else:
                     lost_since = lost_since or time.monotonic()
                     if time.monotonic() - lost_since > lost_after_s:
-                        reason = (
+                        raise ComfyError(
                             f"Auftrag {prompt_id}: ComfyUI kennt ihn weder in der Warteschlange "
-                            "noch im Verlauf."
-                            if reachable
-                            else f"Auftrag {prompt_id}: ComfyUI antwortet nicht mehr ({self.base})."
+                            "noch im Verlauf.",
+                            prompt_id=prompt_id,
                         )
-                        raise ComfyError(reason, prompt_id=prompt_id)
             if entry is not None:
                 status = entry.get("status") or {}
                 if status.get("status_str") == "error":

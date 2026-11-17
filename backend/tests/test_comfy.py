@@ -38,6 +38,8 @@ class FakeComfy:
 
             def do_GET(self):
                 url = urlparse(self.path)
+                if fake.mode == "down":
+                    return self._send(503, {})
                 if url.path == "/system_stats":
                     return self._send(200, {"system": {"comfyui_version": "fake"}})
                 if url.path.startswith("/history/"):
@@ -203,14 +205,15 @@ def test_wait_without_deadline_stops_when_prompt_is_lost(fake):
         client.wait(pid, timeout_s=None, poll_s=0.05, lost_after_s=0.2)
 
 
-def test_wait_without_deadline_stops_when_comfy_is_gone(fake):
-    fake.mode = "hang"
+def test_wait_without_deadline_keeps_waiting_while_comfy_is_unreachable(fake):
+    """Verbindungsverlust ist ein unbekannter Zustand, kein Fehler: auch weit über die Toleranz
+    hinaus wird gewartet und nach der Wiederverbindung abgeglichen."""
+    fake.mode = "down"  # jede Abfrage antwortet mit HTTP 503
     client = comfy.ComfyClient(fake.url, timeout=1)
     pid = client.submit(GRAPH)
-    fake.server.shutdown()
-    fake.server.server_close()
-    with pytest.raises(comfy.ComfyError, match="antwortet nicht mehr"):
-        client.wait(pid, timeout_s=None, poll_s=0.05, lost_after_s=0.2)
+    threading.Timer(0.8, lambda: setattr(fake, "mode", "ok")).start()
+    entry = client.wait(pid, timeout_s=None, poll_s=0.05, lost_after_s=0.2)
+    assert entry["status"]["completed"] and fake.interrupted == []
     with pytest.raises(ValueError):
         client.wait(pid, timeout_s=None)
 
