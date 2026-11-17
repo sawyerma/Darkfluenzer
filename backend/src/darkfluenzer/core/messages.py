@@ -84,9 +84,10 @@ class MessagesMixin:
 
     def _send_check(self, platform: str, partner: str, *, human_agent: bool = False) -> str:
         """Kanalgrenzen vor dem Einreihen (Instagram: 24-h-Fenster); leer = erlaubt."""
-        if platform == "instagram" and self.instagram:
-            return self.instagram.send_check(partner, human_agent=human_agent)
-        return "Human-Agent gibt es nur bei Instagram." if human_agent else ""
+        adapter = self._adapter(platform)
+        if adapter is None:
+            return "Human-Agent gibt es nur bei Instagram." if human_agent else ""
+        return adapter.send_check(partner, human_agent=human_agent)
 
     async def _send_reply(self, msg: commands_pb2.SendReply, call: _Call) -> str:
         """Manuelle Textantwort nur an die gewählte, verifizierte Konversation dieses Kunden
@@ -116,8 +117,8 @@ class MessagesMixin:
             request_id=call.request_id,
         )
         call.entity = f"message:{message_id}"
-        if msg.human_agent and self.instagram and not self.instagram.window_open(partner):
-            self.instagram.mark_human_agent(message_id)
+        if msg.human_agent and not adapter.window_open(partner):
+            adapter.mark_human_agent(message_id)
         adapter.wake.set()
         self._message_changed(message_id)
         return ""

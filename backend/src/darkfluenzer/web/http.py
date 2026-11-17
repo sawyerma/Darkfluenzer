@@ -459,7 +459,7 @@ async def _conversation_page(request: web.Request) -> web.Response:
             conversation_id=ident["conversation_id"] or 0,
             revision=ident["revision"] or 0,
             ai_notice=ident["ai_notice_status"] or "",
-            **_window(request.app[COCKPIT_KEY].instagram, ident),
+            **_window(request.app[COCKPIT_KEY]._adapter(ident["platform"]), ident),
         )
     if summary[0]["kind"] == "internal":
         d = store.default_contact()

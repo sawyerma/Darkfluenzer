@@ -33,6 +33,7 @@ from .. import __version__
 from ..config import Config
 from ..keychain import secret, store_secret
 from ..store import Inbound, Store
+from .base import Capabilities, Channel
 from .tdjson import TdError, TdJson
 
 log = logging.getLogger("darkfluenzer.telegram")
@@ -89,8 +90,20 @@ def _size(f: dict) -> int:
     return int(f.get("size") or f.get("expected_size") or 0)
 
 
-class TelegramAccount:
+class TelegramAccount(Channel):
     """Ein Telegram-Nutzerkonto (Claras Konto; im Testbetrieb das des Betreibers)."""
+
+    platform = PLATFORM
+
+    def capabilities(self) -> Capabilities:
+        """Dateien gehen heute als Dokument; selbstlöschend, Gelesen, Tippen folgen (SP4/SP5)."""
+        return Capabilities(
+            document=True,
+            self_destruct=False,
+            reply_window=False,
+            read_receipts=False,
+            typing=False,
+        )
 
     def __init__(
         self,

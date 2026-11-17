@@ -40,6 +40,7 @@ import aiohttp
 from ..config import Config
 from ..keychain import secret, store_secret
 from ..store import Inbound, Store, StoreError, sha256_file
+from .base import Capabilities, Channel
 from .telegram import HANDOFF_CARD
 
 log = logging.getLogger("darkfluenzer.instagram")
@@ -224,8 +225,26 @@ def attachment_of(att: dict) -> dict:
     return out
 
 
-class InstagramAccount:
-    """Claras Instagram-Konto (Creator) – gleiche Schnittstelle wie ``TelegramAccount``."""
+class InstagramAccount(Channel):
+    """Claras Instagram-Konto (Creator) – Kanalvertrag wie ``TelegramAccount``."""
+
+    platform = PLATFORM
+
+    def capabilities(self) -> Capabilities:
+        """Keine Dateien als Dokument; Antwortfenster und Größen aus der Konfiguration."""
+        return Capabilities(
+            document=False,
+            self_destruct=False,
+            reply_window=True,
+            read_receipts=False,
+            typing=False,
+            max_text_bytes=self.ig.max_text_bytes,
+            max_attachment_mb={
+                "image": self.ig.max_image_mb,
+                "video": self.ig.max_video_mb,
+                "audio": self.ig.max_audio_mb,
+            },
+        )
 
     def __init__(
         self,

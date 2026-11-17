@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..channels.instagram import InstagramAccount
+from ..channels.base import Channel
 from ..core.base import _unix_ms
 from ..core.orders import _fill_order
 from ..media import gallery
@@ -236,14 +236,18 @@ def _conversation_item(row: dict, store: Store) -> channel_pb2.ConversationItem:
     return item
 
 
-def _window(ig: InstagramAccount | None, ident: dict) -> dict:
-    """Instagram-Antwortfenster einer Identität (Unix-ms bis wann offen)."""
-    if ig is None or ident["platform"] != "instagram" or not ident["platform_conversation_id"]:
+def _window(adapter: Channel | None, ident: dict) -> dict:
+    """Antwortfenster einer Identität (Unix-ms bis wann offen); ohne Fenster: keine Angabe."""
+    if (
+        adapter is None
+        or not adapter.capabilities().reply_window
+        or not ident["platform_conversation_id"]
+    ):
         return {}
     now_ms = int(time.time() * 1000)
     partner = ident["platform_conversation_id"]
-    left = ig.window_remaining_ms(partner)
-    human = ig.window_remaining_ms(partner, human_agent=True)
+    left = adapter.window_remaining_ms(partner)
+    human = adapter.window_remaining_ms(partner, human_agent=True)
     return {
         "window_until_ms": now_ms + left if left else 0,
         "human_until_ms": now_ms + human if human else 0,
