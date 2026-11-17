@@ -81,13 +81,19 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
 - **Einheitliche Videosteuerung (SP1):** Komponente `VideoSettings` für alle Video-Workflows. Feste Reihenfolge direkt unter Prompt und Startbild: **Gesamtlänge (s)**, Bildrate, Auflösung, Abschnittslänge (nur wenn die Engine Abschnitte nutzt). Gleiche Beschriftung für LTX, Wan und Remix; Grenzen aus dem STATE.
 - **Zeitachse (B4, FL-4):** unter `VideoSettings` eine Leiste über die Gesamtlänge; je Marke Sekunde, Referenzbild aus Dateien, Prompt des folgenden Abschnitts, Kamera/Bewegung, Übergangsstärke; Marken verschiebbar, Abschnitte sichtbar.
 - **Warteschlange:** dauerhafte Reihenfolge, Fortschritt (Schritt, Abschnitt), Anhalten/Fortsetzen (übersteht Neustart), Abbrechen je Job und je Auftrag (SP1); Video standardmäßig ein Kandidat.
-- **B1 Charakter (Bereich Charakter, FL-3):**
+- **B1 Charakter (Bereich Charakter, FL-3; Paket SP3):**
   - Liste der Charaktere; „Neuer Charakter“ mit Name, Kürzel, Klasse und Trigger.
   - Je Charakter: Ordnerpfad zum Kopieren und „Im Finder öffnen“; Fotos auch per Ziehen/Ablegen hinzufügen (kopiert nach `photos/`); Fotoliste mit Status und Grund; Zähler „x von y brauchbar“; Auswahl der Referenzfotos.
   - Training: Engine-Auswahl, Knopf „Trainieren“ (gesperrt mit Grund, solange Fotos fehlen oder ein Training läuft), Fortschritt, Abbrechen.
   - Versionen: Tabelle mit Datum, Datensatz, Dauer und Identitätswert; Probebilder als Vergleichsraster; „Aktiv setzen“.
   - Influencerin-Block: zugeordneter Charakter und aktive LoRA je Engine.
   - Workflow-Formular: LoRA-Auswahl, aktive Version vorbelegt, dazu „ohne“.
+  - Fotoliste zeigt zusätzlich die Gesichtshinweise „kein Gesicht“ und „andere Person“ (SP3).
+  - Profilfelder Trigger und Klasse; Probe-Prompts.
+  - Vor „Trainieren“ steht die geschätzte Dauer; der Knopf ist gesperrt, solange bezahlte Aufträge warten.
+  - Versionen: Tabelle aus der Registry mit Figur, Architektur, Datensatz, Schritten, Rang; Probebilder mit Identitätswert; „Aktiv setzen“ je Architektur.
+  - Dateien, Herkunft: LoRA-Schlüssel, Stärke, Identitätswert.
+  - Default-Kontakt: Vorschlag des Workflows je Befehl aus der Registry (Ergebnis des Kloner-Vergleichs, SP3 Schritt 8).
   - Abnahme: Browser-Test für Anlegen, Fotostatus, Trainingsstart mit zu wenigen Fotos (gesperrt) und Umschalten der aktiven Version.
 - **Referenzanalyse (B5.6, FL-5):** Knopf „Analysieren“ an Vorlage und Datei; Ergebnis als bearbeitbarer Prompt mit Pose, Licht, Kamera, Komposition; „Als Prompt übernehmen“ oder „Als Referenz verwenden“.
 - **Workflowverwaltung (Bestand):** öffnen im echten ComfyUI, übernehmen, aktivieren/deaktivieren, löschen (nur Definition, nie Modelle oder Medien).
@@ -136,7 +142,7 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 | **C5.1–C5.10** | rechte Kundensteuerung §3.2 je Paket; C5.1: Figur-Filter und Influencerin-Kennzeichen in Liste, Register und Aktenkopf, sichtbare Sortierung; C5.2: Status des KI-Hinweises, Karte und Sperre „minderjährig vermutet“, kein Altersblock; C5.6a: Prüfwerte je Kandidat (Identität, Inhaltsstufe, Technik, Qualität; bei Video Stichprobenbilder), Hinweis „keine automatische Freigabe“, solange ein Prüfmodell fehlt (E16), Karte „wartet auf Betreiber“ (Freigeben, Neu, Erstatten; „Freigeben“ nur bei technischem oder qualitativem Fehlschlag, harte Gates bleiben gesperrt), Schalter Freigabeart im Influencerin-Block; C5.10: Auftragskarte zeigt, ob System oder Betreiber freigegeben hat und über welchen Weg | je Paket echter Lauf mit Testkunden |
 | **T1, T2** | Kundentest §3.8 | Browser-Test Umschalten, Messwerte, Zurücksetzen; Testauftrag nie im Wallet |
 | **C5a** | Wallet §3.6 | echte Zahlung je Weg |
-| **B1** | Bereich Charakter §3.3 (Liste, Fotostatus, Training, Versionen, Aktiv setzen, LoRA-Auswahl im Formular) | echter Ordner → Training → LoRA → Bild; Browser-Test Anlegen, Fotostatus, gesperrter Start, Umschalten |
+| **SP3 (B1)** | Bereich Charakter §3.3 (Liste, Fotostatus, Training, Versionen, Aktiv setzen, LoRA-Auswahl im Formular) | echter Ordner → Training → LoRA → Bild; Browser-Test Anlegen, Fotostatus, gesperrter Start, Umschalten |
 | **B4** | Zeitachse §3.3 | 15 s mit vier Marken → ein Auftrag mit vier Schlüsselbildern |
 | **B5.6** | Referenzanalyse §3.3 | eigenes Bild → Prompt → echte Generierung |
 | **D1–D3** | Auskunft/Löschen in der Akte; Betriebsanzeige (Sicherung, Autostart, Ruhezustand); Release-Kennung | – |

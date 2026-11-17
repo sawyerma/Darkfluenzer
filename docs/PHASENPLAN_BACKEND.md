@@ -58,7 +58,7 @@ Video läuft genauso: erst das Bild, dann die Animation. Der Betreiber gibt die 
 | E11 | Kundenkette vollautomatisch: Wunsch, Angebot, Zahlung, Produktion, Prüfung, Freigabe und Zustellung ohne Klick. Ausnahme: Amazon-Gutscheine bestätigt der Betreiber. | entschieden |
 | E12 | Der Default ist der Admin. Sein Chat hat drei Betriebsarten: Produktion, Kundentest, Aus. | entschieden |
 | E13 | Zugangsdaten und Einstellungen werden im Cockpit im Reiter „Einstellungen“ gepflegt (S1). | entschieden |
-| E14 | Auf welcher Bild-Engine laufen Kundenbilder? Dafür wird die zweite LoRA je Charakter trainiert. B1 beginnt mit LUSTIFY SDXL (`explizit`, nur Default-Produktion). Die Kunden-Engine wird erst nach echtem Training, Bildtests mit Clara, Identitätswerten, geprüfter Einstufung `standard` und Laufzeit festgelegt; Kandidat mit registriertem Trainingsworkflow: Krea 2 Raw (nie gelaufen, BUG-023). Bis dahin ist kein Produkt lieferbar (C5.5). | **offen** |
+| E14 | Vorschlag: Kundenbilder entstehen mit `krea2_raw_turbo_lora_t2i` (Krea 2 Raw + Turbo-LoRA + Charakter-LoRA, Inhaltsstufe `standard`, 234 s je Bild gemessen). Die Charakter-LoRA wird mit `krea2_raw_lora_train` trainiert (gemessen 23,9 s je Schritt bei 768 px, 1500 Schritte ≈ 10 h). Vorbehalt: BUG-023 und der erste vollständige Trainingslauf. Bis zur Entscheidung ist kein Produkt lieferbar (C5.5). | **offen**, Betreiberantwort fehlt |
 | E15 | Chat neben Video: Erreicht B5.1 die Antwortziele unter Medienlast nicht, gilt bis zur Entscheidung: die KI-Bahn hat Vorrang; ein neuer Medienjob startet nur, wenn danach Melody-Bedarf plus Reserve frei bleiben; laufende Renders werden nicht abgebrochen; wartende Kunden erhalten eine Vertröstung (C5.4). Zur Wahl: feste Renderfenster (z. B. nachts) oder Video nur ohne aktives Kundengespräch. | **offen**, Voreinstellung gilt |
 | E16 | Prüfmodell für die Inhaltsstufe (C5.6a): noch nicht gewählt; Download nur nach Freigabe. Bis dahin keine automatische Freigabe, Freigabeart steht fest auf „Betreiber“. | **offen**, Voreinstellung gilt |
 
@@ -277,7 +277,7 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 | Video Wan 2.2 / Remix | OFFEN | Wan-FP16 2408 s (A2); Langvideo nur mit Ersatz-ComfyUI | Abnahme, Langvideo real |
 | Abbrechen, Pause | TEIL | 17.11. am Mac: Abbruch in der Startphase (Job 65) und im Lauf (Job 66) → Status abgebrochen, 0 Medien, ComfyUI-Queue leer, Speicher der Instanz 2,9 → 1,9 GB; Pause übersteht Neustart | Auftrag als Ganzes abbrechen (SP1) |
 | Seed-Grenzen | PASS | 17.11.: „Generieren“ war bei LTX, FLUX-Vorlage, Qwen ×2 still blockiert; behoben `932c9ec`, Job 64 danach | – |
-| Charakter-LoRA | OFFEN | Trainingsworkflows registriert, nie gelaufen; 0 Charakterfotos; zwei Ordnerschemata (BUG-078) | B1 (§7.6.1), E14 |
+| Charakter-LoRA | OFFEN | Trainingsworkflows registriert; Krea-2-Training laut Manifest probehalber gemessen (768 px: 23,9 s je Schritt), kein vollständiger Lauf; LoRA-Registry vorhanden (`models.register_lora`), Lader im Workflow fehlt; 0 Charakterfotos | SP3, E14 |
 | Telegram (TDLib) | TEIL | 17.11.: Anmeldung, Neustart ohne Code, Eingang vom Zweitkonto, Register, Name, Default per Klick, manuelle Antwort gesendet (ID 5006950400), Default „Hey“ → Rückfrage im Chat | Handoff vom Handy, Datei > 50 MB, Befunde in SP1/SP2 |
 | Default-Kette (Kloner) | TEIL | Code für sechs Befehle, Befehl→Workflow-Zuordnung (`7a49b6a`); Live-Lauf 17.11. gescheitert (§4.3) | SP1, SP3 (H6b), T1/T2 |
 | Instagram | CODE | Adapter + Tests | Meta-App, Tunnel |
@@ -306,7 +306,7 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 |---|---|---|
 | **SP1 Default-Kette** (§7.1, ausgeschrieben) | H0, H4, H5, H6a; aus H2 BUG-008/013/014; aus H3 Zeitlimit, Auftrag abbrechen, BUG-064 | Bild mit Befehl vom Handy, Datei kommt zurück |
 | **SP2 Fundament** (§7.2, ausgeschrieben) | H1, H2-Rest, S1 mit Kanalkonten als Liste, Kontenteil von C5.1, Frontend-Härtung | kein stiller Stillstand, alle P0 zu, mehrere Konten, Einstellungen im Cockpit |
-| **SP3 Charakter und Medien** | B1, B1.7, B2, H6b, H3-Rest, B4, B5.6 | „clone“ liefert Clara, Video mit Zeitachse |
+| **SP3 Charakter und Medien** (§7.6, ausgeschrieben) | B1, B2, H6b, C1/C3-Rest; dazu unverändert B4 (mit H3-Rest) und B5.6 | „clone“ liefert Clara mit Prüfwert, Video mit Zeitachse |
 | **SP4 Clara chattet** | B5.1–B5.4 (mit B5.4a), C5.1–C5.4, T1; BUG-085 | Kundentest-Chat mit Latenzen |
 | **SP5 Verkauf automatisch** | C5a, C5.5–C5.10 mit C5.6a, T2 | Zahlung rein, Bild raus, ohne Klick |
 | **SP6 Betrieb und Abnahme** | D1–D3, C4, C6 | Probephase bestanden |
@@ -325,7 +325,7 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 Ersetzt H0, H4, H5, H6a sowie aus H2 BUG-008/013/014 und aus H3 Zeitlimit, Auftrag abbrechen und BUG-064. Grundlage: Code-Vergleich von Fable (17.11.) mit `cloner.py`, `pipeline.py`, `telegram.py` und der Cockpit-Klasse in `server.py`.
 
 **Ziel:** Der Betreiber schickt per Telegram Bilder mit Befehl und bekommt die Ergebnisse als Datei in denselben Chat zurück. Jede Nachricht endet sichtbar, auch im Fehlerfall.
-**Schließt:** BUG-007, 008, 013, 014, 053 bis 058, 064, 075, 079 bis 083, 086; BUG-052 bis auf die LoRA (SP3).
+**Schließt:** BUG-007, 008, 013, 014, 053 bis 058, 064, 075, 079 bis 083, 086, 090, 093; BUG-052 bis auf die LoRA (SP3).
 **Dateien:** `server.py`, `cloner.py`, `pipeline.py`, `models.py`, `channels/telegram.py`, `store.py`, `config.py`, `app.py`, `workflows/manifest.toml`, `commands.proto`, `channel.proto`, `comfy.proto`.
 **Vorgaben (Betreiber kann ändern):** In der Default-Produktion entsteht ein Kandidat je Bild. Im Modus „Direkt“ mit mehreren Kandidaten kommen alle zurück, und der Auftrag ist danach geschlossen.
 
@@ -344,7 +344,7 @@ Ersetzt H0, H4, H5, H6a sowie aus H2 BUG-008/013/014 und aus H3 Zeitlimit, Auftr
 5. **Plan, Vorprüfung, Antwort (`server._cloner`, `_cloner_plan`, `_on_inbound`).**
    - Heute: Befehle aus → stiller Rücksprung. Fehlender Workflow, „edit nur für eigene Bilder“ und „wartet auf Start“ → nur Karte. Keine Prüfung, ob der Workflow startbar ist.
    - Neu: `_cloner_plan` prüft zusätzlich `_lane_of(wf)` und `_not_startable(wf)`. Jeder Ausgang läuft über eine Funktion `_cloner_state`, die Karte **und** Chat-Antwort schreibt. Zustände: `started`, `waiting_start`, `rejected`, `returned`, `return_blocked`, `failed`, `cancelled`. `_on_inbound` fängt jede Ausnahme und meldet `failed`. Der Hinweis „Befehle sind aus“ kommt höchstens einmal je `cloner.notice_interval_s`.
-6. **Optionen aus dem Wunsch (neu: `cloner.options`).** Liest einen Formatnamen der Engine (`Engine.formats`, z. B. `9:16`) und eine Dauer (`8s`); der Rest bleibt Wunsch. Vorgabe ist das Ausgabeprofil je Befehl im Default-Kontakt. Format setzt `width` und `height`, wenn der Workflow beide hat, sonst Ablehnung mit Grund. Dauer setzt `duration_s`.
+6. **Optionen aus dem Wunsch (neu: `cloner.options`).** Liest einen Formatnamen der Engine (`Engine.formats`, z. B. `9:16`) und eine Dauer (`8s`); der Rest bleibt Wunsch. Vorgabe ist das Ausgabeprofil je Befehl im Default-Kontakt. Format setzt `width` und `height`, wenn der Workflow beide hat, sonst Ablehnung mit Grund. Dauer setzt `duration_s`. Die Wan-Engines bekommen benannte Formate im Manifest (BUG-093). Die Fertigstellen-Stufe trägt eigene Werte am Auftrag, z. B. die Höhe 1920 für Story über `output_instagram` (BUG-090).
 7. **Aufträge anlegen (`server._cloner_order`).**
    - Heute: nur `refs[0]`, immer `production.candidates_default`, kein Eltern-Medium, keine Figur.
    - Neu: bei einem Upload-Parameter je Referenz ein Auftrag (Stapel), bei mehreren Vorlagen-Parametern gemeinsam (mehr Bilder als Parameter → Ablehnung mit Grund). Kandidaten aus `production.cloner_candidates` (Vorgabe 1), Video aus `production.video_candidates_default` (1), immer 1 bei Workflows ohne Seed. Ist die Referenz ein eigenes Medium (`media_by_sha`), wird sie als `parent_media_id` übergeben. Der Auftrag speichert Influencerin und Charakter des Default-Kontakts; die Karte sagt „ohne Charakter-LoRA“ bis SP3. Video als Referenz: Ablehnung mit Grund bis B4.
@@ -372,12 +372,6 @@ Ersetzt H0, H4, H5, H6a sowie aus H2 BUG-008/013/014 und aus H3 Zeitlimit, Auftr
 6. Abbruch im Lauf: Antwort „abgebrochen“, Warteschlange leer.
 7. Neustart im Lauf: der Auftrag läuft weiter, genau eine Datei kommt zurück.
 8. `trace` zeigt jeden dieser Läufe vollständig.
-
-### 7.1a Offene Teile für SP3
-
-**H3-Rest Render-Betrieb.** Fortschritt langer Läufe (Schritt, Abschnitt) im STATE; ein Lauf über 3600 s besteht mit dem Zeitlimit aus SP1.
-
-**H6b Default-Kette mit Claras LoRA.** Dieselben Läufe wie die SP1-Abnahme, nach B1 und B1.7 mit Claras LoRA; erst H6b ist der Auftrags-PASS der Default-Kette.
 
 ### 7.2 SP2 Fundament
 
@@ -512,7 +506,7 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
   3. Technik: Auflösung, Format, nicht leer; bei Video Frame-Zahl und Dauer.
   4. Qualität: Anatomie und Bildfehler sowie Treue zum Wunsch und Prompt, bewertet in ComfyUI 2 (Modell mit B5.6 qualifiziert); bei Video zusätzlich zeitliche Konsistenz.
 - Video wird an Stichprobenbildern geprüft: erstes, letztes und jedes n-te Bild (n aus der Konfiguration), Identität und Qualität je Stichprobe.
-- Schwellen sind kalibriert (B2.1), nicht geschätzt.
+- Schwellen sind kalibriert (SP3 Schritt 7), nicht geschätzt.
 - Auswahl: unter den Kandidaten, die alle Pflichtprüfungen bestehen, der beste Gesamtwert aus Identität und Qualität (Gewichte in der Konfiguration), nicht allein Identität.
 - Fehlt ein Prüfmodell (Inhaltsstufe E16, Qualität B5.6), gibt es keine automatische Freigabe; die Freigabeart steht dann auf „Betreiber“.
 - Systemfreigabe in **einer** Transaktion: Prüfwerte, SHA-256 des geprüften Kandidaten und Freigabe mit Freigeber „system“. Der SQLite-Trigger lässt sie nur zu, wenn alle Pflichtprüfungen gespeichert und bestanden sind und der SHA übereinstimmt. Vor dem Versand prüft das Liefer-Gate (`approval.py`) erneut: Zahlung bestätigt (bzw. Quelle `test` an die Default-Testidentität), Inhaltsstufe `standard`, Zustellkopie aus genau diesem SHA abgeleitet.
@@ -546,91 +540,72 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
 - **C5a.3 Lebenszyklus:** verspätet, doppelt, zu hoch → „nicht zugeordnet“; Fehlbetrag nach E10.
 - **C5a.4 Gutscheine** (BUG-050): Erkennung ohne Fehlmaskierung, Original geschützt abrufbar; Einlösung und Betrag bestätigt der Betreiber in zwei Schritten; Codes maskiert, nie in Logs, STATE oder LLM.
 
-### 7.6 Medienlinie (parallel)
+### 7.6 SP3 Charakter und Medien
 
-- **B1 Charakter-LoRA** – ausgeschrieben in §7.6.1.
-- **B2 Bildidentität und Ausgabe:** Identitätsprofil mit Referenzsatz, A/B-Vergleich, 2K/4K (Hochskalieren nie als nativ ausgeben), Instagram-Profile 1080×1440, Reels 1080×1920. **B2.1 Kalibrierung** der Identitätsschwelle je Charakter: ≥ 50 eigene Kandidaten und ≥ 50 fremde Gesichter, Verteilung der Werte, Schwelle so, dass fremde Gesichter im Testsatz nie bestehen; Abnahme: Fehlannahmen 0, Fehlablehnungen notiert.
-- **B4 Video** (FL-2, FL-4): Wan-Abnahme, Vergleich LTX/Wan mit Messwerten, Registry gegen Platte (BUG-028, 029, 030). **Zeitachse:** Schlüsselbilder je Zeitpunkt (z. B. 0/5/10/15 s) mit Referenzbild aus Dateien, Prompt des folgenden Abschnitts, Kamera/Bewegung, Übergangsstärke. Bis zur Engine-Grenze ein LTX-Lauf mit `LTXVAddGuide` je Schlüsselbild (im ComfyUI-Kern vorhanden; `LTXVContextWindows` für Prompt je Fenster), darüber eine Abschnittskette mit `WanFirstLastFrameToVideo` (Start- und Endbild je Abschnitt) und Zusammensetzen mit Ton/FPS-Prüfung. Bewegungsübertragung mit Wan Animate 2 (Node vorhanden, Modell vor Nutzung qualifizieren). Abnahme: 15-s-Video mit vier Schlüsselbildern, Bilder zu diesen Zeitpunkten entsprechen den Referenzen, Übergänge ohne Sprung, Neustart mitten im Lauf.
-- **C1/C3 Rest:** Vorlagenbibliothek mit Analyse (B5.6); alle sechs Befehle und freie Anweisungen bis zum Rückversand (SP1, H6b).
+Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergleich von Fable (17.11.) mit `models.py`, `training.py`, `identity.py` und dem Manifest.
 
-#### 7.6.1 B1 Charakter-LoRA (FL-3)
+**Ziel:** Fotos in den Ordner legen, trainieren, aktiv setzen. Danach erzeugt jeder Auftrag der Figur Bilder mit ihrem Gesicht, und eine automatische Prüfung belegt das.
+**Schließt:** BUG-052, 068, 069, 078, 091, 092, 094; Voraussetzung für C5.6a.
+**Braucht:** SP1 (Zeitlimit je Workflow, Kloner-Kette), SP2 (Inhaltsstufe).
+**Dateien:** `training.py`, `models.py`, `identity.py`, `pipeline.py`, `server.py`, `store.py`, `comfy.py`, `config.py`, `workflows/manifest.toml`, Workflow-Graphen, `character.proto`, `commands.proto`.
 
-BUG-052, 068, 069, 078. Braucht das Zeitlimit je Workflow aus SP1 (BUG-007).
+**Vorher zu wissen:** Ein Training läuft über Stunden (Krea 2 ≈ 10 h für 1500 Schritte bei 768 px) und blockiert die Medien-Warteschlange; Start nur per Knopf. Für Kundenbilder gilt E14. Video braucht zunächst keine eigene LoRA, weil es aus dem fertigen Bild entsteht.
 
-**Ziel:** Der Betreiber legt Fotos in einen Ordner, klickt „Trainieren“ und erhält eine LoRA, die alle Aufträge dieser Figur verwenden. Beliebig viele Figuren, strikt getrennt.
+**Umsetzung in dieser Reihenfolge**
 
-**So läuft es für den Betreiber:**
-1. Fotos in `local/characters/clara/photos/` ablegen (mindestens 15, besser 25–40, nur diese Person) – oder im Cockpit per Ziehen/Ablegen hinzufügen; das kopiert in denselben Ordner (Betreiberanforderung FL-3).
-2. Im Cockpit unter ComfyUI → Charakter jedes Foto mit Prüfergebnis sehen und „Trainieren“ klicken.
-3. Nach dem Training Probebilder sehen und „Aktiv setzen“. Ab dann nutzt jeder Auftrag dieser Figur das Modell.
-4. Für Lucy oder Ken mit „Neuer Charakter“ eine Figur anlegen: eigener Ordner, eigenes Modell, strikt getrennt.
+1. **Ordner und Profil (`store.py`, `training.profile_folders`).**
+   - Heute: Profil 1 unter `local/character/`, weitere unter `local/characters/<nr>/`; Datensätze im Unterordner `dataset`.
+   - Neu: ein Schema `local/characters/<kürzel>/` mit `photos/`, `reference/` (5–10 Gesichtsfotos für die Prüfung), `datasets/`, `training/`. Tabelle `characters` bekommt `slug`, `trigger`, `class_word`. Migration verschiebt die vorhandenen Ordner mit Datenbanksicherung, Hash-Abgleich je Datei, Aktualisierung aller gespeicherten Pfade und Rückfalltest; die alten Ordner werden erst danach entfernt (BUG-078).
+   - Fotos auch per Ziehen/Ablegen im Cockpit (Befehl 67 `character_photos_add`, kopiert nach `photos/`; Betreiberanforderung FL-3).
+   - `MIN_SIDE`, `MIN_IMAGES`, `SETTLE_S` und die Formate wandern aus `training.py` in die Konfiguration.
+2. **Datensatz (`training.build_dataset`).**
+   - Heute: Trigger `dfchar`, Klasse `woman` und Beschriftung fest; die Datensatz-ID entsteht nur aus den Foto-Hashes.
+   - Neu: Trigger und Klasse aus dem Profil. Eine gleichnamige `.txt` neben dem Foto ist dessen Beschriftung. Trigger, Klasse und Beschriftungen gehen in die Datensatz-ID ein.
+   - Fotoprüfung mit `identity.FaceIdentity`: zusätzliche Hinweise „kein Gesicht“ und „andere Person“ (Abstand zum Schwerpunkt aller Fotos). `dataset.json` hält das Ergebnis fest.
+3. **Training (`server._render`, `pipeline._render`, `pipeline._adopt_lora`).**
+   - `_render` übergibt Trigger und Klasse des gewählten Charakters an `build_dataset`.
+   - Das Zeitlimit kommt aus der Registry (SP1). Vor dem Start zeigt das Cockpit die geschätzte Dauer aus den Messwerten der Engine.
+   - Start nur per Befehl, nie automatisch. Ein Training startet nicht, solange bezahlte Kundenaufträge warten (§3.2).
+   - Der alte Trainer `training.train_sdxl_lora` und die CLI `character train-sdxl` entfallen.
+4. **LoRA-Registry (`models.Lora`, `models.engine_model_names`).**
+   - Heute: `Lora` ohne Figur; ladbar nur in Workflows mit `base_engine` gleich der Engine des Workflows (BUG-094).
+   - Neu: `Lora` bekommt `character` (Kürzel). Ladbar in jeder Engine derselben Architektur (`arch`). Ablage `loras/characters/<kürzel>/<key>.safetensors`.
+   - Lokale Einträge (`[loras]`, `enabled`) wandern in eine nicht versionierte Datei `local/registry.toml`, die derselbe Lader einliest. Das versionierte Manifest bleibt unverändert (BUG-092, Ursache von BUG-037).
+5. **LoRA im Workflow (Manifest, Graphen, `comfy.py`).**
+   - Neuer Abschnitt je Workflow: `[workflows.<key>.lora]` mit Lader-Knoten, Namens- und Stärke-Eingang.
+   - Lader einbauen und neu abnehmen in: `krea2_raw_turbo_lora_t2i`, `lustify_v10_krea_t2i`, `lustify_sdxl_t2i`, `lustify_sdxl_refine`, `lustify_sdxl_inpaint`, `lustify_sam31_edit`. Der Weg ist der vorhandene: im Editor öffnen, übernehmen (0 Abweichungen), ein echter Lauf.
+   - Das Backend setzt den LoRA-Namen aus der aktiven LoRA der Figur und stellt dem Prompt den Trigger voran (Vorlage im Charakterprofil).
+   - Ohne LoRA entfernt das Backend den Lader und reicht dessen Eingänge durch. Kundenaufträge laufen nie ohne LoRA; Default-Aufträge nur mit Kennzeichnung „ohne Charakter-LoRA“.
+6. **Aktive LoRA und Probebilder (`store.py`, `server.py`).**
+   - Tabelle `character_loras` (Charakter, Architektur, LoRA-Schlüssel): genau eine aktive je Paar.
+   - Befehl 64 `lora_activate`. Probebilder: die Probe-Prompts des Profils in drei Stärken, je mit Identitätswert.
+   - Ein Auftrag für eine Figur lädt nie die LoRA einer anderen Figur.
+7. **Gesichtsprüfung als Dienst (`identity.py`, `pipeline.py`, `store.py`).**
+   - Heute: Baustein ohne Aufrufer. Die Dateien `face_yunet`, `face_sface`, `face_auraface` gehören zu keiner Engine (BUG-091).
+   - Neu: Engine `identity` im Manifest mit diesen drei Dateien, damit Bereitschaft und Download sichtbar sind. Referenzsatz ist `reference/` der Figur; der Schwerpunkt wird je Satz zwischengespeichert.
+   - Schwellen je Modell in der Konfiguration. Ein Kalibrierlauf schlägt sie vor: Werte der Referenzfotos untereinander gegen Werte fremder Gesichter (ersetzt B2.1).
+   - Prüfwerte je Medium in Tabelle `media_checks` (Identität, „nicht prüfbar“ als eigener Wert).
+   - Gegenprüfung für den Kloner (Regel 4): Das Ergebnis darf dem Gesicht der fremden Vorlage nicht ähnlicher sein als die Schwelle; sonst wird es verworfen.
+8. **Kloner-Methode je Befehl festlegen (Vergleich nach Regel 1).**
+   - Kandidaten: (A) `flux3_klein_reference` mit zweiter Referenz aus `reference/` der Figur; (B) `krea2_raw_turbo_lora_t2i` mit Charakter-LoRA und Prompt aus der Vorlagen-Analyse (B5.6); (C) LUSTIFY SDXL mit Charakter-LoRA für `edit` und Verfeinern.
+   - Ablauf: zehn echte Vorlagen je Befehl, Identitätswert und Gegenprüfung je Ergebnis, Entscheidung des Betreibers.
+   - Ergebnis: Workflow je Befehl als Vorschlag im Manifest (`cloner = ["clone", …]`) und im Default-Kontakt.
+9. **Abnahme der Default-Kette mit Figur (ersetzt H6b).** Die Läufe aus der SP1-Abnahme mit aktiver LoRA; jede Herkunft nennt LoRA-Schlüssel und SHA. Erst das ist der Auftrags-PASS der Default-Kette nach §2.3.
 
-**Vorher zu wissen:**
-- Auf dem Mac lief noch kein Training. Der erste Lauf ist der Nachweis; Dauer und Speicherbedarf sind offen.
-- Eine LoRA passt nur zu einer Bild-Engine. Registriert sind zwei Trainingsworkflows, LUSTIFY SDXL und Krea 2 Raw; keiner lief je. LUSTIFY ist `explizit` (nur Default-Produktion); Krea 2 ist Kandidat für Kundenbilder (E14), seine Einstufung ist ungeprüft (BUG-023). Ob das Training auf dem Mac läuft, zeigt erst der erste Lauf.
-- Video braucht zunächst kein eigenes Modell, weil es aus dem fertigen Bild entsteht.
-- Ein Training belegt den Mac über Stunden und blockiert die Warteschlange: Start nur per Knopf, nie automatisch.
+**Abnahme am echten System**
 
-**B1.1 Ordner (einziges Schema)**
+1. Fotos in `local/characters/clara/photos/`: jedes Foto zeigt Status und Gesichtshinweis.
+2. Ein vollständiges Training mit `krea2_raw_lora_train`; Dauer und Speicherverlauf notiert; die LoRA steht in `local/registry.toml`.
+3. Probebilder in drei Stärken mit Identitätswert; „Aktiv setzen“.
+4. `krea2_raw_turbo_lora_t2i` mit Claras LoRA: Identitätswert über der Schwelle; ohne LoRA darunter.
+5. Zweite Figur mit eigenem Ordner: ein Auftrag für Figur A lädt nie die LoRA von Figur B.
+6. „clone“ mit fremder Vorlage: das Ergebnis zeigt Clara; ein Ergebnis mit dem fremden Gesicht wird verworfen.
+7. Abbruch und Neustart mitten im Training hinterlassen keinen halben Eintrag.
 
-```
-local/characters/<kürzel>/
-  photos/      Fotos des Betreibers; der einzige Ordner, den er anfasst
-  reference/   5 bis 10 Gesichtsfotos für die Identitätsprüfung
-  datasets/    ds_<id>/, automatisch und versioniert
-  training/    <lauf>/ mit Protokoll, Zwischenständen und Probebildern
-local/models/loras/characters/<kürzel>/<engine>/v001.safetensors
-```
-
-- Kürzel in Kleinbuchstaben, fest ab Anlage (`clara`, `lucy`, `ken`). Der Anzeigename bleibt frei änderbar.
-- Migration (BUG-078): Datenbank sichern, Dateien in das neue Schema kopieren mit Hash-Abgleich je Datei, alle gespeicherten Pfade aktualisieren (Charakterprofile, Datensätze, Herkunft), Rückfalltest; die alten Ordner werden erst nach bestandener Prüfung entfernt.
-- Liegt neben einem Foto eine gleichnamige `.txt`, ist sie dessen Beschreibung. Sonst gilt „photo of <trigger> <klasse>“.
-
-**B1.2 Charakterprofil (SQLite)**
-
-Felder: Kürzel, Name, Trigger (eindeutig, z. B. `dfclara`), Klasse (`woman`, `man`), Mindestzahl Fotos, Probe-Prompts, aktive LoRA je Engine. Trigger, Klasse und Beschreibung gehen in die Datensatz-ID ein.
-
-**B1.3 Ablauf**
-
-1. Fotos ablegen. Der Beobachter prüft jede Datei (brauchbar, zu klein, Dublette, unlesbar, nicht unterstützt, noch im Kopieren) und meldet das im STATE 5.
-2. „Trainieren“ im Cockpit oder `darkfluenzer character train <kürzel> --engine <engine>`. Der Datensatz entsteht mit `training.build_dataset`; Originale bleiben unberührt, gleiche Fotos ergeben dieselbe Version.
-3. Das Training läuft als Job auf ComfyUI 1 über den Trainingsworkflow der Engine. Zeitlimit aus der Registry. Zwischenstände werden gesichert, soweit der Trainingsknoten das kann.
-4. Ergebnis: Datei nach `local/models/loras/characters/…`, SHA-256, Eintrag in die **vorhandene** LoRA-Registry im Manifest (`[loras.<key>]` über `pipeline._adopt_lora` → `models.register_lora`), erweitert um Charakter, Engine, Version, Datensatz-ID, Trigger, Parameter, Job, Dauer, Status „trainiert“; keine zweite Tabelle.
-5. Probebilder: die Probe-Prompts des Profils mit der neuen LoRA in drei Stärken, dazu der Identitätswert gegen `reference/`.
-6. „Aktiv setzen“: genau eine aktive Version je Charakter und Engine. Ältere Versionen bleiben wählbar.
-
-Kein automatischer Start beim Ablegen von Fotos.
-
-**B1.4 Verwendung**
-
-- Registry: neuer Parametertyp `lora` (Lader-Knoten und Stärke). Die Prüfung „Workflow lädt nur Engine-Dateien“ lässt diesen Laufzeitwert zu, wenn Datei, Engine und SHA zu einem Eintrag der LoRA-Registry passen.
-- Ohne LoRA (Betreiberwahl im Cockpit) entfernt das Backend den Lader und reicht dessen Eingänge durch, wie bei „umgangen“ in `comfy.ui_to_api`.
-- Auftrag: Influencerin, Charakter, aktive LoRA der Engine des Workflows. Kundenaufträge ohne aktive LoRA werden mit Grund abgelehnt; Default-Aufträge laufen ohne aktive LoRA nur mit Kennzeichnung „ohne Charakter-LoRA“.
-- Je Architektur (SDXL; Krea 2) ein Lader-Knoten im UI- und API-Graph jedes betroffenen Workflows, registriert mit 0 Abweichungen; echter Render mit und ohne LoRA bei festem Seed.
-- Eine LoRA, die nicht zum Charakter des Auftrags gehört, weist das Backend ab.
-- Die Herkunft jedes Mediums nennt LoRA-Version und SHA.
-- Start mit einer Bild-LoRA je Charakter. Video entsteht aus dem Bild; eine Video-LoRA kommt später.
-
-**B1.7 LoRA-Workflows je Befehl** (Voraussetzung für H6b; für Kundenbilder dieselbe Tabelle auf der Engine aus E14)
-
-| Befehl | Workflow mit Charakter-LoRA (LUSTIFY SDXL) | Stand |
-|---|---|---|
-| `clone`, `pose` | Bild mit LoRA und Pose-/Tiefensteuerung aus der Vorlage (SDPose/DA3 vorhanden; SDXL-Steuermodell braucht Download-Freigabe) | neu zu bauen |
-| `style`, `remix` | Bild zu Bild mit LoRA (Basis `lustify_sdxl_refine`) | zu erweitern |
-| `edit` | SAM 3.1 Inpaint mit LoRA (Basis `lustify_sam31_edit`, OFFEN) | zu erweitern |
-| `animate` | LTX 2.5 aus dem eigenen Bild, keine LoRA nötig | vorhanden |
-
-**B1.5 Aufräumen**
-
-Alter diffusers-Trainer und CLI `character train-sdxl` entfallen. `dfchar` und `woman` verschwinden aus dem Code.
-
-**B1.6 Abnahme**
-
-- Erster echter Lauf mit Claras Fotos über `lustify_sdxl_lora_train`; Dauer und Speicher notiert.
-- Zweiter Charakter mit eigenem Ordner: Ein Auftrag für Figur A lädt nie die LoRA von Figur B (Test und Lauf).
-- Neue Fotos ergeben eine neue Datensatz- und LoRA-Version; die alte bleibt aktiv, bis umgeschaltet wird.
-- Abbruch und Neustart mitten im Training hinterlassen keinen halben Eintrag.
-- Der Default-Auftrag aus der SP1-Abnahme läuft mit der LoRA (H6b); die Herkunft nennt die Version.
+**Unverändert aus dem bisherigen Plan (Teil von SP3):**
+- **B4 Video** (FL-2, FL-4): Wan-Abnahme, Vergleich LTX/Wan mit Messwerten, Registry gegen Platte (BUG-028, 029, 030). **Zeitachse:** Schlüsselbilder je Zeitpunkt (z. B. 0/5/10/15 s) mit Referenzbild aus Dateien, Prompt des folgenden Abschnitts, Kamera/Bewegung, Übergangsstärke. Bis zur Engine-Grenze ein LTX-Lauf mit `LTXVAddGuide` je Schlüsselbild (im ComfyUI-Kern vorhanden; `LTXVContextWindows` für Prompt je Fenster), darüber eine Abschnittskette mit `WanFirstLastFrameToVideo` (Start- und Endbild je Abschnitt) und Zusammensetzen mit Ton/FPS-Prüfung. Bewegungsübertragung mit Wan Animate 2 (Node vorhanden, Modell vor Nutzung qualifizieren). Abnahme: 15-s-Video mit vier Schlüsselbildern, Bilder zu diesen Zeitpunkten entsprechen den Referenzen, Übergänge ohne Sprung, Neustart mitten im Lauf. **Dazu (bisher H3-Rest):** Fortschritt langer Läufe (Schritt, Abschnitt) im STATE; ein Lauf über 3600 s besteht mit dem Zeitlimit aus SP1.
+- **B5.6 Referenzanalyse** (§7.3): Für das Bildmodell fehlt die Wahl; sie braucht eine Betreiberfreigabe.
+- **Ausgabe (aus B2):** 2K/4K (Hochskalieren nie als nativ ausgeben), Instagram-Profile 1080×1440, Reels 1080×1920.
 
 ### 7.7 Block D und Abnahme
 
@@ -658,7 +633,7 @@ Alter diffusers-Trainer und CLI `character train-sdxl` entfallen. `dfchar` und `
 ## 8. Datenmodell (additiv, je Paket mit Migration und Sicherung)
 
 - **Neue Tabellen:** Persona-Versionen, Verhaltensprofile, Erinnerungen (FTS5), KI-Läufe mit Messwerten, Medienwünsche, `cloner_returns` (SP1), Prüfwerte je Kandidat, Zeitachsen-Schlüsselbilder.
-- **Charakterprofil:** Kürzel (fest), Name, Trigger, Klasse, Mindestzahl Fotos, Probe-Prompts, aktive LoRA je Engine (Verweis auf die LoRA-Registry im Manifest, B1.3). **Nachricht:** `album_id` (SP1). **Gutschein:** `original_text` (SP2). **Kanalkonten:** `channel_accounts` mit Default-Identität und Betriebsart je Konto (SP2). **Kanalkonten:** `channel_accounts` (S1) mit Zuordnung Konto → Influencerin → Charakter (C5.1); Kundenakte → Influencerin, mehrere Identitäten je Akte. **Medienwunsch** an der Konversation.
+- **Charakter (SP3):** `characters.slug`, `trigger`, `class_word`, Probe-Prompts; `character_loras` (genau eine aktive LoRA je Figur und Architektur); `media_checks` (Prüfwerte je Medium); LoRA-Einträge und lokale Schalter in der nicht versionierten `local/registry.toml`. **Nachricht:** `album_id` (SP1). **Gutschein:** `original_text` (SP2). **Kanalkonten:** `channel_accounts` mit Default-Identität und Betriebsart je Konto (SP2). **Kanalkonten:** `channel_accounts` (S1) mit Zuordnung Konto → Influencerin → Charakter (C5.1); Kundenakte → Influencerin, mehrere Identitäten je Akte. **Medienwunsch** an der Konversation.
 - **Neue Spalten:** Influencerin je Akte und Kanalkonto, Antwortmodus und Kaufbereitschaft je Konversation, stabile ID je Preisposition, Zahlungswege je Influencerin, Trigger und Klasse je Charakter, Influencerin und LoRA-Version je Auftrag, `scheduled_at` je ausgehender Nachricht.
 - **Neue Zustände:** Nachricht „Entwurf“; Auftrag „abgelaufen“, „reklamiert“, „abgeschlossen“, „wartet auf Betreiber“.
 - **Default und Test:** Betriebsart und Chat-Wörter am Default-Kontakt, Ausgabeprofil je Befehl, Auftragsquelle `test`, Testakte (Art `test`), Prüfwerte je Kandidat, Freigeber `system`, Höchstlänge je Preisposition.
@@ -708,7 +683,7 @@ Frei laut `stream.proto` und `commands.proto` am 17.11.2026: Befehle 31–33, 36
 | SP2 | 8 (alle Konten), 12 Einstellungen | 26 additiv | 60 `secret_set`, 61 `config_update`, 62 `connection_test`, 66 `channel_account_update`; HTTP `GET /api/v1/command/<request_id>` |
 | T1, T2 | – | 31 additiv | 37 additiv, 63 `test_reset` |
 | C5.6a | 4 additiv | 23 additiv | 35 additiv |
-| B1 | 5 additiv | – | 25 additiv, 64 `lora_activate`, 65 `reveal_folder`, 67 `character_photos_add` (Ziehen/Ablegen im Cockpit) |
+| SP3 | 5 additiv | – | 25 additiv, 64 `lora_activate`, 65 `reveal_folder`, 67 `character_photos_add` |
 | C5.2 | – | – | 44 umgewidmet (Sperre „minderjährig vermutet“ setzen/aufheben) |
 
 ## 11. Kanäle und Zustellung (Kurzvertrag)
@@ -720,4 +695,4 @@ Frei laut `stream.proto` und `commands.proto` am 17.11.2026: Befehle 31–33, 36
 
 ## 12. Vom Betreiber zu liefern
 
-Charakterfotos in `local/characters/clara/photos/` (mindestens 15, besser 25–40, nur diese Person), Claras SIM und Telegram-Konto, Meta-App und Tunnel, PayPal-Geschäftskonto, Preisliste und Zahlungswege je Influencerin, Höchstlänge je Videoprodukt, Klickprototyp des KI-Studios (falls vorhanden), Antworten zu E10 und E14.
+Charakterfotos in `local/characters/clara/photos/` (mindestens 15, besser 25–40, nur diese Person), Claras SIM und Telegram-Konto, Meta-App und Tunnel, PayPal-Geschäftskonto, Preisliste und Zahlungswege je Influencerin, Höchstlänge je Videoprodukt, Klickprototyp des KI-Studios (falls vorhanden), Antworten zu E10, E14, E15, E16; nach Claras Fotos die Wahl der Kloner-Methode je Befehl (SP3 Schritt 8) und die Freigabe eines Bildmodells für B5.6.
