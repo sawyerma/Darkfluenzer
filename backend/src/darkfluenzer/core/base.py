@@ -102,6 +102,7 @@ class CockpitBase:
         self._memory: dict = {}  # letzte Messung: ram_total, ram_free (Bytes), swap (MB)
         self._cancelled: set[int] = set()  # laufende Jobs mit Abbruchwunsch des Betreibers
         self._seen_media = store.media_paths()  # bereits geprüfte Dateien des Galerie-Index
+        self._folder_scan_at = float("-inf")  # letzter Ordner-Scan der Galerie (SP0 Schritt 6)
         self._character_sig: tuple = ()  # letzter Stand von Trainingsordner, Datensätzen, LoRAs
         # Registry-Änderungen und das Lesen der Workflow-Projektion nie gleichzeitig
         self._registry = asyncio.Lock()

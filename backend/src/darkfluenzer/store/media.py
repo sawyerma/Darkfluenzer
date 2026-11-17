@@ -131,17 +131,16 @@ class MediaMixin:
                 else None
             )
             content_tier = tier_row[0] if tier_row else None
-            # IDs und Nummern gelöschter Einträge werden nie wieder vergeben: das Journal kennt
-            # jede jemals vergebene ID ('added') und jede gelöschte Nummer ('removed').
+            # IDs und Nummern gelöschter Einträge werden nie wieder vergeben: Zähler steigen nur
+            # (SP0 Schritt 6, Migration 18 übernimmt den Stand aus dem Journal).
             media_id = db.execute(
-                "SELECT coalesce(max(entity_id), 0) + 1 FROM events WHERE entity = 'media'"
+                "UPDATE counters SET value = value + 1 WHERE name = 'media_id' RETURNING value"
             ).fetchone()[0]
             number = None
             if order_id is None:
                 number = db.execute(
-                    "SELECT max(coalesce((SELECT max(number) FROM media), 0), coalesce((SELECT"
-                    " max(json_extract(data, '$.number')) FROM events WHERE entity = 'media'"
-                    " AND event = 'removed'), 0)) + 1"
+                    "UPDATE counters SET value = value + 1 WHERE name = 'media_number'"
+                    " RETURNING value"
                 ).fetchone()[0]
             db.execute(
                 "INSERT INTO media (id, sha256, path, kind, size, job_id, artifact_id, order_id,"

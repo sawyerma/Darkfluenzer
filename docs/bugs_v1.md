@@ -196,6 +196,19 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-107 (SP0 Schritt 6)
+Commit: siehe git log „SP0 step 6“ / media.gallery.media_candidates, scan_media, store.media.add_media, Migration 18
+Behauptung: BESTÄTIGT (finished_jobs(0, 1_000_000) je Runde, Medien-Nummer über das Journal)
+Nachweis: Messung mit 1 Mio. Ereignissen: Runde 1054 ms → < 50 ms, add_media 44 ms → < 10 ms;
+  tests/test_journal.py (Position, gelöschte Ausgaben, Zähler aus dem Journal, Last)
+Mac-Lauf 17.11.2026: echte Datenbank 17 → 18 mit Sicherung …bak-20261117183232-vor-migration18,
+  integrity_check ok; Renderjobs 73–75 → Medien 84–86 mit Nummern aus den Zählern; Position 657
+  (letztes Job-Ende), keine doppelten Medien
+Ergebnis: PASS
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-106 (SP0 Schritt 5)
 Commit: siehe git log „SP0 step 5“ / core.cloner._reply_internal, core.delivery, media.aimeta, core.render.watch_loop
 Behauptung: BESTÄTIGT (Hash und Kennzeichnung im Hauptstrang; zusätzlich: Ganzdatei-Puffer in aimeta hält die GIL)

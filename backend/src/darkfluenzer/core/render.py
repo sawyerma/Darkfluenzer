@@ -187,9 +187,18 @@ class RenderMixin:
                 self.hub.set_state(spb.TOPIC_INFLUENCERS, self._influencers())
                 self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
                 self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
+                # Ordner nur in großem Abstand, Job-Ausgaben jede Runde (SP0 Schritt 6)
+                now = asyncio.get_running_loop().time()
+                folders = now - self._folder_scan_at >= self.cfg.server.folder_scan_s
                 await asyncio.to_thread(
-                    gallery.scan_media, self.cfg, self._seen_media, self.cfg.server.media_settle_s
+                    gallery.scan_media,
+                    self.cfg,
+                    self._seen_media,
+                    self.cfg.server.media_settle_s,
+                    folders,
                 )
+                if folders:
+                    self._folder_scan_at = now
                 self.hub.push_events(spb.TOPIC_MEDIA_ADDED)
             except Exception:  # eine fehlerhafte Runde beendet die Beobachtung nicht
                 log.exception("Beobachtung fehlgeschlagen")

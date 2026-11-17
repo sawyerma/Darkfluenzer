@@ -470,6 +470,7 @@ backend/src/darkfluenzer/
    - Der Ordner-Scan läuft in großem Abstand.
    - Index auf `events(entity, event, id)`.
    - Medien-ID und laufende Nummer kommen aus einer Zählertabelle statt aus dem Maximum über das Journal.
+   - **Umgesetzt 17.11.2026 (Migration 18):** Index `events_entity_event`, Tabelle `counters` (Stand aus dem Journal übernommen), Galerie-Abgleich ab gemerkter Position (`adapter_state` gallery/job_cursor, Abfrage `finished_jobs_after`), Ordner-Scan alle `server.folder_scan_s` (Vorgabe 30 s), Job-Ausgaben jede Runde. Messung mit 1 Mio. Ereignissen: Beobachterrunde vorher 1054 ms, jetzt unter 50 ms; `add_media` vorher 44 ms, jetzt unter 10 ms (`tests/test_journal.py`, `DF_JOURNAL_EVENTS=1000000`). Der Galerie-Abgleich läuft im eigenen Strang mit eigener Verbindung (Rest von Schritt 5). Echte Datenbank auf Version 18 migriert, Sicherung vor Migration 18 angelegt.
 
 **Frontend im selben Paket:** FRONTEND §4.0.
 

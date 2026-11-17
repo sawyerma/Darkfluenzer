@@ -14,6 +14,9 @@ from ..nodes.base import node_for
 from ..store import MEDIA_KINDS, Store, sha256_file
 from .pipeline import WORK_PREFIX
 
+JOURNAL_BATCH = 1000  # Job-Ereignisse je Abfrage beim Abgleich
+CURSOR = ("gallery", "", "job_cursor")  # gemerkte Journal-Position (adapter_state)
+
 
 def sidecar_for(cfg: Config, output_rel: str) -> dict | None:
     """Herkunftsdatei eines Laufs zu einer Ausgabe (``<stem>_NN.ext`` -> ``<stem>.json``)."""
@@ -50,12 +53,22 @@ def _gallery_files(cfg: Config) -> Iterator[tuple[int, Path, str]]:
             yield prio, path, path.resolve().relative_to(local).as_posix()
 
 
-def media_candidates(cfg: Config, store: Store, seen: set[str], settle_s: float) -> list[tuple]:
+def media_candidates(
+    cfg: Config,
+    store: Store,
+    seen: set[str],
+    settle_s: float,
+    *,
+    after: int = 0,
+    folders: bool = True,
+) -> tuple[list[tuple], int]:
     """Noch nicht erfasste erzeugte Bilder/Videos, chronologisch: Ausgaben abgeschlossener Jobs
-    (mit Job-Bezug), Dateien unter ``local/evaluation`` (ohne Eingaben) und direkt in der
-    verwalteten ComfyUI erzeugte Ausgaben. Gleiche Bytes zählen einmal (Job vor Evaluation vor
-    ComfyUI); nur ruhende Dateien. Liefert (mtime, Pfad, SHA-256, Größe, Job-ID) und ergänzt
-    ``seen`` um alle geprüften Pfade."""
+    (mit Job-Bezug) ab der gemerkten Journal-Position ``after``, dazu – nur mit ``folders`` –
+    Dateien unter ``local/evaluation`` (ohne Eingaben) und direkt in der verwalteten ComfyUI
+    erzeugte Ausgaben. Gleiche Bytes zählen einmal (Job vor Evaluation vor ComfyUI); nur ruhende
+    Dateien. Liefert ((mtime, Pfad, SHA-256, Größe, Job-ID), …) und die neue Position; ``seen``
+    wird um alle geprüften Pfade ergänzt. Ein Job gilt erst als fertig, wenn seine Ausgaben in
+    ``local/`` liegen (``pipeline.run_render``); fehlt eine, wurde sie gelöscht und entfällt."""
     cutoff = time.time() - settle_s
     found: dict[str, tuple] = {}  # sha -> (Vorrang, mtime, Pfad, Größe, Job-ID)
 
@@ -65,26 +78,35 @@ def media_candidates(cfg: Config, store: Store, seen: set[str], settle_s: float)
         if best is None or (prio, stat.st_mtime) < best[:2]:
             found[sha] = (prio, stat.st_mtime, rel, stat.st_size, job_id)
 
-    for row in store.finished_jobs(0, 1_000_000)[0]:
-        for out in row["data"].get("outputs") or []:
-            rel, path = out["path"], cfg.local / out["path"]
-            if rel in seen or Path(rel).suffix.lower() not in MEDIA_KINDS or not path.is_file():
+    cursor = after
+    while rows := store.finished_jobs_after(cursor, JOURNAL_BATCH):
+        for row in rows:
+            for out in row["data"].get("outputs") or []:
+                rel, path = out["path"], cfg.local / out["path"]
+                if rel in seen or Path(rel).suffix.lower() not in MEDIA_KINDS:
+                    continue
+                if not path.is_file():  # gelöscht
+                    continue
+                seen.add(rel)
+                offer(0, path, rel, out["sha256"], row["job_id"])
+        cursor = rows[-1]["id"]
+        if len(rows) < JOURNAL_BATCH:
+            break
+    if folders:
+        # Seit dem Start eines laufenden Jobs in ComfyUI entstandene Dateien gehören wahrscheinlich
+        # ihm (frühe Zwischenausgaben wie eine Maske): erst nach seinem Abschluss aufnehmen, damit
+        # die Job-Ausgabe mit Auftragsbezug Vorrang hat.
+        busy = store.running_since()
+        for prio, path, rel in _gallery_files(cfg):
+            if rel in seen:
                 continue
+            mtime = path.stat().st_mtime
+            if mtime > cutoff or (prio == 2 and busy is not None and mtime >= busy):
+                continue  # wird noch geschrieben bzw. gehört zu einem laufenden Job: später
             seen.add(rel)
-            offer(0, path, rel, out["sha256"], row["job_id"])
-    # Seit dem Start eines laufenden Jobs in ComfyUI entstandene Dateien gehören wahrscheinlich ihm
-    # (frühe Zwischenausgaben wie eine Maske): erst nach seinem Abschluss aufnehmen, damit die
-    # Job-Ausgabe mit Auftragsbezug Vorrang hat.
-    busy = store.running_since()
-    for prio, path, rel in _gallery_files(cfg):
-        if rel in seen:
-            continue
-        mtime = path.stat().st_mtime
-        if mtime > cutoff or (prio == 2 and busy is not None and mtime >= busy):
-            continue  # wird noch geschrieben bzw. gehört zu einem laufenden Job: später
-        seen.add(rel)
-        offer(prio, path, rel, sha256_file(path), None)
-    return sorted((m, rel, sha, size, job) for sha, (_, m, rel, size, job) in found.items())
+            offer(prio, path, rel, sha256_file(path), None)
+    candidates = sorted((m, rel, sha, size, job) for sha, (_, m, rel, size, job) in found.items())
+    return candidates, cursor
 
 
 def delete_media(cfg: Config, ids: list[int]) -> list[str]:
@@ -110,15 +132,20 @@ def delete_media(cfg: Config, ids: list[int]) -> list[str]:
         store.close()
 
 
-def scan_media(cfg: Config, seen: set[str], settle_s: float) -> int:
+def scan_media(cfg: Config, seen: set[str], settle_s: float, folders: bool = True) -> int:
     """Nimmt alle noch nicht erfassten erzeugten Medien chronologisch in den Galerie-Index auf;
-    liefert die Zahl neuer Einträge."""
+    liest das Job-Journal ab der gespeicherten Position, die Ordner nur mit ``folders``. Eigener
+    Strang mit eigener Verbindung (SP0 Schritt 5/6). Liefert die Zahl neuer Einträge."""
     store = Store(cfg.local)
     try:
+        after = int(store.adapter_get(*CURSOR) or 0)
+        found, cursor = media_candidates(cfg, store, seen, settle_s, after=after, folders=folders)
         added = 0
-        for mtime, rel, sha, size, job_id in media_candidates(cfg, store, seen, settle_s):
+        for mtime, rel, sha, size, job_id in found:
             created = datetime.fromtimestamp(mtime, UTC).isoformat(timespec="milliseconds")
             added += bool(store.add_media(rel, sha, size, job_id=job_id, created_at=created))
+        if cursor != after:
+            store.adapter_set(*CURSOR, str(cursor))
         return added
     finally:
         store.close()

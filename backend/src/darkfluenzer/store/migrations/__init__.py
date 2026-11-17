@@ -431,6 +431,23 @@ CREATE TABLE default_commands (
     workflow TEXT NOT NULL
 );
 """,
+    18: """
+-- Journal (SP0 Schritt 6, BUG-107): Index für Abfragen je Art und Ereignis ab einer Position;
+-- Medien-ID und laufende Nummer aus einer Zählertabelle statt aus dem Maximum über das Journal
+CREATE INDEX events_entity_event ON events(entity, event, id);
+CREATE TABLE counters (
+    name  TEXT PRIMARY KEY,
+    value INTEGER NOT NULL
+);
+INSERT INTO counters (name, value) VALUES
+    ('media_id', max(
+        coalesce((SELECT max(entity_id) FROM events WHERE entity = 'media'), 0),
+        coalesce((SELECT max(id) FROM media), 0))),
+    ('media_number', max(
+        coalesce((SELECT max(number) FROM media), 0),
+        coalesce((SELECT max(json_extract(data, '$.number')) FROM events
+                  WHERE entity = 'media' AND event = 'removed'), 0)));
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

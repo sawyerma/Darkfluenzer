@@ -212,6 +212,18 @@ class JobsMixin:
         )
         return {r["id"]: (r["workflow"], json.loads(r["params"])) for r in rows}
 
+    def finished_jobs_after(self, after: int, limit: int) -> list[dict]:
+        """Abgeschlossene Jobs mit Cursor (events.id) > ``after``, aufsteigend, höchstens
+        ``limit`` – für den Abgleich ab einer gemerkten Position (SP0 Schritt 6, BUG-107)."""
+        rows = self.db.execute(
+            "SELECT e.id, e.entity_id AS job_id, e.data FROM events e"
+            " WHERE e.entity = 'job' AND e.event = 'status' AND e.id > ?"
+            " AND json_extract(e.data, '$.status') IN ('done', 'failed')"
+            " ORDER BY e.id LIMIT ?",
+            (after, limit),
+        ).fetchall()
+        return [dict(r) | {"data": json.loads(r["data"])} for r in rows]
+
     def finished_jobs(self, after: int, limit: int) -> tuple[list[dict], bool]:
         """Abgeschlossene Jobs aus dem Journal mit Cursor (events.id) > ``after``: höchstens die
         neuesten ``limit``, aufsteigend. Zweiter Wert: dazwischen wurden ältere ausgelassen."""

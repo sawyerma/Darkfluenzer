@@ -400,14 +400,14 @@ def test_comfy_output_of_a_running_job_is_indexed_with_the_job(cfg):
         early = cfg.comfyui.path / "output" / "darkfluenzer" / "mask_00001_.png"
         early.parent.mkdir(parents=True)
         Image.new("L", (4, 4), 255).save(early)
-        assert gallery.media_candidates(cfg, s, set(), settle_s=0) == []
+        assert gallery.media_candidates(cfg, s, set(), settle_s=0)[0] == []
 
         copy = cfg.local / "evaluation" / "wf" / "wf_x_01.png"
         copy.parent.mkdir(parents=True)
         copy.write_bytes(early.read_bytes())
         out = {"path": "evaluation/wf/wf_x_01.png", "sha256": sha256_file(copy), "node": "19"}
         s.set_job_status(job, "done", outputs=[out])
-        found = gallery.media_candidates(cfg, s, set(), settle_s=0)
+        found, _ = gallery.media_candidates(cfg, s, set(), settle_s=0)
         assert [(rel, job_id) for _, rel, _, _, job_id in found] == [(out["path"], job)]
     finally:
         s.close()
