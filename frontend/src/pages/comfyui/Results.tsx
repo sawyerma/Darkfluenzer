@@ -18,7 +18,49 @@ const CHECK_STATUS: Record<string, string> = {
   keine_haende: "keine Hände erkannt",
 };
 
-const CHECK_NAME: Record<string, string> = { identity: "Identität", content: "Inhalt", quality: "Technik", quality_score: "Qualität", prompt_fidelity: "Prompttreue", hands: "Hände" };
+const CHECK_NAME: Record<string, string> = {
+  identity: "Identität",
+  content: "Inhalt",
+  quality: "Technik",
+  quality_score: "Qualität",
+  prompt_fidelity: "Prompttreue",
+  hands: "Hände",
+  frames: "Frames",
+  temporal: "Zeitlich",
+};
+
+/** Video: Werte der Frame-Stichprobe je Prüfung in einer Zeile (Spanne bzw. Anzahl je Stufe). */
+function frameSummary(name: string, list: MediaCheck[]): string {
+  const ok = list.filter((c) => c.status === "ok");
+  const head = `${list.length} Frames`;
+  const status = list[0]?.status ?? "";
+  if (ok.length === 0) return `${head} · ${CHECK_STATUS[status] ?? status}`;
+  const span = (key: string, digits: number) => {
+    const v = ok.map((c) => c.values[key] ?? 0);
+    return `${Math.min(...v).toFixed(digits)}–${Math.max(...v).toFixed(digits)}`;
+  };
+  if (name === "content") {
+    const counts = new Map<string, number>();
+    for (const c of ok) counts.set(c.labels.rating ?? "", (counts.get(c.labels.rating ?? "") ?? 0) + 1);
+    return [head, ...[...counts].map(([rating, n]) => `${rating} ×${n}`)].join(" · ");
+  }
+  if (name === "hands") return `${head} · ${ok.length} mit Händen · zählbar min ${span("countable_min", 2).split("–")[0]}`;
+  if (name === "quality") return `${head} · Schärfe ${span("sharpness", 0)}`;
+  if (name === "identity") return `${head} · SFace ${span("sface", 3)}`;
+  return head;
+}
+
+/** Zeilen der Prüfwerte eines Auftrags; bei Video (Frame-Stichprobe) eine Zeile je Prüfung. */
+function checkLines(checks: MediaCheck[]): { name: string; text: string }[] {
+  if (!checks.some((c) => c.check === "frames")) return checks.map((c) => ({ name: c.check, text: checkText(c) }));
+  const groups = new Map<string, MediaCheck[]>();
+  for (const c of checks) groups.set(c.check, [...(groups.get(c.check) ?? []), c]);
+  const sampled = Math.max(0, ...[...groups].filter(([n]) => n !== "frames").map(([, list]) => list.length));
+  return [...groups].map(([name, [first, ...rest]]) => {
+    if (name === "frames" && first) return { name, text: `${first.values.count ?? sampled} von ${first.values.total ?? 0} geprüft` };
+    return { name, text: rest.length > 0 || !first ? frameSummary(name, first ? [first, ...rest] : []) : checkText(first) };
+  });
+}
 
 /** Kurztext eines Messwerts; Schwellen und Entscheidung liegen im Backend (SP5 Schritt 7). */
 function checkText(c: MediaCheck): string {
@@ -46,6 +88,10 @@ function checkText(c: MediaCheck): string {
   if (c.check === "quality") {
     const v = c.values;
     return `Schärfe ${(v.sharpness ?? 0).toFixed(0)} · Rauschen ${(v.noise ?? 0).toFixed(2)} · Kontrast ${(v.contrast ?? 0).toFixed(0)}`;
+  }
+  if (c.check === "temporal") {
+    const v = c.values;
+    return `Sprünge ${v.jumps ?? 0} · Standbilder ${v.frozen ?? 0} · Änderung Ø ${(v.mean_diff ?? 0).toFixed(1)} · Flackern ${(v.luma_flicker ?? 0).toFixed(2)}`;
   }
   return Object.entries(c.values)
     .map(([k, v]) => `${k} ${v.toFixed(3)}`)
@@ -124,10 +170,10 @@ export function WorkflowResults({
                   </span>
                 </button>
                 {job.result === JobResult.FAILED && job.error ? <p className="g-note g-error">{job.error}</p> : null}
-                {job.checks.map((c, i) => (
+                {checkLines(job.checks).map((c, i) => (
                   <small key={i} className="g-line">
-                    <span>{CHECK_NAME[c.check] ?? c.check}</span>
-                    <span className="g-value">{checkText(c)}</span>
+                    <span>{CHECK_NAME[c.name] ?? c.name}</span>
+                    <span className="g-value">{c.text}</span>
                   </small>
                 ))}
                 {outs

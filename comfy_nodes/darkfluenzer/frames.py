@@ -2,7 +2,8 @@
 Prüfknoten bekommen nicht jedes Bild eines Videos, sondern jedes ``every``-te und das letzte,
 höchstens ``max_frames`` gleichmäßig verteilt. Ohne Modell.
 
-Ergebnis (``ui.darkfluenzer_checks``): ``{"check": "frames", "status": "ok", "total", "indices"}``
+Ergebnis (``ui.darkfluenzer_checks``): ``{"check": "frames", "status": "ok", "total", "count",
+"indices"}``
 (welche Frames geprüft wurden, in der Reihenfolge der Messwerte der Prüfknoten); Ausgang
 ``frames`` (IMAGE) für die Prüfknoten.
 """
@@ -50,7 +51,7 @@ class FrameSample:
 
     def sample(self, image, every, max_frames):
         indices = frame_indices(int(image.shape[0]), every, max_frames)
-        text = json.dumps(
-            [{"check": "frames", "status": "ok", "total": int(image.shape[0]), "indices": indices}]
-        )
+        total = int(image.shape[0])
+        entry = {"check": "frames", "status": "ok", "total": total, "count": len(indices)}
+        text = json.dumps([entry | {"indices": indices}])
         return {"ui": {"darkfluenzer_checks": [text]}, "result": (image[indices],)}

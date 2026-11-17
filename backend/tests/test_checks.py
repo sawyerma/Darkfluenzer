@@ -400,7 +400,8 @@ def test_frame_sample_and_temporal_measures():
     batch = np.arange(20, dtype=np.float32).reshape(20, 1, 1, 1) * np.ones((1, 4, 4, 3), np.float32)
     result = frames.FrameSample().sample(batch, 8, 12)
     (entry,) = json.loads(result["ui"]["darkfluenzer_checks"][0])
-    assert entry == {"check": "frames", "status": "ok", "total": 20, "indices": [0, 8, 16, 19]}
+    assert entry == {"check": "frames", "status": "ok", "total": 20, "count": 4,
+                     "indices": [0, 8, 16, 19]}  # fmt: skip
     assert result["result"][0][:, 0, 0, 0].tolist() == [0, 8, 16, 19]
 
     rng = np.random.default_rng(3)
