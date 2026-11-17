@@ -203,6 +203,8 @@ Nachweis: tests/test_checks.py (Einsetzen vor jedem SaveImage außer Maske, Bild
   Modellen, Identität nur mit Figur, keine Analyse/Training; Werte am geprüften Ausgabemedium, values/labels)
 Mac-Lauf 17.11.2026: timm 1.0.31 in der ComfyUI-venv (nur dieses Paket), Modelle geladen und SHA geprüft,
   ComfyUI 1 neu gestartet; LUSTIFY Job 95 → Knoten 8 an Ausgang 7, Medium 98: low 0,88, Körperstellen gemessen
+  E17 Teil 1: technische Qualität (Schärfe, Rauschen, Beschnitt, Kontrast) als Knoten; Job 96 → Medium 99 mit Inhalt
+  und Qualität (Knoten 9000/9001); Test tests/test_checks.py::test_quality_node_measures_blur_noise_and_clipping
 Ergebnis: Implementierung PASS (messen); Schwellen, Entscheidung, weitere Prüfer OFFEN
 Bearbeiter/Datum: Claude, 17.11.2026
 ```

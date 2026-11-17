@@ -158,10 +158,9 @@ def test_run_render_submits_the_graph_with_lora_and_profile_trigger(setup, monke
     name = lora_graph[wf.lora.node]["inputs"]["lora_name"]
     assert name == "characters/clara/clara_sdxl.safetensors"
     assert lora_graph[wf.params["prompt"].node]["inputs"]["text"] == "dfchar woman, portrait"
-    assert (
-        wf.lora.node not in plain
-        and plain[wf.params["prompt"].node]["inputs"]["text"] == "portrait"
-    )
+    assert wf.lora.node not in plain  # Lader entfernt; Prüfknoten haben eigene IDs (ab 9000)
+    assert not any(n["class_type"].startswith("LoraLoader") for n in plain.values())
+    assert plain[wf.params["prompt"].node]["inputs"]["text"] == "portrait"
 
 
 def test_migration_22_and_one_active_lora_per_figure_and_architecture(tmp_path, monkeypatch):

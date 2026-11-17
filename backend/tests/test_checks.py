@@ -186,9 +186,10 @@ def test_check_chain_is_injected_before_every_saved_image_but_the_mask(setup):
 def test_check_plan_needs_models_and_a_figure_for_identity(setup, monkeypatch):
     cfg, _, man = setup
     wf = man.workflows["lustify_sdxl_t2i"]
-    assert pipeline.check_plan(cfg, man, wf, None) == []  # Modelldateien fehlen im Testprojekt
+    # ohne Modelldateien (Testprojekt) nur die modellfreie technische Qualitätsprüfung
+    assert [s.name for s, _ in pipeline.check_plan(cfg, man, wf, None)] == ["quality"]
     monkeypatch.setattr(models, "file_state", lambda mf, base: "present")
-    assert [s.name for s, _ in pipeline.check_plan(cfg, man, wf, None)] == ["content"]
+    assert [s.name for s, _ in pipeline.check_plan(cfg, man, wf, None)] == ["content", "quality"]
     lora = models.Lora(
         key="k", target="loras/characters/clara/k.safetensors", size=1, sha256="a" * 64,
         base_engine="lustify_sdxl", base_file=man.engines["lustify_sdxl"].files[0], dataset="d",
@@ -242,3 +243,30 @@ def test_check_values_land_on_the_checked_output(setup, monkeypatch):
     check = msg.checks[0]
     assert check.labels["rating"] == "medium" and round(check.values["medium"], 2) == 0.9
     assert round(check.values["regions.FEMALE_BREAST_EXPOSED"], 2) == 0.36
+
+
+def test_quality_node_measures_blur_noise_and_clipping():
+    """E17 Teil 1: Schärfe fällt bei Unschärfe, Rauschen wird in Grauwerten getroffen, Beschnitt
+    zählt dunkle und helle Pixel."""
+    import cv2
+
+    path = project_root() / "comfy_nodes" / "darkfluenzer" / "quality.py"
+    spec = importlib.util.spec_from_file_location("df_quality_node", path)
+    quality = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(quality)
+    rng = np.random.default_rng(1)
+    base = cv2.resize(
+        rng.integers(0, 256, (64, 64), dtype=np.uint8), (512, 512), interpolation=cv2.INTER_CUBIC
+    )
+    sharp = quality.measure_gray(base)
+    blurred = quality.measure_gray(cv2.GaussianBlur(base, (0, 0), 4))
+    assert blurred["sharpness"] < sharp["sharpness"] / 5
+    flat = np.full((256, 256), 128, np.uint8)
+    noisy = np.clip(flat + rng.normal(0, 10, flat.shape), 0, 255).astype(np.uint8)
+    assert quality.measure_gray(flat)["noise"] == 0.0
+    assert abs(quality.measure_gray(noisy)["noise"] - 10) < 1.0
+    clipped = flat.copy()
+    clipped[:64] = 0
+    clipped[64:96] = 255
+    values = quality.measure_gray(clipped)
+    assert values["clipped_dark"] == 0.25 and values["clipped_bright"] == 0.125

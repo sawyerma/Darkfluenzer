@@ -32,6 +32,10 @@ node = "DarkfluenzerContentRating"
 engine = "content_check"
 inputs = { detector = "nudenet/640m.onnx", classifier = "freepik_nsfw/model.safetensors", min_region_score = 0.2 }
 
+[checks.quality]
+node = "DarkfluenzerImageQuality"
+engine = "quality_tech"
+
 [checks.identity]
 node = "DarkfluenzerFaceIdentity"
 engine = "identity"
@@ -117,6 +121,19 @@ license = "laut Modellkarte"
 usage = "evaluation"
 gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
 note = "Eigener Knoten DarkfluenzerContentRating (comfy_nodes/darkfluenzer, E16): Stufe neutral/low/medium/high (EVA02) und Körperstellen (NudeNet); Schwellen und Entscheidung im Backend (SP5 Schritt 7)."
+
+[engines.quality_tech]
+title = "Bildqualität technisch (ohne Modell) – Prüfknoten"
+kind = "image"
+role = "analysis"
+arch = "none"
+precision = "fp64"
+wave = 0
+files = []
+license = "eigener Code"
+usage = "evaluation"
+gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Eigener Knoten DarkfluenzerImageQuality (comfy_nodes/darkfluenzer, E17 Teil 1): Schärfe, Rauschen, Beschnitt, Kontrast; Schwellen im Backend."
 
 [engines.krea2_turbo]
 title = "Krea 2 Turbo (BF16) – Foto"

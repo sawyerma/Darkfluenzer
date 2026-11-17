@@ -9,15 +9,18 @@
 
 from .content import ContentRating
 from .face import FaceIdentity
+from .quality import ImageQuality
 from .train import TrainLoraResumable
 
 NODE_CLASS_MAPPINGS = {
     "DarkfluenzerContentRating": ContentRating,
     "DarkfluenzerFaceIdentity": FaceIdentity,
+    "DarkfluenzerImageQuality": ImageQuality,
     "DarkfluenzerTrainLora": TrainLoraResumable,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "DarkfluenzerContentRating": "Darkfluenzer · Inhaltsprüfung",
     "DarkfluenzerFaceIdentity": "Darkfluenzer · Gesichtsidentität",
+    "DarkfluenzerImageQuality": "Darkfluenzer · Bildqualität (technisch)",
     "DarkfluenzerTrainLora": "Darkfluenzer · LoRA trainieren (Checkpoints)",
 }

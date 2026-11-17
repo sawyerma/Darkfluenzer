@@ -16,7 +16,7 @@ const CHECK_STATUS: Record<string, string> = {
   keine_referenz: "keine Referenzfotos der Figur",
 };
 
-const CHECK_NAME: Record<string, string> = { identity: "Identität", content: "Inhalt" };
+const CHECK_NAME: Record<string, string> = { identity: "Identität", content: "Inhalt", quality: "Qualität" };
 
 /** Kurztext eines Messwerts; Schwellen und Entscheidung liegen im Backend (SP5 Schritt 7). */
 function checkText(c: MediaCheck): string {
@@ -28,6 +28,10 @@ function checkText(c: MediaCheck): string {
       .filter(([k]) => k.startsWith("regions.") && k.endsWith("_EXPOSED"))
       .map(([k, v]) => `${k.slice(8)} ${v.toFixed(2)}`);
     return [`${rating} ${(c.values[rating] ?? 0).toFixed(2)}`, ...exposed].join(" · ");
+  }
+  if (c.check === "quality") {
+    const v = c.values;
+    return `Schärfe ${(v.sharpness ?? 0).toFixed(0)} · Rauschen ${(v.noise ?? 0).toFixed(2)} · Kontrast ${(v.contrast ?? 0).toFixed(0)}`;
   }
   return Object.entries(c.values)
     .map(([k, v]) => `${k} ${v.toFixed(3)}`)

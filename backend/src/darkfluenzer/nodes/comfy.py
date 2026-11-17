@@ -393,6 +393,7 @@ def bind_lora(graph: dict, wf: Workflow, use: LoraUse | None, values: dict) -> d
 
 
 CHECK_TARGET = "darkfluenzer_save"  # _meta der eingesetzten Prüfknoten: geprüfter SaveImage-Knoten
+CHECK_IDS = 9000  # erste Knoten-ID der eingesetzten Prüfknoten
 
 
 def inject_checks(graph: dict, wf: Workflow, checks: list[tuple[CheckSpec, dict]]) -> dict:
@@ -406,7 +407,8 @@ def inject_checks(graph: dict, wf: Workflow, checks: list[tuple[CheckSpec, dict]
         if n.get("class_type") == "SaveImage" and nid != wf.mask_output
         and _is_link(n.get("inputs", {}).get("images"))
     ]  # fmt: skip
-    next_id = max((int(k) for k in out if str(k).isdigit()), default=0) + 1
+    # eigener Nummernbereich: nie die ID eines entfernten Knotens (z. B. LoRA-Lader) wiederverwenden
+    next_id = max([CHECK_IDS - 1, *(int(k) for k in out if str(k).isdigit())]) + 1
     for save in saves:
         for spec, runtime in checks:
             out[str(next_id)] = {
