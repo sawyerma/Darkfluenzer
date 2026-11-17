@@ -36,6 +36,12 @@ message CharacterLora {
   // OFFEN | PASS | GESPERRT
   string status = 7;
   string created_at = 8;
+  // Architektur der Basis-Engine (krea2, sdxl …); je Figur und Architektur eine aktive LoRA
+  string arch = 9;
+  // aktive LoRA der Figur für diese Architektur (SP3 Schritt 6)
+  bool active = 10;
+  // Startwert der Charakterstärke
+  double strength = 11;
 }
 
 message Character {
@@ -61,6 +67,8 @@ message Character {
   string class_word = 13;
   // Absoluter Ordner des Charakters zum Kopieren bzw. „Im Finder öffnen“
   string folder = 14;
+  // Probe-Prompts für die Probebilder einer LoRA (SP3 Schritt 6)
+  repeated string probe_prompts = 15;
 }
 
 // STATE characters

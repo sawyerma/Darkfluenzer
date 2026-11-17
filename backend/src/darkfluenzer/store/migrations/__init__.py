@@ -467,6 +467,18 @@ ALTER TABLE characters ADD COLUMN trigger TEXT NOT NULL DEFAULT 'dfchar';
 ALTER TABLE characters ADD COLUMN class_word TEXT NOT NULL DEFAULT 'woman';
 CREATE UNIQUE INDEX characters_slug ON characters(slug) WHERE slug IS NOT NULL;
 """,
+    22: """
+-- Aktive Charakter-LoRA (SP3 Schritt 6): genau eine je Figur und Architektur; Probe-Prompts des
+-- Profils (JSON-Liste) für die Probebilder einer LoRA.
+CREATE TABLE character_loras (
+    character_id INTEGER NOT NULL REFERENCES characters(id),
+    arch         TEXT    NOT NULL,
+    lora         TEXT    NOT NULL,
+    activated_at TEXT    NOT NULL,
+    PRIMARY KEY (character_id, arch)
+);
+ALTER TABLE characters ADD COLUMN probe_prompts TEXT NOT NULL DEFAULT '[]';
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from .db import (
     StoreError,
     now,
@@ -83,13 +85,22 @@ class ProfilesMixin:
         return dict(row) if row else None
 
     def save_character(
-        self, character_id: int, revision: int, name: str, trigger: str, class_word: str, slug: str
+        self,
+        character_id: int,
+        revision: int,
+        name: str,
+        trigger: str,
+        class_word: str,
+        slug: str,
+        probe_prompts: list[str] | None = None,
     ) -> dict:
         """Profil anlegen (``character_id`` 0: Ordner ``local/characters/<slug>``) oder Name,
-        Trigger und Klasse ändern (CAS auf die Revision); das Kürzel bleibt danach fest."""
+        Trigger, Klasse und Probe-Prompts ändern (CAS auf die Revision); das Kürzel bleibt fest.
+        ``probe_prompts=None`` lässt die gespeicherten Probe-Prompts unverändert."""
         name, trigger, class_word = name.strip(), trigger.strip(), class_word.strip()
         if not name or not trigger or not class_word:
             raise StoreError("Name, Trigger und Klasse des Charakters sind Pflicht.")
+        probes = None if probe_prompts is None else [p.strip() for p in probe_prompts if p.strip()]
         with self.tx() as db:
             ts = now()
             if character_id == 0:
@@ -104,9 +115,11 @@ class ProfilesMixin:
                 folder = f"local/characters/{unique}"
                 db.execute(
                     "INSERT INTO characters (id, name, data_dir, photos_dir, slug, trigger,"
-                    " class_word, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
-                    (new_id, name, folder, f"{folder}/photos", unique, trigger, class_word, ts, ts),
-                )
+                    " class_word, probe_prompts, created_at, updated_at)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (new_id, name, folder, f"{folder}/photos", unique, trigger, class_word,
+                     json.dumps(probes or []), ts, ts),
+                )  # fmt: skip
                 character_id = new_id
             else:
                 current = self.character(character_id)
@@ -114,11 +127,42 @@ class ProfilesMixin:
                     raise StoreError("Charakter wurde inzwischen geändert – Ansicht ist aktuell.")
                 db.execute(
                     "UPDATE characters SET name = ?, trigger = ?, class_word = ?,"
-                    " revision = revision + 1, updated_at = ? WHERE id = ?",
-                    (name, trigger, class_word, ts, character_id),
-                )
+                    " probe_prompts = coalesce(?, probe_prompts), revision = revision + 1,"
+                    " updated_at = ? WHERE id = ?",
+                    (name, trigger, class_word, None if probes is None else json.dumps(probes),
+                     ts, character_id),
+                )  # fmt: skip
             self._event("character", character_id, "saved", name=name)
             return self.character(character_id)
+
+    def active_loras(self, character_id: int) -> dict[str, str]:
+        """Aktive Charakter-LoRA je Architektur (SP3 Schritt 6)."""
+        rows = self.db.execute(
+            "SELECT arch, lora FROM character_loras WHERE character_id = ?", (character_id,)
+        )
+        return {r[0]: r[1] for r in rows}
+
+    def set_active_lora(self, character_id: int, arch: str, lora: str) -> None:
+        """Aktive LoRA einer Figur für eine Architektur setzen; leer = keine aktive mehr."""
+        self.character(character_id)
+        with self.tx() as db:
+            if lora:
+                db.execute(
+                    "INSERT INTO character_loras (character_id, arch, lora, activated_at)"
+                    " VALUES (?,?,?,?) ON CONFLICT (character_id, arch)"
+                    " DO UPDATE SET lora = excluded.lora, activated_at = excluded.activated_at",
+                    (character_id, arch, lora, now()),
+                )
+            else:
+                db.execute(
+                    "DELETE FROM character_loras WHERE character_id = ? AND arch = ?",
+                    (character_id, arch),
+                )
+            db.execute(
+                "UPDATE characters SET revision = revision + 1, updated_at = ? WHERE id = ?",
+                (now(), character_id),
+            )
+            self._event("character", character_id, "lora_active", arch=arch, lora=lora)
 
     def set_character_slug(self, character_id: int, slug: str) -> dict:
         """Kürzel und Ordner nach dem Umzug in das Schema festschreiben (SP3 Schritt 1)."""

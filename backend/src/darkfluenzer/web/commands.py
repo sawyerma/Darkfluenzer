@@ -118,6 +118,7 @@ class CommandsMixin:
             "create_workflow": self._create,
             "cancel_job": self._cancel,
             "order_cancel": self._order_cancel,
+            "lora_activate": self._lora_activate,
             "reveal_folder": self._reveal_folder,
             "character_photos_add": self._character_photos_add,
             "pause_queue": self._pause,

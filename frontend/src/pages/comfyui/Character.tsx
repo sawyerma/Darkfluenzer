@@ -32,6 +32,7 @@ export function CharacterControl({ training, list, current, choose }: { training
   const [slug, setSlug] = useState("");
   const [trigger, setTrigger] = useState("");
   const [classWord, setClassWord] = useState("");
+  const [probes, setProbes] = useState("");
   const [over, setOver] = useState<"" | "photos" | "reference">("");
 
   function startEdit(mode: "new" | "edit") {
@@ -39,6 +40,7 @@ export function CharacterControl({ training, list, current, choose }: { training
     setSlug("");
     setTrigger(mode === "edit" && current ? current.trigger : "");
     setClassWord(mode === "edit" && current ? current.classWord : "");
+    setProbes(mode === "edit" && current ? current.probePrompts.join("\n") : "");
     setEditing(mode);
   }
 
@@ -55,6 +57,7 @@ export function CharacterControl({ training, list, current, choose }: { training
           trigger: trigger.trim(),
           classWord: classWord.trim(),
           slug: create ? slug.trim() : "",
+          probePrompts: probes.split("\n").map((l) => l.trim()).filter(Boolean),
         },
       },
       { done: create ? "Charakter angelegt." : "Übernommen." },
@@ -142,6 +145,7 @@ export function CharacterControl({ training, list, current, choose }: { training
           ) : null}
           <input className="g-input g-mono" aria-label="Trigger" placeholder="Trigger (z. B. clara01)" value={trigger} onChange={(e) => setTrigger(e.target.value)} />
           <input className="g-input" aria-label="Klasse" placeholder="Klasse (z. B. woman)" value={classWord} onChange={(e) => setClassWord(e.target.value)} />
+          <textarea className="g-input" aria-label="Probe-Prompts" placeholder="Probe-Prompts (einer je Zeile)" rows={3} value={probes} onChange={(e) => setProbes(e.target.value)} />
           <span className="g-actions">
             <button type="submit" className="g-button g-primary" disabled={cmd.pending || !name.trim() || !trigger.trim() || !classWord.trim()}>
               {editing === "new" ? "Anlegen" : "Übernehmen"}
@@ -185,7 +189,11 @@ export function CharacterControl({ training, list, current, choose }: { training
 
 /** Charaktertraining (Mitte, F7): geprüfter Inhalt des Trainingsdatenordners, Datensätze, LoRAs. */
 export function TrainingFolder({ character }: { character: Character | undefined }) {
+  const cmd = useCommand();
   if (!character) return <p className="g-note">Keine Daten zum Trainingsordner.</p>;
+  // Aktive LoRA je Architektur setzen oder aufheben (Befehl 64, SP3 Schritt 6)
+  const activate = (lora: string, arch: string) =>
+    void cmd.run({ case: "loraActivate", value: { characterId: BigInt(character.id), lora, arch } }, { done: lora ? "Aktiv gesetzt." : "Aufgehoben." });
   const problems = character.photos.filter((p) => p.status !== "ok");
   return (
     <div className="g-training">
@@ -213,12 +221,30 @@ export function TrainingFolder({ character }: { character: Character | undefined
       ) : null}
       {character.loras.map((l) => (
         <div className="g-line" key={l.key}>
-          <span className="g-ellipsis">{l.key}</span>
-          <span className="g-badge" data-tone={WORKFLOW_TONE[l.status] ?? "neutral"}>
-            {l.status}
+          <span className="g-ellipsis">
+            {l.key} · {l.arch}
+          </span>
+          <span className="g-value">
+            <span className="g-badge" data-tone={WORKFLOW_TONE[l.status] ?? "neutral"}>
+              {l.status}
+            </span>
+            {l.active ? (
+              <button type="button" className="g-button" disabled={cmd.pending} onClick={() => activate("", l.arch)}>
+                Aktiv · aufheben
+              </button>
+            ) : (
+              <button type="button" className="g-button" disabled={cmd.pending || l.status === "GESPERRT"} onClick={() => activate(l.key, l.arch)}>
+                Aktiv setzen
+              </button>
+            )}
           </span>
         </div>
       ))}
+      {cmd.notice ? (
+        <p className="g-note" role="alert">
+          {cmd.notice}
+        </p>
+      ) : null}
     </div>
   );
 }

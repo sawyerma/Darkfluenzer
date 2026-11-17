@@ -196,6 +196,19 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP3 Schritt 6 (aktive LoRA je Figur und Architektur)
+Commit: siehe git log „SP3 step 6“ / store.profiles.set_active_lora, active_loras; core.characters._lora_activate;
+  media.pipeline.active_lora, check_lora(character=…); core.orders.create_order(character_id=…)
+Nachweis: tests/test_lora.py (Migration 22 mit Sicherung, genau eine aktive je Figur und Architektur,
+  Probe-Prompts; Auftrag für eine Figur nie mit fremder LoRA, auch nicht bei falschem Eintrag; Befehl 64
+  über den Server mit STATE arch/active/strength, fremde LoRA abgelehnt, Aufheben)
+Mac-Lauf 17.11.2026: echte Datenbank 21 → 22, Sicherung vor-migration22, Cockpit ohne Fehler; Smoke-Test grün;
+  Formular „Charakter-LoRA“ im echten Cockpit (nur „ohne“, noch keine LoRA)
+Ergebnis: Implementierung PASS; Aktiv setzen mit echter LoRA und Probebilder OFFEN (keine Fotos)
+Bearbeiter/Datum: Claude, 17.11.2026
+```
+
+```text
 ID: BUG-052 (LoRA-Teil) / SPEC-012 (SP3 Schritt 5)
 Commit: siehe git log „SP3 step 5“ / media.models.LoraSlot, nodes.comfy.bind_lora, with_trigger,
   media.pipeline.check_lora, lora_use; core.orders (create_order, select_candidate, retry_stage)

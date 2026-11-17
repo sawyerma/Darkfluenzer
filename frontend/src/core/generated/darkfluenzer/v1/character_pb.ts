@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/character.proto.
  */
 export const file_darkfluenzer_v1_character: GenFile = /*@__PURE__*/
-  fileDesc("Ch9kYXJrZmx1ZW56ZXIvdjEvY2hhcmFjdGVyLnByb3RvEg9kYXJrZmx1ZW56ZXIudjEiWgoNVHJhaW5pbmdQaG90bxIMCgRuYW1lGAEgASgJEg4KBnN0YXR1cxgCIAEoCRINCgV3aWR0aBgDIAEoDRIOCgZoZWlnaHQYBCABKA0SDAoEbm90ZRgFIAEoCSJSCg9UcmFpbmluZ0RhdGFzZXQSCgoCaWQYASABKAkSDgoGaW1hZ2VzGAIgASgNEhIKCmNyZWF0ZWRfYXQYAyABKAkSDwoHdHJpZ2dlchgEIAEoCSKUAQoNQ2hhcmFjdGVyTG9yYRILCgNrZXkYASABKAkSEwoLYmFzZV9lbmdpbmUYAiABKAkSDwoHZGF0YXNldBgDIAEoCRIPCgd0cmlnZ2VyGAQgASgJEg0KBXN0ZXBzGAUgASgNEgwKBHJhbmsYBiABKA0SDgoGc3RhdHVzGAcgASgJEhIKCmNyZWF0ZWRfYXQYCCABKAki3QIKCUNoYXJhY3RlchIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnBob3Rvc19kaXIYAyABKAkSLgoGcGhvdG9zGAQgAygLMh4uZGFya2ZsdWVuemVyLnYxLlRyYWluaW5nUGhvdG8SDgoGdXNhYmxlGAUgASgNEhIKCm1pbl9pbWFnZXMYBiABKA0SMgoIZGF0YXNldHMYByADKAsyIC5kYXJrZmx1ZW56ZXIudjEuVHJhaW5pbmdEYXRhc2V0Ei0KBWxvcmFzGAggAygLMh4uZGFya2ZsdWVuemVyLnYxLkNoYXJhY3RlckxvcmESEAoIcmV2aXNpb24YCSABKAQSFgoOcGhvdG9zX21pc3NpbmcYCiABKAgSDAoEc2x1ZxgLIAEoCRIPCgd0cmlnZ2VyGAwgASgJEhIKCmNsYXNzX3dvcmQYDSABKAkSDgoGZm9sZGVyGA4gASgJIk0KCkNoYXJhY3RlcnMSLgoKY2hhcmFjdGVycxgBIAMoCzIaLmRhcmtmbHVlbnplci52MS5DaGFyYWN0ZXISDwoHdmVyc2lvbhgCIAEoBGIGcHJvdG8z");
+  fileDesc("Ch9kYXJrZmx1ZW56ZXIvdjEvY2hhcmFjdGVyLnByb3RvEg9kYXJrZmx1ZW56ZXIudjEiWgoNVHJhaW5pbmdQaG90bxIMCgRuYW1lGAEgASgJEg4KBnN0YXR1cxgCIAEoCRINCgV3aWR0aBgDIAEoDRIOCgZoZWlnaHQYBCABKA0SDAoEbm90ZRgFIAEoCSJSCg9UcmFpbmluZ0RhdGFzZXQSCgoCaWQYASABKAkSDgoGaW1hZ2VzGAIgASgNEhIKCmNyZWF0ZWRfYXQYAyABKAkSDwoHdHJpZ2dlchgEIAEoCSLEAQoNQ2hhcmFjdGVyTG9yYRILCgNrZXkYASABKAkSEwoLYmFzZV9lbmdpbmUYAiABKAkSDwoHZGF0YXNldBgDIAEoCRIPCgd0cmlnZ2VyGAQgASgJEg0KBXN0ZXBzGAUgASgNEgwKBHJhbmsYBiABKA0SDgoGc3RhdHVzGAcgASgJEhIKCmNyZWF0ZWRfYXQYCCABKAkSDAoEYXJjaBgJIAEoCRIOCgZhY3RpdmUYCiABKAgSEAoIc3RyZW5ndGgYCyABKAEi9AIKCUNoYXJhY3RlchIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnBob3Rvc19kaXIYAyABKAkSLgoGcGhvdG9zGAQgAygLMh4uZGFya2ZsdWVuemVyLnYxLlRyYWluaW5nUGhvdG8SDgoGdXNhYmxlGAUgASgNEhIKCm1pbl9pbWFnZXMYBiABKA0SMgoIZGF0YXNldHMYByADKAsyIC5kYXJrZmx1ZW56ZXIudjEuVHJhaW5pbmdEYXRhc2V0Ei0KBWxvcmFzGAggAygLMh4uZGFya2ZsdWVuemVyLnYxLkNoYXJhY3RlckxvcmESEAoIcmV2aXNpb24YCSABKAQSFgoOcGhvdG9zX21pc3NpbmcYCiABKAgSDAoEc2x1ZxgLIAEoCRIPCgd0cmlnZ2VyGAwgASgJEhIKCmNsYXNzX3dvcmQYDSABKAkSDgoGZm9sZGVyGA4gASgJEhUKDXByb2JlX3Byb21wdHMYDyADKAkiTQoKQ2hhcmFjdGVycxIuCgpjaGFyYWN0ZXJzGAEgAygLMhouZGFya2ZsdWVuemVyLnYxLkNoYXJhY3RlchIPCgd2ZXJzaW9uGAIgASgEYgZwcm90bzM");
 
 /**
  * Eine Datei im Trainingsdatenordner und ihr Prüfergebnis (der Ordner wird nie verändert).
@@ -136,6 +136,27 @@ export type CharacterLora = Message<"darkfluenzer.v1.CharacterLora"> & {
    * @generated from field: string created_at = 8;
    */
   createdAt: string;
+
+  /**
+   * Architektur der Basis-Engine (krea2, sdxl …); je Figur und Architektur eine aktive LoRA
+   *
+   * @generated from field: string arch = 9;
+   */
+  arch: string;
+
+  /**
+   * aktive LoRA der Figur für diese Architektur (SP3 Schritt 6)
+   *
+   * @generated from field: bool active = 10;
+   */
+  active: boolean;
+
+  /**
+   * Startwert der Charakterstärke
+   *
+   * @generated from field: double strength = 11;
+   */
+  strength: number;
 };
 
 /**
@@ -234,6 +255,13 @@ export type Character = Message<"darkfluenzer.v1.Character"> & {
    * @generated from field: string folder = 14;
    */
   folder: string;
+
+  /**
+   * Probe-Prompts für die Probebilder einer LoRA (SP3 Schritt 6)
+   *
+   * @generated from field: repeated string probe_prompts = 15;
+   */
+  probePrompts: string[];
 };
 
 /**

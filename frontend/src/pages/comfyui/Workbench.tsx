@@ -118,6 +118,18 @@ export function Workbench({
   const [checked, setChecked] = useState(false);
   const format = wf.formats.find((f) => String(f.width) === raw.width && String(f.height) === raw.height)?.name ?? "";
   const [expert, setExpert] = useState(false); // erweiterte Einstellungen: anfangs geschlossen
+  // Charakter-LoRA (SP3 Schritt 5/6): ladbare LoRAs des Workflows, aktive Version der Figur
+  // vorbelegt (null = Vorbelegung), dazu „ohne“; Stärke startet mit dem Wert der LoRA
+  const loraInfo = new Map(chars.list.flatMap((c) => c.loras.map((l) => [l.key, { strength: l.strength, active: l.active, owner: c.name }] as const)));
+  const activeLora = character?.loras.find((l) => l.active && wf.loras.includes(l.key))?.key ?? "";
+  const [loraChoice, setLoraChoice] = useState<string | null>(null);
+  const lora = wf.loraSlot ? (loraChoice ?? activeLora) : "";
+  const loraStrength = loraInfo.get(lora)?.strength;
+  useEffect(() => {
+    if (loraStrength !== undefined && wf.params.some((p) => p.name === "character_strength")) {
+      setRaw((r) => ({ ...r, character_strength: String(loraStrength) }));
+    }
+  }, [lora, loraStrength, wf.params]);
   // Mitte: Grundeinstellungen (Texte, Eingabebilder); rechts die Experten-Eingänge (F7.5, V0 §7)
   const inMain = (p: WorkflowParam) => !p.expert;
   const errors = Object.fromEntries(
@@ -131,7 +143,9 @@ export function Workbench({
         ? `Modelle fehlen (${wf.missingGb.toFixed(1)} GB)`
         : wf.training && (!character || character.usable < character.minImages)
           ? `Zu wenige geeignete Bilder (${character?.usable ?? 0}/${character?.minImages ?? "?"})`
-          : "";
+          : forOrder && wf.loraSlot && !lora
+            ? "Kundenauftrag nur mit Charakter-LoRA"
+            : "";
 
   async function generate() {
     setChecked(true);
@@ -140,7 +154,7 @@ export function Workbench({
       return;
     }
     const values = wf.params
-      .filter((p) => !p.upload)
+      .filter((p) => !p.upload && (lora || p.name !== "character_strength"))
       .map((p) => {
         const text = raw[p.name] ?? "";
         const value =
@@ -164,13 +178,13 @@ export function Workbench({
         }),
     );
     const parentMediaId = picked.image?.mediaId ?? 0n;
-    const asOrder = forOrder !== "" || (canCandidates && (candidates > 1 || finish !== ""));
+    const asOrder = forOrder !== "" || lora !== "" || (canCandidates && (candidates > 1 || finish !== ""));
     const jobs = canCandidates ? candidates : 1;
     const done = asOrder
       ? await cmd.run(
           {
             case: "createOrder",
-            value: { workflow: wf.key, values, files: inputs, parentMediaId, candidates: jobs, finishWorkflow: finish, customerOrderNo: forOrder },
+            value: { workflow: wf.key, values, files: inputs, parentMediaId, candidates: jobs, finishWorkflow: finish, customerOrderNo: forOrder, lora },
           },
           { version, done: forOrder ? `Kundenauftrag ${forOrder}: ${jobs} Kandidaten eingereiht.` : `${jobs} Kandidaten eingereiht.` },
         )
@@ -260,7 +274,9 @@ export function Workbench({
     );
   }
 
-  const expertParams = wf.params.filter((p) => !inMain(p) && !(wf.kind === "video" && VIDEO_ORDER.includes(p.name)));
+  const expertParams = wf.params.filter(
+    (p) => !inMain(p) && !(wf.kind === "video" && VIDEO_ORDER.includes(p.name)) && (lora || p.name !== "character_strength"),
+  );
   return (
     <>
       <div className="g-workmain" ref={top}>
@@ -385,6 +401,20 @@ export function Workbench({
             {customerOrder && !awaiting.some((o) => o.orderNo === customerOrder) ? (
               <small>{customerOrder} wartet nicht mehr auf die Produktion.</small>
             ) : null}
+          </div>
+        ) : null}
+        {wf.loraSlot ? (
+          <div className="g-field">
+            <label htmlFor={`${wf.key}-lora`}>Charakter-LoRA</label>
+            <select id={`${wf.key}-lora`} className="g-input" value={lora} onChange={(e) => setLoraChoice(e.target.value)}>
+              <option value="">ohne Charakter-LoRA</option>
+              {wf.loras.map((k) => (
+                <option key={k} value={k}>
+                  {[loraInfo.get(k)?.owner, k].filter(Boolean).join(" · ")}
+                  {loraInfo.get(k)?.active ? " (aktiv)" : ""}
+                </option>
+              ))}
+            </select>
           </div>
         ) : null}
         {wf.formats.length > 0 || canCandidates ? (

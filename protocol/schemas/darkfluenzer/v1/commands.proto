@@ -171,6 +171,17 @@ message CharacterUpdate {
   string class_word = 6;
   // Nur beim Anlegen; leer: aus dem Namen
   string slug = 7;
+  // Probe-Prompts des Profils (vollständige Liste; leer: keine)
+  repeated string probe_prompts = 8;
+}
+
+// Aktive Charakter-LoRA setzen (SP3 Schritt 6): genau eine je Figur und Architektur. Mit lora:
+// diese LoRA der Figur wird aktiv (ihre Architektur kommt aus der Registry). Ohne lora: die aktive
+// LoRA der Architektur arch wird aufgehoben.
+message LoraActivate {
+  uint64 character_id = 1;
+  string lora = 2;
+  string arch = 3;
 }
 
 // Anmeldeschritt eines Kanalkontos (Telegram über TDLib): step phone | code | password. Der Wert
@@ -359,6 +370,7 @@ message CommandRequest {
     PaymentAssign payment_assign = 41;
     GiftCardConfirm gift_card_confirm = 42;
     OrderCancel order_cancel = 59;
+    LoraActivate lora_activate = 64;
     RevealFolder reveal_folder = 65;
     CharacterPhotosAdd character_photos_add = 67;
   }

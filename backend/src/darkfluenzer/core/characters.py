@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 from pathlib import Path
 
 from ..media import training
@@ -31,7 +32,10 @@ class CharactersMixin:
 
     async def refresh_characters(self) -> None:
         """Profile, Trainingsordner, Datensätze und LoRAs neu projizieren, nur bei Änderungen."""
-        rows = self.store.characters()
+        rows = [  # aktive LoRA je Architektur gehört zum Profil (SP3 Schritt 6)
+            {**r, "active": tuple(sorted(self.store.active_loras(r["id"]).items()))}
+            for r in self.store.characters()
+        ]
         folders = [self._folders(r) for r in rows]
         rules = self.cfg.training
         sig = (
@@ -118,6 +122,7 @@ class CharactersMixin:
                 trigger=row["trigger"],
                 class_word=row["class_word"],
                 folder=str(folders.root),
+                probe_prompts=json.loads(row.get("probe_prompts") or "[]"),
             )
             for p in photos:
                 char.photos.add(
@@ -126,9 +131,12 @@ class CharactersMixin:
             for d in training.datasets(folders.datasets):
                 char.datasets.add(**d)
             ids = {d.id for d in char.datasets}
-            for lo in self.manifest.loras.values():
-                if lo.dataset in ids:
-                    self._add_lora(char, lo)
+            active = dict(row.get("active", ()))
+            for lo in sorted(self.manifest.loras.values(), key=lambda lo: lo.created_at):
+                # LoRAs der Figur (Kürzel, SP3 Schritt 4); ältere ohne Kürzel über den Datensatz
+                if lo.character == row["slug"] or (not lo.character and lo.dataset in ids):
+                    arch = self.manifest.engines[lo.base_engine].arch
+                    self._add_lora(char, lo, arch, active.get(arch) == lo.key)
         return out
 
     async def _character_update(self, msg: commands_pb2.CharacterUpdate, call: _Call) -> str:
@@ -136,14 +144,37 @@ class CharactersMixin:
         Kürzel und den Ordner ``local/characters/<kürzel>/`` (SP3 Schritt 1)."""
         slug = training.slugify(msg.slug or msg.name)
         row = self.store.save_character(
-            msg.character_id, msg.revision, msg.name, msg.trigger, msg.class_word, slug
-        )
+            msg.character_id, msg.revision, msg.name, msg.trigger, msg.class_word, slug,
+            list(msg.probe_prompts),
+        )  # fmt: skip
         call.entity = f"character:{row['id']}"
         folders = self._folders(row)
         for folder in (folders.photos, folders.reference, folders.datasets, folders.training):
             await asyncio.to_thread(folder.mkdir, parents=True, exist_ok=True)
         await self.refresh_characters()
         log.info("Charakter %s gespeichert (%s)", row["id"], row["name"])
+        return ""
+
+    async def _lora_activate(self, msg: commands_pb2.LoraActivate, call: _Call) -> str:
+        """Aktive Charakter-LoRA je Architektur setzen oder aufheben (Befehl 64). Eine Figur
+        bekommt nie die LoRA einer anderen Figur."""
+        row = self.store.character(msg.character_id)
+        call.entity = f"character:{row['id']}"
+        arch = msg.arch
+        if msg.lora:
+            lo = self.manifest.loras.get(msg.lora)
+            if lo is None:
+                return f"LoRA '{msg.lora}' ist nicht registriert."
+            if lo.character != row["slug"]:
+                return "Die LoRA gehört zu einer anderen Figur."
+            if lo.status == "GESPERRT":
+                return "Die LoRA ist gesperrt."
+            arch = self.manifest.engines[lo.base_engine].arch
+        elif not arch:
+            return "Architektur fehlt."
+        self.store.set_active_lora(row["id"], arch, msg.lora)
+        await self.refresh_characters()
+        log.info("Charakter %s: aktive LoRA %s = %s", row["id"], arch, msg.lora or "keine")
         return ""
 
     def _character_part(self, character_id: int, part: str) -> Path:

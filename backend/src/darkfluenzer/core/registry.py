@@ -223,8 +223,11 @@ class RegistryMixin:
         return ""
 
     @staticmethod
-    def _add_lora(char: character_pb2.Character, lo) -> None:
+    def _add_lora(char: character_pb2.Character, lo, arch: str = "", active: bool = False) -> None:
         char.loras.add(
+            arch=arch,
+            active=active,
+            strength=lo.strength,
             key=lo.key,
             base_engine=lo.base_engine,
             dataset=lo.dataset,

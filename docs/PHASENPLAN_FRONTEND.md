@@ -89,7 +89,7 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
   - Versionen: Tabelle mit Datum, Datensatz, Dauer und Identitätswert; Probebilder als Vergleichsraster; „Aktiv setzen“.
   - Influencerin-Block: zugeordneter Charakter und aktive LoRA je Engine.
   - Workflow-Formular: LoRA-Auswahl, aktive Version vorbelegt, dazu „ohne“.
-  - **Umgesetzt 17.11.2026 (Teil):** Auftragskarte nennt je Stufe „LoRA <Schlüssel>“ oder „ohne Charakter-LoRA“ (Workflows mit Lader). Die Auswahl im Formular folgt mit Backend SP3 Schritt 6 (aktive Version).
+  - **Umgesetzt 17.11.2026:** Auftragskarte nennt je Stufe „LoRA <Schlüssel>“ oder „ohne Charakter-LoRA“ (Workflows mit Lader). Formular: Auswahl „Charakter-LoRA“ mit den ladbaren LoRAs (Figur · Schlüssel, „(aktiv)“), aktive Version der gewählten Figur vorbelegt, dazu „ohne“; Stärke startet mit dem Wert der LoRA und ist ohne LoRA ausgeblendet; Kundenauftrag mit Lader-Workflow nur mit LoRA. Charakter: LoRA-Zeilen mit Architektur und „Aktiv setzen“ / „Aktiv · aufheben“; Probe-Prompts im Profil (einer je Zeile). Browser: Smoke-Test grün, Formular im echten Cockpit geprüft (ohne LoRA, da noch keine trainiert ist). **Offen:** Browser-Test „Umschalten der aktiven Version“ mit einer echten LoRA.
   - Fotoliste zeigt zusätzlich die Gesichtshinweise „kein Gesicht“ und „andere Person“ (SP3).
   - Profilfelder Trigger und Klasse; Probe-Prompts.
   - Vor „Trainieren“ steht die geschätzte Dauer; der Knopf ist gesperrt, solange bezahlte Aufträge warten.

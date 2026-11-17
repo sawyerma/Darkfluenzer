@@ -48,6 +48,7 @@ def create_order(
     customer_order_no: str = "",
     video_max_s: float | None = None,
     lora: str = "",
+    character_id: int | None = None,
 ) -> tuple[str, list[int]]:
     """Auftrag des Betreibers: Stufe 1 rendert ``count`` Kandidaten mit fortlaufenden Seeds und
     wartet dann auf die Auswahl; optional wird der ausgewählte Kandidat mit ``finish_workflow``
@@ -59,6 +60,8 @@ def create_order(
         raise PipelineError(f"Workflow '{workflow_key}' ist nicht registriert.")
     if wf.training:
         raise PipelineError("Ein Training ist kein Kandidatenauftrag.")
+    if lora and character_id is not None:  # Auftrag für eine Figur: nur deren LoRA (SP3 Schritt 6)
+        check_lora(man, wf, lora, character=store.character(character_id)["slug"])
     seed = wf.params.get("seed")
     if count < 1 or (count > 1 and seed is None):
         raise PipelineError(f"{workflow_key}: mehrere Kandidaten brauchen einen Seed-Parameter.")

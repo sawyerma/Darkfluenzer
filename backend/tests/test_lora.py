@@ -4,6 +4,7 @@ Fertigstellen und Wiederholen; Kundenaufträge laufen nie ohne."""
 
 from __future__ import annotations
 
+import dataclasses
 import shutil
 
 import pytest
@@ -161,3 +162,100 @@ def test_run_render_submits_the_graph_with_lora_and_profile_trigger(setup, monke
         wf.lora.node not in plain
         and plain[wf.params["prompt"].node]["inputs"]["text"] == "portrait"
     )
+
+
+def test_migration_22_and_one_active_lora_per_figure_and_architecture(tmp_path, monkeypatch):
+    """SP3 Schritt 6: Tabelle character_loras mit Sicherung vor der Migration; je Figur und
+    Architektur genau eine aktive LoRA; Probe-Prompts am Profil."""
+    from darkfluenzer.store import db as store_db
+
+    local = tmp_path / "local"
+    monkeypatch.setattr(store_db, "SCHEMA_VERSION", 21)
+    Store(local).close()
+    monkeypatch.undo()
+    s = Store(local)
+    try:
+        assert list(local.glob("darkfluenzer.sqlite3.bak-*-vor-migration22"))
+        s.set_active_lora(1, "sdxl", "a")
+        s.set_active_lora(1, "sdxl", "b")  # ersetzt, nie zwei aktive
+        s.set_active_lora(1, "krea2", "c")
+        assert s.active_loras(1) == {"sdxl": "b", "krea2": "c"}
+        s.set_active_lora(1, "krea2", "")
+        assert s.active_loras(1) == {"sdxl": "b"}
+        row = s.character(1)
+        row = s.save_character(1, row["revision"], row["name"], "dfchar", "woman", "", [" p1 ", ""])
+        assert row["probe_prompts"] == '["p1"]'
+        row = s.save_character(1, row["revision"], row["name"], "dfchar", "woman", "")
+        assert row["probe_prompts"] == '["p1"]'  # None lässt die Probe-Prompts stehen
+    finally:
+        s.close()
+
+
+def test_order_for_a_figure_never_loads_another_figures_lora(setup):
+    cfg, store, man = setup
+    clara = store.save_character(0, 0, "Clara", "dfchar", "woman", "clara")["id"]
+    mia = store.save_character(0, 0, "Mia", "dfmia", "woman", "mia")["id"]
+    man, _ = _register(cfg, man, "clara_sdxl", "lustify_sdxl")
+    sdxl, krea = man.workflows["lustify_sdxl_t2i"], man.workflows["krea2_raw_turbo_lora_t2i"]
+    store.set_active_lora(clara, "sdxl", "clara_sdxl")
+    assert pipeline.active_lora(store, man, clara, sdxl) == "clara_sdxl"
+    assert pipeline.active_lora(store, man, clara, krea) == ""  # andere Architektur
+    store.set_active_lora(mia, "sdxl", "clara_sdxl")  # falsch eingetragen: wird nie geladen
+    assert pipeline.active_lora(store, man, mia, sdxl) == ""
+    with pytest.raises(pipeline.PipelineError, match="anderen Figur"):
+        orders.create_order(
+            store, man, "lustify_sdxl_t2i", {"prompt": "p"}, {}, count=1, lora="clara_sdxl",
+            character_id=mia,
+        )  # fmt: skip
+    no, _ = orders.create_order(
+        store, man, "lustify_sdxl_t2i", {"prompt": "p"}, {}, count=1, lora="clara_sdxl",
+        character_id=clara,
+    )  # fmt: skip
+    assert no
+
+
+def test_lora_activate_command_and_characters_state(cfg):
+    """Befehl 64: aktiv setzen und aufheben; LoRA einer anderen Figur abgelehnt; der STATE zeigt
+    Architektur, Stärke und die aktive LoRA."""
+    import uuid
+
+    from test_server import _csrf, _post, _run
+
+    from darkfluenzer.v1 import character_pb2, commands_pb2
+    from darkfluenzer.v1 import stream_pb2 as spb
+    from darkfluenzer.web import http as server
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        csrf = await _csrf(client)
+        cockpit.manifest, lora = _register(cfg, cockpit.manifest, "clara_sdxl", "lustify_sdxl")
+        own = dataclasses.replace(
+            lora, key="own_sdxl", character=cockpit.store.character(1)["slug"]
+        )
+        cockpit.manifest = models.register_lora(cfg.root, own)
+
+        async def send(**kw):
+            req = commands_pb2.CommandRequest(request_id=str(uuid.uuid4()), **kw)
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body).detail
+
+        def state() -> character_pb2.Character:
+            payload = app[server.HUB_KEY]._states[spb.TOPIC_CHARACTERS].payload
+            chars = character_pb2.Characters.FromString(payload).characters
+            return next(c for c in chars if c.id == "1")
+
+        foreign = commands_pb2.LoraActivate(character_id=1, lora="clara_sdxl")
+        assert "anderen Figur" in await send(lora_activate=foreign)
+        assert (
+            await send(lora_activate=commands_pb2.LoraActivate(character_id=1, lora="own_sdxl"))
+            == ""
+        )
+        (lo,) = state().loras
+        assert (lo.key, lo.arch, lo.active, lo.strength) == ("own_sdxl", "sdxl", True, 0.8)
+        assert cockpit.store.active_loras(1) == {"sdxl": "own_sdxl"}
+        off = commands_pb2.LoraActivate(character_id=1, arch="sdxl")
+        assert await send(lora_activate=off) == ""
+        assert not state().loras[0].active and cockpit.store.active_loras(1) == {}
+
+    _run(cfg, scenario)

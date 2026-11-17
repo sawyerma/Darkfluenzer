@@ -193,17 +193,36 @@ def _input_tier(store: Store, rel: str) -> str | None:
 LORA_KEY = "character_lora"  # Schlüssel der Charakter-LoRA in Job- und Stufenparametern
 
 
-def check_lora(man: Manifest, wf: Workflow, key: str) -> Lora:
+def check_lora(man: Manifest, wf: Workflow, key: str, character: str | None = None) -> Lora:
     """Die LoRA ist registriert, der Workflow hat einen Lader, und seine Engine darf sie laden
-    (Trainings-Engine oder eingetragen in ``compatible``, SP3 Schritt 4)."""
+    (Trainings-Engine oder eingetragen in ``compatible``, SP3 Schritt 4). ``character``: Kürzel
+    der Figur des Auftrags – eine Figur lädt nie die LoRA einer anderen (SP3 Schritt 6)."""
     lo = man.loras.get(key)
     if lo is None:
         raise PipelineError(f"LoRA '{key}' ist nicht registriert.")
+    if character is not None and lo.character != character:
+        raise PipelineError(f"LoRA '{key}' gehört zu einer anderen Figur.")
     if wf.lora is None:
         raise PipelineError(f"{wf.title} hat keinen Lader für eine Charakter-LoRA.")
     if lo.comfy_name not in models.engine_model_names(man.files, man.engines, man.loras, wf.engine):
         raise PipelineError(f"LoRA '{key}' passt nicht zur Engine {wf.engine}.")
     return lo
+
+
+def active_lora(store: Store, man: Manifest, character_id: int, wf: Workflow) -> str:
+    """Aktive LoRA der Figur für die Architektur der Workflow-Engine (SP3 Schritt 6), wenn diese
+    Engine sie laden darf; sonst leer (Auftrag läuft „ohne Charakter-LoRA“)."""
+    if wf.lora is None:
+        return ""
+    row = store.character(character_id)
+    key = store.active_loras(character_id).get(man.engines[wf.engine].arch, "")
+    if not key:
+        return ""
+    try:
+        check_lora(man, wf, key, character=row["slug"])
+    except PipelineError:
+        return ""
+    return key
 
 
 def lora_use(store: Store, man: Manifest, wf: Workflow, params: dict) -> comfy.LoraUse | None:
