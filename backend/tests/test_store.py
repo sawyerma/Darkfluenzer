@@ -451,6 +451,8 @@ def test_comfy_output_of_a_running_job_is_indexed_with_the_job(cfg):
         copy.parent.mkdir(parents=True)
         copy.write_bytes(early.read_bytes())
         out = {"path": "evaluation/wf/wf_x_01.png", "sha256": sha256_file(copy), "node": "19"}
+        # FABLE-010: Ausgabe schon nach evaluation/ geladen, Nachbearbeitung läuft noch
+        assert gallery.media_candidates(cfg, s, set(), settle_s=0)[0] == []
         s.set_job_status(job, "done", outputs=[out])
         found, _ = gallery.media_candidates(cfg, s, set(), settle_s=0)
         assert [(rel, job_id) for _, rel, _, _, job_id in found] == [(out["path"], job)]

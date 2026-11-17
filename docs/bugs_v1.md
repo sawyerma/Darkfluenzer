@@ -198,6 +198,18 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-010 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-118“)
+Commit: siehe git log „FABLE-010“ / media.gallery.media_candidates
+Behauptung: BESTÄTIGT – die Sperre „gehört zu einem laufenden Job“ galt nur für ComfyUIs Ausgabeordner;
+  die schon nach local/evaluation/<engine>/ geladene Ausgabe wurde nach 10 s Ruhe ohne Job-Bezug
+  indiziert, wenn die Nachbearbeitung (Prüfwerte, Registrierung) länger dauerte
+Korrektur: seit dem Start eines laufenden Jobs entstandene Dateien warten in beiden Galerie-Quellen bis
+  zu seinem Abschluss; danach kommt die Ausgabe über das Journal mit Job-Bezug
+Nachweis: tests/test_store.py::test_comfy_output_of_a_running_job_is_indexed_with_the_job (neue Prüfung
+  vor der Korrektur rot, danach grün); test_journal, test_server, test_orders grün
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
+Bearbeiter/Datum: Claude, 17.11.2026
+
 ID: FABLE-012 (Audit Fable 17.11., P2/P1-Kandidat; im Auditblatt vorläufig „BUG-120“)
 Commit: siehe git log „FABLE-012“ / approval.confirm_sent, core.delivery._confirm_delivery, Migration 25
 Behauptung: BESTÄTIGT – nach echtem Versand prüfte confirm_sent das Gate erneut und brach ab; Zustellung

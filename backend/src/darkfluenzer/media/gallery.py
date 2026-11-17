@@ -96,15 +96,16 @@ def media_candidates(
         if len(rows) < JOURNAL_BATCH:
             break
     if folders:
-        # Seit dem Start eines laufenden Jobs in ComfyUI entstandene Dateien gehören wahrscheinlich
-        # ihm (frühe Zwischenausgaben wie eine Maske): erst nach seinem Abschluss aufnehmen, damit
-        # die Job-Ausgabe mit Auftragsbezug Vorrang hat.
+        # Seit dem Start eines laufenden Jobs entstandene Dateien gehören wahrscheinlich ihm: in
+        # ComfyUI frühe Zwischenausgaben wie eine Maske, unter evaluation/ die schon geladene
+        # Ausgabe während der Nachbearbeitung (FABLE-010). Erst nach seinem Abschluss aufnehmen,
+        # damit die Job-Ausgabe mit Auftragsbezug Vorrang hat.
         busy = store.running_since()
         for prio, path, rel in _gallery_files(cfg):
             if rel in seen:
                 continue
             mtime = path.stat().st_mtime
-            if mtime > cutoff or (prio == 2 and busy is not None and mtime >= busy):
+            if mtime > cutoff or (busy is not None and mtime >= busy):
                 continue  # wird noch geschrieben bzw. gehört zu einem laufenden Job: später
             seen.add(rel)
             offer(prio, path, rel, sha256_file(path), None)
