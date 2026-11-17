@@ -1,6 +1,6 @@
 # Darkfluenzer – PHASENPLAN_BACKEND.md
 
-**Stand:** 17.11.2026 (Änderungsblätter Einstellungen/Kundentest/Vollautomatik und B1, Korrektur nach den Prüfberichten von ChatGPT und Fable) · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
+**Stand:** 17.11.2026 – sechs Sammelpakete SP1–SP6 in Code-Tiefe (Code-Vergleiche von Fable), Änderungsblätter, Korrektur nach den Prüfberichten von ChatGPT und Fable · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
 **Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; echte Läufe vom 16./17.11. auf dem Mac (§5).
 **Verbindlich sind genau drei Dateien:** diese, `docs/PHASENPLAN_FRONTEND.md` und `docs/bugs_v1.md` (Befundregister).
 **Archiv (nicht verbindlich):** `docs/archiv/` mit `PHASENPLAN_V0.md`, `PHASENPLAN_BACK_V1.md`, `PHASENPLAN_FRONT_V1.md`, `ki_modelle.md`, `bugs_v1_20261117_vor_neufassung.md`. Code-Kommentare mit Verweisen auf V0/V1-Abschnitte beziehen sich auf diese Archivfassungen.
@@ -46,13 +46,13 @@ Video läuft genauso: erst das Bild, dann die Animation. Der Betreiber gibt die 
 | # | Entscheidung | Stand |
 |---|---|---|
 | E1 | Nur Textflirt. Sprachnachrichten später (B5.8). Keine expliziten Texte; explizite Wünsche beantwortet Clara mit dem Verweis auf Fansly (Vorlage im Profil). | entschieden |
-| E2 | Keine Altersfrage. Kunden erhalten nur `standard`. Hinweise auf Minderjährigkeit sperren Flirt und Angebote weiterhin sofort. Rechtliche Prüfung in D1. | entschieden |
+| E2 | Keine Altersfrage. Kunden erhalten nur `standard`. Hinweise auf Minderjährigkeit sperren Flirt und Angebote weiterhin sofort. Rechtliche Prüfung in SP6 Schritt 8. | entschieden |
 | E3 | Antworten verzögert und unregelmäßig: im Gesprächsfluss schnell; bei Erstkontakt, nach Pausen und zufällig 30 s bis 30 min; nachts langsam (30 bis 60 min). Gelesen erst nach dauerhafter Verarbeitung. | entschieden |
 | E4 | Nachts trotzdem zügig, wenn Kaufabsicht erkannt ist. | entschieden |
 | E5 | Angebot nur bei Wunsch oder erkannter Kaufabsicht, nicht aufdringlich. | entschieden |
 | E6 | Zahlungswege als Liste je Influencerin. Start: PayPal und Amazon-Gutschein. Krypto bleibt vorhanden und zuschaltbar, wird aber nicht ungefragt als Kundenweg aktiviert. | entschieden; Preisliste offen |
 | E7 | Zustellung als Foto bzw. Video. Die Originaldatei in voller Qualität ist eine bezahlte Zusatzleistung. Selbstlöschende Medien nur, wo der Kanal es nachweislich kann. | entschieden |
-| E8 | Freigabe automatisch nach bestandener Prüfung, Prüfwerte gespeichert, Liefer-Gate bleibt (SP5 Schritt 7–8). Das Handy ist der Ausnahmeweg: Meldung und Entscheidung, wenn die automatische Prüfung scheitert (SP5 Schritt 11). Erprobung in C6. | entschieden |
+| E8 | Freigabe automatisch nach bestandener Prüfung, Prüfwerte gespeichert, Liefer-Gate bleibt (SP5 Schritt 7–8). Das Handy ist der Ausnahmeweg: Meldung und Entscheidung, wenn die automatische Prüfung scheitert (SP5 Schritt 11). Erprobung in der Probephase (SP6 Schritt 9). | entschieden |
 | E9 | Zwei Pläne und `bugs_v1.md` ersetzen alle bisherigen Plandokumente; die alten liegen im Archiv. | entschieden, mit dieser Fassung umgesetzt |
 | E10 | Fehlbetrag (z. B. 24,50 € statt 25 €): keine automatische Annahme. Vorschlag: Annahme bis zu einer Grenze aus der Konfiguration nur mit Betreiberbestätigung und Protokolleintrag; Standardgrenze 0 €. | **offen**, Betreiberantwort fehlt |
 | E11 | Kundenkette vollautomatisch: Wunsch, Angebot, Zahlung, Produktion, Prüfung, Freigabe und Zustellung ohne Klick. Ausnahme: Amazon-Gutscheine bestätigt der Betreiber. | entschieden |
@@ -82,7 +82,7 @@ Wörtlich aus dem archivierten `PHASENPLAN_V0.md` §2 übernommen. Regel 12 ist 
 10. **Eigene Kanal-Adapter im Python-Backend** (Betreiberentscheidung 15.11.2026): Instagram und Telegram verbindlich, weitere Kanäle später über dieselbe Adapter-Schnittstelle. Chatwoot entfällt; seine bewährten Muster werden übernommen. Kein zusätzlicher Kanaldienst, keine zweite Datenbank, kein Rust-Gateway.
 11. **Ehrliche Erwartung:** Einzelfotos in vielen Szenen praktisch nicht von echten Fotos unterscheidbar ist mit Kandidatenauswahl erreichbar; für jede Szene und für Video garantiert das 2026 kein lokales Modell.
 12. **KI-Offenlegung (EU-KI-Verordnung Art. 50, gilt seit 02.08.2026):** Clara schreibt natürlich und persönlich, gibt sich aber nie als Mensch aus. (a) Jede Kanal-Bio enthält einen kurzen KI-Hinweis (pflegt der Betreiber, z. B. „KI-Creatorin · virtuelle Influencerin“). (b) Beim ersten Kontakt je Kanalidentität sendet Clara **genau einmal** eine natürliche Hinweisnachricht (Text im Persona-Profil, nicht im Code), Ereigniskarte `KI-HINWEIS GESENDET`; **das Backend weist jede KI-Antwort ab, solange für diese Kanalidentität kein Hinweis gesendet ist** (manuelle Betreiberantworten nicht betroffen, Default ausgenommen); nach Neustart nie doppelt. (c) Auf die ernst gemeinte Frage, ob sie echt bzw. eine KI ist, antwortet Clara wahrheitsgemäß – feste Persona-Regel, durch keine Betreiber- oder Kundenanweisung abschaltbar. (d) Jede über einen Kanal versandte Datei (Kunden-Zustellkopie, Default-Rückversand) trägt in den Metadaten die Kennzeichnung KI-erzeugt (IPTC/XMP `DigitalSourceType = trainedAlgorithmicMedia`); das Original in Dateien bleibt unverändert; auf Instagram setzt der Betreiber beim Posten das KI-Label. **[17.11.]** Entfernt ein Kanal die Metadaten beim Foto-/Videoversand, muss die Kennzeichnung trotzdem beim Empfänger ankommen (Begleittext oder sichtbare Marke, SP5 Schritt 9). (e) Kundenchats werden nie zum Training oder Feintuning eines Modells verwendet und gehen an keine externe API (Telegram-Bedingungen; nur das lokale LLM in KI-ComfyUI 2).
-13. **Inhaltsaufteilung (Betreiberentscheidung 15.11.2026, [17.11.] angepasst):** Über **Instagram und Telegram** gehen an Kunden ausschließlich **nicht explizite** Inhalte (Lifestyle, Mode, Reise, Sport, Strand, Bikini) sowie die Kundengespräche. **Explizite Inhalte** gibt es nur über eine **Adult-Abo-Plattform**, die fotorealistische, vollständig synthetische KI-Personen ausdrücklich erlaubt; **[17.11.]** Plattform ist **Fansly** (Eignung für synthetische Personen in D1 prüfen), explizite Wünsche im Chat beantwortet Clara mit dem Verweis dorthin; Upload durch den Betreiber, Bezahlung und Altersprüfung übernimmt die Plattform. Technisch trägt jedes Artefakt eine **Inhaltsstufe** `standard`/`explizit` (aus Workflow bzw. Auftrag gesetzt, vom Betreiber nur anhebbar; unbekannt gilt als `explizit`); `approval.py` lässt an Kunden über jeden Kanal nur `standard` zu und über Instagram an niemanden `explizit`; nur der Default-Nutzer erhält über Telegram alle eigenen Produktionsergebnisse. Eine automatische Inhaltsprüfung in KI-ComfyUI 2 ergänzt die Stufe, sobald ein Prüfmodell qualifiziert ist (SP5 Schritt 7, E16); bei Widerspruch Sperre. **[17.11.]** Keine Altersfrage (E2); Hinweise auf Minderjährigkeit → Akte gesperrt, keine Angebote, kein Flirt.
+13. **Inhaltsaufteilung (Betreiberentscheidung 15.11.2026, [17.11.] angepasst):** Über **Instagram und Telegram** gehen an Kunden ausschließlich **nicht explizite** Inhalte (Lifestyle, Mode, Reise, Sport, Strand, Bikini) sowie die Kundengespräche. **Explizite Inhalte** gibt es nur über eine **Adult-Abo-Plattform**, die fotorealistische, vollständig synthetische KI-Personen ausdrücklich erlaubt; **[17.11.]** Plattform ist **Fansly** (Eignung für synthetische Personen in SP6 Schritt 8 prüfen), explizite Wünsche im Chat beantwortet Clara mit dem Verweis dorthin; Upload durch den Betreiber, Bezahlung und Altersprüfung übernimmt die Plattform. Technisch trägt jedes Artefakt eine **Inhaltsstufe** `standard`/`explizit` (aus Workflow bzw. Auftrag gesetzt, vom Betreiber nur anhebbar; unbekannt gilt als `explizit`); `approval.py` lässt an Kunden über jeden Kanal nur `standard` zu und über Instagram an niemanden `explizit`; nur der Default-Nutzer erhält über Telegram alle eigenen Produktionsergebnisse. Eine automatische Inhaltsprüfung in KI-ComfyUI 2 ergänzt die Stufe, sobald ein Prüfmodell qualifiziert ist (SP5 Schritt 7, E16); bei Widerspruch Sperre. **[17.11.]** Keine Altersfrage (E2); Hinweise auf Minderjährigkeit → Akte gesperrt, keine Angebote, kein Flirt.
 
 ### 2.2 Entwicklungsregeln
 
@@ -99,7 +99,7 @@ Wörtlich aus V0 §2.1, ergänzt um die Betreiberregeln vom 14.–17.11.:
 - **GIT:** je abgeschlossenem Paket Tests, Commit, Push auf `main`.
 - **Geheimnisse nur im macOS-Schlüsselbund** (Konto `darkfluenzer`): `darkfluenzer.telegram.api_id`, `darkfluenzer.telegram.api_hash`, `darkfluenzer.telegram.db_key`, Instagram-Token, Meta-App-Secret, PayPal-Zugang. Nie in `.env`, TOML, Git, Logs, STATE, EVENT, Receipt, Befehlsjournal oder LLM-Kontext. In den Befehlen `secret_set` und `channel_account_login` reist der Wert einmal über die angemeldete lokale Cockpit-Verbindung (Sitzung + CSRF) zum Backend und wird dort nicht gespeichert; der Journal-Hash wird ohne den Wert gebildet. Eingabe über `darkfluenzer secret set` (verdeckt bzw. stdin, Übergabe an `security -i` über stdin); vorhandene Einträge nur nach ausdrücklicher Bestätigung ersetzen. Telegram-Code und 2FA-Passwort gehen nur temporär an TDLib.
 - **Ein Stylesheet:** `frontend/src/shared/graphite.css`, keine Datei je Seite (FRONTEND §1).
-- **Datenbank-Migrationen** nur mit vorheriger Sicherung (`darkfluenzer.sqlite3.bak-<Zeit>-vor-migrationNN`), danach `PRAGMA integrity_check` und Fremdschlüsselprüfung.
+- **Datenbank-Migrationen** nur mit vorheriger Sicherung (`darkfluenzer.sqlite3.bak-<Zeit>-vor-migrationNN`), danach `PRAGMA integrity_check` und Fremdschlüsselprüfung. Ab SP6 Schritt 0 erledigt das `Store._migrate` selbst; bis dahin von Hand.
 - **Echte Kettenprüfung (Betreiberregel 17.11.):** Eine Kette gilt erst als funktionierend nach einem Lauf vom echten Eingang bis zum Ergebnis im Chat (Handy → Telegram → Cockpit → ComfyUI → Rückversand). Voraussetzungen (Workflows, Influencerin, Charakter) werden vorher eingerichtet oder offen als fehlend gemeldet. Jede Ablehnung wird im Chat beantwortet, aus dem sie kam, nicht nur als Cockpit-Karte.
 
 ### 2.3 PASS-Definition
@@ -308,12 +308,13 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 | **SP2 Fundament** (§7.2, ausgeschrieben) | H1, H2-Rest, S1 mit Kanalkonten als Liste, Kontenteil von C5.1, Frontend-Härtung | kein stiller Stillstand, alle P0 zu, mehrere Konten, Einstellungen im Cockpit |
 | **SP3 Charakter und Medien** (§7.6, ausgeschrieben) | B1, B2, H6b, C1/C3-Rest; dazu unverändert B4 (mit H3-Rest) und B5.6 | „clone“ liefert Clara mit Prüfwert, Video mit Zeitachse |
 | **SP4 Clara chattet** (§7.3, ausgeschrieben) | B5.1–B5.4, B5.4a, C5.2–C5.4, T1; C5.1 (Influencerin-Block) | Kundentest-Chat mit Messwerten, Clara antwortet Kunden selbst |
-| **SP5 Verkauf automatisch** (§7.5, ausgeschrieben) | C5a, C5.5–C5.8, C5.6a, C5.10, T2; dazu unverändert C5.9 und Krypto (C5a.1) | Zahlung rein, Bild raus, ohne Klick |
-| **SP6 Betrieb und Abnahme** | D1–D3, C4, C6 | Probephase bestanden |
+| **SP5 Verkauf automatisch** (§7.5, ausgeschrieben) | C5a, C5.5–C5.8, C5.6a, C5.10, T2; dazu unverändert Krypto (C5a.1) | Zahlung rein, Bild raus, ohne Klick |
+| **SP6 Betrieb, Recht, Abnahme** (§7.7, ausgeschrieben) | D1–D3, C6; Schritt 0 (Migration mit Sicherung) vor SP1; später mit eigener Freigabe C4, C5.9, C8 | unbeaufsichtigter Dauerbetrieb, Probephase bestanden |
 
 - **DOK-1** ist erledigt (Pläne neu, Altdokumente im Archiv).
 - SP2 bis SP6 werden wie SP1 in Code-Tiefe ausgeschrieben, bevor sie beginnen; bis dahin gelten die bisherigen Paketbeschreibungen in §7.
 - SP3 läuft parallel, sobald Charakterfotos vorliegen. Höchstens zwei Agenten, keine gleichzeitigen schweren GPU-Läufe.
+- **Vorgezogen:** SP6 Schritt 0 (Migration mit automatischer Sicherung und Integritätsprüfung, BUG-105) wird vor der ersten Migration aus SP1 umgesetzt.
 - **P0-Regel:** Die P0-Befunde auf dem Default-Pfad schließt SP1 vor seiner Abnahme; alle übrigen P0 sind vor dem ersten KI-Kanaltest mit Kunden (SP4) behoben.
 
 ---
@@ -401,7 +402,7 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
    - Test: zwei Clients erhalten je ihre Ereignisse; Abmelden und Anmelden ohne Verlust.
 5. **Telegram-Eingang vervollständigen (`channels/telegram.py`).**
    - Chats aus `telegram.ignored_chat_ids` (Vorgabe 777000) werden nie gespeichert.
-   - `updateMessageContent` und `updateDeleteMessages` ändern den Verlauf: neuer Text mit Ereignis, Löschmarke an der Nachricht. Ob der Inhalt gelöschter Nachrichten entfernt wird, entscheidet D1.
+   - `updateMessageContent` und `updateDeleteMessages` ändern den Verlauf: neuer Text mit Ereignis, Löschmarke an der Nachricht. Ob der Inhalt gelöschter Nachrichten entfernt wird, klärt SP6 Schritt 8.
    - Ausgang: die Beschriftung steht nur am ersten Anhang.
 6. **Ungeklärter Versand (`telegram.py`, `instagram.py`, `store.py`).**
    - Heute: `unknown` wird nie geklärt. Nach einem Neustart legt der Abgleich die eigene Nachricht als fremde an und erzeugt „ÜBERGABE AN BETREIBER“.
@@ -526,7 +527,7 @@ Ersetzt B5.1 bis B5.4, B5.4a, C5.2, C5.3, C5.4 und T1. Grundlage: Code-Vergleich
 - Jede Kundenakte trägt Kanalkonto und Influencerin ab dem ersten Eingang; `CustomerSummary` und die Kundenseiten liefern Influencerin (ID, Name, Farbe) und Konto mit, die Kundenliste ist serverseitig nach Influencerin filterbar (FRONTEND §3.2).
 - Abnahme: zwei Figuren auf zwei Konten ohne Vermischung; je eine Nachricht an Clara und an Lucy erscheint mit der richtigen Figur, der Filter zeigt nur die eigene.
 
-**C5.9 Wechsel Instagram zu Telegram** (gehört zu SP5, unverändert). Einmal-Code mit Ablauf, Prüfung im Backend, gleiche Akte. Abnahme: zwei Plattformen, eine Akte.
+**C5.9 Wechsel Instagram zu Telegram** (später mit eigener Freigabe, SP6 Schritt 10). Einmal-Code mit Ablauf, Prüfung im Backend, gleiche Akte. Abnahme: zwei Plattformen, eine Akte.
 
 ### 7.5 SP5 Verkauf automatisch
 
@@ -674,14 +675,64 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
 - **B5.6 Referenzanalyse** (§7.3): Für das Bildmodell fehlt die Wahl; sie braucht eine Betreiberfreigabe.
 - **Ausgabe (aus B2):** 2K/4K (Hochskalieren nie als nativ ausgeben), Instagram-Profile 1080×1440, Reels 1080×1920.
 
-### 7.7 Block D und Abnahme
+### 7.7 SP6 Betrieb, Recht, Abnahme
 
-- **D1 Recht** (Sperre vor dem ersten zahlenden Kunden): KI-Offenlegung, Jugendschutz ohne Altersfrage (E2), Verbraucherrecht für digitale Inhalte, Impressum/Datenschutz, Steuer, Plattformbedingungen für Flirt und Verkauf, Fansly für synthetische Personen, Nutzungsbedingungen der Zahlungswege (PayPal bei digitalen Inhalten mit Erotikbezug, Amazon-Gutscheine als Zahlungsmittel). Produktteile: Pflichttexte im Profil, Auskunft und Löschung je Akte (Befehl `customer_erase`).
-- **D2 Betrieb** (BUG-035, 061, 065, 066): Autostart, beide Instanzen, kein Ruhezustand im Betrieb, verschlüsselte Sicherung, Rückfallweg bei gesperrtem Konto.
-- **D3 Release-Einheit:** Backend, Frontend und Protokoll zusammen; geöffnete Cockpits laden nach einem Schema-Wechsel automatisch neu (BUG-076); altes Release bleibt startbar.
-- **C4 Default über Instagram-DM:** geteilter Beitrag/Reel als Referenz, sofern Meta die Datei liefert; sonst ehrliche Meldung. Kein Scraping.
-- **C6 Probephase und Gesamtabnahme:** ganze Kundenkette real mit Testkunden, automatische Prüfung und Freigabe, Freigabe vom Handy, Lasttest mit Render, zwei Chats und Zustellung.
-- **C8 Weitere Kanäle (später):** WhatsApp und Fansly über die Kanalfähigkeiten aus SP4 (Schritt 7), je mit eigener Freigabe.
+Ersetzt D1, D2, D3 und C6. Grundlage: Code-Vergleich von Fable (17.11.) mit `runtime.py` und `realtime.ts`.
+
+**Ziel:** Darkfluenzer läuft unbeaufsichtigt rund um die Uhr, meldet Störungen aufs Handy, lässt sich im Betrieb aktualisieren und ist rechtlich geklärt, bevor der erste Kunde zahlt.
+**Schließt:** BUG-035, 061, 065, 066, 076, 103 bis 105.
+**Dateien:** `store.py`, `runtime.py`, `app.py`, `server.py`, `pipeline.py`, `config.py`, `launcher/*`, `frontend/src/core/realtime.ts`.
+
+**Schritt 0 wird vorgezogen: vor der ersten Migration aus SP1.**
+
+0. **Migration mit Sicherung (`store.Store._migrate`).**
+   - Heute: Migrationen laufen ohne Sicherung; geprüft werden nur Fremdschlüssel bei Tabellenumbauten (BUG-105).
+   - Neu: vor jeder ausstehenden Migration eine Kopie `darkfluenzer.sqlite3.bak-<Zeit>-vor-migrationNN` über die SQLite-Sicherungsschnittstelle. Danach `PRAGMA integrity_check` und `PRAGMA foreign_key_check`; bei Fehler Abbruch mit Hinweis auf die Sicherung.
+   - Test: Migration mit absichtlichem Fehler lässt die Datenbank unverändert, die Sicherung liegt vor.
+1. **Dienst und Wächter (`app.py`, `runtime.py`, `launcher/*`).**
+   - Heute: `cockpit_up` startet den Server losgelöst; niemand überwacht ihn; kein Start nach der Anmeldung.
+   - Neu: `darkfluenzer service install|uninstall|status` legt einen launchd-Dienst des Benutzers an, der `serve` nach der Anmeldung startet und bei Absturz neu startet. `up`, `down` und `restart` steuern den Dienst, wenn er installiert ist.
+   - Das Backend startet beim Hochfahren beide ComfyUI-Instanzen und wärmt Melody an (SP4).
+   - Der Starter wertet die Rückgabe je Instanz aus (BUG-031, SP2).
+2. **Ruhezustand.** Der Server hält einen Schlafschutz, solange er läuft. Die Betriebsanzeige zeigt Netzteil und Schlafschutz. Dokumentiert wird: Betrieb am Netzteil, Deckel offen oder mit externem Bildschirm.
+3. **Betriebsmeldungen ans Handy (`server.py`).** Der Default bekommt über Telegram eine Meldung bei: Neustart nach Absturz, Kanal länger als die Grenze nicht bereit, Warteschlange steht, Speicherplatz unter der Reserve, Auslagerung über der Grenze, Zahlungseingang ohne Zuordnung. Grenzen in der Konfiguration; je Störung höchstens eine Meldung, dazu eine Entwarnung.
+4. **Sicherung (`app.py`).** `darkfluenzer backup` schreibt eine konsistente Kopie der Datenbank nach `local/backup/` (Anzahl aus der Konfiguration) und läuft täglich aus dem Dienst. Die Dateien unter `local/` außer Modellen sichert der Betreiber verschlüsselt. Die Betriebsanzeige zeigt die letzte Sicherung. Abnahme: Rücksicherung auf einen leeren Ordner startet fehlerfrei.
+5. **Aufräumen (`pipeline.py`, `runtime.py`).**
+   - Heute: jede Ausgabe liegt in ComfyUIs `output/` und in `local/evaluation/`; `darkfluenzer_work/job<id>` und hochgeladene Eingaben bleiben für immer; Logs werden nur beim Start rotiert (BUG-103, 104).
+   - Neu: nach erfolgreicher Übernahme entfällt die Kopie in ComfyUIs Ausgabe. Zwischenstände eines fertigen Langvideos entfallen nach einer Frist aus der Konfiguration. Eingaben, die kein Job mehr braucht, entfallen. Logs rotieren nach Größe.
+   - `config.toml.vor-instagram`: Rechte prüfen (BUG-035).
+6. **Beobachter (`runtime.status`, `server.refresh_comfy`).**
+   - Heute: je Runde und Instanz `lsof` und zweimal `ps`, dazu `sysctl` (BUG-065).
+   - Neu: im Normalbetrieb nur Lebenszeichen der bekannten PID und die Gesundheitsabfrage; die volle Prüfung nur beim Start, nach einem Fehler und in großem Abstand.
+7. **Neustart und Release (`runtime.cockpit_restart`, `app.py`, `realtime.ts`).**
+   - Heute: Neustart verweigert bei jedem wartenden oder laufenden Renderjob und prüft keine laufenden Sendungen (BUG-066).
+   - Neu: Neustart ist erlaubt, wenn jeder laufende Job schon bei ComfyUI eingereicht ist (er wird danach abgeholt) und keine Nachricht im Status `sending` ist; sonst wartet er kurz und meldet den Grund.
+   - `darkfluenzer deploy`: Arbeitsstand sauber, Tests, Protobuf erzeugen, Frontend bauen, Sicherung, dann Neustart. Reihenfolge fest: erst bauen, dann neu starten.
+   - Frontend: ist das Cockpit wegen des Schemas gesperrt, versucht es das Neuladen in Abständen erneut, statt gesperrt zu bleiben (BUG-076).
+   - Rückfall: altes Release samt Sicherung von vor der Migration; das Verfahren steht im README.
+8. **Recht (bisher D1, Sperre vor dem ersten zahlenden Kunden).**
+   - Anwaltlich klären: KI-Offenlegung, Jugendschutz ohne Altersfrage (E2), Verbraucherrecht für digitale Inhalte, Impressum und Datenschutz, Steuer, Plattformbedingungen von Telegram und Instagram für automatisierte Konten und Verkauf, Bedingungen von PayPal und Amazon-Gutscheinen, Fansly für synthetische Personen, Modell-Lizenzen, Umgang mit gelöschten Nachrichten.
+   - Produktteile: Pflichttexte als Felder der Influencerin. Auskunft je Akte als Export. Löschung je Akte (Befehl 57 `customer_erase`): Nachrichten, Anhänge, Gedächtnis, Gutscheintexte und die Zuordnung zur Plattform-Identität entfallen; Aufträge und Zahlungen bleiben ohne Personenbezug für die Aufbewahrung. Die unveränderlichen Tabellen (`events`, `artifacts`, `approvals`) enthalten nur Kennungen.
+   - Abnahme: nach der Löschung findet eine Volltextsuche über Datenbank und `local/` keinen Namen, keine Kennung und keinen Text der Akte.
+9. **Probephase und Gesamtabnahme (bisher C6).**
+   - Sieben Tage Dauerbetrieb mit Testkunden auf beiden Kanälen.
+   - Je einmal echt: Flirt bis Kauf, Bild, Video, Gutschein, PayPal, Reklamation, Erstattung, Default-Produktion mit Stapel, Training einer zweiten Figur.
+   - Störfälle: Serverabsturz, Neustart des Macs, Netz weg, Kanal abgemeldet, Platte fast voll. Jeder Fall erzeugt eine Meldung und heilt ohne Datenverlust.
+   - Last: Videorender, zwei Chats und eine Zustellung gleichzeitig.
+   - Freigabe vom Handy im Ausnahmefall.
+10. **Später, je mit eigener Freigabe:** Wechsel Instagram zu Telegram (C5.9), Default über Instagram (C4: geteilter Beitrag/Reel als Referenz, sofern Meta die Datei liefert; kein Scraping), WhatsApp und Fansly (C8, über die Kanalfähigkeiten aus SP4 Schritt 7), Bildverständnis (B5.6, in SP3 vorgesehen, braucht die Modellfreigabe), Text-LoRA, Sprache.
+
+**Frontend im selben Paket:** FRONTEND §4.4.
+
+**Abnahme am echten System**
+
+1. Server-Prozess beenden: er läuft nach Sekunden wieder, die Meldung kommt aufs Handy, kein Auftrag und keine Nachricht geht verloren.
+2. Mac neu starten und anmelden: Server, beide Instanzen und Kanäle sind ohne Klick bereit.
+3. `deploy` während eines laufenden Videos: das Video läuft weiter und wird abgeholt; das offene Cockpit lädt sich selbst neu.
+4. Rücksicherung auf einen leeren Ordner.
+5. Nach einem Tag Betrieb wächst die Platte nur um die Galerie, nicht um Kopien und Zwischenstände.
+6. Löschung einer Testakte nach Schritt 8.
+7. Probephase nach Schritt 9 bestanden.
 
 ### 7.8 Zuordnung der Funktionslücken FL-1 bis FL-7 (Betreibermeldung 17.11.)
 
@@ -689,10 +740,10 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
 |---|---|---|
 | FL-1 | Telegram-Eingang, Kundenregister, Antwort | großteils behoben 17.11.; Rest SP1/SP2 |
 | FL-2 | LTX/Video manuell aus dem Cockpit | Job 64 PASS; einheitliche Bedienung SP1 |
-| FL-3 | Charakter-LoRA mit Referenzbildern | B1 |
-| FL-4 | Zeitgesteuerter Szenenverlauf | B4 |
-| FL-5 | Referenzanalyse → Prompt | B5.6 |
-| FL-6 | Default-Befehle per Telegram | SP1, SP3, B5.4a |
+| FL-3 | Charakter-LoRA mit Referenzbildern | SP3 |
+| FL-4 | Zeitgesteuerter Szenenverlauf | SP3 (B4) |
+| FL-5 | Referenzanalyse → Prompt | SP3 (B5.6, Modellfreigabe nötig) |
+| FL-6 | Default-Befehle per Telegram | SP1, SP3, SP4 (freie Anweisungen) |
 | FL-7 | Abbrechen | großteils PASS 17.11.; Rest SP1 (Auftrag abbrechen) |
 
 ---
@@ -747,7 +798,7 @@ Frei laut `stream.proto` und `commands.proto` am 17.11.2026: Befehle 31–33, 36
 | SP5 Angebot/Produktion | 4 additiv | 23 additiv | 55 `order_wish_update`, 58 `order_regenerate`; 46 additiv |
 | SP5 Nachlauf | – | – | 56 `order_aftercare` |
 | C5.9 | – | – | 36 `link_identity` |
-| D1 | – | – | 57 `customer_erase` |
+| SP6 | – | – | 57 `customer_erase`; CLI `service`, `backup`, `deploy` |
 | SP2 | 8 (alle Konten), 12 Einstellungen | 26 additiv | 60 `secret_set`, 61 `config_update`, 62 `connection_test`, 66 `channel_account_update`; HTTP `GET /api/v1/command/<request_id>` |
 | SP4/SP5 Kundentest | – | 31 additiv | 37 additiv, 63 `test_reset` |
 | SP5 Prüfung/Freigabe | 4 additiv | 23 additiv | 35 additiv |

@@ -33,6 +33,7 @@
 | BUG-083 | `_on_inbound` fängt nur `PipelineError`, `ComfyError`, `StoreError`. Jeder andere Fehler im Kloner endet ohne Karte und ohne Antwort; die Nachricht wird nicht als gelesen markiert. | CODE | Jede Ausnahme endet im Zustand `failed` mit Karte und Antwort im Chat. | B SP1 |
 | BUG-086 | Kloner: bei Fehlschlag oder Abbruch der Stufe bekommt der Default keine Antwort (`_cloner_delivery` sendet nur Ergebnisse). (In Fables SP1-Blatt als „BUG-079“ geführt; 079 ist bereits vergeben.) | CODE | Zustand `failed` oder `cancelled` mit Grund als Karte und im Chat. | B SP1 |
 | BUG-089 | **Daueraufgaben ohne Aufsicht:** `outbox_worker`, `adapter.run` und `wallet.run` enden bei einem unerwarteten Fehler still; bis zum Neustart wird nichts mehr gesendet. (In Fables SP2-Blatt als „BUG-086“ geführt; 086 ist bereits vergeben.) | CODE | Aufsicht mit Protokoll, Anzeige im STATE und Neustart. | B SP2 |
+| BUG-105 | `Store._migrate` führt Migrationen ohne Sicherung und ohne Integritätsprüfung aus, obwohl die Entwicklungsregeln beides verlangen. (In Fables SP6-Blatt als „BUG-102“ geführt; 102 ist bereits vergeben.) | CODE | Sicherung vor, Prüfung nach jeder Migration. Vor der ersten neuen Migration umsetzen. | B SP6 Schritt 0 (vor SP1) |
 
 ## 2. P1
 
@@ -60,7 +61,7 @@
 | BUG-058 | **Video-Parameter uneinheitlich:** LTX `duration` („Länge (s)“) aus dem Manifest, Wan/Remix `duration_s` („Gesamtlänge“) aus dem Backend; das Feld steht je Workflow an anderer Stelle. Betreiber beanstandet 17.11. | TEST, LIVE | Ein Parametervertrag und eine Bedienkomponente für alle Video-Workflows. | B SP1, F SP1 |
 | BUG-059 | KI-Kennzeichnung nur in Metadaten; Plattform-Neukodierung entfernt sie vermutlich; WebP/WebM nicht kennzeichenbar. | CODE, HYPOTHESE | Kennzeichnung muss beim Empfänger ankommen (Begleittext oder Marke); je Kanal real prüfen. | B SP5 |
 | BUG-060 | Angebot setzt ein Krypto-Wallet voraus; Angebotstext fest im Code; `offer_amounts.method` erlaubt nur Krypto; die Gültigkeit steht in `wallet.offer_valid_min`; `store.create_offer` legt jeden Auftrag als `image` an. | CODE | Zahlungswege als Liste je Influencerin, Text als Vorlage im Profil. | B SP5 |
-| BUG-061 | Starter startet nur die Medien-Instanz; kein Autostart, kein Schutz vor Ruhezustand. | CODE | Beide Instanzen, Autostart, kein Ruhezustand im Betrieb. | B SP4, D2 |
+| BUG-061 | Starter startet nur die Medien-Instanz; kein Autostart, kein Schutz vor Ruhezustand; `cockpit_up` startet den Server losgelöst, stirbt er, startet ihn niemand neu. | CODE | Beide Instanzen, Autostart, kein Ruhezustand im Betrieb. | B SP4 (KI-Instanz), SP6 (Dienst) |
 | BUG-090 | Die Fertigstellen-Stufe trägt keine Parameter (`pipeline.select_candidate` ruft `create_render` mit leeren Werten). Die Höhe für das Story-Format lässt sich so nicht setzen; ein Video-Kundenauftrag scheitert, weil `ltx25_i2v` als Fertigstellen den Pflichtwert `prompt` braucht. | CODE | Werte für die Fertigstellen-Stufe am Auftrag. | B SP1 (Story), SP5 (Video) |
 | BUG-094 | LoRA nur in Workflows mit demselben Engine-Eintrag ladbar (`models.engine_model_names` vergleicht `base_engine`). `lustify_sam31_edit` nutzt dasselbe Modell unter anderem Eintrag und dürfte die Charakter-LoRA nicht laden. (In Fables SP3-Blatt als „BUG-089“ geführt; 089 ist bereits vergeben.) | CODE | Bindung an die Architektur (`arch`). | B SP3 |
 | BUG-095 | Jeder Workflow-Lauf prüft die Instanz über `runtime.start`, ruft zweimal `git` auf (`comfy.provenance`), fragt im Sekundentakt ab und schreibt eine Herkunftsdatei. Für Chat-Antworten ist das zu schwer. | CODE | Leichter Weg ohne diese Schritte (`llm.generate`). | B SP4 |
@@ -94,8 +95,8 @@
 | BUG-062 | Bearbeitete, gelöschte, zurückgezogene Kundennachrichten nicht übernommen; bei mehreren Anhängen Text mehrfach (vor Korrektur bestätigen). | CODE | Änderung und Löschung abbilden; Text einmal. | B SP2 |
 | BUG-063 | Kein Weg, einen kleinen Fehlbetrag anzunehmen. | CODE | Nach E10 (offen): nur mit Bestätigung und Protokoll. | B SP5 |
 | BUG-064 | Bitgleiches Ergebnis zu einem vorhandenen Medium gilt als „kein Ergebnis“. | CODE | Vorhandenes Medium zählt als Kandidat. | B SP1 |
-| BUG-065 | Beobachter lädt alle 2 s alle Jobs und Ordner und startet `lsof`/`ps`; jeder Render fragt sekündlich und startet `sysctl`. | CODE | Änderungsbetrieb statt Vollabfrage. | B D2 |
-| BUG-066 | `cockpit_restart` prüft nur Renderjobs, nicht laufende Sendungen. | CODE | Sperre auch bei `sending`. | B D2 |
+| BUG-065 | Beobachter lädt alle 2 s alle Jobs und Ordner und startet `lsof`/`ps`; jeder Render fragt sekündlich und startet `sysctl`. | CODE: `runtime.status` ruft je Runde und Instanz `lsof` und zweimal `ps` auf | Änderungsbetrieb statt Vollabfrage. | B SP6 |
+| BUG-066 | `cockpit_restart` prüft nur Renderjobs, nicht laufende Sendungen; der Neustart wird bei jedem wartenden oder laufenden Renderjob verweigert, obwohl eingereichte Jobs einen Neustart überstehen. | CODE | Sperre auch bei `sending`. | B SP6 |
 | BUG-067 | `secret set` kennt nur Telegram. | TEST | Ein Katalog für Cockpit und CLI, Instagram und PayPal ergänzt. | B SP2 |
 | BUG-068 | Zwei Trainingswege: alter diffusers-Trainer neben dem ComfyUI-Trainingsworkflow. | CODE | Alten Weg samt CLI entfernen, wenn B1 belegt ist. | B SP3 |
 | BUG-069 | Trigger `dfchar`, Klasse `woman` und Beschriftung fest im Code; neuer Trigger erzeugt keine neue Datensatzversion. Die Klasse `woman` ist für männliche Figuren falsch. `MIN_SIDE`, `MIN_IMAGES`, `SETTLE_S` und die Trainingsformate stehen fest in `training.py`. | CODE, TEST | Trigger und Klasse im Charakterprofil, Teil der Datensatz-ID. | B SP3 |
@@ -103,20 +104,22 @@
 | BUG-071 | Ereignislisten im Browser wachsen unbegrenzt (`state.applyEvent`). | CODE | Begrenzen, älteres seitenweise. | F SP2 |
 | BUG-072 | Nachrichten, Wallet, ComfyUI ohne Browser-Test; Smoke klickt Wallet nicht. | CODE | Je Seite ein Browser-Test. | F SP2 |
 | BUG-078 | Zwei Ordnerschemata: Profil 1 liegt unter `local/character/`, weitere unter `local/characters/<nr>/`; Datensätze liegen im Unterordner `dataset`, der Plan nennt `datasets`. (Im B1-Änderungsblatt als „BUG-076“ geführt; 076 ist bereits vergeben.) | TEST | Ein Schema `local/characters/<kürzel>/` mit Migration. | B SP3 |
-| BUG-076 | Nach einem Deploy mit Schemawechsel weist das Backend offene Cockpits ab („Frontend-Build passt nicht zum Backend-Schema“); der Betreiber muss selbst neu laden. | LIVE | Cockpit lädt nach Schemawechsel automatisch neu. | B D3, F SP2 |
+| BUG-076 | Nach einem Deploy mit Schemawechsel weist das Backend offene Cockpits ab („Frontend-Build passt nicht zum Backend-Schema“); der Betreiber muss selbst neu laden; `realtime.ts` lädt bei abgewiesenem Schema genau einmal neu und bleibt danach gesperrt. | LIVE | Cockpit lädt nach Schemawechsel automatisch neu. | B SP6, F SP6 |
 | BUG-087 | `keychain.store_secret` lehnt Werte mit `"`, `\` oder Zeilenumbruch still ab. | CODE | Kodieren oder klare Meldung. | B SP2 |
 | BUG-088 | `default_contact` führt je Plattform nur eine Absender-ID; mehrere Konten derselben Plattform kollidieren. | CODE | Default-Identität je Konto. | B SP2 |
 | BUG-091 | Die Gesichtsmodelle `face_yunet`, `face_sface`, `face_auraface` gehören zu keiner Engine; Bereitschaft und Download sind nirgends sichtbar. `identity.py` hat keinen Aufrufer. | CODE | Engine `identity`; Einbindung in SP3. | B SP3 |
 | BUG-092 | Lokaler Zustand steht im versionierten `workflows/manifest.toml`: LoRA-Einträge (`register_lora`) und der Schalter `enabled`. Ursache von BUG-037. | CODE | Nicht versionierte `local/registry.toml`. | B SP3 |
 | BUG-093 | Die Wan-Engines haben keine `formats`; die einheitliche Videosteuerung hat dort keine benannten Formate. | CODE | Formate im Manifest ergänzen. | B SP1 |
+| BUG-103 | Plattenverbrauch: jede Ausgabe liegt in ComfyUIs `output/` und in `local/evaluation/`; `darkfluenzer_work/job<id>` und hochgeladene Eingaben werden nie aufgeräumt. | CODE | Aufräumen nach Übernahme und Frist. | B SP6 |
 
 ## 4. P3
 
 | ID | Befund | Soll | Paket |
 |---|---|---|---|
-| BUG-035 | `config.toml.vor-instagram` lokal mit Rechten 644. | Auf dem Mac prüfen, auf 600 setzen oder nach Rückfrage löschen. | B D2 |
+| BUG-035 | `config.toml.vor-instagram` lokal mit Rechten 644. | Auf dem Mac prüfen, auf 600 setzen oder nach Rückfrage löschen. | B SP6 |
 | BUG-036 | `setup_comfyui.sh` trägt keinen Ordner für Bildinterpolation (FILM) ein; Ordner `LLM` und Knotenpaket für das Chatmodell fehlen (vorbereitet: `launcher/setup_llm_session.sh`, `LLM: llm`, noch nicht committet). | Skripte ergänzen, am Mac prüfen. | B SP4 |
 | BUG-037 | Lokale, nicht committete Zeile `enabled = true` in `workflows/manifest.toml`. | Bewusst lokal; nie mit Fachänderungen committen. Ursache: BUG-092 (lokaler Zustand im versionierten Manifest). | B SP3 |
+| BUG-104 | Logs werden nur beim Start rotiert; `server.log` und `app.log` wachsen im Dauerbetrieb. | Rotation nach Größe. | B SP6 |
 | BUG-074 | Dokumente veraltet und widersprüchlich (schließt BUG-034 ein). | Konsolidierung am 17.11. erledigt (zwei Pläne + diese Liste, Altdokumente im Archiv); Widersprüche aus den Prüfberichten von ChatGPT und Fable am 17.11. korrigiert (SPEC-001 bis 007). Abschluss mit der Betreiberfreigabe. | B DOK-1 |
 
 ## 5. Erledigt oder widerlegt

@@ -1,6 +1,6 @@
 # Darkfluenzer – PHASENPLAN_FRONTEND.md
 
-**Stand:** 17.11.2026 (Änderungsblätter und Korrektur nach den Prüfberichten von ChatGPT und Fable) · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
+**Stand:** 17.11.2026 (Frontend-Teile der Sammelpakete SP1–SP6, Änderungsblätter und Korrektur nach den Prüfberichten) · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
 **Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Produktziel, Regeln, Entscheidungen E1–E16, PASS-Definition, Reihenfolge, Paketnummern) und `docs/bugs_v1.md`.
 **Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; laufendes Cockpit am 17.11.2026.
 **Gestaltungsreferenz:** `docs/design/Darkfluenzer_Cockpit_Interaktiv.html` und Anhang A (F7, wörtlich aus dem archivierten FRONT V1).
@@ -143,8 +143,7 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 | **SP3 (B1)** | Bereich Charakter §3.3 (Liste, Fotostatus, Training, Versionen, Aktiv setzen, LoRA-Auswahl im Formular) | echter Ordner → Training → LoRA → Bild; Browser-Test Anlegen, Fotostatus, gesperrter Start, Umschalten |
 | **B4** | Zeitachse §3.3 | 15 s mit vier Marken → ein Auftrag mit vier Schlüsselbildern |
 | **B5.6** | Referenzanalyse §3.3 | eigenes Bild → Prompt → echte Generierung |
-| **D1–D3** | Auskunft/Löschen in der Akte; Betriebsanzeige (Sicherung, Autostart, Ruhezustand); Release-Kennung | – |
-| **C6** | ein Browser-Lauf über die ganze Kette, Screenshots aller Reiter gegen die Referenz | Betreiberabnahme |
+| **SP6 Betrieb, Recht, Abnahme** | Frontend-Teil nach §4.4 (Betriebsanzeige, erneutes Neuladen nach Schemawechsel, Auskunft und Löschung je Akte, Pflichttexte, Release-Kennung) | ein Browser-Lauf über die ganze Kette; Screenshots aller sechs Reiter gegen die Referenz; Betreiberabnahme nach der Probephase |
 
 ### 4.1 SP2 Fundament (Frontend-Teil)
 
@@ -154,7 +153,7 @@ Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`,
 - **Ereignislisten (`state.ts`, BUG-071):** Obergrenze je Topic; ältere Einträge kommen über die Seitenabfragen. `applyEvent` kopiert die Liste nicht mehr je Ereignis; die Benachrichtigung wird gebündelt.
 - **Kundenliste und Übersicht:** folgen EVENT 26 bei jedem Eingang; Zähler „wartet auf Produktion“ und „wartet auf Freigabe“ (BUG-048, 070).
 - **Kanalstatus je Konto;** Figur-Filter in der Kundenliste (die Daten liefert SP2).
-- **Kleinere Punkte:** Ganzzahlprüfung (BUG-025), mitlaufende Fristen (BUG-026), Video in der Auftragskarte (BUG-027), Wallet-Maskierung und Bestätigungen (BUG-032, 033), Neuladen nach Schemawechsel (BUG-076).
+- **Kleinere Punkte:** Ganzzahlprüfung (BUG-025), mitlaufende Fristen (BUG-026), Video in der Auftragskarte (BUG-027), Wallet-Maskierung und Bestätigungen (BUG-032, 033). Das Neuladen nach Schemawechsel (BUG-076) kommt mit SP6.
 - **Reiter Einstellungen** nach §3.7, zusätzlich Kanalkonten anlegen, zuordnen und entfernen.
 - **Abnahme:** je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet und Einstellungen; der Smoke-Test klickt alle sechs Reiter; ein Test trennt die Verbindung während eines Befehls und prüft, dass der Knopf wieder frei wird.
 
@@ -176,6 +175,15 @@ Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`,
 - **Warteschlange:** Vorrang je Job sichtbar.
 - **Kundentest:** Marke TEST an Auftrag, Medien und Karten; Testaufträge nie im Wallet.
 - **Übersicht:** Zähler „wartet auf Betreiber“.
+
+### 4.4 SP6 Betrieb, Recht, Abnahme (Frontend-Teil)
+
+- **Betriebsanzeige (Einstellungen, Gruppe Betrieb):** Dienst installiert, Laufzeit seit dem letzten Start, Netzteil, Schlafschutz, letzte Sicherung, freier Speicherplatz, Auslagerung, offene Störungen.
+- **Verbindung (`realtime.ts`):** bei Sperre wegen des Schemas erneutes Neuladen in Abständen; Anzeige „Update läuft“ (BUG-076).
+- **Kundenakte:** „Auskunft exportieren“ und „Akte löschen“ mit Bestätigung und Quittung.
+- **Influencerin-Block:** Pflichttexte.
+- **Release-Kennung** im Kopf.
+- **Abnahme:** ein Browser-Lauf über die ganze Kette; Screenshots aller sechs Reiter gegen die Referenz.
 
 ---
 
