@@ -51,12 +51,13 @@
 | BUG-043 | **Abbrechen.** Behoben (`ebbe773`): Abbruch ab Klick, Ergebnis nach Abbruch verworfen, Speicher frei, Pause dauerhaft. Offen: Auftrag als Ganzes, Mehrkandidaten. | TEIL (§7) | Laufender Mehrkandidaten-Auftrag abgebrochen, Warteschlange leer, Journal stimmt. | B H3, F H3 |
 | BUG-053 | Kloner legt Aufträge ohne Vorprüfung an (aktiviert, nicht gesperrt, Modelle vorhanden). | CODE | Dieselbe Prüfung wie der Render-Befehl vor der Anlage; sonst Ablehnung mit Grund im Chat. | B H4 |
 | BUG-054 | Kloner startet auch Videos mit `production.candidates_default` (3). | CODE | `production.video_candidates_default` (Vorgabe 1). | B H4 |
-| BUG-055 | Kloner nutzt nur die erste Referenz (`refs[0]` in `_cloner_order`). | CODE | Alle Referenzen an die Vorlagen-Parameter; überzählige melden. | B H4 |
-| BUG-056 | Stufe mit genau einem Kandidaten wartet auf manuelle Auswahl (`advance_order`). | TEST | Ein erfolgreicher Kandidat wird automatisch gewählt. | B H4 |
+| BUG-055 | Kloner nutzt nur die erste Referenz (`refs[0]` in `_cloner_order`). | CODE | Mehrere Bilder einer Nachricht laufen als Stapel, je Bild ein Auftrag. Hat der Workflow mehrere Vorlagen-Parameter, werden die Bilder gemeinsam verwendet. | B H4 |
+| BUG-056 | Stufe mit genau einem Kandidaten wartet auf manuelle Auswahl (`advance_order`). | TEST | Ein einziger erfolgreicher Kandidat wird automatisch gewählt; bei Freigabeart „automatisch“ folgt die Systemfreigabe (C5.6a). | B H4 |
 | BUG-058 | **Video-Parameter uneinheitlich:** LTX `duration` („Länge (s)“) aus dem Manifest, Wan/Remix `duration_s` („Gesamtlänge“) aus dem Backend; das Feld steht je Workflow an anderer Stelle. Betreiber beanstandet 17.11. | TEST, LIVE | Ein Parametervertrag und eine Bedienkomponente für alle Video-Workflows. | B H5, F H5 |
 | BUG-059 | KI-Kennzeichnung nur in Metadaten; Plattform-Neukodierung entfernt sie vermutlich; WebP/WebM nicht kennzeichenbar. | CODE, HYPOTHESE | Kennzeichnung muss beim Empfänger ankommen (Begleittext oder Marke); je Kanal real prüfen. | B C5.7 |
 | BUG-060 | Angebot setzt ein Krypto-Wallet voraus; Angebotstext fest im Code. | CODE | Zahlungswege als Liste je Influencerin, Text als Vorlage im Profil. | B C5.5, C5a |
 | BUG-061 | Starter startet nur die Medien-Instanz; kein Autostart, kein Schutz vor Ruhezustand. | CODE | Beide Instanzen, Autostart, kein Ruhezustand im Betrieb. | B B5.1, D2 |
+| BUG-077 | Angebot verlangt die Altersangabe: `server._create_offer` weist ohne `self_declared_adult` ab. Laut E2 entfällt die Altersfrage. (Im Änderungsblatt vom 17.11. als „BUG-075“ geführt; 075 ist bereits vergeben.) | TEST | Bedingung entfernen; die Sperre bei Hinweisen auf Minderjährigkeit bleibt. Test `test_customer_orders` anpassen. | B C5.2 |
 
 ## 3. P2
 
@@ -77,7 +78,7 @@
 | BUG-064 | Bitgleiches Ergebnis zu einem vorhandenen Medium gilt als „kein Ergebnis“. | CODE | Vorhandenes Medium zählt als Kandidat. | B H3 |
 | BUG-065 | Beobachter lädt alle 2 s alle Jobs und Ordner und startet `lsof`/`ps`; jeder Render fragt sekündlich und startet `sysctl`. | CODE | Änderungsbetrieb statt Vollabfrage. | B D2 |
 | BUG-066 | `cockpit_restart` prüft nur Renderjobs, nicht laufende Sendungen. | CODE | Sperre auch bei `sending`. | B D2 |
-| BUG-067 | `secret set` kennt nur Telegram. | TEST | Instagram und PayPal ergänzen. | B C5a.2 |
+| BUG-067 | `secret set` kennt nur Telegram. | TEST | Ein Katalog für Cockpit und CLI, Instagram und PayPal ergänzt. | B S1 |
 | BUG-068 | Zwei Trainingswege: alter diffusers-Trainer neben dem ComfyUI-Trainingsworkflow. | CODE | Alten Weg samt CLI entfernen, wenn B1 belegt ist. | B B1 |
 | BUG-069 | Trigger `dfchar`, Klasse `woman` und Beschriftung fest im Code; neuer Trigger erzeugt keine neue Datensatzversion. | CODE, TEST | Felder im Charakterprofil, Teil der Datensatz-ID. | B B1 |
 | BUG-070 | Übersicht zählt bezahlte Aufträge in Produktion und Freigabe nicht. | CODE | Eigene Zähler. | F H |

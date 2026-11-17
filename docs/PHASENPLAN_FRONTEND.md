@@ -1,6 +1,6 @@
 # Darkfluenzer – PHASENPLAN_FRONTEND.md
 
-**Stand:** 17.11.2026 · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
+**Stand:** 17.11.2026 (mit Änderungsblatt Einstellungen/Kundentest/Vollautomatik) · **Status:** Entwurf zur Betreiberfreigabe; nach der Freigabe verbindlich. Umgesetzt wird erst nach der Freigabe.
 **Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Produktziel, Regeln, Entscheidungen E1–E10, PASS-Definition, Reihenfolge, Paketnummern) und `docs/bugs_v1.md`.
 **Prüfbasis:** `main` `7a49b6a`, laufendes Cockpit am 17.11.2026.
 **Gestaltungsreferenz:** `docs/design/Darkfluenzer_Cockpit_Interaktiv.html` und Anhang A (F7, wörtlich aus dem archivierten FRONT V1).
@@ -11,7 +11,7 @@
 
 - **Bestehende GUI erhalten und ergänzen, nicht neu schreiben.** React/Vite, generierte Protobuf-Typen, keine neue UI-Bibliothek, kein Electron, keine LLM- oder Chat-Logik im Browser.
 - **Ein Stylesheet:** `frontend/src/shared/graphite.css`. Keine Datei je Seite, keine eigene Video- oder Bildgestaltung.
-- **Fünf Hauptreiter:** Übersicht · Nachrichten · ComfyUI · Dateien · Wallet. Neue Funktionen kommen in passende Reiter (KI-Studio unter ComfyUI → KI, Charaktertraining unter ComfyUI, Kloner im Default-Kontakt).
+- **Sechs Hauptreiter:** Übersicht · Nachrichten · ComfyUI · Dateien · Wallet · Einstellungen (E13). Neue Funktionen kommen in passende Reiter (KI-Studio unter ComfyUI → KI, Charaktertraining unter ComfyUI, Kloner und Kundentest im Default-Kontakt).
 - **Daten nur per Push:** STATE und EVENT über den einen WebSocket `/ws/v1/stream`; Detailabfragen nur bei Ansichts-, Filter-, Seiten- oder Kundenwechsel, relevanter Fachversion, Reconnect oder manuellem Neuladen. Keine Abfrageschleifen. Alte Antworten (Version, Seite, Kunde, Verbindung) verwerfen; gleiche Anfragen zusammenfassen.
 - **Aktionen nur als Protobuf-Befehl** mit `request_id`, Scope und erwarteter Revision. `ACCEPTED` ist kein Erfolg; die Oberfläche zeigt den Zustand erst nach dem terminalen Receipt. Nach Verbindungsverlust dieselbe `request_id` wieder aufnehmen, nie blind neu senden.
 - **Kein Bedienelement ohne Backend.** Jedes Element kennt die Zustände leer · lädt · gesperrt mit Grund · Fehler. Geplante Funktionen bleiben ehrlich deaktiviert.
@@ -31,6 +31,7 @@
 | ComfyUI | Workflowliste (Fotos, Videos, KI), Formular aus der Registry, erweiterte Einstellungen (zugeklappt), „Aus Dateien“, Kandidaten (Video Standard 1), Ergebnis, Warteschlange mit Fortschritt, Anhalten (dauerhaft), Abbrechen, Instanzen, Charakter, Trainingsordner, „Für Kundenauftrag“; ungültige Felder werden am Knopf genannt | einheitliche Videosteuerung (H5), Zeitachse (B4), KI-Studio (B5), LoRA-Auswahl und -Vergleich (B1), Auftrag als Ganzes abbrechen (H3) |
 | Dateien | Galerie, Filter, Markieren, Alle markieren, Löschen mit Bestätigung, Download, Herkunft, Weiterverarbeiten, Wiederholen, Variieren, Hochskalieren, Video erstellen, abgeleitete Versionen | – (Video-Vorschau im echten Chrome geprüft) |
 | Wallet | Konten, Adresse mit QR, Eingänge, Zuordnen, Gutscheine, Monatsliste | PayPal, Gutscheinmaskierung, Bestätigung vor Zuordnen/Einlösen (BUG-032, 033) |
+| Einstellungen | – (Geheimnisse bisher nur per CLI) | ganzer Reiter (S1) |
 
 **Wo „Als Default festlegen“ liegt:** Nachrichten → Kundenakte (Register) → rechte Spalte → Identität → bei jeder Telegram- oder Instagram-Identität „Als Default festlegen“ → „Default bestätigen“. Der Knopf erscheint nur in einer Kundenakte; ist der Absender schon Default, gibt es keine Akte mehr. Die Schalter „Interne Befehle verarbeiten“ und „Automatische Produktionsaufträge“ liegen im Default-Kontakt (rechte Spalte).
 
@@ -51,17 +52,17 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
 | Block | Felder |
 |---|---|
 | Identität | Kundennummer, Kanalidentitäten (verifiziert), „Als Default festlegen“, Telegram-Übergang (C5.9) |
-| KI | Influencerin der Akte (C5.1), Text-KI an/aus, Antwortmodus Automatisch · Entwürfe prüfen · Manuell (C5.3), automatische Antworten an/aus, Kaufbereitschaft mit Beleg (C5.4), geplante Sendezeit mit „Jetzt senden“/„Zurückhalten“ |
-| Sicherheit | KI-Hinweis (Status je Identität), Minderjährigkeits-Sperre, Inhaltsstufe, Kanalfenster (Instagram 24 h, Telegram-Bremse) mit mitlaufender Frist |
+| KI | Influencerin der Akte (C5.1) mit Schalter Freigabeart automatisch/Betreiber, Text-KI an/aus, Antwortmodus Automatisch · Entwürfe prüfen · Manuell (C5.3), automatische Antworten an/aus, Kaufbereitschaft mit Beleg (C5.4), geplante Sendezeit mit „Jetzt senden“/„Zurückhalten“ |
+| Sicherheit | Status des KI-Hinweises je Identität; Karte und Sperre „minderjährig vermutet“; Inhaltsstufe; Kanalfenster (Instagram 24 h, Telegram-Bremse) mit mitlaufender Frist. Der Altersblock entfällt (E2, C5.2). |
 | Gedächtnis | Zusammenfassung, Vorlieben mit Quelle, Korrigieren/Löschen (B5.3) |
 | Medienwunsch | Motiv, Foto/Video/Set, Anzahl, Format, Lieferart, Quellnachrichten, offene Rückfrage (C5.5) |
 | Angebot | Produkt-ID, Preislistenrevision, Betrag, Zahlungswege der Influencerin, Frist, Zusatzleistungen Originaldatei/selbstlöschend; Faktenblock gesperrt (C5.5) |
 | Zahlung | nicht gezahlt · Eingang unklar · bestätigt · unterbezahlt · erstattet, mit Quelle und Betrag; ohne Zugang „NICHT EINGERICHTET“ |
-| Produktion | Stufe, Prompt, Workflow, LoRA-Version oder „ohne Charakter-LoRA“, Fortschritt, Lieferzeit, Kandidaten als Bild oder abspielbares Video mit Prüfwerten (C5.6a), „Neu erzeugen“ |
-| Zustellung | Vorschau der Zustellkopie (Kanal, Versandart, Größe, Kennzeichnung), Begleittext, Status (C5.7) |
+| Produktion | Stufe, Prompt, Workflow, LoRA-Version oder „ohne Charakter-LoRA“, Fortschritt, Lieferzeit, Kandidaten als Bild oder abspielbares Video; je Kandidat Identität, Inhaltsstufe und Technik mit bestanden/nicht (C5.6a); Karte „wartet auf Betreiber“ mit Freigeben, Neu, Erstatten; „Neu erzeugen“ |
+| Zustellung | Vorschau der Zustellkopie (Kanal, Versandart, Größe, Kennzeichnung), Begleittext, Status (C5.7); wer freigegeben hat (System oder Betreiber) und über welchen Weg (C5.10) |
 | Nachlauf | Reklamation, Neuauflage, Erstattung, Abschließen (C5.8) |
 
-**Rechte Steuerung beim Default (nur Betreiberfelder):** Telegram- und Instagram-Absender-ID, Interne Befehle verarbeiten, Influencerin, Medien-Workflow, Video-Workflow (animate), **Befehle** (Workflow je `clone`, `pose`, `style`, `remix`, `animate`, `edit`; Vorschläge aus der Registry), Freigabemodus, Automatische Produktionsaufträge, Freigabe vom Handy (C5.10). Die sechs Befehle werden in der Nachricht erkannt, es gibt keine Befehlsknöpfe. Ist ein Schalter aus oder fehlt ein Workflow, zeigt der Default-Kontakt das deutlich und die Kette antwortet im Chat (H4).
+**Rechte Steuerung beim Default (nur Betreiberfelder):** Telegram- und Instagram-Absender-ID, **Betriebsart** Produktion · Kundentest · Aus mit den Chat-Wörtern (E12), Interne Befehle verarbeiten, Influencerin, Medien-Workflow, Video-Workflow (animate), **Befehle** (Workflow und Ausgabeprofil je `clone`, `pose`, `style`, `remix`, `animate`, `edit`, z. B. Story 9:16; Vorschläge aus der Registry), Freigabemodus, Automatische Produktionsaufträge, Freigabe vom Handy (C5.10). Ein Stapel (mehrere Bilder in einer Nachricht) zeigt je Bild eine Karte mit gemeinsamem Fortschritt. Die sechs Befehle werden in der Nachricht erkannt, es gibt keine Befehlsknöpfe. Ist ein Schalter aus oder fehlt ein Workflow, zeigt der Default-Kontakt das deutlich und die Kette antwortet im Chat (H4).
 
 **Composer:** nur im gewählten verbundenen Kanal; „KI antworten“ (Entwurf nach Antwortmodus), „Antwort senden“ (genau einmal, Receipt); ungesendete Entwürfe bleiben an ihrer Akte; bei Handy-Übergabe pausiert die Automatik.
 
@@ -89,19 +90,39 @@ Bestand `Files.tsx` bleibt (Kacheln, Filter, Markieren, Alle markieren, Löschen
 
 Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht zugeordnete Beträge, Zuordnen, Gutscheine, Monatsliste. Neu: PayPal-Konto und -Eingänge (C5a.2), Gutscheincodes maskiert mit ausdrücklichem Aufdecken, Bestätigungsdialog mit Betrag, Kunde und Auftrag vor Zuordnen und Einlösen, Kulanz nach E10, Zahlungswege je Influencerin. Keine Trading-Ansichten, keine Auszahlungen.
 
+### 3.7 Einstellungen (S1)
+
+- Dateien: neue Seite `pages/Settings.tsx`, `core/settings.ts`.
+- Eine Karte je Gruppe: Kanäle, Zahlung, KI und Render, Admin und Test, Betrieb.
+- Je Eintrag: Name, Status (gesetzt, fehlt, ungültig), Eingabefeld, „Verbindung prüfen“, Hinweis, woher der Wert kommt.
+- Geheimnisse: leeres Passwortfeld mit „Ersetzen“. Der gespeicherte Wert wird nie angezeigt, auch nicht teilweise.
+- Filter „nur Fehlendes“. Banner „Neustart nötig“ mit Knopf.
+- Die Übersicht zeigt „Einrichtung: x von y fehlen“ und führt hierher.
+- Abnahme: Wert eintragen, prüfen, neu laden; Status „gesetzt“, Feld leer.
+
+### 3.8 Kundentest T1 und T2 (Nachrichten, Default-Kontakt)
+
+- Umschalter Betriebsart: Produktion, Kundentest, Aus.
+- Im Kundentest: Marke TEST im Verlauf, Messwerte je Nachricht aufklappbar, Tafel „Latenzen“ mit p50 und p95 für Antwort und Render.
+- Knöpfe „Test zurücksetzen“ und „Verzögerung wie Kunde“.
+- Testaufträge tragen in allen Listen die Marke TEST und erscheinen nie im Wallet.
+- Abnahme: Browser-Test für Umschalten, Messwerte und Zurücksetzen.
+
 ---
 
 ## 4. Pakete (Nummern wie im Backend-Plan)
 
 | Paket | Frontend-Umfang | Abnahme |
 |---|---|---|
-| **H allgemein** | Kundenliste/Übersicht folgen EVENT 26 bei jedem Eingang (BUG-048); Befehle mit Zeitlimit und Wiederaufnahme (BUG-024); Ganzzahlprüfung (BUG-025); mitlaufende Fristen (BUG-026); Video in der Auftragskarte als Player (BUG-027); Ereignislisten begrenzt (BUG-071); Wallet-Maskierung und Bestätigungen (BUG-032, 033); Übersichtszähler (BUG-070); automatisches Neuladen nach Schemawechsel (BUG-076) | je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet; Smoke klickt alle fünf Reiter (BUG-072) |
+| **H allgemein** | Kundenliste/Übersicht folgen EVENT 26 bei jedem Eingang (BUG-048); Befehle mit Zeitlimit und Wiederaufnahme (BUG-024); Ganzzahlprüfung (BUG-025); mitlaufende Fristen (BUG-026); Video in der Auftragskarte als Player (BUG-027); Ereignislisten begrenzt (BUG-071); Wallet-Maskierung und Bestätigungen (BUG-032, 033); Übersichtszähler (BUG-070); automatisches Neuladen nach Schemawechsel (BUG-076) | je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet, Einstellungen; Smoke klickt alle sechs Reiter (BUG-072) |
 | **H3** | „Auftrag abbrechen“ an der Auftragskarte; Fortschritt langer Läufe; Abbruchzustand bis zur Quittung | laufender Mehrkandidaten-Auftrag abgebrochen |
-| **H4** | Zustandskarte je Default-Nachricht (gestartet, wartet auf Start mit Startknopf, abgelehnt mit Grund, zurückgesendet, Rückversand gesperrt); Default-Kontakt zeigt ausgeschaltete Schalter und fehlende Workflows; Auftragskarte nennt Influencerin, Workflow, Zahl der Referenzen, LoRA-Version | Browser-Test für jeden der fünf Zustände plus echter Lauf vom Handy (H6) |
+| **H4** | Zustandskarte je Default-Nachricht (gestartet, wartet auf Start mit Startknopf, abgelehnt mit Grund, zurückgesendet, Rückversand gesperrt); Default-Kontakt zeigt ausgeschaltete Schalter und fehlende Workflows; Betriebsart-Umschalter; Ausgabeprofil je Befehl (z. B. Story 9:16); Stapel mit einer Karte je Bild und gemeinsamem Fortschritt; Auftragskarte nennt Influencerin, Workflow, Zahl der Referenzen, LoRA-Version | Browser-Test für jeden der fünf Zustände plus echter Lauf vom Handy (H6) |
 | **H5** | `VideoSettings` für alle Video-Workflows | LTX, Wan, Remix zeigen dieselben Felder an derselben Stelle (Screenshot-Vergleich) |
+| **S1** | Reiter Einstellungen §3.7 | PayPal-Zugang eintragen, Verbindung prüfen, Wert danach nirgends lesbar |
 | **B5.1–B5.4** | KI-Studio §3.4 | 20 echte Testnachrichten im Chat-Test, Messwerte sichtbar |
 | **B5.4a** | Default-Verlauf zeigt die Deutung einer freien Anweisung (Befehl, Workflow, Prompt) in der Karte | 30 Anweisungen vom Handy |
-| **C5.1–C5.10** | rechte Kundensteuerung §3.2 je Paket | je Paket echter Lauf mit Testkunden |
+| **C5.1–C5.10** | rechte Kundensteuerung §3.2 je Paket; C5.2: Status des KI-Hinweises, Karte und Sperre „minderjährig vermutet“, kein Altersblock; C5.6a: Prüfwerte je Kandidat, Karte „wartet auf Betreiber“ (Freigeben, Neu, Erstatten), Schalter Freigabeart im Influencerin-Block; C5.10: Auftragskarte zeigt, ob System oder Betreiber freigegeben hat und über welchen Weg | je Paket echter Lauf mit Testkunden |
+| **T1, T2** | Kundentest §3.8 | Browser-Test Umschalten, Messwerte, Zurücksetzen; Testauftrag nie im Wallet |
 | **C5a** | Wallet §3.6 | echte Zahlung je Weg |
 | **B1** | Charaktertraining §3.3 | echter Ordner → Training → LoRA → Bild |
 | **B4** | Zeitachse §3.3 | 15 s mit vier Marken → ein Auftrag mit vier Schlüsselbildern |
@@ -115,18 +136,20 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 
 - [ ] Übersicht: echte Karten und Kunden, ohne Polling.
 - [ ] Nachrichten: drei Spalten; Register öffnen/schließen; Gesamt nur lesbar; Kanalregister kanalgebunden; rechte Steuerung wechselt mit dem Register.
-- [ ] Default: nur Betreiberfelder; „Als Default festlegen“ an einer Kundenidentität; jede Default-Nachricht endet in einer sichtbaren Karte und einer Antwort im Chat.
+- [ ] Default: nur Betreiberfelder; Betriebsart; „Als Default festlegen“ an einer Kundenidentität; jede Default-Nachricht endet in einer sichtbaren Karte und einer Antwort im Chat; Stapel und Story-Profil.
 - [ ] ComfyUI: links nur Workflows; erweiterte Einstellungen zugeklappt; Video-Felder einheitlich; Abbrechen und Anhalten mit echtem Receipt.
 - [ ] KI-Studio: Melody aus der Registry, Messwerte echt.
 - [ ] Dateien: Bestand unverändert, Video-Player, Herkunft vollständig.
 - [ ] Wallet: fünfter Reiter, Codes maskiert, Bestätigung vor Geldaktionen.
+- [ ] Einstellungen: sechster Reiter, Geheimnisse nie sichtbar, „Verbindung prüfen“ je Eintrag.
+- [ ] Kundentest: Betriebsart umschaltbar, Marke TEST, Latenzen p50/p95, Testaufträge nie im Wallet.
 - [ ] Jeder Knopf: Befehl → Receipt → Push → richtiger Reiter.
 
 ---
 
 ## Anhang A – Freigegebene Klickreferenz F7
 
-Wörtlich aus dem archivierten `PHASENPLAN_FRONT_V1.md` (F7, Betreiberfreigabe 15./16.11.2026) übernommen. Verweise auf „V0“, „FRONT“ oder Abschnittsnummern beziehen sich auf die Archivfassungen. Bei Widerspruch gilt dieser Plan, insbesondere §1 (einheitliche Bedienung je Art) und §3. Die früheren Abschnitte F0–F6 sind durch §1–§4 dieses Plans und den Backend-Plan ersetzt und liegen im Archiv.
+Wörtlich aus dem archivierten `PHASENPLAN_FRONT_V1.md` (F7, Betreiberfreigabe 15./16.11.2026) übernommen. Verweise auf „V0“, „FRONT“ oder Abschnittsnummern beziehen sich auf die Archivfassungen. Bei Widerspruch gilt dieser Plan, insbesondere §1 (sechs Reiter, einheitliche Bedienung je Art) und §3. Die früheren Abschnitte F0–F6 sind durch §1–§4 dieses Plans und den Backend-Plan ersetzt und liegen im Archiv.
 
 ### A.0 F7 — Abgenommene klickbare Cockpit-Referenz (Betreiberfreigabe 15.11.2026)
 
