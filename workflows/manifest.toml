@@ -26,15 +26,32 @@ video_i2v = ""
 # ------------------------------------------------------------------------------------ Engines
 
 # Prüfkette E16/E17 (SP5 Schritt 7): das Backend setzt diese Knoten beim Einreichen zwischen
-# Dekodieren und jeden SaveImage-Knoten der Bild-Workflows; sie liefern nur Messwerte.
+# Dekodieren und jeden SaveImage-Knoten der Bild-Workflows bzw. vor CreateVideo der
+# Video-Workflows; sie liefern nur Messwerte.
+# Video (SP5 Schritt 7): Prüfungen mit video = "frames" bekommen jedes every-te und das letzte Frame,
+# höchstens max_frames; video = "all" bekommt alle Frames (zeitliche Konsistenz)
+[check_frames]
+node = "DarkfluenzerFrameSample"
+every = 8
+max_frames = 12
+
 [checks.content]
 node = "DarkfluenzerContentRating"
 engine = "content_check"
+video = "frames"
 inputs = { detector = "nudenet/640m.onnx", classifier = "freepik_nsfw/model.safetensors", min_region_score = 0.2 }
 
 [checks.quality]
 node = "DarkfluenzerImageQuality"
 engine = "quality_tech"
+video = "frames"
+
+[checks.temporal]
+node = "DarkfluenzerTemporal"
+engine = "quality_tech"
+image = false
+video = "all"
+inputs = { jump_factor = 4.0 }
 
 [checks.quality_score]
 node = "DarkfluenzerQualityScore"
@@ -50,12 +67,14 @@ inputs = { model = "qwen3_vl_8b/config.json" }
 [checks.hands]
 node = "DarkfluenzerHandCheck"
 engine = "hands_check"
+video = "frames"
 inputs = { palm = "hands/palm_detection_mediapipe_2023feb.onnx", gate = "hands/counthallu_quality_maxvit_small.pth", min_palm_score = 0.6 }
 
 [checks.identity]
 node = "DarkfluenzerFaceIdentity"
 engine = "identity"
 character = true
+video = "frames"
 inputs = { detector = "opencv/face_detection_yunet_2023mar.onnx", recognizer = "opencv/face_recognition_sface_2021dec.onnx", arcface = "auraface/glintr100.onnx" }
 
 [engines.qwen_image_2512]

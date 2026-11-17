@@ -285,6 +285,17 @@ class CheckSpec:
     inputs: dict  # feste Eingänge (Modelldateien, Grenzen)
     character: bool = False  # nur mit Figur (Referenzsatz, z. B. Gesichtsidentität)
     prompt: bool = False  # bekommt den Prompt des Auftrags (Prompttreue)
+    image: bool = True  # in Bild-Workflows vor jedem SaveImage
+    video: str = ""  # Video-Workflows: "frames" = Stichprobe, "all" = alle Frames, "" = nicht
+
+
+@dataclass(frozen=True)
+class FrameSampling:
+    """Stichprobe der Videoframes für Prüfknoten mit ``video = "frames"`` (SP5 Schritt 7)."""
+
+    node: str  # Knotenklasse (comfy_nodes/darkfluenzer/frames.py)
+    every: int
+    max_frames: int
 
 
 @dataclass(frozen=True)
@@ -297,6 +308,7 @@ class Manifest:
     workflows: dict[str, Workflow]
     loras: dict[str, Lora]
     checks: dict[str, CheckSpec] = field(default_factory=dict)
+    check_frames: FrameSampling | None = None
 
     def engine_files(self, engine: str) -> list[ModelFile]:
         return [self.files[k] for k in self.engines[engine].files]
@@ -670,10 +682,25 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             inputs=dict(t.get("inputs") or {}),
             character=bool(t.get("character", False)),
             prompt=bool(t.get("prompt", False)),
+            image=bool(t.get("image", True)),
+            video=str(t.get("video", "")),
         )
         if spec.engine not in engines:
             raise ManifestError(f"Manifest: {w}.engine '{spec.engine}' unbekannt.")
+        if spec.video not in ("", "frames", "all"):
+            raise ManifestError(f"Manifest: {w}.video muss frames, all oder leer sein.")
         checks[name] = spec
+    sampling = None
+    if (t := data.get("check_frames")) is not None:
+        w = "[check_frames]"
+        sampling = FrameSampling(
+            node=_str(t, "node", w), every=int(t.get("every", 8)),
+            max_frames=int(t.get("max_frames", 12)),
+        )  # fmt: skip
+        if sampling.every < 1 or sampling.max_frames < 1:
+            raise ManifestError(f"Manifest: {w} every und max_frames ≥ 1.")
+    elif any(c.video == "frames" for c in checks.values()):
+        raise ManifestError("Manifest: Prüfungen mit video = frames brauchen [check_frames].")
 
     return Manifest(
         root=root,
@@ -684,6 +711,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
         workflows=workflows,
         loras=loras,
         checks=checks,
+        check_frames=sampling,
     )
 
 

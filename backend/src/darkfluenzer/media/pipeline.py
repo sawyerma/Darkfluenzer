@@ -250,15 +250,19 @@ def check_plan(
     lora: comfy.LoraUse | None,
     values: dict | None = None,
 ) -> list[tuple[models.CheckSpec, dict]]:
-    """Prüfknoten der Prüfkette für diesen Lauf (E16/E17): nur Bild-Workflows, die Bilder erzeugen
-    (keine Analyse, kein Training), nur Prüfungen mit vorhandenen Modelldateien; Prüfungen mit
-    Figur (Gesichtsidentität) nur, wenn der Auftrag die LoRA einer Figur trägt."""
+    """Prüfknoten der Prüfkette für diesen Lauf (E16/E17): Bild- und Video-Workflows, die Medien
+    erzeugen (keine Analyse, kein Training), nur Prüfungen mit vorhandenen Modelldateien; Video
+    nur Prüfungen mit ``video`` (Frameprüfung, zeitliche Konsistenz); Prüfungen mit Figur
+    (Gesichtsidentität) nur, wenn der Auftrag die LoRA einer Figur trägt."""
     eng = man.engines[wf.engine]
-    if wf.training or eng.kind != "image" or eng.role == "analysis":
+    if wf.training or eng.kind not in ("image", "video") or eng.role == "analysis":
         return []
+    video = eng.kind == "video"
     base = models.models_dir(cfg.root)
     plan = []
     for spec in man.checks.values():
+        if (video and not spec.video) or (not video and not spec.image):
+            continue
         files = man.engines[spec.engine].files
         if any(models.file_state(man.files[f], base) != "present" for f in files):
             log.info("Prüfung %s übersprungen: Modelldateien fehlen", spec.name)
@@ -752,6 +756,7 @@ def _render(
             lora=lora,
             checks=check_plan(cfg, man, wf, lora, values),
             keyframes=frames,
+            sampling=man.check_frames,
         )
     checks: dict = {}
     masked: tuple[Path, int, list] | None = None  # (Maske, Randerweiterung, geprüfte Ausgaben)

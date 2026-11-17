@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..config import ComfyConfig, Config
-from ..media.models import CheckSpec, Lora, Manifest, Workflow
+from ..media.models import CheckSpec, FrameSampling, Lora, Manifest, Workflow
 from .base import node_for
 
 log = logging.getLogger("darkfluenzer.comfy")
@@ -396,31 +396,63 @@ CHECK_TARGET = "darkfluenzer_save"  # _meta der eingesetzten Prüfknoten: geprü
 CHECK_IDS = 9000  # erste Knoten-ID der eingesetzten Prüfknoten
 
 
-def inject_checks(graph: dict, wf: Workflow, checks: list[tuple[CheckSpec, dict]]) -> dict:
-    """Setzt die Prüfknoten zwischen Dekodieren und jeden SaveImage-Knoten (außer der Maske):
-    Eingang ``image`` = Eingang ``images`` des SaveImage. Das gespeicherte Bild bleibt gleich."""
+def video_saves(graph: dict) -> list[tuple[str, list]]:
+    """(SaveVideo-Knoten, Bild-Link der Frames) für Videos, die CreateVideo aus Frames baut."""
+    found = []
+    for nid, node in graph.items():
+        src = node.get("inputs", {}).get("video") if node.get("class_type") == "SaveVideo" else None
+        create = graph.get(str(src[0])) if _is_link(src) else None
+        frames = (create or {}).get("inputs", {}).get("images")
+        if create and create.get("class_type") == "CreateVideo" and _is_link(frames):
+            found.append((nid, list(frames)))
+    return found
+
+
+def inject_checks(
+    graph: dict,
+    wf: Workflow,
+    checks: list[tuple[CheckSpec, dict]],
+    sampling: FrameSampling | None = None,
+) -> dict:
+    """Setzt die Prüfknoten zwischen Dekodieren und Speichern; das Gespeicherte bleibt gleich.
+    Bild: vor jedem SaveImage (außer der Maske), Eingang ``image`` = dessen ``images``. Video:
+    vor CreateVideo; Prüfungen mit ``video = "frames"`` bekommen die Stichprobe des
+    ``sampling``-Knotens, ``video = "all"`` alle Frames; Ziel ist der SaveVideo-Knoten."""
     if not checks:
         return graph
     out = copy.deepcopy(graph)
+    # eigener Nummernbereich: nie die ID eines entfernten Knotens (z. B. LoRA-Lader) wiederverwenden
+    next_id = max([CHECK_IDS - 1, *(int(k) for k in out if str(k).isdigit())]) + 1
+
+    def add(class_type: str, inputs: dict, title: str, save: str) -> str:
+        nonlocal next_id
+        nid = str(next_id)
+        out[nid] = {"class_type": class_type, "inputs": inputs,
+                    "_meta": {"title": title, CHECK_TARGET: save}}  # fmt: skip
+        next_id += 1
+        return nid
+
+    if wf.video is not None:
+        for save, frames in video_saves(graph):
+            sample = None
+            if sampling is not None and any(spec.video == "frames" for spec, _ in checks):
+                limits = {"every": sampling.every, "max_frames": sampling.max_frames}
+                sample = add(sampling.node, {"image": frames, **limits}, "Prüfung Frames", save)
+            for spec, runtime in checks:
+                link = frames if spec.video == "all" else [sample, 0] if sample else None
+                if link is not None:
+                    add(spec.node, {"image": link, **spec.inputs, **runtime},
+                        f"Prüfung {spec.name}", save)  # fmt: skip
+        return out
     saves = [
         nid for nid, n in graph.items()
         if n.get("class_type") == "SaveImage" and nid != wf.mask_output
         and _is_link(n.get("inputs", {}).get("images"))
     ]  # fmt: skip
-    # eigener Nummernbereich: nie die ID eines entfernten Knotens (z. B. LoRA-Lader) wiederverwenden
-    next_id = max([CHECK_IDS - 1, *(int(k) for k in out if str(k).isdigit())]) + 1
     for save in saves:
         for spec, runtime in checks:
-            out[str(next_id)] = {
-                "class_type": spec.node,
-                "inputs": {
-                    "image": list(graph[save]["inputs"]["images"]),
-                    **spec.inputs,
-                    **runtime,
-                },
-                "_meta": {"title": f"Prüfung {spec.name}", CHECK_TARGET: save},
-            }
-            next_id += 1
+            add(spec.node, {"image": list(graph[save]["inputs"]["images"]), **spec.inputs,
+                **runtime}, f"Prüfung {spec.name}", save)  # fmt: skip
     return out
 
 
@@ -570,6 +602,7 @@ def run_workflow(
     lora: LoraUse | None = None,
     checks: list[tuple[CheckSpec, dict]] | None = None,
     keyframes: list[Keyframe] | None = None,
+    sampling: FrameSampling | None = None,
 ) -> RenderResult:
     """Server sicherstellen, Workflow ausführen, alle Ausgabedateien unter ``dest`` sichern.
     ``overrides``: (Node, Eingang) -> Wert, die das Backend selbst setzt (z. B. Trainingsdaten).
@@ -591,7 +624,7 @@ def run_workflow(
     for (node, name), value in (overrides or {}).items():
         graph[node]["inputs"][name] = value
     graph.update(extra or {})
-    graph = inject_checks(graph, wf, checks or [])  # Prüfkette E16/E17 (SP5 Schritt 7)
+    graph = inject_checks(graph, wf, checks or [], sampling)  # Prüfkette E16/E17 (SP5 Schritt 7)
     graph = unique_outputs(graph, tag)
     inst = instance_of(cfg, man, wf)
     node_for(cfg, inst).start()  # einzige Startlogik; idempotent
@@ -697,7 +730,8 @@ def collect_graph(
                 values = json.loads(text)
             except (TypeError, ValueError) as exc:
                 raise ComfyError(f"Prüfknoten {node_id}: Messwerte unlesbar ({exc}).") from exc
-            result.checks.extend({**v, "node": node_id} for v in values)
+            # item: Stelle im Stapel des Prüfknotens (Bild im Stapel bzw. Frame der Stichprobe)
+            result.checks.extend({**v, "node": node_id, "item": i} for i, v in enumerate(values))
         for item in out.get("images", []) + out.get("gifs", []) + out.get("videos", []):
             index += 1
             data = client.fetch(item)

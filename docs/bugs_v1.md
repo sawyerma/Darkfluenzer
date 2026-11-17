@@ -198,6 +198,20 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: E17 Teil 4 / SP5 Schritt 7 (Video: Frameprüfung und zeitliche Konsistenz)
+Commit: siehe git log „E17 part 4“ / comfy_nodes frames.py, temporal.py; comfy.inject_checks; Manifest
+Behauptung: Prüfkette lief nur vor SaveImage; Videos wurden nicht geprüft
+Korrektur: Video-Workflows bekommen vor CreateVideo eine Stichprobe (DarkfluenzerFrameSample: jedes 8. und
+  das letzte Frame, höchstens 12, [check_frames]) für Inhalt, Technik, Hände, Identität (video = "frames")
+  und DarkfluenzerTemporal auf allen Frames (Sprünge, Standbilder, Helligkeitsflackern; video = "all");
+  Ziel ist SaveVideo, Werte je Frame mit item (Stelle in der Stichprobe) und der Liste der geprüften
+  Frames; Prompttreue und Q-ReAlign (8B/9B) nicht je Frame. Offen: Abschnittsketten (Langvideo) ohne
+  Prüfknoten, Schwellen und Entscheidung
+Nachweis: tests/test_checks.py::test_video_checks_sample_frames_before_create_video,
+  ::test_check_plan_for_video_takes_frame_and_temporal_checks, ::test_frame_sample_and_temporal_measures
+Ergebnis: CODE (Mac-Lauf folgt)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: FABLE-014 (Audit Fable 17.11., P2; im Auditblatt vorläufig „BUG-122“) – Teil
 Commit: siehe git log „FABLE-014“ / payments.chain.WalletWatcher._confirm_bsc, store.update_confirmations
 Behauptung: BESTÄTIGT – BSC-Bestätigungen nur aus der aktuellen Blockhöhe minus Fundblock; eine aus der

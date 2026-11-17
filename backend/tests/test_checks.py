@@ -52,7 +52,7 @@ def test_collect_reads_check_values_and_accepts_a_run_without_files(cfg, monkeyp
         prompt_id="p", workflow="identity_check", engine="identity", params={}
     )
     result = comfy.collect_graph(cfg.comfyui, "p", tmp_path, stem="s", timeout_s=5, base=base)
-    assert result.outputs == [] and result.checks == [{**VALUES[0], "node": "2"}]
+    assert result.outputs == [] and result.checks == [{**VALUES[0], "node": "2", "item": 0}]
     entry["outputs"] = {"2": {comfy.CHECKS_KEY: ["kein json"]}}
     base = comfy.RenderResult(
         prompt_id="p", workflow="identity_check", engine="identity", params={}
@@ -348,3 +348,66 @@ def test_hand_node_anchors_and_crop_geometry():
     assert crop.shape[:2] == (104, 104)  # 2,6 × 40 px
     edge = hands.hand_crop(image, np.array([0.0, 0.0, 40.0, 40.0]), marks)
     assert edge.shape[:2] == (104, 104)  # am Rand mit Rand aufgefüllt
+
+
+def test_video_checks_sample_frames_before_create_video(setup):
+    """SP5 Schritt 7 (Video): Stichprobe vor CreateVideo, Prüfungen „frames“ auf der Stichprobe,
+    zeitliche Konsistenz auf allen Frames; Ziel ist SaveVideo, der Videoweg bleibt gleich."""
+    _, _, man = setup
+    specs = [(man.checks[n], {}) for n in ("content", "temporal")]
+    for key in ("wan22_i2v", "wan22_remix_v30_i2v", "ltx25_i2v", "ltx25_flf2v"):
+        wf = man.workflows[key]
+        graph = comfy.load_graph(man, wf)
+        ((save, frames),) = comfy.video_saves(graph)
+        out = comfy.inject_checks(graph, wf, specs, man.check_frames)
+        added = {v["class_type"]: (k, v) for k, v in out.items() if k not in graph}
+        sample_id, sample = added["DarkfluenzerFrameSample"]
+        assert sample["inputs"] == {"image": frames, "every": 8, "max_frames": 12}
+        assert added["DarkfluenzerContentRating"][1]["inputs"]["image"] == [sample_id, 0]
+        assert added["DarkfluenzerTemporal"][1]["inputs"]["image"] == frames
+        assert set(comfy.check_targets(out).values()) == {save}
+        assert all(out[k] == graph[k] for k in graph)  # nichts am Videoweg geändert
+    # ohne Prüfung auf der Stichprobe kein Stichprobenknoten
+    wf = man.workflows["wan22_i2v"]
+    graph = comfy.load_graph(man, wf)
+    out = comfy.inject_checks(graph, wf, [(man.checks["temporal"], {})], man.check_frames)
+    assert [v["class_type"] for k, v in out.items() if k not in graph] == ["DarkfluenzerTemporal"]
+
+
+def test_check_plan_for_video_takes_frame_and_temporal_checks(setup, monkeypatch):
+    cfg, _, man = setup
+    wf = man.workflows["wan22_i2v"]
+    assert [s.name for s, _ in pipeline.check_plan(cfg, man, wf, None)] == ["quality", "temporal"]
+    monkeypatch.setattr(models, "file_state", lambda mf, base: "present")
+    plan = [s.name for s, _ in pipeline.check_plan(cfg, man, wf, None, {"prompt": "p"})]
+    assert plan == ["content", "quality", "temporal", "hands"]  # keine 8B/9B-VLM je Frame
+
+
+def test_frame_sample_and_temporal_measures():
+    """Stichprobe: jedes n-te und das letzte Frame, gleichmäßig ausgedünnt; zeitliche Konsistenz:
+    ein Schnitt ist ein Sprung an seiner Stelle, unveränderte Frames zählen als Standbild."""
+    path = project_root() / "comfy_nodes" / "darkfluenzer"
+    loaded = {}
+    for name in ("frames", "temporal"):
+        spec = importlib.util.spec_from_file_location(f"df_{name}_node", path / f"{name}.py")
+        loaded[name] = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(loaded[name])
+    frames, temporal = loaded["frames"], loaded["temporal"]
+    assert frames.frame_indices(81, 8, 12) == list(range(0, 81, 8))
+    assert frames.frame_indices(81, 1, 5) == [0, 20, 40, 60, 80]
+    assert frames.frame_indices(10, 4, 12) == [0, 4, 8, 9]
+    assert frames.frame_indices(1, 8, 12) == [0] and frames.frame_indices(0, 8, 12) == []
+    batch = np.arange(20, dtype=np.float32).reshape(20, 1, 1, 1) * np.ones((1, 4, 4, 3), np.float32)
+    result = frames.FrameSample().sample(batch, 8, 12)
+    (entry,) = json.loads(result["ui"]["darkfluenzer_checks"][0])
+    assert entry == {"check": "frames", "status": "ok", "total": 20, "indices": [0, 8, 16, 19]}
+    assert result["result"][0][:, 0, 0, 0].tolist() == [0, 8, 16, 19]
+
+    rng = np.random.default_rng(3)
+    a = rng.integers(0, 256, (64, 64), dtype=np.uint8)
+    b = rng.integers(0, 256, (64, 64), dtype=np.uint8)
+    cut = temporal.measure_frames([a] * 5 + [b] * 5, 4.0)
+    assert (cut["jumps"], cut["max_step"], cut["frozen"], cut["frames"]) == (1, 4, 8, 10)
+    smooth = temporal.measure_frames([np.roll(a, i, axis=1) for i in range(8)], 4.0)
+    assert smooth["jumps"] == 0 and smooth["frozen"] == 0
+    assert temporal.measure_frames([a], 4.0)["status"] == "zu_kurz"
