@@ -198,6 +198,9 @@ def _render(args: argparse.Namespace) -> tuple[dict, int]:
     values: dict = {}
     for item in args.set or []:
         name, _, raw = item.partition("=")
+        if wf.video and name in pipeline.VIDEO_KEYS:  # Videolänge wie im Cockpit (Sekunden)
+            values[name] = float(raw)
+            continue
         if name not in wf.params:
             raise comfy.ComfyError(f"Parameter '{name}' ist für {args.workflow} nicht freigegeben.")
         typ = wf.params[name].type

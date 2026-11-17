@@ -203,6 +203,9 @@ Behauptung: BESTÄTIGT (Vorlage video_ltx2_5_flf2v nicht übernehmbar; ltx25_i2v
 Nachweis: tests/test_workflows.py::test_template_import_defaults_missing_dynamic_values_and_accepts_autogrow
 Mac-Lauf 17.11.2026: Vorlage video_ltx2_5_flf2v → 42 Knoten, SaveVideo codec „auto“, Prüfung nur noch
   fehlende Modelldateien (Zuordnung folgt); ltx25_i2v Prüfung ohne Befund
+Teil 2: api_to_ui legt je belegtem wachsendem Untereingang einen Slot an und verbundene Unterwerte einer
+  dynamischen Auswahl als eigene Eingänge (vorher nur als Wert im Widget, im Editor nicht nutzbar);
+  Test test_api_to_ui_keeps_every_used_autogrow_input; ltx25_flf2v UI/API je 57 Verbindungen
 Ergebnis: PASS
 Bearbeiter/Datum: Claude, 17.11.2026
 ```

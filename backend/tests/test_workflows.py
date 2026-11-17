@@ -196,3 +196,27 @@ def test_template_import_defaults_missing_dynamic_values_and_accepts_autogrow():
     assert comfy.check_graph(graph, info, set()) == []
     graph["1"]["inputs"]["values.z"] = 3  # nicht in der Namensliste
     assert comfy.check_graph(graph, info, set()) == ["1 Math: unbekannter Eingang 'values.z'"]
+
+
+def test_api_to_ui_keeps_every_used_autogrow_input():
+    """Mehrere belegte Untereingänge einer wachsenden Gruppe (``values.a``, ``values.b``) bleiben
+    beim UI-Export erhalten (Rundweg ohne Abweichung, LTX-Vorlage 17.11.)."""
+    info = {
+        "Num": {"input": {"required": {"value": ["INT", {"default": 1}]}}, "output": ["INT"],
+                "output_name": ["INT"], "output_node": False, "name": "Num"},
+        "Math": {"input": {"required": {
+            "expression": ["STRING", {"default": "a"}],
+            "values": ["COMFY_AUTOGROW_V3", {"template": {
+                "input": {"required": {"value": ["INT", {}]}}, "names": ["a", "b", "c"]}}],
+        }}, "output": ["INT"], "output_name": ["INT"], "output_node": False, "name": "Math"},
+        "Show": {"input": {"required": {"value": ["INT", {}]}}, "output": [], "output_name": [],
+                 "output_node": True, "name": "Show"},
+    }  # fmt: skip
+    graph = {
+        "1": {"class_type": "Num", "inputs": {"value": 5}},
+        "2": {"class_type": "Num", "inputs": {"value": 24}},
+        "3": {"class_type": "Math", "inputs": {"expression": "a * b + 1", "values.a": ["1", 0],
+                                                "values.b": ["2", 0]}},
+        "4": {"class_type": "Show", "inputs": {"value": ["3", 0]}},
+    }  # fmt: skip
+    assert comfy.ui_to_api(comfy.api_to_ui(graph, info), info) == graph

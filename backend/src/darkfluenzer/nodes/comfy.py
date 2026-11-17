@@ -789,8 +789,28 @@ def _dynamic_widgets(name: str, spec: list, inputs: dict) -> list:
         if _is_dynamic_combo(sub_spec):
             values += _dynamic_widgets(key, sub_spec, inputs)
         elif _is_widget(sub_spec):
-            values.append(inputs.get(key, _default(sub_spec)))
+            value = inputs.get(key, _default(sub_spec))
+            values.append(_default(sub_spec) if _is_link(value) else value)  # Eingang statt Wert
     return values
+
+
+def _dynamic_links(name: str, spec: list, inputs: dict) -> list[tuple[str, str]]:
+    """Verbundene Unterwerte einer dynamischen Combo (Name, Typ) – im UI eigene Eingänge."""
+    options = _spec_options(spec).get("options", [])
+    value = inputs.get(name, _default(spec))
+    option = next((o for o in options if o.get("key") == value), {})
+    sub_specs = {
+        **option.get("inputs", {}).get("required", {}),
+        **option.get("inputs", {}).get("optional", {}),
+    }
+    found = []
+    for sub, sub_spec in sub_specs.items():
+        key = f"{name}.{sub}"
+        if _is_dynamic_combo(sub_spec):
+            found += _dynamic_links(key, sub_spec, inputs)
+        elif _is_widget(sub_spec) and _is_link(inputs.get(key)):
+            found.append((key, "COMBO" if _combo_values(sub_spec) is not None else sub_spec[0]))
+    return found
 
 
 def _node_spec(object_info: dict, class_type: str) -> dict:
@@ -874,6 +894,8 @@ def api_to_ui(graph: dict, object_info: dict) -> dict:
             value = node["inputs"].get(name)
             if _is_dynamic_combo(sp):
                 widgets += _dynamic_widgets(name, sp, node["inputs"])
+                for key, typ in _dynamic_links(name, sp, node["inputs"]):
+                    inputs.append({"name": key, "type": typ, "link": None, "widget": {"name": key}})
                 continue
             if _is_widget(sp):
                 if _is_link(value):
@@ -887,13 +909,16 @@ def api_to_ui(graph: dict, object_info: dict) -> dict:
                 if _spec_options(sp).get("control_after_generate"):
                     widgets.append("fixed")
             elif isinstance(sp[0], str) and sp[0].startswith("COMFY_AUTOGROW"):
-                # dynamische Eingangsgruppe: wie ComfyUI-Templates als erster Einzelslot
+                # dynamische Eingangsgruppe: je belegtem Untereingang ein Slot (mindestens der
+                # erste, wie in den ComfyUI-Templates), in der Reihenfolge der Vorlage
                 tmpl = _spec_options(sp).get("template", {})
-                first = (tmpl.get("names") or ["1"])[0]
+                names = tmpl.get("names") or ["1"]
+                used = [n for n in names if f"{name}.{n}" in node["inputs"]] or names[:1]
                 slot_type = next(iter(tmpl.get("input", {}).get("required", {}).values()), ["*"])
-                inputs.append(
-                    {"name": f"{name}.{first}", "type": slot_type[0], "link": None, "shape": 7}
-                )
+                for sub in used:
+                    inputs.append(
+                        {"name": f"{name}.{sub}", "type": slot_type[0], "link": None, "shape": 7}
+                    )
             elif sp[0] == _MATCHTYPE:  # Typvorlage: wie das Frontend die erlaubten Typen
                 allowed = _spec_options(sp).get("template", {}).get("allowed_types", "*")
                 inputs.append({"name": name, "type": allowed, "link": None})

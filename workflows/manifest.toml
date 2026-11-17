@@ -835,6 +835,34 @@ fps = "fps"
 start_image = "image"
 seconds_max = 20
 
+[workflows.ltx25_flf2v]
+engine = "ltx25"
+ui = "video/ltx25_flf2v.ui.json"
+api = "video/ltx25_flf2v.api.json"
+status = "OFFEN"
+title = "LTX 2.5 · Start- und Endbild zu Video"
+content = "standard"
+
+[workflows.ltx25_flf2v.params]
+image = { node = "31", input = "image", type = "str", required = true, upload = true }
+end_image = { node = "39", input = "image", type = "str", required = true, upload = true, label = "Endbild" }
+prompt = { node = "252", input = "value", type = "str", required = true }
+negative_prompt = { node = "217", input = "text", type = "str" }
+width = { node = "215", input = "value", type = "int", min = 256, max = 1920, multiple_of = 64 }
+height = { node = "216", input = "value", type = "int", min = 256, max = 1920, multiple_of = 64 }
+seed = { node = "196", input = "noise_seed", type = "int", min = 0, max = 9223372036854775807 }
+fps = { node = "205", input = "value", type = "int", choices = [16, 24], label = "Bildrate (fps)" }
+start_strength = { node = "206", input = "strength", type = "float", min = 0.1, max = 1.0, label = "Startbild-Stärke" }
+end_strength = { node = "204", input = "strength", type = "float", min = 0.1, max = 1.0, label = "Endbild-Stärke" }
+
+[workflows.ltx25_flf2v.video]
+mode = "seconds"
+length_node = "198"
+length_input = "value"
+fps = "fps"
+start_image = "image"
+seconds_max = 20
+
 [workflows.wan22_remix_v30_i2v]
 engine = "wan22_remix_v30"
 ui = "video/wan22_remix_v30_i2v.ui.json"
