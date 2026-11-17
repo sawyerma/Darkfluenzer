@@ -80,7 +80,7 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
 - **Erweiterte Einstellungen:** alle tatsächlich registrierten Eingänge mit Typ, Grenzen und Fehler am Feld; Ganzzahlen vor dem Senden geprüft (BUG-025).
 - **Einheitliche Videosteuerung (SP1):** Komponente `VideoSettings` für alle Video-Workflows. Feste Reihenfolge direkt unter Prompt und Startbild: **Gesamtlänge (s)**, Bildrate, Auflösung, Abschnittslänge (nur wenn die Engine Abschnitte nutzt). Gleiche Beschriftung für LTX, Wan und Remix; Grenzen aus dem STATE.
 - **Zeitachse (B4, FL-4):** unter `VideoSettings` eine Leiste über die Gesamtlänge; je Marke Sekunde, Referenzbild aus Dateien, Prompt des folgenden Abschnitts, Kamera/Bewegung, Übergangsstärke; Marken verschiebbar, Abschnitte sichtbar.
-- **Warteschlange:** dauerhafte Reihenfolge, Fortschritt (Schritt, Abschnitt), Anhalten/Fortsetzen (übersteht Neustart), Abbrechen je Job und je Auftrag (SP1); Video standardmäßig ein Kandidat.
+- **Warteschlange:** dauerhafte Reihenfolge, Fortschritt (Schritt, Abschnitt), Anhalten/Fortsetzen (übersteht Neustart), Abbrechen je Job und je Auftrag (SP1); Video standardmäßig ein Kandidat. **[17.11.]** Geschätzte Endzeit je laufendem Job; Hinweis bei Stillstand (`production.stall_notice_s`), kein Abbruch wegen der Dauer (Backend SP1 Schritt 2).
 - **B1 Charakter (Bereich Charakter, FL-3; Paket SP3):**
   - Liste der Charaktere; „Neuer Charakter“ mit Name, Kürzel, Klasse und Trigger.
   - Je Charakter: Ordnerpfad zum Kopieren und „Im Finder öffnen“; Fotos auch per Ziehen/Ablegen hinzufügen (kopiert nach `photos/`); Fotoliste mit Status und Grund; Zähler „x von y brauchbar“; Auswahl der Referenzfotos.
@@ -91,6 +91,10 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
   - Fotoliste zeigt zusätzlich die Gesichtshinweise „kein Gesicht“ und „andere Person“ (SP3).
   - Profilfelder Trigger und Klasse; Probe-Prompts.
   - Vor „Trainieren“ steht die geschätzte Dauer; der Knopf ist gesperrt, solange bezahlte Aufträge warten.
+  - **Training in Wellen [17.11.] (Backend SP3 Schritt 3):**
+    - Vor dem Start: Wellenlänge, Gesamtschritte, geschätzte Dauer und Endzeit.
+    - Im Lauf: Welle x von y, Schritte, gemessene Zeit je Schritt, Restzeit.
+    - Je Welle eine Zeile mit Probebild und Identitätswert; Knöpfe „Reicht, beenden“ und „Weitere Welle“.
   - Versionen: Tabelle aus der Registry mit Figur, Architektur, Datensatz, Schritten, Rang; Probebilder mit Identitätswert; „Aktiv setzen“ je Architektur.
   - Dateien, Herkunft: LoRA-Schlüssel, Stärke, Identitätswert.
   - Default-Kontakt: Vorschlag des Workflows je Befehl aus der Registry (Ergebnis des Kloner-Vergleichs, SP3 Schritt 8).

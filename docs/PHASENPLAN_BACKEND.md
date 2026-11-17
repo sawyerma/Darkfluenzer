@@ -318,7 +318,7 @@ Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, 
 ### Etappe A – Medien: Bild, Video, eigenes Modell (im Cockpit)
 
 1. SP0 vollständig (Schritte 1 bis 6).
-2. SP1 Schritt 2 (Render-Worker absichern, Zeitlimit je Workflow), Schritt 10 (Video-Vertrag), Schritt 11 (Auftrag abbrechen); dazu BUG-064, 090, 093.
+2. SP1 Schritt 2 (Render-Worker absichern, kein festes Zeitlimit), Schritt 10 (Video-Vertrag), Schritt 11 (Auftrag abbrechen); dazu BUG-064, 090, 093.
 3. SP2 Schritt 2 (Inhaltsstufe) und Schritt 11 (Befehlsstatus).
 4. SP5 Schritt 5 (Warteschlange mit Vorrang).
 5. SP3 Schritte 1 bis 7 (Ordner, Datensatz, Training, LoRA-Registry, LoRA im Workflow, aktive LoRA, Gesichtsprüfung).
@@ -482,8 +482,11 @@ Ersetzt H0, H4, H5, H6a sowie aus H2 BUG-008/013/014 und aus H3 Zeitlimit, Auftr
 1. **Rückverfolgung (`app.py`).** CLI `darkfluenzer trace --message <id>` und `--order <nr>`, nur lesend: Nachricht, Identität, Default-Zuordnung, Schalter, Befehl, Referenzen, Workflow, Vorprüfung, Auftrag, Stufen, Jobs mit `prompt_id` und Fehler, Medien, Rückversand. Die erste Unterbrechung wird benannt.
 2. **Render-Worker absichern (`server.render_worker`).**
    - Heute: `advance_order`, `_cloner_delivery`, die Pushes und `_admit` laufen ungeschützt. Ein Fehler beendet die Schleife der Instanz.
-   - Neu: ganzer Schleifenkörper in `try/except Exception` mit Log; Nachbearbeitung in eigener Funktion `_after_job`. Zeitlimit je Workflow (`timeout_s` im Manifest, Vorgabe `production.render_timeout_s`) wird an `pipeline.run_render` übergeben.
+   - Neu: ganzer Schleifenkörper in `try/except Exception` mit Log; Nachbearbeitung in eigener Funktion `_after_job`.
    - Test: `_cloner_delivery` wirft, der nächste Job läuft trotzdem.
+   - **Kein festes Zeitlimit (Betreiberentscheidung 17.11.):** Das feste Zeitlimit (`timeout_s = 3600` in `pipeline.run_render`, `comfy.ComfyClient.wait`) entfällt ersatzlos. Ein Lauf endet nur durch: Ergebnis, Fehler von ComfyUI, Abbruch durch den Betreiber, oder wenn ComfyUI nicht mehr läuft oder den Auftrag nicht mehr kennt. **Umgesetzt 17.11. (6189956):** Lebenszeichen je Abfrage (Warteschlange oder Verlauf), Abbruch erst nach `production.comfy_lost_s` (Vorgabe 60 s) ohne Lebenszeichen.
+   - Kommt länger als `production.stall_notice_s` kein Fortschritt, erscheint ein Hinweis im Cockpit und beim Default. Der Lauf geht weiter. (offen)
+   - Vor dem Start und während des Laufs zeigt das Cockpit die geschätzte Dauer und die voraussichtliche Endzeit, aus den gemessenen Zeiten dieses Workflows. (offen)
 3. **Telegram-Eingang der Reihe nach (`telegram._on_update`, `_message`).**
    - Heute: je Nachricht eine eigene Aufgabe. Ein Befehl überholt das Foto, dessen Download noch läuft.
    - Neu: eine Warteschlange und ein Arbeiter je `chat_id`; `_reconcile` nutzt sie mit. `media_album_id` wird als `album_id` an der Nachricht gespeichert (Migration). Anhänge mit Status `pending` werden nach dem Start erneut geladen, nach drei Fehlversuchen `failed` mit Grund.
@@ -766,10 +769,10 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
 
 **Ziel:** Fotos in den Ordner legen, trainieren, aktiv setzen. Danach erzeugt jeder Auftrag der Figur Bilder mit ihrem Gesicht, und eine automatische Prüfung belegt das.
 **Schließt:** BUG-052, 068, 069, 078, 091, 092, 094; Voraussetzung für die automatische Prüfung in SP5.
-**Braucht:** SP1 (Zeitlimit je Workflow, Kloner-Kette), SP2 (Inhaltsstufe).
+**Braucht:** SP1 (kein festes Zeitlimit, Kloner-Kette), SP2 (Inhaltsstufe).
 **Dateien:** `training.py`, `models.py`, `identity.py`, `pipeline.py`, `server.py`, `store.py`, `comfy.py`, `config.py`, `workflows/manifest.toml`, Workflow-Graphen, `character.proto`, `commands.proto`.
 
-**Vorher zu wissen:** Ein Training läuft über Stunden (Krea 2 ≈ 10 h für 1500 Schritte bei 768 px) und blockiert die Medien-Warteschlange; Start nur per Knopf. Für Kundenbilder gilt E14. Video braucht zunächst keine eigene LoRA, weil es aus dem fertigen Bild entsteht.
+**Vorher zu wissen:** Ein Training läuft über Stunden (Krea 2 ≈ 10 h für 1500 Schritte bei 768 px) und blockiert die Medien-Warteschlange je Welle (Schritt 3); Start nur per Knopf. Für Kundenbilder gilt E14. Video braucht zunächst keine eigene LoRA, weil es aus dem fertigen Bild entsteht.
 
 **Umsetzung in dieser Reihenfolge**
 
@@ -782,11 +785,18 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
    - Heute: Trigger `dfchar`, Klasse `woman` und Beschriftung fest; die Datensatz-ID entsteht nur aus den Foto-Hashes.
    - Neu: Trigger und Klasse aus dem Profil. Eine gleichnamige `.txt` neben dem Foto ist dessen Beschriftung. Trigger, Klasse und Beschriftungen gehen in die Datensatz-ID ein.
    - Fotoprüfung mit `identity.FaceIdentity`: zusätzliche Hinweise „kein Gesicht“ und „andere Person“ (Abstand zum Schwerpunkt aller Fotos). `dataset.json` hält das Ergebnis fest.
-3. **Training (`server._render`, `pipeline._render`, `pipeline._adopt_lora`).**
+3. **Training in Wellen (`server._render`, `pipeline._render`, `pipeline._adopt_lora`).**
    - `_render` übergibt Trigger und Klasse des gewählten Charakters an `build_dataset`.
-   - Das Zeitlimit kommt aus der Registry (SP1). Vor dem Start zeigt das Cockpit die geschätzte Dauer aus den Messwerten der Engine.
+   - Kein festes Zeitlimit (SP1 Schritt 2). Vor dem Start zeigt das Cockpit Wellenlänge, Gesamtschritte, geschätzte Dauer und Endzeit aus den Messwerten der Engine.
    - Start nur per Befehl, nie automatisch. Ein Training startet nicht, solange bezahlte Kundenaufträge warten (§3.2).
    - Der alte Trainer `training.train_sdxl_lora` und die CLI `character train-sdxl` entfallen.
+   - Ein Training besteht aus Wellen zu je `wave_steps` Schritten (Wert im Trainingsdialog, Vorschlag aus der Registry) bis zur Gesamtzahl.
+   - Nach jeder Welle: LoRA speichern und als Zwischenstand registrieren (Schritte bisher, Status OFFEN), ein Probebild mit festem Prompt und Seed erzeugen, Identitätswert notieren.
+   - Die nächste Welle startet mit der LoRA der vorigen als Ausgangspunkt (Eingang des Trainingsknotens für eine vorhandene LoRA; neue Bindung im Manifest). Geprüft 17.11. in ComfyUI 0.45.3 (`comfy_extras/nodes_train.py`): `TrainLoraNode` hat den Eingang `existing_lora`. Er nimmt einen Namen aus dem Ordner `loras` und liest die bisherigen Schritte aus dem Dateinamen (`…_<N>_steps_…`). Das Backend legt die LoRA einer Welle deshalb unter diesem Namensmuster in `loras/` ab. Der Knoten lädt nur die Gewichte, der Optimierer beginnt je Welle neu.
+   - Abbruch, Fehler oder Neustart kosten nur die laufende Welle. Fortgesetzt wird ab dem letzten Zwischenstand, nach demselben Muster wie die Abschnitte eines Langvideos.
+   - Der Betreiber kann nach jeder Welle beenden („reicht“) oder weitere Wellen anhängen.
+   - Zwischen zwei Wellen kommen Aufträge mit höherem Vorrang an die Reihe.
+   - Abnahme: Training mit drei Wellen; Abbruch in Welle 2; Fortsetzen ergibt denselben Endstand an Schritten; jede Welle hat Probebild und Identitätswert.
 4. **LoRA-Registry (`models.Lora`, `models.engine_model_names`).**
    - Heute: `Lora` ohne Figur; ladbar nur in Workflows mit `base_engine` gleich der Engine des Workflows (BUG-094).
    - Neu: `Lora` bekommt `character` (Kürzel). Ablage `loras/characters/<kürzel>/<key>.safetensors`.
@@ -817,7 +827,7 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
 **Abnahme am echten System**
 
 1. Fotos in `local/characters/clara/photos/`: jedes Foto zeigt Status und Gesichtshinweis.
-2. Ein vollständiges Training mit `krea2_raw_lora_train`; Dauer und Speicherverlauf notiert; die LoRA steht in `local/registry.toml`.
+2. Ein vollständiges Training mit `krea2_raw_lora_train` in Wellen (Schritt 3); Dauer und Speicherverlauf notiert; die LoRA steht in `local/registry.toml`.
 3. Probebilder in drei Stärken mit Identitätswert; „Aktiv setzen“.
 4. `krea2_raw_turbo_lora_t2i` mit Claras LoRA: Identitätswert über der Schwelle; ohne LoRA darunter.
 5. Zweite Figur mit eigenem Ordner: ein Auftrag für Figur A lädt nie die LoRA von Figur B.
@@ -825,7 +835,7 @@ Ersetzt B1 (bisher §7.6.1), B2, H6b und „C1/C3-Rest“. Grundlage: Code-Vergl
 7. Abbruch und Neustart mitten im Training hinterlassen keinen halben Eintrag.
 
 **Unverändert aus dem bisherigen Plan (Teil von SP3):**
-- **B4 Video** (FL-2, FL-4): Wan-Abnahme, Vergleich LTX/Wan mit Messwerten, Registry gegen Platte (BUG-028, 029, 030). **Zeitachse:** Schlüsselbilder je Zeitpunkt (z. B. 0/5/10/15 s) mit Referenzbild aus Dateien, Prompt des folgenden Abschnitts, Kamera/Bewegung, Übergangsstärke. Bis zur Engine-Grenze ein LTX-Lauf mit `LTXVAddGuide` je Schlüsselbild (im ComfyUI-Kern vorhanden; `LTXVContextWindows` für Prompt je Fenster), darüber eine Abschnittskette mit `WanFirstLastFrameToVideo` (Start- und Endbild je Abschnitt) und Zusammensetzen mit Ton/FPS-Prüfung. Bewegungsübertragung mit Wan Animate 2 (Node vorhanden, Modell vor Nutzung qualifizieren). Abnahme: 15-s-Video mit vier Schlüsselbildern, Bilder zu diesen Zeitpunkten entsprechen den Referenzen, Übergänge ohne Sprung, Neustart mitten im Lauf. **Dazu (bisher H3-Rest):** Fortschritt langer Läufe (Schritt, Abschnitt) im STATE; ein Lauf über 3600 s besteht mit dem Zeitlimit aus SP1.
+- **B4 Video** (FL-2, FL-4): Wan-Abnahme, Vergleich LTX/Wan mit Messwerten, Registry gegen Platte (BUG-028, 029, 030). **Zeitachse:** Schlüsselbilder je Zeitpunkt (z. B. 0/5/10/15 s) mit Referenzbild aus Dateien, Prompt des folgenden Abschnitts, Kamera/Bewegung, Übergangsstärke. Bis zur Engine-Grenze ein LTX-Lauf mit `LTXVAddGuide` je Schlüsselbild (im ComfyUI-Kern vorhanden; `LTXVContextWindows` für Prompt je Fenster), darüber eine Abschnittskette mit `WanFirstLastFrameToVideo` (Start- und Endbild je Abschnitt) und Zusammensetzen mit Ton/FPS-Prüfung. Bewegungsübertragung mit Wan Animate 2 (Node vorhanden, Modell vor Nutzung qualifizieren). Abnahme: 15-s-Video mit vier Schlüsselbildern, Bilder zu diesen Zeitpunkten entsprechen den Referenzen, Übergänge ohne Sprung, Neustart mitten im Lauf. **Dazu (bisher H3-Rest):** Fortschritt langer Läufe (Schritt, Abschnitt) im STATE; ein Lauf über 3600 s besteht ohne festes Zeitlimit (SP1 Schritt 2).
 - **B5.6 Referenzanalyse** (§7.3): Für das Bildmodell fehlt die Wahl; sie braucht eine Betreiberfreigabe.
 - **Ausgabe (aus B2):** 2K/4K (Hochskalieren nie als nativ ausgeben), Instagram-Profile 1080×1440, Reels 1080×1920.
 

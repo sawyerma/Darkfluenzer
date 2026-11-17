@@ -39,7 +39,7 @@
 
 | ID | Befund | Beleg | Soll und Abnahme | Paket |
 |---|---|---|---|---|
-| BUG-007 | Zeitlimit 3600 s fest in `pipeline.run_render`; Remix-Lauf lag mit 3440 s knapp darunter. | CODE | Zeitlimit je Workflow aus der Registry; Lauf über 3600 s mit Wiederaufnahme. | B SP1 |
+| BUG-007 | Zeitlimit 3600 s fest in `pipeline.run_render`; Remix-Lauf lag mit 3440 s knapp darunter. | CODE | Kein festes Zeitlimit. Ende nur durch Ergebnis, Fehler, Abbruch oder fehlendes Lebenszeichen von ComfyUI; Hinweis statt Abbruch bei Stillstand; Anzeige der geschätzten Dauer. Teil 1 (Zeitlimit raus, Lebenszeichen) umgesetzt 17.11. in 6189956. | B SP1 |
 | BUG-009 | Wallet-Beobachter (`payments/chain.py`, `run`) fängt `TypeError` nicht. | CODE | `null`, Liste statt Objekt, falsche Felder: Beobachter läuft weiter, zeigt Fehler, holt auf. | B SP5 |
 | BUG-010 | BTC-Adresse in Großbuchstaben: Prüfung akzeptiert, Vergleich unterscheidet Groß/klein. | CODE | Für Vergleich und Abfrage normalisieren. | B SP5 |
 | BUG-011 | Zuordnung nach Erkennungszeit statt Blockzeit (`store._match_offer`). | CODE | Verspätet gescannte, rechtzeitig bestätigte Zahlung wird zugeordnet; nach Ablauf nicht. | B SP5 |
