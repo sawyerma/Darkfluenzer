@@ -7,6 +7,7 @@ Die Kundenroute (3 Kandidaten je Auftrag in ``work/``) baut auf denselben Funkti
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import io
 import json
@@ -489,6 +490,12 @@ def run_render(
             }
             values = {n: v for n, v in params.items() if n not in uploads and n in wf.params}
             if is_cancelled():  # vor der Übermittlung abgebrochen: nichts starten
+                if job["prompt_id"]:  # Wiederanlauf nach Abbruchwunsch (FABLE-015): Lauf beenden
+                    inst = comfy.instance_of(cfg, man, wf)
+                    with contextlib.suppress(comfy.ComfyError, OSError):
+                        comfy.ComfyClient(inst.url, timeout=cfg.server.timeout_s).cancel(
+                            job["prompt_id"]
+                        )
                 raise PipelineError("Vom Betreiber abgebrochen.")
             if job["status"] != "running":
                 store.set_job_status(job_id, "running", pid=os.getpid())

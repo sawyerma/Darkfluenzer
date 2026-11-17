@@ -1015,3 +1015,33 @@ def test_unexpected_command_error_is_journaled_and_never_repeated(cfg, monkeypat
         assert status == 200 and calls == [rid]  # nicht ein zweites Mal ausgeführt
 
     _run(cfg, scenario)
+
+
+def test_cancel_wish_survives_restart(cfg):
+    """FABLE-015: der Abbruchwunsch steht im Journal; nach einem Neustart läuft ein nie
+    übermittelter Job nicht erneut, ein übermittelter wird beendet statt abgeholt."""
+    s = Store(cfg.local)
+    try:
+        fresh = s.create_job(None, "lustify_sdxl", "lustify_sdxl_t2i", "p", {"prompt": "a"}, [1])
+        sent = s.create_job(None, "lustify_sdxl", "lustify_sdxl_t2i", "p", {"prompt": "b"}, [2])
+        for job in (fresh, sent):
+            s.set_job_status(job, "running", pid=0)
+            s.request_cancel(job)
+        s.set_job_submitted(sent, "prompt-x", {}, "0" * 64)
+        assert s.cancel_requested(fresh) and not s.cancel_requested(fresh + 99)
+    finally:
+        s.close()
+
+    async def scenario(client, app, origin):
+        store = app[server.COCKPIT_KEY].store
+        for _ in range(100):
+            if all(store.job(j)["status"] == "failed" for j in (fresh, sent)):
+                break
+            await asyncio.sleep(0.05)
+        for job in (fresh, sent):
+            assert store.job(job)["status"] == "failed", job
+            (last,) = [e for e in store.events("job", job) if e["event"] == "status"][-1:]
+            assert last["data"].get("cancelled") is True
+        assert store.queued_jobs() == []
+
+    _run(cfg, scenario)

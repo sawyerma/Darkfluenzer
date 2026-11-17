@@ -44,6 +44,14 @@ class RenderMixin:
         for job_id, pid in self.store.running_jobs():
             if pid and pid != os.getpid() and runtime.pid_alive(pid):
                 continue  # ein anderer Prozess (z. B. CLI-Evaluation) führt ihn aus
+            if self.store.cancel_requested(job_id):  # Abbruchwunsch vor dem Neustart (FABLE-015)
+                if not self.store.job(job_id)["prompt_id"]:  # nie übermittelt: nicht neu starten
+                    self.store.set_job_status(
+                        job_id, "failed", error="Vom Betreiber abgebrochen.", cancelled=True
+                    )
+                    orders.advance_order(self.store, job_id)
+                    continue
+                self._cancelled.add(job_id)  # übermittelt: die Pipeline beendet den ComfyUI-Lauf
             if self.store.job(job_id)["prompt_id"]:
                 self._resuming.add(job_id)
                 self._lane_of_job(job_id).renders.put_nowait(job_id)
@@ -91,7 +99,8 @@ class RenderMixin:
         engine = job["engine"]
         eng = self.manifest.engines.get(engine)
         modelfree = eng is not None and eng.modelfree  # lässt geladene Modelle in Ruhe
-        if not modelfree and not await self._admit(lane, job_id, engine):
+        cancelled = job_id in self._cancelled  # abgebrochen vor dem Neustart: kein Speicher nötig
+        if not modelfree and not cancelled and not await self._admit(lane, job_id, engine):
             return  # während des Wartens auf Speicher entfernt
         lane.running_job = job_id
         started = self.store.job_started_at(job_id) if resumed else None
@@ -478,7 +487,9 @@ class RenderMixin:
         if job["status"] != "running":
             return "Auftrag ist bereits abgeschlossen."
         # gilt ab dem Klick (BUG-043): vor der Übermittlung verwirft die Pipeline den Start,
-        # bei der Übermittlung bricht sie sofort ab, ein trotzdem fertiges Ergebnis wird verworfen
+        # bei der Übermittlung bricht sie sofort ab, ein trotzdem fertiges Ergebnis wird verworfen;
+        # im Journal festgehalten, damit er einen Neustart übersteht (FABLE-015)
+        self.store.request_cancel(job_id)
         self._cancelled.add(job_id)
         lane = self._lane_of_job(job_id)
         prompt = next((p for j, _, p in lane.queue if j == job_id), "") or job["prompt_id"]

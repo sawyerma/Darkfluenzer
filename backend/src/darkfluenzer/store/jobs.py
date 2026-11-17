@@ -206,6 +206,19 @@ class JobsMixin:
         ).fetchone()
         return row[0] if row else None
 
+    def request_cancel(self, job_id: int) -> None:
+        """Abbruchwunsch des Betreibers im Journal: gilt auch über einen Neustart (FABLE-015)."""
+        with self.tx():
+            self._event("job", job_id, "cancel_requested")
+
+    def cancel_requested(self, job_id: int) -> bool:
+        row = self.db.execute(
+            "SELECT 1 FROM events WHERE entity = 'job' AND entity_id = ?"
+            " AND event = 'cancel_requested'",
+            (job_id,),
+        )
+        return row.fetchone() is not None
+
     def running_jobs(self) -> list[tuple[int, int | None]]:
         """Jobs im Status running mit der Prozess-ID, die sie ausführt (aus dem Journal)."""
         rows = self.db.execute(

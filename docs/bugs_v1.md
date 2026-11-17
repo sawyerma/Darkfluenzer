@@ -198,6 +198,19 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: FABLE-015 (Audit Fable 17.11., P3; im Auditblatt vorläufig „BUG-123“)
+Commit: siehe git log „FABLE-015“ / store.request_cancel, core.render (enqueue_existing, _cancel_job),
+  media.pipeline.run_render
+Behauptung: BESTÄTIGT – der Abbruchwunsch lag nur im Prozessspeicher; nach einem Neustart wurde ein nie
+  übermittelter Job erneut eingereiht (lief trotz Abbruch), ein übermittelter wurde abgeholt
+Korrektur: Abbruchwunsch als Journal-Ereignis job/cancel_requested; beim Neustart nie übermittelt →
+  failed (abgebrochen), übermittelt → ohne Speicherzulassung wieder aufgenommen, die Pipeline beendet den
+  ComfyUI-Lauf gezielt und meldet abgebrochen
+Nachweis: tests/test_server.py::test_cancel_wish_survives_restart (vor der Korrektur rot, danach grün);
+  test_server, test_orders, test_store, test_mainloop, test_training grün
+Ergebnis: CODE (Tests rot/grün; Mac-Lauf folgt mit der Etappe)
+Bearbeiter/Datum: Claude, 17.11.2026
+
 ID: FABLE-016 (Audit Fable 17.11., P3; im Auditblatt vorläufig „BUG-124“)
 Commit: siehe git log „FABLE-016“ / store.db.StoreBase._migrate
 Behauptung: BESTÄTIGT – jede Store-Instanz öffnete in _migrate eine Schreibtransaktion (BEGIN IMMEDIATE),
