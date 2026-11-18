@@ -93,59 +93,82 @@ function AccountControls({ ch }: { ch: ChannelStatus }) {
   );
 }
 
-/** Kanalstatus (STATE channels) unter der Kundenliste (F7.2: links Kunden, Suche, Liste): einklappbar,
- *  geöffnet, solange ein Kanal eine Anmeldung oder Aufmerksamkeit braucht. */
+/** Kanäle, die es heute gibt (WhatsApp folgt später, C7): nur sie erscheinen in der Oberfläche. */
+const SUPPORTED = ["telegram", "instagram"];
+
+function channelBadge(ch: ChannelStatus): [string, Tone] {
+  const step = ch.state === "LOGIN" ? LOGIN_STEP[ch.loginState] : undefined;
+  if (step) return [step[0], "warn"];
+  if (ch.state === "READY" && ch.testMode) return ["TESTBETRIEB", "warn"];
+  return CHANNEL_STATE[ch.state] ?? [ch.state || "UNBEKANNT", "neutral"];
+}
+
+/** Kanalverwaltung (Reiter Einstellungen, §3.7): Zustand, Anmeldung, Automatik, Abmelden je Konto. */
+export function ChannelAccounts({ channels, stale }: { channels: readonly ChannelStatus[] | undefined; stale: boolean }) {
+  if (!channels) return <small>Kanalstatus: keine Daten</small>;
+  return (
+    <div>
+      {channels
+        .filter((ch) => SUPPORTED.includes(ch.platform))
+        .map((ch) => {
+          const [label, tone] = channelBadge(ch);
+          const detail = ch.state === "READY" || ch.state === "LOGIN" ? "" : ch.error || ch.missing;
+          const flood = Number(ch.floodUntilMs) > Date.now() ? `Telegram bremst bis ${shortTime(ch.floodUntilMs)}` : "";
+          return (
+            <div key={ch.platform} className="g-stack">
+              <span className="g-between">
+                <span className="g-ellipsis">
+                  <span className="g-ptag" data-platform={ch.platform}>
+                    {PLATFORM_LABEL[ch.platform] ?? ch.platform}
+                  </span>{" "}
+                  {ch.account}
+                </span>
+                <span className="g-badge" data-tone={stale ? "stale" : tone}>
+                  {label}
+                </span>
+              </span>
+              {detail ? ch.state === "ERROR" ? <span className="g-error">{detail}</span> : <small>{detail}</small> : null}
+              {ch.testMode && ch.state !== "OFF" ? <small>Testbetrieb · nur freigegebene Test-Chats</small> : null}
+              {ch.testMode && ch.rejectedChats.length ? (
+                <small className="g-mono">
+                  Verworfen (für test_chat_ids):{" "}
+                  {ch.rejectedChats.map((r) => `${String(r.chatId)} · ${shortTime(r.atMs)}`).join(", ")}
+                </small>
+              ) : null}
+              {flood ? <small className="g-error">{flood}</small> : null}
+              {ch.state === "READY" && ch.automation ? <small>Automatik freigegeben</small> : null}
+              <AccountControls ch={ch} />
+            </div>
+          );
+        })}
+      <small>WhatsApp folgt später (C7).</small>
+    </div>
+  );
+}
+
+/** Kanalstatus kompakt unter der Kundenliste (F7.2): nur Zustand, Verwaltung im Reiter Einstellungen. */
 export function ChannelLines({ channels, stale }: { channels: readonly ChannelStatus[] | undefined; stale: boolean }) {
   if (!channels) return <small>Kanalstatus: keine Daten</small>;
-  const attention = channels.some((ch) => ch.state === "LOGIN" || ch.state === "ERROR");
+  const shown = channels.filter((ch) => SUPPORTED.includes(ch.platform));
+  const attention = shown.some((ch) => ch.state === "LOGIN" || ch.state === "ERROR");
   return (
-    <details className="g-channelbox" open={attention || undefined}>
-      <summary className="g-between">
-        <span>Kanäle</span>
-        <span className="g-value">
-          {channels.map((ch) => (
-            <span key={ch.platform} className="g-ptag" data-platform={ch.platform} data-off={ch.state !== "READY" || undefined}>
-              {PLATFORM_LABEL[ch.platform] ?? ch.platform}
-            </span>
-          ))}
-        </span>
-      </summary>
-      {channels.map((ch) => {
-        const step = ch.state === "LOGIN" ? LOGIN_STEP[ch.loginState] : undefined;
-        const [label, tone] = step
-          ? [step[0], "warn" as Tone]
-          : ch.state === "READY" && ch.testMode
-              ? ["TESTBETRIEB", "warn" as Tone]
-              : (CHANNEL_STATE[ch.state] ?? [ch.state || "UNBEKANNT", "neutral" as Tone]);
-        const detail = ch.state === "READY" || ch.state === "LOGIN" ? "" : ch.error || ch.missing;
-        const flood = Number(ch.floodUntilMs) > Date.now() ? `Telegram bremst bis ${shortTime(ch.floodUntilMs)}` : "";
-        return (
-          <div key={ch.platform} className="g-stack">
-            <span className="g-between">
-              <span className="g-ellipsis">
-                <span className="g-ptag" data-platform={ch.platform}>
-                  {PLATFORM_LABEL[ch.platform] ?? ch.platform}
-                </span>{" "}
-                {ch.account}
-              </span>
-              <span className="g-badge" data-tone={stale ? "stale" : tone}>
-                {label}
-              </span>
-            </span>
-            {detail ? ch.state === "ERROR" ? <span className="g-error">{detail}</span> : <small>{detail}</small> : null}
-            {ch.testMode && ch.state !== "OFF" ? <small>TESTBETRIEB · nur freigegebene Test-Chats</small> : null}
-            {ch.testMode && ch.rejectedChats.length ? (
-              <small className="g-mono">
-                Verworfen (für test_chat_ids):{" "}
-                {ch.rejectedChats.map((r) => `${String(r.chatId)} · ${shortTime(r.atMs)}`).join(", ")}
-              </small>
-            ) : null}
-            {flood ? <small className="g-error">{flood}</small> : null}
-            {ch.state === "READY" && ch.automation ? <small>Automatik freigegeben</small> : null}
-            <AccountControls ch={ch} />
-          </div>
-        );
-      })}
-    </details>
+    <div className="g-channelbox g-between">
+      <span className="g-value">
+        {shown.map((ch) => (
+          <span
+            key={ch.platform}
+            className="g-ptag"
+            data-platform={ch.platform}
+            data-off={ch.state !== "READY" || stale || undefined}
+            title={`${PLATFORM_LABEL[ch.platform] ?? ch.platform}: ${channelBadge(ch)[0]}`}
+          >
+            {PLATFORM_LABEL[ch.platform] ?? ch.platform}
+          </span>
+        ))}
+      </span>
+      <a className="g-link" href="#einstellungen">
+        {attention ? "Anmeldung nötig" : "Kanäle verwalten"}
+      </a>
+    </div>
   );
 }

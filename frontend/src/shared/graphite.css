@@ -608,3 +608,8 @@ button.g-account:hover { border-color: var(--g-brand); }
 .g-version-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto auto; align-items: center; gap: var(--g-gap-sm); padding: var(--g-gap-xs) 0; border-bottom: 1px solid var(--g-line); }
 .g-diff { margin: var(--g-gap-xs) 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .g-diff small { display: block; color: var(--g-muted); }
+
+/* Einstellungen (§3.7): eine Karte je Gruppe */
+.g-settings .g-card { gap: var(--g-gap-sm); padding: var(--g-pad-row); }
+.g-settings .g-card h2 { margin: 0 0 var(--g-gap-xs); font-size: var(--g-fs-h2); font-weight: var(--g-fw-semibold); }
+.g-link { color: var(--g-text-strong); font-size: var(--g-fs-small); text-decoration: underline; text-underline-offset: 2px; }

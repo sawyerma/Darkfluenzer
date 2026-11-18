@@ -4,16 +4,18 @@ import { ComfyUI } from "./pages/ComfyUI";
 import { Files } from "./pages/Files";
 import { Messages } from "./pages/Messages";
 import { Overview } from "./pages/Overview";
+import { Settings } from "./pages/Settings";
 import { Wallet } from "./pages/Wallet";
 
-// Fünf Hauptansichten (PHASENPLAN_FRONT_V1 F0, Wallet F7.8). Navigation über den URL-Hash: Neuladen
-// und Zurück funktionieren ohne Router-Bibliothek und ohne Server-Fallback.
+// Sechs Hauptansichten (PHASENPLAN_FRONTEND §1, F7.1; Wallet F7.8, Einstellungen §3.7). Navigation
+// über den URL-Hash: Neuladen und Zurück funktionieren ohne Router-Bibliothek und Server-Fallback.
 const VIEWS = [
   { id: "uebersicht", label: "Übersicht", Page: Overview },
   { id: "nachrichten", label: "Nachrichten", Page: Messages },
   { id: "comfyui", label: "ComfyUI", Page: ComfyUI },
   { id: "dateien", label: "Dateien", Page: Files },
   { id: "wallet", label: "Wallet", Page: Wallet },
+  { id: "einstellungen", label: "Einstellungen", Page: Settings },
 ] as const;
 
 type View = (typeof VIEWS)[number];
