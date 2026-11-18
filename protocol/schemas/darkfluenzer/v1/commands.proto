@@ -214,6 +214,13 @@ message MessageResolve {
   string action = 2;
 }
 
+// Verhaltensprofil der Influencerin (Befehl 53, SP4 Schritt 7): nur Zahlen (Namen wie im STATE
+// Influencer.behavior); neue Version, sofort aktiv.
+message BehaviorUpdate {
+  uint64 influencer_id = 1;
+  map<string, double> values = 2;
+}
+
 // Dialogbetrieb (Befehl 54, SP4 Schritte 6, 7): KI-Antwort als Entwurf senden (send_draft, Text
 // optional geändert), verwerfen (discard), geplante jetzt senden (send_now) oder zurückhalten
 // (hold); Modus einer Konversation setzen (set_mode: auto | draft | manual).
@@ -454,6 +461,7 @@ message CommandRequest {
     ChannelAccountUpdate channel_account_update = 40;
     MessageResolve message_resolve = 66;
     OutboxControl outbox_control = 54;
+    BehaviorUpdate behavior_update = 53;
     InfluencerUpdate influencer_update = 35;
     MediaContentTier media_content_tier = 43;
     CustomerAgeMark customer_age_mark = 44;

@@ -21,7 +21,6 @@ import contextlib
 import hashlib
 import logging
 import os
-import random
 import re
 import shutil
 import sqlite3
@@ -645,7 +644,8 @@ class TelegramAccount(Channel):
         if files:
             saved = [await self._save(chat_id, msg["id"], i, f) for i, f in enumerate(files)]
             self.store.set_attachments(inbound.message_id, saved)
-        await self.on_inbound(inbound)
+        if await self.on_inbound(inbound):
+            return  # der Dialog liest zur geplanten Lesezeit (SP4 Schritt 7, E3)
         # ehrlich gelesen: erst nach Speichern und Verarbeitung
         assert self._td is not None
         self._td.send(
@@ -740,7 +740,12 @@ class TelegramAccount(Channel):
     async def outbox_worker(self) -> None:
         """Postausgang abarbeiten, wenn Arbeit da ist und das Konto verbunden ist."""
         while True:
-            await self.wake.wait()
+            due = self.store.next_scheduled(PLATFORM, self.account) if self.account else None
+            wait = None
+            if due is not None:  # geplante KI-Antwort: zur Sendezeit aufwachen
+                wait = max(0.0, (datetime.fromisoformat(due) - datetime.now(UTC)).total_seconds())
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(self.wake.wait(), wait)
             self.wake.clear()
             # nach jeder Sendung neu lesen: eine neue Sendung an den Default geht vor (SP1 9)
             while self.state == "READY" and (items := self.store.outbox(PLATFORM, self.account)):
@@ -756,7 +761,7 @@ class TelegramAccount(Channel):
                     self.on_change()
 
     async def _pace(self, item: dict) -> None:
-        """Telegram-Bremse, Höchstzahl je Minute, Antwortverzögerung und Schreibanzeige."""
+        """Telegram-Bremse und Höchstzahl je Minute (Schutz des Kontos)."""
         while (wait := self.flood_until - time.time()) > 0:
             await asyncio.sleep(wait)
         while len(self._sent_at) >= self.tg.max_messages_per_minute:
@@ -765,17 +770,8 @@ class TelegramAccount(Channel):
                 self._sent_at.popleft()
                 continue
             await asyncio.sleep(wait)
-        if item.get("customer_kind") == "internal":
-            return  # Default: ohne Antwortverzögerung und ohne Tippanzeige (SP1 Schritt 9)
-        await asyncio.sleep(random.uniform(self.tg.reply_delay_min_s, self.tg.reply_delay_max_s))
-        assert self._td is not None
-        chat = int(item["platform_conversation_id"])
-        self._td.send(
-            {"@type": "sendChatAction", "chat_id": chat, "action": {"@type": "chatActionTyping"}}
-        )
-        await asyncio.sleep(
-            min(len(item["text"]) / self.tg.typing_chars_per_s, self.tg.reply_delay_max_s)
-        )
+        # keine künstliche Verzögerung hier: KI-Antworten tragen ihre Sendezeit (Verhaltensprofil,
+        # SP4 Schritt 7), Sendungen des Betreibers und an den Default gehen sofort
 
     async def _send(self, item: dict) -> None:
         assert self._td is not None
@@ -956,6 +952,33 @@ class TelegramAccount(Channel):
                 return found
             start = oldest["id"]
         return None
+
+    async def mark_read(self, conversation: str, message_ids: list[str]) -> bool:
+        """Zur geplanten Lesezeit gelesen (SP4 Schritt 7); die letzte ID liest alle davor."""
+        if self._td is None or not message_ids:
+            return False
+        self._td.send(
+            {"@type": "viewMessages", "chat_id": int(conversation),
+             "message_ids": [int(i) for i in message_ids], "force_read": True}
+        )  # fmt: skip
+        return True
+
+    async def set_typing(self, conversation: str, typing: bool) -> bool:
+        """Tippanzeige (BUG-096: bis zum Senden erneuert, je Aufruf rund 5 s sichtbar)."""
+        if self._td is None:
+            return False
+        action = {"@type": "chatActionTyping"} if typing else {"@type": "chatActionCancel"}
+        self._td.send({"@type": "sendChatAction", "chat_id": int(conversation), "action": action})
+        return True
+
+    async def set_online(self, online: bool) -> bool:
+        if self._td is None:
+            return False
+        self._td.send(
+            {"@type": "setOption", "name": "online",
+             "value": {"@type": "optionValueBoolean", "value": online}}
+        )  # fmt: skip
+        return True
 
     def _flood(self, message: str, code: int) -> None:
         """Telegram-Bremse (429 „retry after N“) einhalten und anzeigen."""

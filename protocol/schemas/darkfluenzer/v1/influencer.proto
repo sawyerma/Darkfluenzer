@@ -33,6 +33,9 @@ message Influencer {
   // Schalter (C5.1): Text-KI und automatische Antworten
   bool text_ai = 11;
   bool auto_replies = 12;
+  // Verhaltensprofil (SP4 Schritt 7): wirksame Werte (Startwerte [behavior] + aktive Version)
+  map<string, double> behavior = 13;
+  uint32 behavior_version = 14;
 }
 
 // Eine gespeicherte Fassung des Promptprofils einer Influencerin (SP4 Schritt 2, E19).

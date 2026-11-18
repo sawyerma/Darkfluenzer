@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import UTC, datetime
 
 from ..media import models
 from ..store import StoreError
 from ..v1 import commands_pb2
-from . import assessment, dialog, memory
+from . import assessment, behavior, dialog, memory
 from .base import _Call, log
 
 LOCK_REASON = "Akte gesperrt (minderjährig vermutet)."
@@ -26,16 +27,18 @@ class ChatMixin:
 
     # ------------------------------------------------------------------ Eingang
 
-    async def _dialog_entry(self, inbound) -> None:
-        """Neue Kundennachricht: nie still scheitern (Karte mit Grund)."""
+    async def _dialog_entry(self, inbound) -> bool:
+        """Neue Kundennachricht: nie still scheitern (Karte mit Grund). True = der Dialog liest
+        zur geplanten Lesezeit (der Kanal markiert dann nicht sofort gelesen)."""
         try:
-            await self._dialog(inbound)
+            return await self._dialog(inbound)
         except Exception as exc:
             log.exception("Dialog: Nachricht %s nicht verarbeitet", inbound.message_id)
             self.store.add_system_card(
                 inbound.conversation_id, f"KI-ANTWORT FEHLGESCHLAGEN · {exc or type(exc).__name__}"
             )
             self._message_changed(0)
+            return False
 
     def _dialog_parts(self, conversation_id: int) -> tuple[dict, dict | None]:
         """Identität der Konversation und Influencerin ihres Kontos (nie die erste)."""
@@ -52,20 +55,40 @@ class ChatMixin:
         figure = next((f for f in self.store.influencers() if f["id"] == figure_id), None)
         return ident | {"platform": platform}, figure
 
-    async def _dialog(self, inbound) -> None:
+    async def _dialog(self, inbound) -> bool:
         conv = inbound.conversation_id
         ident, figure = self._dialog_parts(conv)
         if figure is None or not figure["text_ai"]:
-            return  # Text-KI der Influencerin aus: nur anzeigen
+            return False  # Text-KI der Influencerin aus: nur anzeigen
         if self.store.conversation_mode(conv) == "manual":
-            return  # Betreiber hat übernommen
+            return False  # Betreiber hat übernommen
         if self.store.age_mark(inbound.customer.id) == "under_18":
-            return  # gesperrt: keine KI-Antwort
+            return False  # gesperrt: keine KI-Antwort
         for message_id in self.store.open_ai_replies(conv):  # neue Nachricht vor dem Senden
             if self.store.cancel_message(message_id, "neue Kundennachricht – neu erzeugt"):
                 self._message_changed(message_id)
         await self._dialog_notice(conv, ident, figure)
-        self._dialog_start(conv)
+        b = self._behavior(figure)
+        last = self.store.last_sent_at(conv)
+        state = self._dialog_state.setdefault(conv, {"task": None, "dirty": False})
+        state["plan"] = behavior.plan(
+            b, datetime.now().astimezone(),
+            previous_out=datetime.fromisoformat(last) if last else None,
+            first_contact=last is None,
+            readiness=self.store.last_readiness(inbound.customer.id),
+        )  # fmt: skip
+        self._presence_start(conv, state["plan"])
+        self._dialog_start(conv, delay=b.bundle_s)  # bündeln: eine Antwort für alle
+        return True
+
+    def _behavior(self, figure: dict) -> behavior.Behavior:
+        """Verhaltensprofil: Startwerte aus ``[behavior]``, darüber das aktive Profil."""
+        base = behavior.build(behavior.Behavior(), self.cfg.behavior)
+        if isinstance(base, str):
+            log.error("Konfiguration [behavior]: %s – Vorgaben gelten", base)
+            base = behavior.Behavior()
+        own = behavior.build(base, self.store.behavior_of(figure["id"])[1])
+        return own if isinstance(own, behavior.Behavior) else base
 
     def _dialog_start(self, conv: int, delay: float = 0.0) -> None:
         """Antwort im Hintergrund erzeugen; läuft schon eine Erzeugung, wird sie danach mit dem
@@ -85,6 +108,13 @@ class ChatMixin:
         state = self._dialog_state[conv]
         if delay > 0:
             await asyncio.sleep(delay)
+        watch = asyncio.create_task(self._consolation_watch(conv, state))
+        try:
+            await self._dialog_loop(conv, state)
+        finally:
+            watch.cancel()
+
+    async def _dialog_loop(self, conv: int, state: dict) -> None:
         while True:
             state["generating"], state["dirty"] = True, False
             try:
@@ -252,10 +282,123 @@ class ChatMixin:
                 reason="; ".join(why),
             )  # fmt: skip
         self._message_changed(message_id)
+        if self._fill is None or self._fill.done():  # Vertröst-Texte nachlegen (Leerlauf)
+            self._fill = asyncio.create_task(self._fill_consolations(figure))
+            self._tasks.add(self._fill)
+            self._fill.add_done_callback(self._tasks.discard)
 
     def _reply_time(self, conv: int, figure: dict, text: str) -> str | None:
-        """Sendezeit der Antwort (SP4 Schritt 7: Verhaltensprofil); ohne Profil sofort."""
-        return None
+        """Sendezeit (SP4 Schritt 7): nach Lesen, Bedenken und Tippen laut Verhaltensprofil."""
+        plan = self._dialog_state.get(conv, {}).get("plan")
+        if plan is None:
+            return None
+        when = behavior.send_at(self._behavior(figure), plan, text, datetime.now().astimezone())
+        return when.astimezone(UTC).isoformat(timespec="milliseconds")
+
+    # ------------------------------------------------------------------ Lesen, Tippen, Online
+
+    def _presence_start(self, conv: int, plan: behavior.Plan) -> None:
+        state = self._dialog_state[conv]
+        old = state.get("presence")
+        if old is not None and not old.done():
+            old.cancel()
+        state["presence"] = asyncio.create_task(self._presence(conv, plan))
+        self._tasks.add(state["presence"])
+        state["presence"].add_done_callback(self._tasks.discard)
+
+    async def _presence(self, conv: int, plan: behavior.Plan) -> None:
+        """Gelesen zur geplanten Lesezeit, danach online und Tippanzeige bis zum Senden (BUG-096);
+        ohne KI-Antwort in Arbeit wieder offline."""
+        ident, _figure = self._dialog_parts(conv)
+        adapter = self._adapter(ident["platform"], ident["account"])
+        partner = ident["platform_conversation_id"]
+        if adapter is None:
+            return
+        online = False
+        try:
+            await asyncio.sleep(
+                max(0.0, (plan.read_at - datetime.now().astimezone()).total_seconds())
+            )
+            await adapter.mark_read(partner, self.store.last_inbound_ids(conv))
+            online = await adapter.set_online(True)
+            if online:
+                self._online[adapter.key] = self._online.get(adapter.key, 0) + 1
+            pause = (plan.think_until - datetime.now().astimezone()).total_seconds()
+            await asyncio.sleep(max(0.0, pause))
+            while self._reply_pending(conv):
+                await adapter.set_typing(partner, True)
+                await asyncio.sleep(4.0)
+        finally:
+            if online:
+                self._online[adapter.key] -= 1
+                if self._online[adapter.key] <= 0:
+                    await adapter.set_online(False)
+
+    def _reply_pending(self, conv: int) -> bool:
+        """Antwort in Arbeit: Erzeugung läuft oder eine geplante KI-Antwort wartet."""
+        state = self._dialog_state.get(conv, {})
+        task = state.get("task")
+        if task is not None and not task.done():
+            return True
+        return any(
+            self.store.message(m)["status"] == "queued" for m in self.store.open_ai_replies(conv)
+        )
+
+    # ------------------------------------------------------------------ Vertröstung
+
+    async def _consolation_watch(self, conv: int, state: dict) -> None:
+        """Ist die Antwort zur geplanten Zeit plus ``max_wait_s`` nicht fertig, geht ein vorab
+        erzeugter Vertröst-Text raus (höchstens ``consolations_per_day`` je Gespräch)."""
+        ident, figure = self._dialog_parts(conv)
+        plan = state.get("plan")
+        if figure is None or plan is None:
+            return
+        b = self._behavior(figure)
+        due = (plan.think_until - datetime.now().astimezone()).total_seconds() + b.max_wait_s
+        await asyncio.sleep(max(0.0, due))
+        if not state.get("generating") or self._auto_allowed(conv, ident, figure):
+            return
+        if self.store.consolations_today(conv) >= b.consolations_per_day:
+            return
+        persona = self.store.active_persona(figure["id"])
+        found = self.store.take_consolation(persona["id"]) if persona else None
+        if found is None:
+            return
+        cid, text, run_id = found
+        message_id = self.store.queue_reply(
+            ident["customer_id"], conv, text, status="queued", ai_run_id=run_id
+        )
+        self.store.mark_consolation_used(cid, message_id)
+        adapter = self._adapter(ident["platform"], ident["account"])
+        if adapter is not None:
+            adapter.wake.set()
+        self._message_changed(message_id)
+
+    async def _fill_consolations(self, figure: dict) -> None:
+        """Vertröst-Texte im Leerlauf vorab erzeugen: derselbe registrierte Workflow mit der
+        Profilanweisung ``consolation`` als Nachricht (keine Sprachregel in Python, E19)."""
+        persona = self.store.active_persona(figure["id"])
+        if persona is None or not persona["blocks"].get("consolation", "").strip():
+            return
+        b = self._behavior(figure)
+        wf = self._text_workflow("")
+        while self.store.consolation_stock(persona["id"]) < b.consolation_stock:
+            values = {k: persona["blocks"].get(k, "") for k in models.PROFILE_INPUTS}
+            facts = dialog.facts_for(self.cfg, figure).text()
+            values |= {"context": "", "memory": "", "facts": facts}
+            values["message"] = persona["blocks"]["consolation"]
+            values |= {k: v for k, v in persona["params"].items() if k in wf.params}
+            run = {
+                "influencer_id": figure["id"],
+                "persona_version": persona["id"],
+                "message": "(Vertröstung vorab)",
+                "context": {"consolation": True},
+            }
+            error, run_id, _typed = await self._llm_run("chat", wf.key, values, run)
+            answer = self.store.ai_run(run_id).get("answer", "")
+            if error or not answer.strip():
+                return
+            self.store.add_consolation(persona["id"], answer, run_id)
 
     @staticmethod
     def _gates_of(row: dict) -> list[dict]:

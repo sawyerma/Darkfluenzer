@@ -739,6 +739,30 @@ ALTER TABLE influencers ADD COLUMN text_ai INTEGER NOT NULL DEFAULT 0 CHECK (tex
 ALTER TABLE influencers ADD COLUMN auto_replies INTEGER NOT NULL DEFAULT 0
     CHECK (auto_replies IN (0, 1));
 """,
+    35: """
+-- Verhalten (SP4 Schritt 7): Verhaltensprofil je Influencerin (nur Zahlen, versioniert, eine
+-- aktiv) und Vertröst-Texte, die der Workflow im Leerlauf aus der Profilanweisung erzeugt (je
+-- Profilversion)
+CREATE TABLE behavior_versions (
+    id            INTEGER PRIMARY KEY,
+    influencer_id INTEGER NOT NULL REFERENCES influencers(id),
+    version       INTEGER NOT NULL,
+    data          TEXT    NOT NULL,
+    created_at    TEXT    NOT NULL,
+    UNIQUE (influencer_id, version)
+);
+ALTER TABLE influencers ADD COLUMN behavior_active INTEGER REFERENCES behavior_versions(id);
+CREATE TABLE consolations (
+    id              INTEGER PRIMARY KEY,
+    persona_version INTEGER NOT NULL REFERENCES persona_versions(id),
+    text            TEXT    NOT NULL CHECK (length(trim(text)) > 0),
+    ai_run_id       INTEGER REFERENCES ai_runs(id),
+    created_at      TEXT    NOT NULL,
+    used_message_id INTEGER REFERENCES channel_messages(id),
+    used_at         TEXT
+);
+CREATE INDEX consolations_free ON consolations(persona_version) WHERE used_at IS NULL;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

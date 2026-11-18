@@ -6,7 +6,6 @@ Befehl 37 additiv."""
 from __future__ import annotations
 
 import asyncio
-import dataclasses
 import time
 import uuid
 
@@ -257,7 +256,6 @@ def test_default_messages_first_and_without_delay(cfg, tmp_path):
 
     store = Store(cfg.local)
     acc, inbound, _ = _account(cfg, tmp_path, store)
-    acc.tg = dataclasses.replace(acc.tg, reply_delay_min_s=5, reply_delay_max_s=5)
     asyncio.run(acc._message(_msg(TEST_CHAT, 10)))
     customer = inbound[0]
     conv = customer.conversation_id

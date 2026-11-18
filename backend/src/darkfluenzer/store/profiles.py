@@ -24,6 +24,77 @@ class ProfilesMixin:
             out.append(dict(row) | {"prices": [dict(p) for p in prices]})
         return out
 
+    def save_behavior(self, influencer_id: int, data: dict) -> int:
+        """Neue Version des Verhaltensprofils (nur Zahlen), sofort aktiv; liefert die Version."""
+        with self.tx() as db:
+            known = db.execute("SELECT 1 FROM influencers WHERE id = ?", (influencer_id,))
+            if not known.fetchone():
+                raise StoreError("Influencerin unbekannt.")
+            version = db.execute(
+                "SELECT coalesce(max(version), 0) + 1 FROM behavior_versions"
+                " WHERE influencer_id = ?",
+                (influencer_id,),
+            ).fetchone()[0]
+            row_id = db.execute(
+                "INSERT INTO behavior_versions (influencer_id, version, data, created_at)"
+                " VALUES (?,?,?,?)",
+                (influencer_id, version, json.dumps(data, sort_keys=True), now()),
+            ).lastrowid
+            db.execute(
+                "UPDATE influencers SET behavior_active = ? WHERE id = ?", (row_id, influencer_id)
+            )
+            self._event("influencer", influencer_id, "behavior", version=version)
+            self.bump("influencers")
+            return version
+
+    def behavior_of(self, influencer_id: int) -> tuple[int, dict]:
+        """Aktive Version des Verhaltensprofils und ihre Werte; (0, {}) ohne Profil."""
+        row = self.db.execute(
+            "SELECT b.version, b.data FROM influencers i JOIN behavior_versions b"
+            " ON b.id = i.behavior_active WHERE i.id = ?",
+            (influencer_id,),
+        ).fetchone()
+        return (row[0], json.loads(row[1])) if row else (0, {})
+
+    def add_consolation(self, persona_version: int, text: str, ai_run_id: int | None) -> int:
+        with self.tx() as db:
+            return db.execute(
+                "INSERT INTO consolations (persona_version, text, ai_run_id, created_at)"
+                " VALUES (?,?,?,?)",
+                (persona_version, text.strip(), ai_run_id, now()),
+            ).lastrowid
+
+    def consolation_stock(self, persona_version: int) -> int:
+        return self.db.execute(
+            "SELECT count(*) FROM consolations WHERE persona_version = ? AND used_at IS NULL",
+            (persona_version,),
+        ).fetchone()[0]
+
+    def consolations_today(self, conversation_id: int) -> int:
+        """Heute in dieser Konversation versendete Vertröstungen (UTC-Tag)."""
+        return self.db.execute(
+            "SELECT count(*) FROM consolations c JOIN channel_messages m"
+            " ON m.id = c.used_message_id WHERE m.conversation_id = ?"
+            " AND substr(c.used_at, 1, 10) = substr(?, 1, 10)",
+            (conversation_id, now()),
+        ).fetchone()[0]
+
+    def take_consolation(self, persona_version: int) -> tuple[int, str, int | None] | None:
+        """Nächster unbenutzter Vertröst-Text (ID, Text, Lauf) oder None."""
+        row = self.db.execute(
+            "SELECT id, text, ai_run_id FROM consolations WHERE persona_version = ?"
+            " AND used_at IS NULL ORDER BY id LIMIT 1",
+            (persona_version,),
+        ).fetchone()
+        return (row[0], row[1], row[2]) if row else None
+
+    def mark_consolation_used(self, consolation_id: int, message_id: int) -> None:
+        with self.tx() as db:
+            db.execute(
+                "UPDATE consolations SET used_message_id = ?, used_at = ? WHERE id = ?",
+                (message_id, now(), consolation_id),
+            )
+
     def set_influencer_switches(
         self, influencer_id: int, text_ai: bool, auto_replies: bool
     ) -> None:

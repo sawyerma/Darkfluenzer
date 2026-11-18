@@ -124,6 +124,7 @@ class CommandsMixin:
             "channel_account_update": self._channel_update,
             "message_resolve": self._message_resolve,
             "outbox_control": self._outbox_control,
+            "behavior_update": self._behavior_update,
             "set_workflow_enabled": self._set_enabled,
             "open_workflow": self._open,
             "adopt_workflow": self._adopt,

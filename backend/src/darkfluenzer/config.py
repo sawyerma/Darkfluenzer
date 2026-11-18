@@ -120,10 +120,7 @@ class TelegramConfig:
     test_mode: bool
     test_chat_ids: tuple[int, ...]
     max_download_mb: float
-    reply_delay_min_s: float
-    reply_delay_max_s: float
-    typing_chars_per_s: float
-    max_messages_per_minute: int
+    max_messages_per_minute: int  # Schutz; Antworttempo kommt aus dem Verhaltensprofil (SP4 7)
     # nie gespeichert (SP2 Schritt 5): Telegram-Dienstkonto 777000 (Anmeldecodes)
     ignored_chat_ids: tuple[int, ...] = (777000,)
 
@@ -331,6 +328,8 @@ class Config:
     ai: AiConfig = AiConfig()
     dialog: DialogConfig = DialogConfig()
     cloner: ClonerConfig = ClonerConfig()
+    # Startwerte des Verhaltensprofils (SP4 Schritt 7); das Profil der Influencerin geht vor
+    behavior: dict = field(default_factory=dict)
 
     @property
     def instances(self) -> tuple[ComfyConfig, ...]:
@@ -492,10 +491,6 @@ def _parse_telegram(tg: object, root: Path, path: Path) -> TelegramConfig | None
     test_mode = tg.get("test_mode", True)
     if not isinstance(test_mode, bool):
         raise ConfigError(f"Konfiguration: {w}.test_mode muss true oder false sein.")
-    low = _positive(tg, "reply_delay_min_s", 4, w)
-    high = _positive(tg, "reply_delay_max_s", 20, w)
-    if low > high:
-        raise ConfigError(f"Konfiguration: {w}.reply_delay_min_s > reply_delay_max_s.")
     return TelegramConfig(
         tdjson=root / str(tg.get("tdjson", "local/tdlib/libtdjson.dylib")),
         data_dir=root / str(tg.get("data_dir", "local/telegram")),
@@ -505,9 +500,6 @@ def _parse_telegram(tg: object, root: Path, path: Path) -> TelegramConfig | None
         test_mode=test_mode,
         test_chat_ids=tuple(ids),
         max_download_mb=_positive(tg, "max_download_mb", 2000, w),
-        reply_delay_min_s=low,
-        reply_delay_max_s=high,
-        typing_chars_per_s=_positive(tg, "typing_chars_per_s", 6, w),
         max_messages_per_minute=int(_positive(tg, "max_messages_per_minute", 6, w)),
         ignored_chat_ids=tuple(ignored),
     )
@@ -815,6 +807,11 @@ def load(root: Path | None = None) -> Config:
         album_settle_s=float(_positive(cl, "album_settle_s", 3, "cloner")),
         notice_interval_s=float(_positive(cl, "notice_interval_s", 3600, "cloner")),
     )
+    beh = data.get("behavior", {})
+    if not isinstance(beh, dict) or not all(
+        isinstance(v, int | float) and not isinstance(v, bool) for v in beh.values()
+    ):
+        raise ConfigError(f"Konfiguration {path}: [behavior] nur Zahlen.")
     telegram = _parse_telegram(data.get("telegram_account"), root, path)
     instagram = _parse_instagram(data.get("instagram"), path)
     wallet = _parse_wallet(data.get("wallet"), path)
@@ -834,6 +831,7 @@ def load(root: Path | None = None) -> Config:
         ai=ai_cfg,
         dialog=dialog_cfg,
         cloner=cloner_cfg,
+        behavior=dict(beh),
     )
 
 

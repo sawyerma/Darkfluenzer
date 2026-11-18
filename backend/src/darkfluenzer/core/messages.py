@@ -74,7 +74,7 @@ class MessagesMixin:
         self.hub.push_events(spb.TOPIC_CONVERSATION_EVENT)
         self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)
 
-    async def _on_inbound(self, inbound) -> None:
+    async def _on_inbound(self, inbound) -> bool:
         """Neue Nachricht gespeichert: Cockpit per Push aktualisieren; Nachrichten des Default-
         Kontakts gehen vor jeder Kundenverarbeitung durch die Kloner-Weiche (V0 §8)."""
         self._message_changed(inbound.message_id or 0)
@@ -82,7 +82,9 @@ class MessagesMixin:
         if inbound.customer.kind == "internal" and inbound.message_id:
             await self._cloner_entry(inbound)  # jeder Ausgang mit Karte und Antwort (SP1 5)
         elif inbound.message_id:
-            await self._dialog_entry(inbound)  # Kundenzweig: Dialogbetrieb (SP4 Schritt 6)
+            # Kundenzweig: Dialogbetrieb (SP4 Schritt 6); True = gelesen zur geplanten Zeit
+            return await self._dialog_entry(inbound)
+        return False
 
     async def _send_ai_notice(self, msg: commands_pb2.SendAiNotice, call: _Call) -> str:
         """KI-Hinweis der Influencerin einmal je Kanalidentität (Befehl 45, Regel 12 b)."""

@@ -78,9 +78,6 @@ def _account(cfg, tmp_path, store):
         test_mode=True,
         test_chat_ids=(TEST_CHAT,),
         max_download_mb=10,
-        reply_delay_min_s=0.01,
-        reply_delay_max_s=0.01,
-        typing_chars_per_s=1000,
         max_messages_per_minute=6,
     )
     changed: list[int] = []

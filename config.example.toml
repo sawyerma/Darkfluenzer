@@ -123,6 +123,28 @@ stall_notice_s = 900   # Hinweis im Cockpit und beim Default, wenn ein Lauf so l
 estimate_runs = 5   # bisherige Läufe je Workflow für die geschätzte Dauer (Median)
 priority = ["customer", "default", "cockpit", "training"]   # Vorrang auf der Renderbahn: bezahlter Kundenauftrag, Default/Kundentest, Cockpit, Training; je Klasse FIFO
 
+# Verhalten (SP4 Schritt 7, E3/E4): Startwerte des Verhaltensprofils; das Profil der Influencerin
+# (Cockpit, versioniert) geht vor. Sekunden; Nachtstunden Ortszeit.
+[behavior]
+bundle_s = 20          # nach der letzten Kundennachricht so lange bündeln
+read_min_s = 3         # im Gesprächsfluss: Lesezeit
+read_max_s = 20
+think_min_s = 2        # Bedenkzeit nach dem Lesen
+think_max_s = 15
+typing_cps = 6         # Tippzeit = Zeichen / typing_cps
+slow_min_s = 30        # Erstkontakt, nach Pause, zufällig (E3)
+slow_max_s = 1800
+pause_after_s = 3600
+slow_chance = 0.15
+night_start_h = 0      # nachts langsam (E3), außer Kaufbereitschaft ab readiness_fast (E4)
+night_end_h = 7
+night_min_s = 1800
+night_max_s = 3600
+readiness_fast = 2
+max_wait_s = 180       # Antwort nicht fertig: danach ein Vertröst-Text
+consolations_per_day = 2
+consolation_stock = 3  # so viele Vertröst-Texte je Profilversion vorab erzeugen
+
 # Default-Kette (SP1): Referenzen und Hinweise des Kloners
 [cloner]
 reference_window_s = 300   # ohne eigene/beantwortete Bilder: Medien desselben Absenders aus diesem Zeitraum
@@ -154,10 +176,7 @@ test_chat_ids = []
 # nie gespeichert: Telegram-Dienstkonto (Anmeldecodes)
 ignored_chat_ids = [777000]
 max_download_mb = 2000
-# Antworttempo gegen Sperren: Verzögerung vor jeder Nachricht, Schreibanzeige, Höchstzahl je Minute
-reply_delay_min_s = 4
-reply_delay_max_s = 20
-typing_chars_per_s = 6
+# Schutz gegen Sperren: Höchstzahl Nachrichten je Minute (Antworttempo: Verhaltensprofil, [behavior])
 max_messages_per_minute = 6
 
 # Claras Instagram-Creator-Konto (PHASENPLAN_V0 §6, §6.1): offizielle Instagram-API mit

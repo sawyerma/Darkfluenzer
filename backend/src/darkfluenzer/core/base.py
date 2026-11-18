@@ -115,6 +115,8 @@ class CockpitBase:
         self._commands_off_at: dict[int, float] = {}  # Hinweis „Befehle sind aus“ je Chat
         self._dialog_state: dict[int, dict] = {}  # Erzeugung je Konversation (SP4 Schritt 6)
         self._notice_missing: set[int] = set()  # Karte „KI-Hinweis fehlt“ je Konversation
+        self._online: dict[str, int] = {}  # aktive Lese-/Tipp-Phasen je Konto (Online-Status)
+        self._fill: asyncio.Task | None = None  # Vertröst-Texte im Leerlauf (SP4 Schritt 7)
         # Sprach-KI (SP4 Schritt 1): laufende Sprachläufe (prompt_id -> Workflowtitel), Aufwärmlauf
         self._llm_runs: dict[str, str] = {}
         self._warm_key: str | None = None

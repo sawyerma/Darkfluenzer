@@ -225,6 +225,28 @@ def attachment_of(att: dict) -> dict:
     return out
 
 
+def split_text(text: str, limit: int) -> list[str] | None:
+    """Text in Teile ≤ ``limit`` Bytes an Satzgrenzen (., !, ?, Zeilenumbruch); None, wenn ein
+    einzelner Satz länger ist. Kurzer Text bleibt ein Teil."""
+    if len(text.encode()) <= limit:
+        return [text]
+    sentences = [x for x in re.split(r"(?<=[.!?…])\s+|\n+", text) if x.strip()]
+    parts: list[str] = []
+    current = ""
+    for sentence in sentences:
+        if len(sentence.encode()) > limit:
+            return None
+        joined = f"{current} {sentence}".strip()
+        if len(joined.encode()) <= limit:
+            current = joined
+        else:
+            parts.append(current)
+            current = sentence
+    if current:
+        parts.append(current)
+    return parts
+
+
 class InstagramAccount(Channel):
     """Claras Instagram-Konto (Creator) – Kanalvertrag wie ``TelegramAccount``."""
 
@@ -950,12 +972,11 @@ class InstagramAccount(Channel):
         parts: list[dict] = []
         text = str(item["text"] or "")
         if text.strip():
-            size = len(text.encode())
-            if size > self.ig.max_text_bytes:
-                return (
-                    f"Text zu lang für Instagram ({size} Bytes, Grenze {self.ig.max_text_bytes})."
-                )
-            parts.append({"text": text})
+            # Kanalgrenze (SP4 Schritt 7, BUG-017 Textteil): an Satzgrenzen in Teile ≤ Grenze
+            pieces = split_text(text, self.ig.max_text_bytes)
+            if pieces is None:
+                return f"Ein Satz ist länger als {self.ig.max_text_bytes} Bytes."
+            parts += [{"text": t} for t in pieces]
         limits = {
             "image": self.ig.max_image_mb,
             "video": self.ig.max_video_mb,
@@ -1002,6 +1023,28 @@ class InstagramAccount(Channel):
             flight.set()
             if self._inflight.get(partner) is flight:
                 del self._inflight[partner]
+
+    async def _sender_action(self, partner: str, action: str) -> bool:
+        """Gelesen-/Tippsignal der Messaging-API (``mark_seen``, ``typing_on``/``typing_off``);
+        ob das Konto es anzeigt, prüft der echte Lauf (SP4 Schritt 7)."""
+        if self.state != "READY" or not self.account:
+            return False
+        try:
+            await self.http.json(
+                "POST", self._graph(f"{self.account}/messages"),
+                body={"recipient": {"id": partner}, "sender_action": action},
+                token=self._key("token"),
+            )  # fmt: skip
+        except HttpError as exc:
+            log.info("Instagram: %s nicht angenommen (%s)", action, exc)
+            return False
+        return True
+
+    async def mark_read(self, conversation: str, message_ids: list[str]) -> bool:
+        return await self._sender_action(conversation, "mark_seen")
+
+    async def set_typing(self, conversation: str, typing: bool) -> bool:
+        return await self._sender_action(conversation, "typing_on" if typing else "typing_off")
 
     async def _pace(self) -> None:
         """Höchstzahl Nachrichten je Minute (Meta-Ratenbegrenzung)."""

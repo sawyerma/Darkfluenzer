@@ -24,6 +24,22 @@ class AiMixin:
             self._event("ai_run", run_id, "done", kind=kind, error=bool(fields.get("error")))
         return run_id
 
+    def last_readiness(self, customer_id: int) -> int:
+        """Kaufbereitschaft der letzten gültigen Einstufung dieses Kunden (0 ohne Lauf; E4)."""
+        rows = self.db.execute(
+            "SELECT classification FROM ai_runs WHERE customer_id = ? AND kind = 'chat'"
+            " AND error = '' ORDER BY id DESC LIMIT 5",
+            (customer_id,),
+        )
+        for (raw,) in rows:
+            try:
+                value = json.loads(raw).get("purchase_readiness")
+            except (ValueError, AttributeError):
+                continue
+            if isinstance(value, int) and not isinstance(value, bool):
+                return value
+        return 0
+
     def ai_run(self, run_id: int) -> dict:
         row = self.db.execute("SELECT * FROM ai_runs WHERE id = ?", (run_id,)).fetchone()
         return dict(row) if row else {}

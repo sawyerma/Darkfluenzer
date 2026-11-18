@@ -14,7 +14,7 @@ from ..v1 import (
     influencer_pb2,
 )
 from ..v1 import stream_pb2 as spb
-from . import assessment, persona
+from . import assessment, behavior, persona
 from .base import _Call, _unix_ms, log
 
 # Enden asynchron mit eigener Receipt: Render mit dem Job, ComfyUI mit Start/Stopp
@@ -288,6 +288,8 @@ class CharactersMixin:
                 studio_session=self.store.studio_session(row["id"]),
                 text_ai=bool(row["text_ai"]),
                 auto_replies=bool(row["auto_replies"]),
+                behavior=self._behavior(row).values(),
+                behavior_version=self.store.behavior_of(row["id"])[0],
             )
             for price in row["prices"]:
                 item.prices.add(**price)
@@ -300,6 +302,18 @@ class CharactersMixin:
                 if v["id"] == active:
                     item.persona_active = v["version"]
         return msg.SerializeToString()
+
+    async def _behavior_update(self, msg: commands_pb2.BehaviorUpdate, call: _Call) -> str:
+        """Verhaltensprofil (Befehl 53, SP4 Schritt 7): Zahlen prüfen, neue Version aktiv."""
+        call.entity = f"influencer:{msg.influencer_id}"
+        figure = next((f for f in self.store.influencers() if f["id"] == msg.influencer_id), None)
+        if figure is None:
+            return "Influencerin unbekannt."
+        checked = behavior.build(self._behavior(figure), dict(msg.values))
+        if isinstance(checked, str):
+            return checked
+        self.store.save_behavior(msg.influencer_id, checked.values())
+        return ""
 
     async def _influencer_update(self, msg: commands_pb2.InfluencerUpdate, call: _Call) -> str:
         """Profil der Influencerin speichern – gilt für alle Kunden (FRONT F4 V1.12 Punkt 12);

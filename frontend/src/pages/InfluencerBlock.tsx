@@ -14,6 +14,78 @@ interface Row {
   hd: string;
 }
 
+// Verhaltensprofil (SP4 Schritt 7): nur Zahlen für die Ausführung; Stil und Ton stehen im Promptprofil
+const BEHAVIOR: [string, string][] = [
+  ["bundle_s", "Bündeln s"],
+  ["read_min_s", "Lesen min s"],
+  ["read_max_s", "Lesen max s"],
+  ["think_min_s", "Bedenken min s"],
+  ["think_max_s", "Bedenken max s"],
+  ["typing_cps", "Tippen Zeichen/s"],
+  ["slow_min_s", "Langsam min s"],
+  ["slow_max_s", "Langsam max s"],
+  ["pause_after_s", "Pause ab s"],
+  ["slow_chance", "Zufällig langsam 0–1"],
+  ["night_start_h", "Nacht ab Uhr"],
+  ["night_end_h", "Nacht bis Uhr"],
+  ["night_min_s", "Nachts min s"],
+  ["night_max_s", "Nachts max s"],
+  ["readiness_fast", "Nachts zügig ab Kaufbereitschaft"],
+  ["max_wait_s", "Vertrösten nach s"],
+  ["consolations_per_day", "Vertröstungen je Tag"],
+  ["consolation_stock", "Vertröst-Texte vorrätig"],
+];
+
+/** Verhaltensprofil der Influencerin (Befehl 53): neue Version, sofort aktiv. */
+function BehaviorEditor({ influencer }: { influencer: Influencer }) {
+  const cmd = useCommand();
+  const saved = Object.fromEntries(BEHAVIOR.map(([k]) => [k, String(influencer.behavior[k] ?? "")]));
+  const [values, setValues] = useState<Record<string, string>>(saved);
+  const changed = BEHAVIOR.some(([k]) => values[k] !== saved[k]);
+  return (
+    <div className="g-control-part g-wide">
+      <h3>Verhalten{influencer.behaviorVersion ? ` · Version ${influencer.behaviorVersion}` : " · Startwerte"}</h3>
+      <div className="g-behavior">
+        {BEHAVIOR.map(([key, label]) => (
+          <div key={key} className="g-field">
+            <label htmlFor={`beh-${influencer.influencerId}-${key}`}>{label}</label>
+            <input
+              id={`beh-${influencer.influencerId}-${key}`}
+              inputMode="decimal"
+              value={values[key]}
+              onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        className="g-button"
+        disabled={cmd.pending || !changed}
+        onClick={() =>
+          void cmd.run(
+            {
+              case: "behaviorUpdate",
+              value: {
+                influencerId: influencer.influencerId,
+                values: Object.fromEntries(BEHAVIOR.map(([k]) => [k, Number(String(values[k]).replace(",", "."))])),
+              },
+            },
+            { done: "Verhalten übernommen." },
+          )
+        }
+      >
+        Verhalten übernehmen
+      </button>
+      {cmd.notice ? (
+        <p className="g-note" role="status">
+          {cmd.notice}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 const euro = (cents: bigint) => (Number(cents) / 100).toFixed(2).replace(".", ",");
 const cents = (text: string) => Math.round(Number(text.replace(",", ".").trim()) * 100);
 
@@ -127,12 +199,13 @@ export function InfluencerBlock({ influencer, mediaTitle, videoTitle }: { influe
             Position hinzufügen
           </button>
         </div>
+        {influencer ? <BehaviorEditor key={`${influencer.influencerId}-${influencer.behaviorVersion}`} influencer={influencer} /> : null}
         <div className="g-control-part g-wide">
           <h3>Modelle und Fähigkeiten</h3>
           <dl className="g-params">
             {(
               [
-                ["Text-KI", "nicht angeschlossen (KI-Instanz folgt)"],
+                ["Text-KI", textAi ? (autoReplies ? "an · antwortet automatisch" : "an · Entwürfe") : "aus"],
                 ["Foto", mediaTitle || "–"],
                 ["Video", videoTitle || "–"],
                 ["Stimme", "nicht angeschlossen"],

@@ -14,21 +14,23 @@ test("Dialog: Entwurf, geplante und stornierte KI-Antwort, Modus", async ({ page
   await page.getByLabel("Kunde suchen").fill("E2E Dialog");
   await page.getByRole("list", { name: "Kundenakten" }).getByRole("listitem").first().click();
   const log = page.getByRole("log", { name: "Verlauf" });
-  const draft = log.locator('.g-bubble[data-status="draft"]').last();
+  // jüngster Seed: Entwurf, geplante und stornierte Antwort mit derselben Kennung
+  const planned = log.locator(".g-bubble:not([data-status])", { hasText: /Geplant \d+/ }).last();
+  const tag = ((await planned.locator("p").first().textContent()) ?? "").replace("Geplant ", "").trim();
+  const draft = log.locator('.g-bubble[data-status="draft"]', { hasText: `Entwurf ${tag}` });
   await expect(draft).toContainText("Automatische Antworten der Influencerin sind aus.");
   await expect(draft.getByRole("button", { name: "Senden" })).toBeVisible();
-  const planned = log.locator(".g-bubble", { hasText: /Geplant \d+/ }).last();
   await expect(planned.locator("small").last()).toContainText(/geplant \d\d:\d\d/);
-  await expect(log.locator('.g-bubble[data-status="cancelled"]').last()).toContainText("storniert");
+  await expect(log.locator('.g-bubble[data-status="cancelled"]', { hasText: `Storniert ${tag}` })).toContainText("storniert");
   await log.screenshot({ path: "test-results/sp4-dialog.png" });
   // Zurückhalten: geplante wird Entwurf
   await planned.getByRole("button", { name: "Zurückhalten" }).click();
-  await expect(log.locator('.g-bubble[data-status="draft"]', { hasText: /Geplant \d+/ })).toBeVisible();
+  await expect(log.locator('.g-bubble[data-status="draft"]', { hasText: `Geplant ${tag}` })).toBeVisible();
   // Entwurf bearbeiten und senden: wartet im Postausgang (Konto nicht verbunden)
-  const edited = log.locator('.g-bubble[data-status="draft"]', { hasText: /Entwurf \d+/ }).last();
-  await edited.getByLabel("Entwurf bearbeiten").fill("Ein Foto kostet 20 €.");
-  await edited.getByRole("button", { name: "Senden" }).click();
-  await expect(log.locator(".g-bubble", { hasText: "Ein Foto kostet 20 €." }).locator("small").last()).toContainText("wartet");
+  const text = `Ein Foto kostet 20 € (${tag}).`;
+  await draft.getByLabel("Entwurf bearbeiten").fill(text);
+  await draft.getByRole("button", { name: "Senden" }).click();
+  await expect(log.locator(".g-bubble", { hasText: text }).locator("small").last()).toContainText("wartet");
   // Modus „Betreiber“, nach Neuladen erhalten
   const panel = page.getByRole("complementary", { name: "Kundensteuerung" });
   await panel.getByLabel("Modus").first().selectOption("manual");

@@ -46,7 +46,7 @@
 | BUG-013 | **[18.11.] CODE** (pending nach Neustart neu geladen; Handy-Lauf offen) – Telegram-Anhang bleibt nach Absturz zwischen Speichern und Download `pending`. | CODE | Fortsetzung nach Neustart oder Fehlschlag mit Grund. | B SP1 |
 | BUG-015 | **[18.11.] CODE** (`ignored_chat_ids`, Vorgabe 777000; Test rot→grün; echter Code-Eingang offen) – Telegram-Dienstkonto 777000 kann als Kunde landen. | OFFEN | Keine Akte, kein KI-Dialog, Code nie im Gedächtnis. | B SP2 |
 | BUG-016 | **[18.11.] CODE** (Abgleich über SQLite, Verlauf und Send-Updates, Befehl 66; Mac-Lauf mit echtem Zeitablauf offen) – Versand mit Status `unknown` bleibt hängen; Instagram klärt ihn nur im Speicher, nach Neustart entsteht fälschlich „ÜBERGABE AN BETREIBER“. | CODE | Abgleich dauerhaft über Verlauf/Echo, nie blind zweimal senden, eigene Nachricht nie als Übergabe. | B SP2 |
-| BUG-017 | Instagram lehnt Bilder über 8 MB ab; keine Zustellkopie; Texte über 1000 Byte nicht geteilt: `instagram._parts` lehnt Text über `max_text_bytes` ganz ab. | CODE | Zustellkopie je Kanalgrenze, nie unter 1K; Text teilen; genau einmal zugestellt. | B SP5 (Datei), SP4 (Text) |
+| BUG-017 | **[18.11.] CODE** (Textteil: Satzgrenzen; Handy-Lauf offen) – Instagram lehnt Bilder über 8 MB ab; keine Zustellkopie; Texte über 1000 Byte nicht geteilt: `instagram._parts` lehnt Text über `max_text_bytes` ganz ab. | CODE | Zustellkopie je Kanalgrenze, nie unter 1K; Text teilen; genau einmal zugestellt. | B SP5 (Datei), SP4 (Text) |
 | BUG-019 | Angebot wählt das Produkt über den Listenindex. | CODE | Stabile ID je Preisposition, Revisionsprüfung. | B SP5 |
 | BUG-020 | Kundenakte nimmt `influencers[0]` statt der Influencerin des Kontos. | CODE | Influencerin je Kanalkonto und Akte. | B SP4 (C5.1) |
 | BUG-021 | **[18.11.] CODE** (erneut nur nach `failed`, Test rot→grün) – KI-Hinweis nach fehlgeschlagenem oder ungeklärtem Versand nicht fortsetzbar. | CODE: `queue_ai_notice` sperrt, sobald eine Hinweisnachricht verknüpft ist, auch wenn sie fehlgeschlagen ist | Erneuter Versuch möglich, nie doppelt. | B SP2 |
@@ -65,7 +65,7 @@
 | BUG-090 | Die Fertigstellen-Stufe trägt keine Parameter (`pipeline.select_candidate` ruft `create_render` mit leeren Werten). Die Höhe für das Story-Format lässt sich so nicht setzen; ein Video-Kundenauftrag scheitert, weil `ltx25_i2v` als Fertigstellen den Pflichtwert `prompt` braucht. | CODE | Werte für die Fertigstellen-Stufe am Auftrag. | B SP1 (Story), SP5 (Video) |
 | BUG-094 | LoRA nur in Workflows mit demselben Engine-Eintrag ladbar (`models.engine_model_names` vergleicht `base_engine`). `lustify_sam31_edit` nutzt dasselbe Modell unter anderem Eintrag und dürfte die Charakter-LoRA nicht laden. (In Fables SP3-Blatt als „BUG-089“ geführt; 089 ist bereits vergeben.) | CODE | Bindung an die Architektur (`arch`). | B SP3 |
 | BUG-095 | Jeder Workflow-Lauf prüft die Instanz über `runtime.start`, ruft zweimal `git` auf (`comfy.provenance`), fragt im Sekundentakt ab und schreibt eine Herkunftsdatei. Für Chat-Antworten ist das zu schwer. **[18.11.] PASS** (§7, `llm.generate`) | CODE | Leichter Weg ohne diese Schritte (`llm.generate`). | B SP4 |
-| BUG-096 | Telegram: Tippanzeige nur einmal gesendet, Online-Status nie gesetzt, Gelesen sofort nach dem Speichern. | CODE | Verhalten nach Profil. | B SP4 |
+| BUG-096 | **[18.11.] CODE** (Tippanzeige bis zum Senden erneuert; Handy-Lauf offen) – Telegram: Tippanzeige nur einmal gesendet, Online-Status nie gesetzt, Gelesen sofort nach dem Speichern. | CODE | Verhalten nach Profil. | B SP4 |
 | BUG-097 | **[18.11.] CODE** (Migration 34 mit draft/cancelled/scheduled_at; Test grün) – Eine eingereihte Antwort lässt sich nicht stornieren: `channel_messages.status` kennt weder `draft` noch `cancelled`, der Postausgang kennt keine Sendezeit. | CODE | Tabellenumbau, `scheduled_at`, Storno bei neuem Eingang. | B SP4 |
 | BUG-098 | **[18.11.] TEIL** (Chat-Textweg in `llm.py`, §7; Prüfknoten-Teil SP5) – `comfy.collect_graph` kennt nur Datei-Ausgaben; ein Textergebnis endet mit „keine Ausgabedatei“. (In Fables SP4-Blatt als „BUG-094“ geführt; 094 ist bereits vergeben.) | CODE | Eigener Textweg in `llm.py`. Derselbe Weg liefert die Messwerte der Prüfknoten (Zahlen, JSON) an `checks.py` (SP5 Schritt 7, Fable 17.11.). | B SP4 |
 | BUG-099 | Zustellung immer als Dokument und ohne Text (`_queue_delivery`, `telegram._send`). E7 verlangt Foto oder Video als Standard mit Begleittext. | CODE | Anhangart aus dem Produkt; Begleittext vom Sprachworkflow (E19), KI-Kennzeichnung als fester Profiltext. | B SP5 |
@@ -200,6 +200,17 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP4 Schritt 7 (Verhalten, E3/E4) / BUG-096, BUG-017 (Textteil)
+Commit: siehe git log „SP4 step 7“ / core/behavior.py, core/chat.py (Plan, Lesen/Tippen/Online, Vertröstung),
+  Migration 35, Befehl 53, [behavior], channels (mark_read/set_typing/set_online, Postausgang nach Sendezeit,
+  Instagram split_text/sender_action), InfluencerBlock (Verhalten)
+Nachweis: tests/test_behavior.py (7), test_chat.py (4); Backend 291; Chrome-E2E isoliert 21/21
+Nachweis echt: Migration 34→35 mit Sicherung, Wiederanmeldung, lesend echt 9/9
+NOT_RUN: Handy-Abnahme 11–13, 16 (Tippanzeige, Lesezeit, zwei Kunden, Neustart in geplanter Antwort), Instagram-
+  Signale am echten Konto
+Ergebnis: TEIL
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP4 Schritt 6 (Dialogbetrieb) / C5.1 (Schalter Text-KI, automatische Antworten) / BUG-077, BUG-097
 Commit: siehe git log „SP4 step 6“ / core/chat.py, Migration 34, Befehl 54, models (E20 ai_notice), config
   [dialog] public_contact_cleared, chat_turns, Adapter-Gate für KI-Antworten, Stream/CustomerPanel/InfluencerBlock

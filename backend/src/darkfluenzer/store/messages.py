@@ -503,6 +503,24 @@ class MessagesMixin:
         )
         return [dict(r) for r in rows][::-1]
 
+    def last_sent_at(self, conversation_id: int) -> str | None:
+        """Zeit der letzten gesendeten eigenen Nachricht (Pause, Erstkontakt; SP4 Schritt 7)."""
+        row = self.db.execute(
+            "SELECT max(sent_at) FROM channel_messages WHERE conversation_id = ?"
+            " AND direction = 'out' AND status = 'sent'",
+            (conversation_id,),
+        ).fetchone()
+        return row[0] if row else None
+
+    def last_inbound_ids(self, conversation_id: int, limit: int = 1) -> list[str]:
+        """Plattform-IDs der letzten Eingänge (gelesen markieren)."""
+        rows = self.db.execute(
+            "SELECT platform_message_id FROM channel_messages WHERE conversation_id = ?"
+            " AND direction = 'in' AND platform_message_id IS NOT NULL ORDER BY id DESC LIMIT ?",
+            (conversation_id, limit),
+        )
+        return [r[0] for r in rows][::-1]
+
     def next_scheduled(self, platform: str, account: str) -> str | None:
         """Früheste geplante Sendezeit eines Kontos (Postausgang wacht dann auf)."""
         row = self.db.execute(

@@ -97,3 +97,8 @@ class Channel(ABC):
     async def set_typing(self, conversation: str, typing: bool) -> bool:
         """Tippanzeige setzen; False = vom Kanal (noch) nicht unterstützt."""
         return False
+
+    async def set_online(self, online: bool) -> bool:
+        """Online-Status des Kontos (SP4 Schritt 7: ein beim Lesen und Tippen, sonst aus);
+        False = vom Kanal nicht unterstützt."""
+        return False

@@ -52,8 +52,33 @@ class Melody:
         )  # fmt: skip
 
 
-def _setup(cockpit, *, test_mode=True, auto=True):
+FAST = {"bundle_s": 0, "read_min_s": 0, "read_max_s": 0, "think_min_s": 0, "think_max_s": 0,
+        "slow_min_s": 0, "slow_max_s": 0, "night_min_s": 0, "night_max_s": 0,
+        "typing_cps": 1000, "slow_chance": 0}  # fmt: skip
+
+
+class Presence:
+    """Lesen, Tippen, Online des Ersatz-Kanals (merkt sich die Aufrufe)."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple] = []
+
+    async def mark_read(self, conversation, ids):
+        self.calls.append(("read", conversation, tuple(ids)))
+        return True
+
+    async def set_typing(self, conversation, typing):
+        self.calls.append(("typing", conversation, typing))
+        return True
+
+    async def set_online(self, online):
+        self.calls.append(("online", online))
+        return True
+
+
+def _setup(cockpit, *, test_mode=True, auto=True, behavior=None):
     store = cockpit.store
+    cockpit.cfg = dataclasses.replace(cockpit.cfg, behavior=dict(behavior or FAST))
     clara = store.save_influencer(0, 0, "Clara", None, "", "Ich bin eine KI.", [
         {"product": "Foto", "price_cents": 2000, "hd_surcharge_cents": 500}])  # fmt: skip
     store.save_persona_version(clara, {"persona": "Clara, 24"}, {}, "Start", activate=True)
@@ -61,10 +86,13 @@ def _setup(cockpit, *, test_mode=True, auto=True):
     store.import_channel_account({"key": "tg", "platform": "telegram", "influencer_id": clara,
                                   "test_mode": test_mode})  # fmt: skip
     store.set_account_platform_id("tg", BOT)
+    presence = Presence()
     adapter = types.SimpleNamespace(
         platform="telegram", account=BOT, key="tg", state="READY", wake=asyncio.Event(),
         automation=True, window_open=lambda _p: True, status=lambda: {},
         capabilities=lambda: types.SimpleNamespace(reply_window=False),
+        mark_read=presence.mark_read, set_typing=presence.set_typing,
+        set_online=presence.set_online, presence=presence,
     )  # fmt: skip
     cockpit.adapters = {"tg": adapter}
     return clara, adapter

@@ -362,6 +362,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-cmd .g-field { display: grid; grid-template-columns: var(--g-cmd-label) minmax(0, 1fr); align-items: center; gap: var(--g-gap-sm); }
 .g-cmd .g-field label { font-family: var(--g-font-mono); color: var(--g-text); }
 .g-cmd .g-sub label { font-family: inherit; color: var(--g-muted); font-size: var(--g-fs-small); }
+.g-behavior { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--g-gap-sm); }
 .g-cards { display: grid; gap: 16px; margin-top: 28px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 /* Kennzahlkarte (F7-Referenz .metric) */
 .g-card.g-kpi { gap: 0; padding: 25px; min-height: 170px; background: var(--g-metric); border-color: var(--g-metric-line); border-radius: var(--g-r-metric); }
