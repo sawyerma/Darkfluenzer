@@ -200,6 +200,17 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP2 Schritt 9a (Kanalkonten als Liste, Datenmodell)
+Commit: siehe git log „SP2 step 9a“ / store/accounts.py (Migration 30), core/base (Übernahme, Adapter je Konto),
+  core/messages (STATE 8, Befehl 40 assign_influencer, KI-Hinweis über Konto), store/customers (Sperre je Identität)
+Nachweis Unit/Integration: tests/test_accounts.py – Übernahme einmal, Bindung der Konto-ID, fremde ID abgewiesen,
+  Zuordnung, Sperre über Akten derselben Plattform-Identität und Erbe neuer Akten, STATE 8 und Befehl 40 über
+  HTTP; test_channels – KI-Hinweis ohne Konto-Influencerin abgewiesen
+Nachweis echt: Neustart mit Migration 30, Telegram-Konto übernommen (Testbetrieb, Test-Chat, Default-Absender),
+  an 493976404 gebunden, Anmeldung unverändert; Chrome-E2E isoliert (Zuordnen, Neuladen), lesend echt
+Ergebnis: TEIL (zweites Telegram-Konto mit SP2 Schritt 4; Pflege im Cockpit 9b in Etappe E)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP4 Schritt 5 (Gedächtnis, B5.3)
 Commit: siehe git log „SP4 step 5“ / store/memory.py (Migration 29, FTS5), core/memory.py, Befehl 52, EVENT 32,
   /api/v1/memory-page, MemoryView

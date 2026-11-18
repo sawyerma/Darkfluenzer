@@ -708,5 +708,8 @@ button.g-account:hover { border-color: var(--g-brand); }
 
 /* Einstellungen (§3.7): eine Karte je Gruppe */
 .g-settings .g-card { gap: var(--g-gap-sm); }
+.g-account-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--g-gap-sm); }
+.g-account-line small { color: var(--g-muted); font-size: var(--g-fs-small); }
+.g-account-line select { max-width: 220px; }
 .g-settings .g-card h2 { margin: 0 0 var(--g-gap-xs); font-size: var(--g-fs-h2); font-weight: var(--g-fw-semibold); }
 .g-link { color: var(--g-text-strong); font-size: var(--g-fs-small); text-decoration: underline; text-underline-offset: 2px; }

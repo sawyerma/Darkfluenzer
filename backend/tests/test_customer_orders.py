@@ -175,8 +175,11 @@ def test_customer_order_chain(cfg, monkeypatch):
 
         cockpit.wallet.rates = {"bitcoin": 80000.0, "tether": 0.9}
         cockpit.wallet.rate_ms = int(time.time() * 1000)
-        channel = types.SimpleNamespace(state="READY", wake=asyncio.Event())  # Kanal verbunden
+        channel = types.SimpleNamespace(  # Kanal verbunden, ein Kanalkonto (SP2 Schritt 9a)
+            state="READY", wake=asyncio.Event(), platform="telegram", account="", key="telegram"
+        )
         cockpit.telegram = channel
+        cockpit.adapters = {"telegram": channel}
 
         async def send(**kw):
             req = commands_pb2.CommandRequest(request_id=str(uuid.uuid4()), **kw)

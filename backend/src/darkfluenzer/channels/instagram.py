@@ -252,7 +252,9 @@ class InstagramAccount(Channel):
         store: Store,
         on_inbound: Callable[[Inbound], Awaitable[None]],
         on_change: Callable[[], None],
+        account: dict | None = None,
     ) -> None:
+        self.key = account["key"] if account else "instagram"  # Kanalkonto (SP2 Schritt 9a)
         assert cfg.instagram is not None
         self.cfg = cfg
         self.ig = cfg.instagram

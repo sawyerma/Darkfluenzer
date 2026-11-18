@@ -124,7 +124,9 @@ def apply_minor_lock(store, customer_id: int, conversation_id: int, evidence: st
         raise ValueError(f"Akte {customer_id} unbekannt.")
     if row[0] == "under_18":
         return False
-    store.set_age_mark(customer_id, "under_18")
+    # gilt für alle Akten mit genau dieser Plattform-Identität (SP2 Schritt 9a)
+    for other in store.customers_with_identity_of(customer_id):
+        store.set_age_mark(other, "under_18")
     note = f" · Beleg: {evidence.strip()}" if evidence.strip() else ""
     store.add_system_card(
         conversation_id,

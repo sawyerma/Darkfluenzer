@@ -20,20 +20,34 @@ class MessagesMixin:
     def _channels(self) -> bytes:
         """STATE channels: Zustand je Kanal; nicht eingerichtete Kanäle mit dem, was fehlt."""
         msg = channel_pb2.Channels(version=self.store.domain_version("channels"))
-        if self.telegram:
-            msg.channels.add(**self.telegram.status())
-        else:
+        missing = {"telegram": "Abschnitt [telegram_account]", "instagram": "Abschnitt [instagram]"}
+        listed = set()
+        for acc in self.store.channel_accounts():  # je Kanalkonto (SP2 Schritt 9a)
+            adapter = self.adapters.get(acc["key"])
+            status = adapter.status() if adapter else {
+                "platform": acc["platform"], "state": "OFF",
+                "missing": missing.get(acc["platform"], "") if acc["platform"] not in
+                {a.platform for a in self.adapters.values()} else "weiteres Konto: SP2 Schritt 4",
+            }  # fmt: skip
             msg.channels.add(
-                platform="telegram", state="OFF", missing="Abschnitt [telegram_account]"
-            )
-        if self.instagram:
-            msg.channels.add(**self.instagram.status())
-        else:
-            msg.channels.add(platform="instagram", state="OFF", missing="Abschnitt [instagram]")
+                **status, key=acc["key"], influencer_id=acc["influencer_id"] or 0,
+                influencer=acc["influencer_name"] or "", operating_mode=acc["operating_mode"],
+                transport=acc["customer_transport"], default_sender_id=acc["default_sender_id"],
+            )  # fmt: skip
+            listed.add(acc["platform"])
+        for platform, why in missing.items():
+            if platform not in listed:
+                msg.channels.add(platform=platform, state="OFF", missing=why)
         msg.channels.add(platform="whatsapp", state="OFF", missing="WhatsApp folgt später (C7)")
         return msg.SerializeToString()
 
     def _channels_changed(self) -> None:
+        for adapter in self.adapters.values():  # Konto-ID nach der Anmeldung festhalten
+            if adapter.account:
+                try:
+                    self.store.set_account_platform_id(adapter.key, adapter.account)
+                except StoreError as exc:
+                    log.error("Kanalkonto %s: %s", adapter.key, exc)
         self.hub.set_state(spb.TOPIC_CHANNELS, self._channels())
 
     def _message_changed(self, message_id: int) -> None:
@@ -60,15 +74,19 @@ class MessagesMixin:
     async def _send_ai_notice(self, msg: commands_pb2.SendAiNotice, call: _Call) -> str:
         """KI-Hinweis der Influencerin einmal je Kanalidentität (Befehl 45, Regel 12 b)."""
         call.entity = f"customer:{msg.customer_id}"
-        figure = next(iter(self.store.influencers()), None)
-        if figure is None or not figure["ai_notice"].strip():
-            return "KI-Hinweistext im Influencerin-Profil fehlt."
         ident = next(
             (i for i in self.store.identities(msg.customer_id) if i["id"] == msg.identity_id),
             None,
         )
         if ident is None:
             return "Kanalidentität gehört nicht zu dieser Kundenakte."
+        # Influencerin über das Konto der Identität (SP2 Schritt 9a), nie die erste Influencerin
+        figure_id = self.store.influencer_for_identity(ident)
+        figure = next((f for f in self.store.influencers() if f["id"] == figure_id), None)
+        if figure is None:
+            return "Dem Kanalkonto ist keine Influencerin zugeordnet (Einstellungen → Kanäle)."
+        if not figure["ai_notice"].strip():
+            return "KI-Hinweistext im Influencerin-Profil fehlt."
         adapter = self._adapter(ident["platform"])
         if adapter is None or adapter.state != "READY":
             return f"{ident['platform']} ist nicht verbunden."
@@ -226,13 +244,21 @@ class MessagesMixin:
     async def _channel_update(self, msg: commands_pb2.ChannelAccountUpdate, call: _Call) -> str:
         """Automatik freigeben/sperren oder abmelden (Befehl 40)."""
         call.entity = f"channel:{msg.platform}"
-        adapter = self._adapter(msg.platform)
+        adapter = self._adapter(msg.platform, msg.key)
+        if adapter is None and msg.action == "assign_influencer" and msg.key:
+            self.store.assign_account_influencer(msg.key, msg.influencer_id or None)
+            self._channels_changed()
+            return ""
         if adapter is None:
             return f"{msg.platform or 'Kanal'}: Konto nicht eingerichtet."
         if msg.action == "logout":
             return await adapter.logout()
         if msg.action in ("enable_automation", "disable_automation"):
             return adapter.set_automation(msg.action == "enable_automation")
+        if msg.action == "assign_influencer":  # Konto -> Influencerin (SP2 Schritt 9a)
+            self.store.assign_account_influencer(msg.key or adapter.key, msg.influencer_id or None)
+            self._channels_changed()
+            return ""
         return "Unbekannte Aktion."
 
     async def _customer_age_mark(self, msg: commands_pb2.CustomerAgeMark, call: _Call) -> str:

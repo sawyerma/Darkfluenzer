@@ -128,24 +128,62 @@ class CockpitBase:
             if cfg.wallet
             else None
         )
-        self.telegram = (
-            TelegramAccount(cfg, store, self._on_inbound, self._channels_changed)
-            if cfg.telegram
-            else None
+        # Kanalkonten (SP2 Schritt 9a): bisherige Abschnitte beim ersten Start als Konto übernehmen,
+        # dann je Konto ein Adapter. Ein weiteres Konto derselben Plattform braucht den einen
+        # TDLib-Empfänger (SP2 Schritt 4) bzw. die Webhook-Verteilung; bis dahin je Plattform eines.
+        self._import_channel_accounts()
+        self.adapters: dict[str, object] = {}
+        kinds = {
+            "telegram": (cfg.telegram, TelegramAccount),
+            "instagram": (cfg.instagram, InstagramAccount),
+        }
+        for acc in store.channel_accounts():
+            section, cls = kinds.get(acc["platform"], (None, None))
+            if section is None or any(
+                a.platform == acc["platform"] for a in self.adapters.values()
+            ):
+                continue
+            self.adapters[acc["key"]] = cls(
+                cfg, store, self._on_inbound, self._channels_changed, acc
+            )
+        self.telegram = next((a for a in self.adapters.values() if a.platform == "telegram"), None)
+        self.instagram = next(
+            (a for a in self.adapters.values() if a.platform == "instagram"), None
         )
-        self.instagram = (
-            InstagramAccount(cfg, store, self._on_inbound, self._channels_changed)
-            if cfg.instagram
-            else None
-        )
-        for adapter in filter(None, (self.telegram, self.instagram)):
+        for adapter in self.adapters.values():
             adapter.on_change_message = self._message_changed
             adapter.gate = self._delivery_gate
         self._settle_deliveries()
         self._migrate_character_folders()  # SP3 Schritt 1: ein Ordnerschema je Charakter
 
-    def _adapter(self, platform: str):
-        return {"telegram": self.telegram, "instagram": self.instagram}.get(platform)
+    def _adapter(self, platform: str, account: str = ""):
+        """Adapter eines Kontos (Plattform-Konto-ID oder Kürzel); ohne Angabe der der Plattform."""
+        for adapter in self.adapters.values():
+            if adapter.platform == platform and (
+                not account or account in (adapter.account, adapter.key)
+            ):
+                return adapter
+        return None
+
+    def _import_channel_accounts(self) -> None:
+        """Bisherige Konfiguration als Kanalkonto übernehmen (einmal je Kürzel): Testbetrieb,
+        Test-Chats, Default-Absender und Influencerin des Default-Kontakts."""
+        default = self.store.default_contact()
+        ids = {str(i["id"]) for i in self.store.influencers()}
+        figure = int(default["influencer"]) if default["influencer"] in ids else None
+        senders = default.get("sender_ids") or {}
+        if self.cfg.telegram is not None:
+            self.store.import_channel_account({
+                "key": "telegram", "platform": "telegram", "influencer_id": figure,
+                "test_mode": self.cfg.telegram.test_mode,
+                "test_chat_ids": self.cfg.telegram.test_chat_ids,
+                "default_sender_id": senders.get("telegram", ""),
+            })  # fmt: skip
+        if self.cfg.instagram is not None:
+            self.store.import_channel_account({
+                "key": "instagram", "platform": "instagram", "influencer_id": figure,
+                "test_mode": False, "default_sender_id": senders.get("instagram", ""),
+            })  # fmt: skip
 
     def _card(self, order, text: str) -> None:
         """Ereigniskarte im Verlauf des Angebots (die Auftragskarte selbst ist ANGEBOT)."""

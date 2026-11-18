@@ -622,6 +622,31 @@ CREATE TRIGGER memories_fts_update AFTER UPDATE OF text ON memories BEGIN
     INSERT INTO memories_fts(rowid, text) VALUES (NEW.id, NEW.text);
 END;
 """,
+    30: """
+-- Kanalkonten als Liste (SP2 Schritt 9a): je Konto Kürzel, Plattform, unveränderliche Konto-ID nach
+-- der Anmeldung, Influencerin, Testbetrieb mit Test-Chats, Betriebsart und Default-Absender des
+-- Kontos (E12), Kundentransport (je Konto genau ein Weg). Die bisherigen Abschnitte
+-- [telegram_account]/[instagram] werden beim ersten Start als Konto übernommen.
+CREATE TABLE channel_accounts (
+    id                  INTEGER PRIMARY KEY,
+    key                 TEXT    NOT NULL UNIQUE CHECK (length(trim(key)) > 0),
+    platform            TEXT    NOT NULL CHECK (platform IN ('telegram', 'instagram', 'whatsapp')),
+    platform_account_id TEXT    NOT NULL DEFAULT '',
+    influencer_id       INTEGER REFERENCES influencers(id),
+    test_mode           INTEGER NOT NULL DEFAULT 1 CHECK (test_mode IN (0, 1)),
+    test_chat_ids       TEXT    NOT NULL DEFAULT '[]',
+    operating_mode      TEXT    NOT NULL DEFAULT 'production'
+                        CHECK (operating_mode IN ('production', 'test', 'off')),
+    default_sender_id   TEXT    NOT NULL DEFAULT '',
+    customer_transport  TEXT    NOT NULL DEFAULT 'tdlib'
+                        CHECK (customer_transport IN ('tdlib', 'business_bot', 'graph')),
+    status              TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'removed')),
+    created_at          TEXT    NOT NULL,
+    updated_at          TEXT    NOT NULL
+);
+CREATE UNIQUE INDEX channel_accounts_platform_id ON channel_accounts(platform, platform_account_id)
+    WHERE platform_account_id != '';
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

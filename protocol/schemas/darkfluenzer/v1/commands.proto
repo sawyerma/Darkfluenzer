@@ -207,8 +207,12 @@ message ChannelAccountLogin {
 // Kanalkonto steuern: Automatik freigeben/sperren oder abmelden (Abmelden beendet die Sitzung).
 message ChannelAccountUpdate {
   string platform = 1;
-  // enable_automation | disable_automation | logout
+  // enable_automation | disable_automation | logout | assign_influencer (SP2 Schritt 9a)
   string action = 2;
+  // Kanalkonto (Kürzel); leer = das einzige Konto der Plattform
+  string key = 3;
+  // assign_influencer: Influencerin des Kontos (0 = keine)
+  uint64 influencer_id = 4;
 }
 
 // Influencerin-Profil anlegen (influencer_id 0) oder ändern – gilt für alle Kunden dieser Figur

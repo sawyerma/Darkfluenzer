@@ -3,6 +3,8 @@ import type { ChannelStatus } from "../../core/generated/darkfluenzer/v1/channel
 import { type FormEvent, useState } from "react";
 import { PLATFORM_LABEL, shortTime } from "../../core/channels";
 import { useCommand } from "../../core/commands";
+import { Topic } from "../../core/generated/darkfluenzer/v1/stream_pb";
+import { useStateTopic } from "../../core/state";
 
 /** Warum ein Kanal gerade nicht sendet: nicht eingerichtet (mit dem, was fehlt) oder nicht verbunden. */
 export function channelNote(ch: ChannelStatus | undefined, platform: string): string {
@@ -115,7 +117,7 @@ export function ChannelAccounts({ channels, stale }: { channels: readonly Channe
           const detail = ch.state === "READY" || ch.state === "LOGIN" ? "" : ch.error || ch.missing;
           const flood = Number(ch.floodUntilMs) > Date.now() ? `Telegram bremst bis ${shortTime(ch.floodUntilMs)}` : "";
           return (
-            <div key={ch.platform} className="g-stack">
+            <div key={ch.key || ch.platform} className="g-stack">
               <span className="g-between">
                 <span className="g-ellipsis">
                   <span className="g-ptag" data-platform={ch.platform}>
@@ -137,12 +139,53 @@ export function ChannelAccounts({ channels, stale }: { channels: readonly Channe
               ) : null}
               {flood ? <small className="g-error">{flood}</small> : null}
               {ch.state === "READY" && ch.automation ? <small>Automatik freigegeben</small> : null}
+              {ch.key ? <AccountAssignment ch={ch} /> : null}
               <AccountControls ch={ch} />
             </div>
           );
         })}
       <small>WhatsApp folgt später (C7).</small>
     </div>
+  );
+}
+
+const MODE: Record<string, string> = { production: "Produktion", test: "Kundentest", off: "Aus" };
+
+/** Kanalkonto (SP2 Schritt 9a): Kürzel, Influencerin (Befehl 40 additiv), Betriebsart, Transport.
+ *  Konten anlegen und entfernen folgt mit Etappe E (Schritt 9b). */
+function AccountAssignment({ ch }: { ch: ChannelStatus }) {
+  const cmd = useCommand();
+  const influencers = useStateTopic(Topic.INFLUENCERS)?.value.influencers ?? [];
+  const id = `acc-${ch.key}`;
+  return (
+    <span className="g-account-line">
+      <small>
+        Konto {ch.key} · {MODE[ch.operatingMode] ?? ch.operatingMode} · {ch.transport}
+      </small>
+      <label htmlFor={id} className="g-sr-only">
+        Influencerin des Kontos {ch.key}
+      </label>
+      <select
+        id={id}
+        className="g-input"
+        value={String(ch.influencerId)}
+        disabled={cmd.pending}
+        onChange={(e) =>
+          void cmd.run(
+            { case: "channelAccountUpdate", value: { platform: ch.platform, key: ch.key, action: "assign_influencer", influencerId: BigInt(e.target.value) } },
+            { done: "Influencerin zugeordnet." },
+          )
+        }
+      >
+        <option value="0">Keine Influencerin</option>
+        {influencers.map((i) => (
+          <option key={String(i.influencerId)} value={String(i.influencerId)}>
+            {i.name}
+          </option>
+        ))}
+      </select>
+      {cmd.notice ? <small role="status">{cmd.notice}</small> : null}
+    </span>
   );
 }
 

@@ -38,6 +38,13 @@ message ChannelStatus {
   // Telegram bremst den Versand bis zu dieser Zeit (Unix-ms; 0 = keine Bremse)
   int64 flood_until_ms = 11;
   repeated RejectedChat rejected_chats = 12;
+  // Kanalkonto (SP2 Schritt 9a): Kürzel, Influencerin, Betriebsart, Kundentransport, Default-Absender
+  string key = 13;
+  uint64 influencer_id = 14;
+  string influencer = 15;
+  string operating_mode = 16;
+  string transport = 17;
+  string default_sender_id = 18;
 }
 
 // STATE channels

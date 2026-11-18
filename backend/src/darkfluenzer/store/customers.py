@@ -58,10 +58,34 @@ class CustomersMixin:
                 " handle, verified, created_at) VALUES (?,?,?,?,?,1,?)",
                 (customer_id, platform, account, platform_user_id, handle, ts),
             ).lastrowid
+            # Sperre je Plattform-Identität (SP2 Schritt 9a): dieselbe Person bei einer anderen
+            # Influencerin ist eine eigene Akte, „minderjährig vermutet“ gilt trotzdem
+            if self.identity_locked(platform, platform_user_id):
+                db.execute(
+                    "UPDATE customers SET age_mark = 'under_18' WHERE id = ?", (customer_id,)
+                )
             customer = self.customer_by_id(customer_id)
             self._event("customer", customer_id, "created", customer_no=customer.customer_no)
             self.bump("customers")
             return customer, identity, True
+
+    def identity_locked(self, platform: str, platform_user_id: str) -> bool:
+        return bool(self.db.execute(
+            "SELECT 1 FROM channel_identities i JOIN customers c ON c.id = i.customer_id"
+            " WHERE i.platform = ? AND i.platform_user_id = ? AND c.age_mark = 'under_18'",
+            (platform, platform_user_id),
+        ).fetchone())  # fmt: skip
+
+    def customers_with_identity_of(self, customer_id: int) -> list[int]:
+        """Alle Akten mit einer Plattform-Identität dieser Akte (gleiche Plattform und Nutzer-ID,
+        auch an Konten einer anderen Influencerin)."""
+        rows = self.db.execute(
+            "SELECT DISTINCT o.customer_id FROM channel_identities i JOIN channel_identities o"
+            " ON o.platform = i.platform AND o.platform_user_id = i.platform_user_id"
+            " WHERE i.customer_id = ?",
+            (customer_id,),
+        ).fetchall()
+        return sorted({r[0] for r in rows} | {customer_id})
 
     def customer_by_id(self, customer_id: int) -> Customer:
         row = self.db.execute("SELECT * FROM customers WHERE id = ?", (customer_id,)).fetchone()

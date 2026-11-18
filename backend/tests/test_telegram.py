@@ -270,7 +270,7 @@ def test_unread_chat_without_position_is_fetched_after_downtime(cfg, tmp_path):
     nachholen; Chats ohne Ungelesenes bleiben unberührt."""
     store = Store(cfg.local)
     acc, inbound, _ = _account(cfg, tmp_path, store)
-    acc.tg = dataclasses.replace(acc.tg, test_mode=False, test_chat_ids=())
+    acc.test_mode, acc.test_chat_ids = False, ()  # Kanalkonto ohne Testbetrieb (SP2 Schritt 9a)
     chat = lambda cid, unread: {  # noqa: E731
         "@type": "updateNewChat",
         "chat": {"id": cid, "type": {"@type": "chatTypePrivate"}, "unread_count": unread,

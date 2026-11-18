@@ -111,10 +111,15 @@ class TelegramAccount(Channel):
         store: Store,
         on_inbound: Callable[[Inbound], Awaitable[None]],
         on_change: Callable[[], None],
+        account: dict | None = None,
     ) -> None:
         assert cfg.telegram is not None
         self.cfg = cfg
         self.tg = cfg.telegram
+        # Kanalkonto (SP2 Schritt 9a): Kürzel, Testbetrieb und Test-Chats aus channel_accounts
+        self.key = account["key"] if account else PLATFORM
+        self.test_mode = account["test_mode"] if account else self.tg.test_mode
+        self.test_chat_ids = tuple(account["test_chat_ids"]) if account else self.tg.test_chat_ids
         self.store = store
         self.on_inbound = on_inbound
         self.on_change = on_change
@@ -164,11 +169,11 @@ class TelegramAccount(Channel):
             "missing": self.missing,
             "login_state": self.login,
             "login_hint": self.login_hint,
-            "test_mode": self.tg.test_mode,
+            "test_mode": self.test_mode,
             "automation": self.automation,
             "flood_until_ms": int(self.flood_until * 1000) if self.flood_until > time.time() else 0,
             "rejected_chats": [
-                {"chat_id": chat, "at_ms": at} for chat, at in self.rejected if self.tg.test_mode
+                {"chat_id": chat, "at_ms": at} for chat, at in self.rejected if self.test_mode
             ],
         }
 
@@ -401,7 +406,7 @@ class TelegramAccount(Channel):
         for chat_id, read in self._unread.items():
             since.setdefault(chat_id, read)
         for chat_id, last in since.items():
-            if self.tg.test_mode and chat_id not in self.tg.test_chat_ids:
+            if self.test_mode and chat_id not in self.test_chat_ids:
                 continue
             missed = await self._missed(chat_id, last)
             for msg in missed:
@@ -449,7 +454,7 @@ class TelegramAccount(Channel):
 
     async def _message(self, msg: dict) -> None:
         chat_id = int(msg["chat_id"])
-        if self.tg.test_mode and chat_id not in self.tg.test_chat_ids:
+        if self.test_mode and chat_id not in self.test_chat_ids:
             if chat_id > 0 and not msg.get("is_outgoing"):  # Einzelchat (TDLib: positive ID)
                 self.rejected = deque(
                     [r for r in self.rejected if r[0] != chat_id], maxlen=REJECTED_SHOWN

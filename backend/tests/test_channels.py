@@ -433,8 +433,14 @@ def test_content_tier_age_mark_and_ai_notice(cloner_cfg):
 
         (ident,) = store.identities(first.customer.id)
         notice = commands_pb2.SendAiNotice(customer_id=first.customer.id, identity_id=ident["id"])
-        assert "Hinweistext" in await send(send_ai_notice=notice)  # kein Profil
-        store.save_influencer(0, 0, "Clara", None, "", "Ich bin eine KI-Creatorin.", [])
+        # SP2 Schritt 9a: Influencerin über das Kanalkonto, nie die erste Influencerin
+        assert "keine Influencerin zugeordnet" in await send(send_ai_notice=notice)
+        clara = store.save_influencer(0, 0, "Clara", None, "", "", [])
+        store.import_channel_account({"key": "telegram", "platform": "telegram"})
+        store.assign_account_influencer("telegram", clara)
+        assert "Hinweistext" in await send(send_ai_notice=notice)  # Profil ohne KI-Hinweis
+        rev = store.influencers()[0]["revision"]
+        store.save_influencer(clara, rev, "Clara", None, "", "Ich bin eine KI-Creatorin.", [])
         assert "nicht verbunden" in await send(send_ai_notice=notice)  # Testprojekt ohne Konto
         msg_id = store.queue_ai_notice(first.customer.id, ident["id"], "Ich bin eine KI.")
         with pytest.raises(StoreError, match="bereits"):
