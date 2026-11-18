@@ -1,5 +1,7 @@
 # Darkfluenzer – PHASENPLAN_FRONTEND.md
 
+> **Verbindlicher Studio-Ausbau (18.11.2026):** Abschnitt 6 ergänzt Masterplan 3.2 und die Diagramme; die bisherige F7-Referenz bleibt für den bestehenden Cockpit-Bestand gültig. Neue Studio-Navigation: sechs Hauptreiter (ComfyUI → Studio), darunter **genau fünf** Studio-Ansichten. Backend-Vertrag: **PHASENPLAN_BACKEND.md §13**. Dokumentation ist SOLL, kein Implementierungs-PASS.
+
 **Stand:** 17.11.2026 (Frontend-Teile der Sammelpakete SP1–SP6, Änderungsblätter und Korrektur nach den Prüfberichten) · **Status:** **freigegeben** durch den Betreiber am 17.11.2026, verbindlich. Umsetzung in der Reihenfolge des Backend-Plans §6, Priorität CODE FIRST.
 **Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Produktziel, Regeln, Entscheidungen E1–E26, Statusbegriffe §2.3, Reihenfolge, Paketnummern; **[17.11., Planlogik]** nach der Logikprüfung korrigiert; **[18.11.]** E24–E26 und die Schwellenregel zu E16/E17 entschieden) und `docs/bugs_v1.md`.
 **Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; laufendes Cockpit am 17.11.2026.
@@ -273,6 +275,172 @@ Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`,
 - [ ] Einstellungen: sechster Reiter, Geheimnisse nie sichtbar, „Verbindung prüfen“ je Eintrag.
 - [ ] Kundentest: Betriebsart umschaltbar, Marke TEST, Latenzen p50/p95, Testaufträge nie im Wallet.
 - [ ] Jeder Knopf: Befehl → Receipt → Push → richtiger Reiter.
+
+---
+
+## 6. DarkStudio – verbindlicher Frontend-Ausbau (Masterplan 3.2)
+
+**Vertragsquelle:** Backend-Plan §13. Die bisherige F7-Referenz beschreibt den Altbestand; neue Studio-Funktionen und die Umbenennung werden nach diesem Abschnitt ergänzt. Kein Redesign aller übrigen Reiter. **SOLL, nicht schon implementiert.** Die alte technische ComfyUI-Liste bleibt vollständig erreichbar, aber ausschließlich als Expertenwerkzeug im Labor.
+
+### 6.1 Informationsarchitektur: eine GUI, genau fünf Studio-Unteransichten
+
+~~~mermaid
+flowchart TD
+  APP["Darkfluenzer – eine React-App"] --> NAV["Sechs Hauptreiter"]
+  NAV --> O["Übersicht"]
+  NAV --> M["Nachrichten / Kunden"]
+  NAV --> S["Studio"]
+  NAV --> D["Dateien"]
+  NAV --> W["Wallet"]
+  NAV --> E["Einstellungen"]
+  S --> CREATE["Erstellen: Aufgaben + Produktion"]
+  S --> STORY["Storyboard: Szenen + Timeline + Regie"]
+  S --> CHAR["Charaktere: Fotos + LoRAs + Looks"]
+  S --> PROJECT["Projekte: Produktionen + Exporte"]
+  S --> LAB["Labor: ComfyUI-Graphen + Vergleich + Diagnose"]
+  CREATE --> CHAIN["Produktionsansicht: Kette / Vorschau / Revision"]
+  STORY --> CHAIN
+  PROJECT --> CHAIN
+  CHAIN --> EXPERT["Workflow bearbeiten: eingebetteter Experten-Canvas ab DS7"]
+  M -->|"Im Studio öffnen (production_id)"| CHAIN
+  PROJECT -->|"Datei anzeigen"| D
+~~~
+
+**Nicht sechs Studio-Unteransichten:** Die eingebrachte UI-Skizze mit „Produktionen“ und „Assets“ als eigenen Studio-Tabs wird bewusst auf die beschlossenen **fünf** reduziert. Laufende Produktionen stehen in **Erstellen/Projekte**, die vorhandene Assetverwaltung bleibt im **Hauptreiter Dateien**. Ein Projekt bei Erstellen ist optional, nicht Voraussetzung. Es gibt keinen zusätzlich verpflichtenden Studio-Startbildschirm, keine zweite Browser-App, keine zweite Galerie.
+
+**Sechs Hauptreiter endgültig:** Übersicht | Nachrichten | **Studio** (bisher ComfyUI) | Dateien | Wallet | Einstellungen. Alte F7.5-Referenzen auf „ComfyUI“ bezeichnen fortan die technische **Labor**-Funktion und gelten nicht als Aufforderung, einen siebten Reiter anzulegen.
+
+### 6.2 Normalmodus: zuerst Aufgaben statt Modelle
+
+~~~mermaid
+flowchart TD
+  START["Studio → Erstellen"] --> TASK["Aufgabe wählen: Foto / Pose / Bearbeiten / Video / Story"]
+  TASK --> SET["Figur, optionales Projekt, Referenzen mit Rollen, Text, Ausgabe"]
+  SET --> REC["Passendes qualifiziertes Rezept und Engine-Capabilities"]
+  REC -->|gefunden| PRE["Bestätigte Einstellungen / Kosten / Gates"]
+  REC -->|nicht qualifiziert| NO["NO_QUALIFIED_RECIPE mit Grund / Betreiberwahl"]
+  PRE --> CMD["Protobuf COMMAND mit request_id und expected_revision"]
+  CMD --> RCPT["ACCEPTED: production_id; nicht abgeschlossen"]
+  RCPT --> EVT["STATE/EVENT: NodeRuns und Fortschritt"]
+  EVT --> RESULT["Vorschau / Ergebnis / QC / Export / Datei"]
+  RESULT --> RERUN["Shot neu oder ab hier neu"]
+  RERUN --> EVT
+~~~
+
+**Aufgabenkarten:** Foto; Foto nach Vorlage; Pose/Skizze; Bild bearbeiten; Video aus Bild; Geschichte/Storyboard; Bewegung übertragen; Training. Nur tatsächlich qualifizierte Pfade sind startbar. Jede Karte nennt Zweck, kompatiblen Standard, Quellen/Referenzrollen, Outputprofil, Qualifikationsstatus und einen **konkreten Grund** bei Nichtverfügbarkeit. Keine 18 technisch benannten Foto-Workflows auf der Startseite.
+
+**Erstellen-Formular:** Aufgabe, Figur/Charakterversion, LoRA nur kompatibel mit Engine, Projekt optional, Referenzdateien als Asset-IDs mit Rollen (Identität/Pose/Bewegung/Kleidung/Stil/Ort/Licht), Text oder strukturierter Brief, Maße/Format, Dauer/FPS nur für Video, Locality und Qualifikationsstatus, erweiterbare Parameter. Die Vorauswahl ist das **eine** qualifizierte Rezept je eindeutigem Aufgabenprofil. Modellnamen/Seeds/Graph-Ports bleiben im erweiterten Bereich oder Labor. Beim Start zeigt die UI das vom Backend validierte Rezept und den terminalen Receipt; kein vorgetäuschtes PASS.
+
+### 6.3 Die fünf Studio-Unteransichten im Detail
+
+| Unteransicht | Bedienfunktionen | Daten / fachlicher Eigentümer |
+|---|---|---|
+| **Erstellen** | Aufgabenwahl, Figur/Look/Referenzrollen, Format, validierte Rezeptwahl, Start, letzte und laufende Produktionen, ausklappbare Kette, Vorschau, „ab hier neu“ | TaskProfiles, Recipes, ProductionRun, StepRuns, Assets via StudioService |
+| **Storyboard** | Szenenkarten/Shot-IDs, Zeitachse, Draft/Master/Final, Regiefragen, Regievorschläge **annehmen** statt ungefragt ausführen, Shot neu, lokaler Ton, Schnitt; ab DS6b Blender-Kamera/Actor-Blocking | ScriptVersion, SceneVersion, SceneSpec, Timeline, GuideBundle über Studio |
+| **Charaktere** | echte Foto-/Datensatzliste, Training in Wellen, Checkpoint/LoRA-Version pro Architektur, Charakterblatt, Look-/Material-Presets, Identitätsnachweis, aktive Version | vorhandene Charakter-/LoRA-Registry mit Studio-Ownership |
+| **Projekte** | optionaler Projektnamen/Filter, laufende/abgeschlossene Produktionen, Varianten, Versionshistorie, Exporte, Fortschritt, Öffnen in Erstellen/Storyboard, Links in Dateien | StudioProject als Zuordnung, ProductionRun und ExportManifest, **keine zweite Dateiablage** |
+| **Labor** | sämtliche existierenden ComfyUI-Workflows unverändert erreichbar, Suche/Filter nach Engine/Kategorie/Status, Vergleichstests/Kontaktbogen, Graph öffnen/übernehmen, Modell-/Instanz-/Log-/Prüfwertdiagnose, DS7 Editor-Einstieg | ComfyUI-Registry, Evaluation, Vergleich, technische Nachweise |
+
+**Kette in jedem Produktionskontext:** Step-Name, Node-/Flowrevision, Eingabe-/Output-Asset, laufender Zustand, Wartegrund, Ressource, Laufdauer, QC und konkrete Fehler; nur zulässige Aktionen Cancel, Pause/Resume, Review, „Shot neu“ und „ab hier neu“. Teilrerun hebt nur abhängige Schritte auf, nicht alle Szenen. Der gleiche production_id ist aus Nachrichten/Kundenakte und Studio erreichbar.
+
+**Erweiterter Editor erst DS7:** React Flow darf als **gezielte Ausnahme** zur bisherigen Regel „keine neue UI-Bibliothek“ für den Experten-Canvas eingeführt werden, wenn Lizenzen, Bundle und bestehende Gestaltung geprüft sind. Kein weiterer eigenständiger Canvas-/Ausführungsserver. Einheitliches Stylesheet graphite.css bleibt die Designgrundlage.
+
+### 6.4 UI- und Backend-Zugriff: wer darf was?
+
+~~~mermaid
+sequenceDiagram
+  autonumber
+  actor Betreiber
+  participant GUI as React / Studio-Reiter
+  participant WS as bestehender Protobuf-WebSocket
+  participant CMD as Backend Commands / Receipts
+  participant Studio as ProductionClient / Service
+  participant DB as SQLite / Eventjournal
+  participant Media as ComfyUI oder Blender
+  Betreiber->>GUI: Aufgabe + Figur + Input + Erstellen
+  GUI->>WS: COMMAND(request_id, expected_revision)
+  WS->>CMD: validieren, Scope und Rechte
+  CMD->>Studio: submit(ProductionRequest)
+  Studio->>DB: Produktion / NodeRuns persistieren
+  Studio-->>CMD: ACCEPTED oder REJECTED
+  CMD-->>GUI: Receipt (noch kein fertiges Bild)
+  Studio->>Media: validierten Step starten
+  Media-->>Studio: Ergebnis / Hash / QC
+  Studio->>DB: Step + Event committen
+  DB-->>GUI: STATE/EVENT über WS
+  GUI-->>Betreiber: Vorschau / Export / Status
+~~~
+
+**Kein GUI-Direktaufruf** von fremdem API-Key, SQLite oder ComfyUI. Bestehende Protobuf-/WebSocket-Mechanik bleibt. COMMAND führt zu Receipt; **ACCEPTED ist nur Annahme**. Produktionsfortschritt kommt als persistierter STATE/EVENT-Push. Auf Reconnect nach Eventcursor rekonstruieren; identische request_id nicht blind neu senden. Alte Response mit veralteter Revision/Seiten-/Kundenkennung verwerfen. Nicht implementierte Controls **deaktiviert und mit Grund**, keine Dummy-Schalter.
+
+### 6.5 Kundenansicht, Handoff und Zustellung
+
+~~~mermaid
+flowchart LR
+  MSG["Nachrichten: Kunde + Wunsch / Auftrag"] --> CORDER["Auftrag + Zahlungsstatus"]
+  CORDER --> PROD["ProductionClient: production_id"]
+  PROD --> STUDIO["Studio: dieselbe Produktionskette"]
+  STUDIO --> EXPORT["Studio-Export mit QC und Revision"]
+  EXPORT --> HAND["Kunden-Handoff: READY / REVOKED"]
+  HAND --> GATE["Liefer-Gate beim realen Versand: Zahlung + Freigabe + Inhalt + aktuelle Revision + Hash"]
+  GATE -->|bestanden| SEND["Outbox / Kanal / Receipt"]
+  GATE -->|gesperrt| ERR["Kundenkarte mit Grund; keine Sendung"]
+~~~
+
+Die **Kundenakte** zeigt Produktionsstatus, Prüfwerte, Vorschau, Angebot/Zahlung, Freigabebedarf, Widerruf und Zustellstatus getrennt. „Im Studio öffnen“ öffnet **denselben production_id**, kein zweites Studio-Projekt. Ein Export-Status COMPLETED darf nicht als DELIVERED angezeigt werden. Betreiberfreigabe im Kundenkontext bleibt im Kundenmodul; Studio-Review ist kein Ersatz für das Liefer-Gate.
+
+### 6.6 Blender-, Film- und Provider-Bedienung
+
+**Storyboard:** Shotkarten mit Dauer/Start-/Endbild, Kamera-Licht-Look-Bewegung, Shot-Status, SceneVersion, Varianten und Timeline. Regie-Chat liefert typisierte Vorschläge, die als Vorschau überprüft und explizit angenommen werden. Veränderung von Shot 2 markiert nur Shot 2 und seine abhängigen Render-/Exportstufen. **DS6b:** 3D-Szenenansicht mit Kamera-/Actor-Tracks, Position, Brennweite, Preview-Playblast, GuideBundle-Ansicht (Pose/Depth/Mask/Final) und Button „Vorschau freigeben“; nicht qualifizierter ControlVideo-Adapter bleibt gesperrt.
+
+~~~mermaid
+flowchart TD
+  IDEA["Storyboardszene + Kamerapfad"] --> SCENE["validierte SceneSpec"]
+  SCENE --> BLEND["Blender: Blocking / statische Marker / Track"]
+  IPHONE["Optionaler iPhone-Eingang: noch ungeprüft"] -.-> TRACK["Rotation / Blickrichtung"]
+  BLEND --> TRACK
+  TRACK --> GUIDE["GuideBundle: Playblast / Depth / Pose / Mask"]
+  GUIDE --> COMP["Vergleich: Guide oben / Blocking Mitte / Kamera-Input unten"]
+  GUIDE --> VIDEO["Qualifiziertes ControlVideo-Rezept, sonst TEIL"]
+  VIDEO --> FINAL["Ergebnis und Abweichungen im selben Shot"]
+  FINAL --> COMP
+~~~
+
+Der Top/Middle/Bottom-Vergleich aus der Vorlage ist ein **optional wählbarer Vergleichsmodus**, keine permanente dreifache Aufteilung. Eine konkrete iPhone-Bridge oder lokale Seedance-Kompatibilität ist nicht belegt und wird **nicht** als funktionierendes UI-Control eingebaut, bis ein passender Adapter qualifiziert ist.
+
+**Einstellungen → KI-Anbieter / Rollen:** lokale KI/ComfyUI 2 als Standard; optionale Anthropic/OpenAI-Konten je benanntem API-Zugang, echte Modellliste, Verbindungstest, Rollenbindung (Drehbuch/Regie), Aus-Schalter, pro Auftrag/Monat Budget/Usage. Higgsfield unter Cloud-Medien erst mit verfügbarer API/Berechtigung; Artlist nur mit nachgewiesener geeigneter API. Keine Ausgabe von API-Keys/Secrets im Frontend-STATE, Screenshots oder Logs. Bei Cloud-Aus darf **kein** Cloud-Request erfolgen. E19 für Kundengespräche unverändert lokal.
+
+### 6.7 Frontend-Pakete synchron zum Backend
+
+| Paket | Verbindliche GUI-Lieferung | Chrome-/Mac-Nachweis |
+|---|---|---|
+| DS0 | Screenshot-/Klickbaseline sechs Reiter; Ist-Navigation archiviert, keine Fake-Funktion | bestehender Workflow erreichbar, Screenshots |
+| DS1 | Studio umbenennen, Erstellen-Aufgabenkarten, Rezeptstatus, Vergleichskontaktbogen, Labor | Aufgabe → echtes Bild; Standardwahl wirkt |
+| DS2/3-a | minimaler Anzeigeweg für reale NodeRuns als Datenquelle | drei Schritte persistiert, Status nachvollziehbar |
+| DS2/3-b | Handoff-/Gate-Zustand in betroffener Kundenkarte, keine voreilige Freigabe | Test READY/REVOKED/gesperrt |
+| DS2/3-c | genau fünf Studio-Unteransichten, lesbare Kette, Ergebnisse, STATE/EVENT/Receipts | Chrome-E2E plus echter kurzer Mac-Lauf; eigener Commit |
+| DS8 | Default-/Kunden-/Betreiberkarte öffnet dieselbe Produktion | drei Quellen ohne doppelte Galerie oder Versand |
+| DS4 | Referenzrollen, Pose-/Kontur-/Maskenvorschau, LookPreset, CharacterSheet, Vorher/Nachher | echte geeignete Pose zu Bild |
+| DS5 | Storyboard, Szenenkarten, KI-Regie-Vorschläge, Revisionen; Provider-Rollen unter Einstellungen | drei Szenen + nur Szene 2 neu |
+| DS6 | Timeline, Clips/Tonspur, Draft/Master/Final, Shot neu, Exportprofil | kurzer echter Mehrshot-Film |
+| DS6b | Blender Blocking, Guides, Kamerapfad, Preview/Final-Vergleich und Lookvarianten | reales GuideBundle; Video-Control nur falls verfügbar |
+| DS7 | integrierter React-Flow-Experten-Canvas, Typ-/Zyklus-/Capability-Fehler, Versionen | neue Flowrevision im echten kurzen Lauf |
+| DS9 | nur tatsächlich konfigurierte Cloud-/Audio-Zusätze und belegte Kosten | deaktiviert ohne Key; MAC/EXTERNAL_LIVE falls aktiviert |
+| DS10 | Betriebs-/Qualifikationsansicht und ehrliche Modell-/Alt-Nachweise | Qualität/4K/Last/History erst nach konkreten Messungen |
+
+**Nach DS8** offene Etappe-E-Oberflächen für PayPal, Konten/Geheimnisse, Kanalverwaltung und Nachlauf fertigstellen. **Nach DS10** finale Etappe-F-Betriebs-/Rechts-/Releaseansichten; zwingende Sicherung und E21 vor echtem öffentlichen Kundenkontakt gelten weiterhin sofort.
+
+### 6.8 Klickabnahme, Gestaltung und Statusdisziplin
+
+1. **Sechs** Hauptreiter, **fünf** Studio-Unteransichten. Bestehende F7-Nachrichten/Wallet/Dateien nicht verlieren; der technische ComfyUI-Editor bleibt über Labor erreichbar.
+2. Eine Person ohne Node-Kenntnis erstellt mit einer Aufgabe ein Bild, sieht Rezept, Wartezustand, echte Fortschrittsereignisse, Prüfwerte, Datei und **nur** zulässige Aktionen.
+3. Ein echtes Kunden-Testangebot führt nach berechtigtem Auftrag zur selben production_id in Studio; Export, Handoff, Freigabe und tatsächliche Zustellung bleiben **unterschiedliche** sichtbare Zustände.
+4. Unqualifiziert, nicht installiert, Fehler, ausstehender API-Key oder fehlende LoRA zeigen eindeutige deaktivierte Controls mit Ursache; nie erfundene PASS- oder Kostenwerte.
+5. Jede neue GUI-Funktion wird gleichzeitig mit Backend-/SQLite-/Protobuf-Vertrag gebaut. Prüfarten: TypeScript, Vitest, echter Chrome, Screenshotvergleich, integrierter Backend-/Mac-Pfad, Reconnect/Version/Mehrfachklick/Retry.
+6. Der bestehende Grafikstandard graphite.css und die F7-Gestaltungsreferenz bleiben maßgeblich. Für neue Studio-Layouts die F7-Sprache übertragen; keine neue parallel laufende UI oder verdoppelte Dateiverwaltung. Bis DS7 ist die Kette **lesend**, kein vorgetäuschter editierbarer Node-Graph.
+7. Status je Paket und Control: OFFEN/CODE/TEIL/PASS/BLOCKIERT; Nachweise UNIT/INTEGRATION/E2E/MAC_LIVE/EXTERNAL_LIVE/QUALIFICATION/NOT_RUN getrennt führen. Ein nur grüner Browser-Smoke ist kein Modell-PASS.
+
+**Verbindlich:** Backend-Plan §13 enthält alle Daten-/Gate-/Modul- und DS-Paketverträge. Dieser Frontend-Abschnitt legt ausschließlich die React-/Interaktions-/Browser-Abnahme fest. Kein konkurrierender Masterplan im Repository.
 
 ---
 

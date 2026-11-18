@@ -1,5 +1,7 @@
 # Darkfluenzer – PHASENPLAN_BACKEND.md
 
+> **Verbindlicher Studio-Ausbau (18.11.2026):** Abschnitt 13 legt Masterplan 3.2 und die freigegebenen Architektur-/Flussdiagramme als Umsetzungs-Soll fest. Er ergänzt die historischen Etappen A–F und SP0–SP6. Bei Widerspruch zur älteren Studio-/ComfyUI-Organisation gilt für die **noch nicht implementierte neue Studio-Architektur** Abschnitt 13; E1–E26 und die bisherigen Sicherheits-/Lieferregeln werden nicht aufgehoben. Umsetzung **nicht** allein durch Aufnahme dieses Plans nachgewiesen. Zugehöriges Frontend: **PHASENPLAN_FRONTEND.md §6**.
+
 **Stand:** 17.11.2026 – sechs Sammelpakete SP1–SP6 in Code-Tiefe (Code-Vergleiche von Fable), Änderungsblätter, Korrektur nach den Prüfberichten von ChatGPT und Fable · **Status:** **freigegeben** durch den Betreiber am 17.11.2026, verbindlich. Umsetzung ab SP0 Schritt 1 in der Reihenfolge von §6, Priorität CODE FIRST (§6).
 **Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; echte Läufe vom 16./17.11. auf dem Mac (§5).
 **Verbindlich sind genau drei Dateien:** diese, `docs/PHASENPLAN_FRONTEND.md` und `docs/bugs_v1.md` (Befundregister).
@@ -1123,3 +1125,452 @@ Frei laut `stream.proto` und `commands.proto` am 17.11.2026: Befehle 31–33, 36
 ## 12. Vom Betreiber zu liefern
 
 Charakterfotos in `local/characters/clara/photos/` (mindestens 15, besser 25–40, nur diese Person), Claras SIM und Telegram-Konto, Meta-App und Tunnel, PayPal-Geschäftskonto, Preisliste und Zahlungswege je Influencerin, Höchstlänge je Videoprodukt, Klickprototyp des KI-Studios (falls vorhanden), Antworten zu E10, E14, E15, E16; nach Claras Fotos die Wahl der Kloner-Methode je Befehl (SP3 Schritt 8) und die Freigabe eines Bildmodells für B5.6.
+
+---
+
+## 13. DarkStudio – integrierter Produktionskern (Masterplan 3.2)
+
+**Geltungsbereich:** Zielarchitektur, Eigentum, Datenfluss, Ablauf, Phasen, Schnittstellen und prüfbare Lieferung. **Prüfgrundlage:** Git-main 6e049f5 (18.11.2026); die Architektur DS0–DS10 ist SOLL, keine Behauptung existierender Implementierung. **Verbindliche Reihenfolge:** DS0 → DS1 → DS2/DS3 → DS8 → DS4 → DS5 → DS6 → DS6b → DS7 → DS9 → DS10. DS2/DS3 bilden **ein Paket mit drei getrennt geprüften Zwischencommits**.
+
+### 13.1 Produktform, Eigentum und Zugang
+
+- **Genau eine Darkfluenzer-App, ein bestehender Python-Prozess, eine React-Oberfläche, ein gemeinsames SQLite-File.** DarkStudio ist ein internes, funktional eigenständig nutzbares Produktionsmodul; **keine zweite App, keine zweite GUI/DB, kein zusätzlicher Pflichtserver, kein Docker**. Eigene Studio-Projekte brauchen keinen Kunden und keine Zahlung.
+- **Kundenmodul besitzt:** Kunden, Influencerinnen-/Kanalkonten, Persona und Gesprächsgedächtnis, Chat-/Default-Befehle, Verkauf/Angebot/Zahlung/Erstattung, Betreiberfreigaben, Liefer-Gate, Outbox und Kanalsendung.
+- **Studio besitzt:** Aufgaben und Rezepte, Projekte, Studio-Flows und deren Läufe, Charaktere/LoRAs, Referenzen, Bild/Video/Audio, KI-Regie, Storyboards, Szenen, Blender-Previsualisierung, Qualitätsmessung, technische Exporte und Assets.
+- **Gemeinsame Infrastruktur:** DB-Verbindung/Transaktionskoordinator, Ereignisjournal, STATE/EVENT/Receipts über den vorhandenen Protobuf-WebSocket, Ressourcenmanager, vorhandene ComfyUI-Instanzen **8188 Medien** und **8189 Sprache**. Ein ComfyUI-Graph ist eine **ausführende Engine**, keine eigenständige Auftrags-/Kundenlogik.
+- **Später auslagerbar, heute nicht getrennt:** ProductionClient spricht einen typisierten, transportunabhängigen ProductionService lokal im gleichen Prozess an. Ein späterer Remote-Adapter würde den Vertrag transportieren, nicht eine zweite GUI erfordern.
+- **Keine Querdomänen-Imports oder -SQL-Abfragen:** Studio liest keine Kunden-, Zahlungs-, Sales-, Kanal- oder Lieferungstabellen. Kundenmodule verwenden nur ProductionClient/ProductionService und dessen typisierte Export-/Status-Verträge; kein direkter Zugriff auf Studio-Media-/Jobtabellen. Für alte, noch nicht migrierte Pfade führt DS0 eine offen dokumentierte Übergangsliste. Keine neuen Querdomänen-Foreign-Keys.
+
+~~~mermaid
+flowchart LR
+  subgraph UI["Eine React-GUI: sechs Hauptreiter"]
+    CHATUI["Nachrichten / Default"]
+    STUDIOUI["Studio: fünf Unteransichten"]
+    CUSTOMERUI["Kundenakte / Angebote"]
+  end
+  subgraph CUSTOMER["Darkfluenzer: Kundenmodul"]
+    CHAT["Chat / Persona / Gedächtnis"]
+    ORDER["Aufträge / Zahlung"]
+    GATE["Freigabe + Sendzeit-Gate"]
+    OUTBOX["Outbox / Kanäle"]
+  end
+  subgraph STUDIO["DarkStudio: isoliertes Fachmodul"]
+    CLIENT["ProductionClient"]
+    SERVICE["ProductionService"]
+    RECIPE["TaskProfiles / Recipes"]
+    FLOW["Persistente Flow-Engine"]
+    QC["Qualität / Exportmanifest"]
+  end
+  subgraph ADAPTERS["Ausführende Adapter"]
+    MEDIA["ComfyUI 8188: Bild / Wan / LTX"]
+    TEXT["ComfyUI 8189: Regie / Drehbuch"]
+    BLENDER["Blender: optionales Previs"]
+    EXT["Optionale Claude / OpenAI / Higgsfield"]
+  end
+  subgraph SHARED["Eine Infrastruktur"]
+    DB[("SQLite: getrennte Eigentümer")]
+    EV["Journal / STATE / EVENT"]
+    RAM["GPU / RAM / Queue"]
+  end
+  CHATUI --> CHAT
+  CUSTOMERUI --> ORDER
+  STUDIOUI --> CLIENT
+  CHAT --> ORDER
+  ORDER --> CLIENT
+  CLIENT --> SERVICE
+  SERVICE --> RECIPE
+  SERVICE --> FLOW
+  FLOW --> QC
+  FLOW --> MEDIA
+  FLOW --> TEXT
+  FLOW --> BLENDER
+  FLOW --> EXT
+  FLOW --> RAM
+  SERVICE --> DB
+  ORDER --> DB
+  FLOW --> EV
+  ORDER --> EV
+  QC -->|"Handoff über Koordinator"| GATE
+  GATE --> OUTBOX
+  OUTBOX --> CHATUI
+~~~
+
+**Pfeile bedeuten erlaubte fachliche Aufrufe/Datenbewegungen, keine Erlaubnis für direkte SQL-Querverbindungen.** Die grafisch verkürzte Strecke QC → Gate wird technisch ausschließlich über den koordinierten Handoff aus §13.4 umgesetzt. Nur das Kundenmodul darf einen Export an Kunden zustellen.
+
+### 13.2 Verbindliche Zugriffsmatrix und Modulvertrag
+
+| Aufrufer → Ziel | Erlaubter Vertrag | Daten / Rückgabe | Verbot |
+|---|---|---|---|
+| React → Backend | vorhandene Protobuf-COMMAND/STATE/EVENT/Receipt | Aktionen mit request_id, Revision, Eventcursor | eigenes Browser-LLM, Direktzugriff auf DB/ComfyUI |
+| Kundenchat → Kundenaufträge | strukturierter Wunsch, zulässiger Kontext | Auftrag, Bestell-/Zahlungsstatus | Studio-Zugriff auf vollständige Kundendaten |
+| Kundenaufträge → Studio | ProductionClient.submit | opake Auftrags-ID, CreativeBrief, Charakter-ID, Referenz-Asset-IDs/Hashes/Rollen, Ausgabeprofil, Policy | Kundennamen, Chat-Logs, Zahlungsdaten in Studio-DB |
+| Betreiber/Studio-UI → Studio | StudioService via Backend/Protobuf | Eigenproduktion ohne Kunden-ID, Aufgaben, Vorschauen | Umgehung bestehender Zulassungs-/Ressourcengates |
+| Studio-Engine → Modelladapter | typisierte Nodes mit Capability-Prüfung | Graph-/Modellrevision, Parameter, Job-ID, Asset-Hashes | freie KI-generierte Python-/Shell-Ausführung |
+| Studio → Kundenmodul | versioniertes Exportmanifest und Handoff-Ereignis | Export-ID, Revision, Hash, Inhaltstier, QC und Widerruf | Zahlungs- oder Zustellentscheidung im Studio |
+| Kunden-Gate → Studio | get_export_status / geprüfter Asset-Stream | aktuelle Export-/QC-/Widerrufsrevision; Bytes/Hash | Zugriff auf Studio-Tabellen oder Vertrauensannahme nur aus altem Snapshot |
+| Kundenmodul → Plattform | Outbox mit Idempotenz-/Receipt-Logik | ausschließlich genehmigte, geprüfte Datei | Versand allein aus Studio-COMPLETED |
+| Provider → Studio | geprüfter Adapter, Kosten-/Datenfreigabe | Jobstatus, Ergebnis, Download, Hash, Usage | automatische Cloud-Fallbacks |
+
+**ProductionRequest:** request_id, source (cockpit/cloner/customer), optional opake external_order_id, task_profile_id, recipe_revision, character_version, typisierter CreativeBrief, Referenzen (ID/Hash/Rolle), output_spec, stage_policy, provider_policy, cost_ceiling, priority, expected_revision. **Receipt:** accepted/rejected, production_id, Grund, Revision, Cursor. **ACCEPTED ≠ COMPLETED ≠ READY_FOR_HANDOFF ≠ DELIVERED.**
+
+**Service-Verben:** capabilities, list_tasks, get_recipe, submit, get, watch_events(cursor), cancel, pause/resume, rerun_from(node,scope), revise_scene, review, get_export_manifest und fetch_asset. Ein echtes externes Protokoll wird erst bei späterer Auslagerung benötigt; heute keine lokale HTTP-Schleife innerhalb des Backends.
+
+### 13.3 Produktionsstart: Kundenauftrag, Kloner, Betreiber
+
+~~~mermaid
+sequenceDiagram
+  autonumber
+  actor Kunde
+  participant Chat as Darkfluenzer Chat / Melody
+  participant Order as Auftrag und Zahlung
+  participant Client as ProductionClient
+  participant Studio as ProductionService
+  participant Flow as Flow-Engine
+  participant Adapter as ComfyUI / Blender / weitere Engines
+  participant Handoff as Koordinator / Handoff-Tabelle
+  participant Gate as Liefer-Gate / Outbox
+  actor Betreiber
+  Kunde->>Chat: Wunsch + Referenzen
+  Chat->>Order: Strukturierter Kundenwunsch
+  Order->>Kunde: Angebot / Zahlungsweg
+  Kunde->>Order: Zahlung / Gutschein
+  Order->>Order: Bestätigung oder zugelassene Testausnahme
+  alt Auftrag produktionsberechtigt
+    Order->>Client: ProductionRequest + opake Order-ID
+    Client->>Studio: submit(request_id, revision)
+    Studio-->>Client: ACCEPTED + production_id
+    Studio->>Flow: Rezept validieren und ausführen
+    Flow->>Adapter: Nodes nach Ressourcen-/Capability-Policy
+    Adapter-->>Flow: Asset-IDs, Hashes, Prüfwerte
+    Flow-->>Studio: Ergebnis und Exportmanifest
+    Studio->>Handoff: READY_FOR_HANDOFF, aktuelle Revision
+    Handoff-->>Order: atomar hinterlegte Übergabe
+    alt manuelle Entscheidung notwendig
+      Order->>Betreiber: Vorschau mit Prüfgrund
+      Betreiber->>Order: freigeben oder ablehnen
+    end
+    Order->>Gate: Reservierung + aktuelle Prüfung
+    Gate->>Studio: aktuelle Revision und Exportberechtigung
+    Studio-->>Gate: Status, Hash, Revocation
+    Gate->>Gate: reale Versandbytes hashen; Zahlung, Freigabe, Inhalt erneut prüfen
+    alt alle Bedingungen gültig
+      Gate->>Kunde: Sendung über Kanal-Adapter
+      Gate->>Order: Receipt / unknown abgleichen
+    else gesperrt oder unbekannt
+      Gate-->>Order: keine Sendung, Grund/Status
+    end
+  else nicht berechtigt
+    Order-->>Chat: Auftrag wartet auf Voraussetzung
+  end
+~~~
+
+~~~mermaid
+flowchart TD
+  A["Betreiber wählt Studio → Erstellen"] --> B["Aufgabe + Figur + Referenzrollen + Format"]
+  B --> C["RecipeVersion und Engines prüfen"]
+  C -->|gültig| D["ProductionService: Eigenprojekt ohne Kunden-ID"]
+  C -->|ungültig| X["NEEDS_INPUT mit konkretem Grund"]
+  D --> E["Flow-Engine: Nodes / Queue / Checkpoints"]
+  E --> F["Qualität und Master / FINAL"]
+  F --> G["Export in vorhandene Medienbibliothek"]
+  G --> H["Studio-Ansicht + Dateien-Hauptreiter"]
+  H --> I{"Nur Eigenprojekt?"}
+  I -->|ja| J["Download / Bearbeiten / Versionen"]
+  I -->|nein, Kundenauftrag| K["Gesonderter Kunden-Handoff mit Gate"]
+~~~
+
+**Kloner:** Default-/Telegram-Eingang bleibt im Kundenmodul, erzeugt dieselbe ProductionRequest und erhält das terminale Resultat; Antworten genau einmal über den bestehenden Postausgang. **Cockpit:** technischer Generieren-Knopf ist nur eine weitere Aufrufquelle desselben Executors. **Kundenproduktion:** ausschließlich nach bestehenden Zahlungs-/Testregeln; Studio führt keine Kundenzahlung aus. Historische Auftragsstufen bleiben lesbar.
+
+### 13.4 Handoff, Widerruf, freigegebene Versandbytes
+
+**Ist-Befund am geprüften Git-Stand 6e049f5:** approval.py liest store.artifact und media.content_tier direkt; schema.py nutzt Artefakt-/Approval-/Payment-Trigger. Die Umstellung muss beide Gate-Schichten konsistent ersetzen und darf die vorhandenen Beweise oder Testausnahmen nicht verlieren.
+
+**Kundeneigene Tabelle production_handoffs** (genauer Name vor Migration gegen Schema prüfen) pro Export-/Auftragsrevision: handoff_id, production_id, customer_order_id, export_asset_id, export_sha256, byte_size, mime, content_tier, qc_revision/verdict, review_required, studio_revision, order_revision, revocation_revision, status, revoked_reason, timestamps. Keine zweite Kopie der Datei; bestehende media/artifacts bleiben kanonisch im Studio.
+
+**Atomare Übergabe im integrierten Betrieb:** Ein anwendungsweiter UnitOfWork/Koordinator ruft beide fachlichen Repositories auf und schreibt in **einer SQLite-Transaktion** Studio-Zustand, validierten Handoff und persistentes Ereignis; jede Domäne bearbeitet nur ihre Tabellen. Der Studio-Service schreibt nie selbst in Kunden-SQL. Bei späterer Entkopplung ersetzt eine idempotente Outbox-/Receipt-Übergabe die gemeinsame DB-Transaktion.
+
+~~~mermaid
+flowchart TD
+  E["Studio: Exportmanifest + QC + Revision"] --> V["Koordinator validiert aktuelle Revision"]
+  V --> T["Eine SQLite-Transaktion"]
+  T --> S["Studio-Repository setzt READY_FOR_HANDOFF"]
+  T --> H["Kunden-Repository schreibt Handoff"]
+  S --> C["Commit + Eventjournal"]
+  H --> C
+  C --> G["Kunden-Gate: Zahlung, Kunde, Freigabe"]
+  G --> W["Sendeversuch reservieren mit Idempotenz-ID"]
+  W --> Q["Unmittelbar vor Dispatch: Studio-Status erneut prüfen"]
+  Q --> R["Bytes der tatsächlich zu sendenden Datei erneut hashen"]
+  R --> D{"Revision, Hash, Inhalt, Freigabe gültig?"}
+  D -->|ja| SEND["Provider-Sendeversuch + Receipt"]
+  D -->|nein / unbekannt| STOP["Versand sperren und melden"]
+  REVOKE["Neue Inhaltsstufe / Sperre / neue Revision / QC widerrufen"] --> RH["Handoff revisionsgebunden widerrufen"]
+  RH --> G
+  RH --> Q
+~~~
+
+**Sicherheitspflichten:** Ein späterer Widerruf kann keinen alten READY-Snapshot wieder legitimieren. Im Versandmoment werden letzte Freigabe, Test-/Zahlungsberechtigung, Kundensperre, Inhaltsstufe, aktuelle Handoff-/Studio-Revision, Kanalvorgaben und Datei-Hash geprüft; UNKNOWN sperrt. Versandnetzwerk und SQLite sind **keine** gemeinsame atomare Transaktion: Provider-Annahme kann bei Timeout unklar sein; anhand stabiler Idempotenz-/Receipt-Schlüssel abgleichen, niemals blind doppelt senden. Der Versand darf nicht allein durch das Markieren eines Studio-Laufs als COMPLETED ausgelöst werden.
+
+**Pflichttests:** approve→revoke→send, tier_raise→send, Hashänderung, Refund kurz vor Dispatch, neue Order-Revision, verspätete/doppelte Events, Testauftrag ohne Echtgeld, konkurrierende Freigabe/Sperre, Crash vor/nach Sende-Reservierung, Reconnect, UNKNOWN/Retry und identischer Hash in mehreren Galeriekontexten.
+
+### 13.5 Persistenz, Eventfluss und Zustandsmaschine
+
+**Bestehende Strukturen bleiben führend:** media, artifacts, jobs, characters, character_loras, Referenzdaten und Ereignisjournal. Keine zusätzliche Asset-Datenbank, kein paralleles Eventjournal, keine undokumentierte zweite Medienablage. Neue fachliche Tabellen nur mit ihrem DS-Paket, niemals alle im Voraus.
+
+| Paket | Additive Daten, nach Schema-Abgleich |
+|---|---|
+| DS1 | task_profiles, recipes, comparison_runs, comparison_items |
+| DS2/DS3 | flow_definitions, productions, step_runs, step_cache, production_handoffs (Kundendomäne) |
+| DS4 | Referenzrollen/ControlMaps/LookPresets/CharacterSheet als Erweiterungen der Bestandsstrukturen |
+| DS5 | Script/Scene-Versionen, Provider-Referenzen ohne geheime Schlüssel, RoleBindings und Usage |
+| DS6 | Timeline, Exportprofile, Shot-Versionen nach tatsächlichem Bedarf |
+| DS6b | SceneSpec/Previz/ShotPreset und gehashte GuideBundle-Bezüge |
+| DS7 | Flow-Revisionen/Subflows/Editor-Metadaten; bestehende Definitionsspeicherung erweitern |
+| DS9 | Provider-Job-/Kostenbelege nur für tatsächlich aktivierte Erweiterungen |
+
+**Studio-Flowstatus:** DRAFT → VALIDATING → READY → QUEUED → RUNNING → REVIEW/EXPORTING → COMPLETED; Seitenzustände NEEDS_INPUT, WAITING_RESOURCE, PAUSING/PAUSED, CANCEL_REQUESTED/CANCELLED, FAILED. **NodeRun:** WAITING, READY, QUEUED, RUNNING, WAITING_REVIEW, DONE, FAILED, SKIPPED, CANCELLED, STALE. **Kundenzustellung** hat eigenen unabhängigen Zustandsautomaten. Event erst nach erfolgreichem DB-Commit pushen.
+
+~~~mermaid
+stateDiagram-v2
+  [*] --> DRAFT
+  DRAFT --> VALIDATING
+  VALIDATING --> NEEDS_INPUT: fehlende Referenz oder ungültige Typen
+  NEEDS_INPUT --> VALIDATING: korrigiert
+  VALIDATING --> READY: gültig
+  READY --> QUEUED
+  QUEUED --> WAITING_RESOURCE: RAM / Priorität
+  WAITING_RESOURCE --> QUEUED: Ressourcen verfügbar
+  QUEUED --> RUNNING
+  RUNNING --> REVIEW: Tor erforderlich
+  REVIEW --> RUNNING: freigegeben / weiter
+  RUNNING --> EXPORTING: alle abhängigen Schritte fertig
+  EXPORTING --> COMPLETED
+  RUNNING --> PAUSING
+  PAUSING --> PAUSED
+  PAUSED --> QUEUED: resume
+  RUNNING --> FAILED
+  FAILED --> QUEUED: begrenzter Retry
+  QUEUED --> CANCEL_REQUESTED
+  RUNNING --> CANCEL_REQUESTED
+  CANCEL_REQUESTED --> CANCELLED
+  COMPLETED --> [*]
+  CANCELLED --> [*]
+~~~
+
+**Fingerprint:** SHA-256 über kanonische Node-Typ-/Versionsdaten, normalisierte Parameter/Seed, Port-Reihenfolge und Input-Hashes, Charakter-/LoRA-/Modell-/Graphrevision und Adapternachweis. Cachetreffer nur mit **vorhandenen, unveränderten Ausgabebytes** und gültigen Rechten. Gleiches Seed garantiert nicht auf jeder Engine dieselben Pixel. **Rerun ab Node** invalidiert genau diesen Node und transitive Nachfolger; unabhängige Szenen bleiben. Seiteneffekte (Cloud-Submit, Versand) sind **nicht** wie pure Rendernodes cachebar; sie benötigen eigene Idempotenz-/Receipt-Policy.
+
+**Recovery:** Vor/bei Submit persistierte NodeRun-ID/Request-ID, ComfyUI prompt_id/Provider-Job-ID nach Neustart abgleichen. Unklarer Submit → Reconciliation statt erneuter Einreichung. Crash-Fälle: vor Submit, nach Submit vor Quittung, nach Ergebnis vor DB-Commit, Cancel während Render, Event-Gap nach Reconnect. Training pausiert nach bestehenden E25-Checkpointbedingungen; kein harter unsicherer Kill.
+
+### 13.6 Aufgaben, Rezepte und ein gemeinsamer Node-Katalog
+
+**Drei Ebenen:** 1. **Aufgabe** (Foto, Foto nach Vorlage, Pose/Skizze, Video, Geschichte, Training, Bearbeiten), 2. **Rezept/Flow** (mehrere typisierte Schritte), 3. **ComfyUI-Graph** (technisches Engine-Detail im Labor). Genau ein aktives Standardrezept **pro kompatiblem Aufgabenprofil** (Aufgabe × Ausgabeprofil × Inhaltsstufe × Modell-/LoRA-Architektur × Locality). Unqualifizierte Kandidaten werden nicht als produktives Standardrezept behauptet; im Labor sichtbar. Vergleich: identische Testprompts/Seeds, Laufzeit, Qualitäts-/Identitätswerte, Kontaktbogen, Betreiberwahl.
+
+**Node-Vertrag:** type_id + Revision, Ein-/Ausgangsports (Text, Brief, Script, Scene, SceneSpec, Image, ImageSet, Video, Audio, Mask, Pose, Depth, Motion, GuideBundle, CharacterRef, LoraRef nach Architektur, QualityResult, Approval, Export, Control), Parametergrenzen, Ressourcenklasse, Nebenwirkungen, Capability und Retry. Typ-, Modell-, Referenz- und LoRA-Inkompatibilität vor dem Start zurückweisen. Kein frei ausführbarer KI-Code, kein dynamisches eval, keine unkontrollierten Pfade.
+
+| Node / Gruppe | Eingabe → Ausgabe | Implementierungspaket |
+|---|---|---|
+| Input / GenerateImage / Export | Brief/Charakter → ImageSet → Exportmanifest | DS2/3-a, bestehender ComfyUI-Adapter |
+| QualityEvaluate / SelectCandidate | Medien + Prüfergebnisse → bestes zulässiges Bild | DS2/3-c, E16/E17 |
+| Handoff / Notify | Export/QC → revisionsgebundener Übergabe-/Kundenstatus | DS2/3-b, DS8 |
+| VideoI2V / JoinExisting | Startbild/Clips → Video | Grundadapter DS2/3; Film DS6 |
+| ReferenceImport / PoseExtract / DepthExtract / MaskExtract | Datei/Skizze/Clip → Rollen/ControlMaps | DS4 |
+| SketchToPose / GenerateControlledImage | Skelett/Control + Figur → Image | DS4, echte Modell-Capabilities |
+| ComposeMasterImage / RepairConditional | Form + Identität + Material + Licht → Master / Reparatur | DS4, bounded Retry |
+| NormalizeBrief / ScriptWrite / StoryboardSplit | Brief → Drehbuch und Szenen | DS5, strukturierte Text-KI |
+| SceneRevise / DirectorReview | Szene/QC → neue Revision/ReviewNote | DS5 |
+| StartEndFrames / AnimateShot / MotionTransfer | Szenenbild/Guide → Clips | DS6, Motion nur nach Mac-Nachweis |
+| VideoCheck / ContinuityCheck | Clip/Frames → Qualitäts-/Anschlussbefund | DS6 |
+| AudioMix / JoinClips / ExportFilm / Upscale | Ton/Bild/Clips → Export | DS6, deterministische FFmpeg-Parameter |
+| WriteSceneSpec / BlenderBuild / GuideExport | Storyboard → SceneSpec → Blender GuideBundle | DS6b, eigenes geprüftes Skript |
+| ControlVideo / CompareGuide | Guide + Master → Video/Vergleich | DS6b, nur nach realer Engineprüfung |
+| ProviderExternal | freigegebene Input-Assets → gehashter Cloud-Output | DS9 optional |
+| FlowEditor | Flow-Entwurf → neue unveränderliche Flowrevision | DS7, gleicher Executor |
+
+**Produktionsstufen:** PLAN (Brief/Script), DRAFT (günstige Vorschau nur soweit sinnvoll), MASTER (geprüfte Identität/Referenzframes), FINAL (Animation/Audio/Schnitt/Export). Ein einfaches Foto darf bei geeignetem Rezept direkt final rendern; charaktergebundenes I2V braucht ein geprüftes Startbild. Andere Videotypen verwenden ihre jeweils qualifizierten Pflichttore.
+
+~~~mermaid
+flowchart LR
+  BRIEF["Brief / Referenzen"] --> PLAN["PLAN: Drehbuch / Storyboard"]
+  PLAN --> DRAFT["DRAFT: Entwurf nach Rezept"]
+  DRAFT --> MASTER["MASTER: Bilder / kontrollierte Referenzen"]
+  MASTER --> QUALITY{"QC und ggf. Review"}
+  QUALITY -->|bestanden| VIDEO["FINAL: Video / Audio / Export"]
+  QUALITY -->|Fehler, Retry möglich| REPAIR["Gezielte Reparatur des betroffenen Schritts"]
+  REPAIR --> QUALITY
+  QUALITY -->|keine Freigabe| STOP["REVIEW / NEEDS_INPUT"]
+  VIDEO --> OUT["Studio-Exportmanifest"]
+  OUT --> OWN["Eigenprojekt: Dateien"]
+  OUT --> CUSTOMER["Kundenauftrag: Handoff → externes Liefer-Gate"]
+~~~
+
+**Regieszenen sind versioniert:** Shot-ID, Dauer, Position, Kamera/Objektiv, Handlung, Kleidung, Look, Start-/Endbild, Bewegung, Übergang und Referenzrollen. Ändert der Betreiber nur Shot 2, werden nur Shot 2 und seine vom Fingerprint abhängigen Anschluss-/Export-Nodes als STALE markiert; nicht die übrigen Shots.
+
+### 13.7 Ressourcen, KI-Rollen, Cloud und macOS
+
+~~~mermaid
+flowchart TD
+  READY["Alle ausführbaren NodeRuns"] --> POLICY["Priorität + Deadline + Alterung + RAM-Zulassung"]
+  POLICY --> MEDIA["COMFY_MEDIA: 8188 Bild / Video, serialisiert"]
+  POLICY --> TEXT["COMFY_TEXT: 8189 Melody / Regie"]
+  POLICY --> CPU["CPU: FFmpeg / Prüfer / Blender, begrenzt"]
+  POLICY --> CLOUD["PROVIDER_EXTERNAL nur explizit freigegeben"]
+  MEDIA --> RAM["M4 Max Unified Memory: gemeinsame Reserve"]
+  TEXT --> RAM
+  RAM --> RECON["Status, Prompt-IDs, Speicher-/Zeitmessung"]
+  CPU --> RECON
+  CLOUD --> RECON
+  RECON --> EVENTS["Persistente Steps / Events / GUI"]
+~~~
+
+**Vorrang:** bezahlter Kundenauftrag > Default > Betreiber-Cockpit > Modellvergleich > Training; Fairness/Jobalter und Kundenfrist berücksichtigen. **Engine-Stapelung** (Startbilder zusammen, dann Videos) ausschließlich innerhalb zulässiger Prioritäts- und RAM-Fenster. Melody und Medienjobs teilen physisches Unified Memory trotz zwei Prozessen. E15-Videolast bleibt gesonderte Qualifikation; ein nicht funktionierendes Modell-Entladen darf nicht als freier Speicher gerechnet werden.
+
+**KI-Rollen:** Gespräch/Kundengedächtnis nach E19 **lokal auf ComfyUI 2**; Drehbuch und Regie lokal oder explizit freigegebene Anthropic-/OpenAI-API. KI erzeugt ausschließlich **typisierte, validierte** CreativeBrief-, Drehbuch-, Storyboard-, SceneSpec- oder ReviewNote-Objekte, niemals frei ausgeführten Blender-Python-/SQL-/Shell-Code. Kundendaten und freie Chatlogs gehen nicht automatisch an externe Text-KI.
+
+**Provider-Policy:** LOCAL_ONLY ist Default. Externe Cloudkonten standardmäßig AUS; Keychain (keine Schlüssel im SQLite-/Frontend-/Protobuf-Payload), benannte Accounts, echte Modelldiscovery, Verbindungstest, Kosten vor Start, Monats-/Run-/Node-Limits, Nutzung und Fehler im Beleg. Kein stiller Fallback. Higgsfield nur als echte autorisierte API-Engine; Artlist nur bei belegter geeigneter API, sonst manueller Dateiimport. Externe Modellnamen, Features und Kosten nur nach aktueller Provider-Prüfung behaupten. Explizite Inhaltsstufen verbleiben lokal nach aktueller Policy; E19-Kundendialog bleibt unverändert, bis separat entschieden.
+
+### 13.8 Film, 3D-Previsualisierung und optionales iPhone-Kamerarig
+
+**DS6 Filmkern:** bestehende Wan-/LTX-/Langvideo-/Keyframe-Schritte als Adapter; Szenen/Shot-ID, Master-/Start-/Endframe, FPS/Dauer, Übergang, Timeline, Video-Checks, Frame-Sampling, begrenzte Korrektur, lokale importierte Audio-Datei und deterministischer FFmpeg-Export. Gleiches GuideBundle-Eingabeformat kann aus hochgeladenem Referenzvideo stammen. Keine Blender-Pflicht bei normalem Foto/I2V. 4K als **native Ausgabe**, **Upscale** und **gemessene 4K-Qualität** unterscheiden.
+
+**DS6b Blender:** KI gibt eine validierte **SceneSpec** (Meter, Kamera/Actor-IDs, Keyframes, Objektgrößen, Bewegungs-/Kamerawege, FPS, Lookreferenzen), keine ausführbaren Skripte. Der eigene feste, versionierte Builder baut headless Blender-Blocking und exportiert **GuideBundle** mit synchronem Video, Pose, Depth, Mask, optional Normalen, Trackdaten, Framezahl/FPS/Hashes und .blend. Erst qualifiziertes Video-Control-Rezept darf den Guide verwenden. Vergleich von Guide und KI-Video auf Timing, Position, Kamera/Framing, Identität, sichtbare Fehler; unbekannte Grenzwerte ≠ PASS. Bei fehlerhafter Silhouette zuerst Proxy-Geometrie korrigieren, nicht blind Prompts wiederholen. Dieselbe Geometrie mit mehreren Looks/Charakterreferenzen wiederverwenden.
+
+~~~mermaid
+flowchart TD
+  SHOT["Storyboard + SceneSpec"] --> BLOCK["Blender: Proxy-Blocking / Marker / Kamera"]
+  BLOCK --> PATH["Kameratrack: Position / Carrier"]
+  BLOCK --> ROT["Rotation / Blickrichtung aus Keyframes"]
+  PHONE["Optionale iPhone-Kamera: Eingang/Bridge noch nicht qualifiziert"] -.-> ROT
+  PATH --> SYNC["Transformations- und Frame-Synchronisierung"]
+  ROT --> SYNC
+  SYNC --> GUIDE["GuideBundle: Video + Pose / Depth / Mask"]
+  GUIDE --> CAP{"Passendes ControlVideo-Rezept auf M4 geprüft?"}
+  CAP -->|ja| AI["Wan/LTX oder explizit freigegebener Provider"]
+  CAP -->|nein| BLOCKED["ControlVideo TEIL / BLOCKIERT"]
+  AI --> MATCH["Guide-Output-Vergleich"]
+  MATCH --> EXPORT["Shot-Revision → Schnitt/Export"]
+  MATCH -->|Kontrollfehler| BLOCK
+~~~
+
+**Zur eingebrachten Blender/iPhone/Seedance-Demo:** nur das Prinzip „Carrier-Position + getrennte Kamera-Rotation; einfache Proxy-Figuren statt fehlerhafter Körperposen“ übernehmen. Die konkrete iPhone-App, Bridge (OSC/WebSocket/LiveLink etc.), Blender-Constraints, Seedance-Modell/Parameter und identische Ergebnisse auf M4 sind **nicht belegt**. Ein iPhone-Kamerarig ist deshalb **optionaler Kandidat**, kein Pflichtumfang/kein PASS. Kein Seedance-lokal behaupten.
+
+### 13.9 Flow-Katalog F01–F10 (ein Executor)
+
+| Flow | Auftrag und Ergebnis | Vorbedingungen / Paket |
+|---|---|---|
+| F01 Kunde → Kurzfilm | strukturierter Wunsch → Regie → Shots → Clips → QC → Kunden-Handoff | DS5/DS6; Gate bleibt Kundenmodul |
+| F02 Referenzen → Storyboard | ≥3 Bilder mit Rollen → Szenen/Fotoserie/Film | DS4/DS5 |
+| F03 Posefoto → Figur | Pose/Depth aus Nutzerfoto → synthetischer Charakter | DS4 |
+| F04 Referenzvideo → Figurenanimation | Bewegung/Guide → Zielfigur im Clip | DS6/DS6b, M4-Kandidat |
+| F05 Strichfigur → Figur | Skizze/Skelett → Pose/Control → Charakterbild | DS4 |
+| F06 Character Replacement | Bild/Video und Maske → kontrollierter Charakter-/Szenenersatz | DS4/DS6 |
+| F07 Form → Identität → Material → Film | Proxy/Clay → passende LoRA → Look/Master → Animation | DS4/DS5/DS6 |
+| F08 Blender → kontrolliertes Video | SceneSpec → GuideBundle → kontrolliertes Video → Vergleich | DS6b, Modellqualifikation DS10 |
+| F09 Werbefilm | Produkt/Objekte, Kamerarigs, Timing → Shots/Varianten/Export | DS6b/DS9 |
+| F10 Gleicher Guide, neue Looks | gleiche Geometrie, neue Material-/LookVersion → nur abhängige Schritte neu | DS4/DS6b |
+
+Alle Vorlagen nutzen dieselbe Flow-Maschine; nicht installierte/qualifizierte Nodes sind **nicht** produktionsbereit. Engine-/LoRA-Architektur muss passen; Bild-LoRAs lassen sich nicht einfach an beliebige Videomodelle anschließen. Qualifizierte Charakter-Keyframes können bei kompatiblen Videomodellen zur Bindung dienen.
+
+### 13.10 Paketfolge, Abhängigkeiten und Übergang zu Alt-Etappen
+
+~~~mermaid
+flowchart LR
+  DS0["DS0 Baseline / Sicherung"] --> DS1["DS1 Aufgaben / Rezepte"]
+  DS1 --> A["DS2/3-a: Flow-Maschine + 3 Nodes"]
+  A --> B["DS2/3-b: Handoff + Gate-Parität"]
+  B --> C["DS2/3-c: Studio-GUI + Events"]
+  C --> D["DS8: Kloner / Kunde / Cockpit umstellen"]
+  D --> DS4["DS4 Referenzen / Look / Pose"]
+  DS4 --> DS5["DS5 KI-Regie / Storyboard"]
+  DS5 --> DS6["DS6 Film / Schnitt / Audio"]
+  DS6 --> DS6B["DS6b Blender / Guides"]
+  DS6B --> DS7["DS7 Experten-Flow-Editor"]
+  DS7 --> DS9["DS9 optionale Provider / Module"]
+  DS9 --> DS10["DS10 Qualifikation / Langtests"]
+  D --> E["Offene Etappe E: Konten / PayPal / Einstellungen"]
+  DS10 --> F["Finale Etappe F: Betrieb / Release"]
+~~~
+
+**Etappe E:** Noch offene PayPal-/Eingangs-/Geheimnis-/Kanalkonten-/Fehlbetrags-/Nachlauf-Funktionen **erst nach DS8** weiterbauen; bis dahin nur notwendige Fehler-/Sicherheitskorrekturen. Bestehende SP5-Codepfade, Bestellungen und Zahlungen bleiben erhalten. **Etappe F:** finale Betrieb-/Rechts-/Releaseabnahme nach DS10; Backups, Secret-Schutz, Recovery und die **E21-Rechtsfreigabe vor jedem ersten öffentlichen Kundenkontakt** gelten bereits während der Entwicklung. SP0–SP6, A–F, E1–E26 und Historie nicht still löschen/umdeuten.
+
+| Paket | Verbindliches Backend-/Vertragsziel | Integrations-/Abnahmenachweis |
+|---|---|---|
+| **DS0** | Ist-Inventar, echte DB-/Medien-Sicherung, Schema/Imports/Altpfade/Protobuf-Baseline; normalisierte Parität, soweit real verfügbar | heutiger kurzer Mac-Bildlauf; kein funktionaler Umbau |
+| **DS1** | TaskProfile, RecipeVersion, ComparisonRun, Capability-Metadaten, Standard je Profil | echte Aufgabenwahl → bestehender Bildlauf; Standard wirkt; GUI/Protobuf |
+| **DS2/3-a** | typisierte Tabellen/Flow-Ausführung mit Input → GenerateImage → Export | echter Drei-Schritt-Mac-Lauf; persistierte NodeRuns; Commit |
+| **DS2/3-b** | transaktionaler Koordinator, Handoff-/Revocation/Gate-Parität; Altlieferweg bleibt aktiv bis bestanden | Hash-/Refund-/Revoke-/Race-/Test-Gates, echter kontrollierter Integrationslauf; Commit |
+| **DS2/3-c** | fünf Studio-Unteransichten, lesbare Kette, Receipts/STATE/EVENT | Chrome-E2E Studio → echtes Bild → Ereignis/Datei; Commit; Gesamtpaket erst danach PASS |
+| **DS8** | Kloner, Kunden-/Operatorproduktion auf EINEN Executor; Altpfade als Adapter, nicht parallele Render-Engine | drei Quellen, Default/Betreiber real, Kunden-Test isoliert; Idempotenz/Gate/Restart |
+| **DS4** | Referenzrollen, Skizze, Pose/Depth/Mask, Charakterblatt, LookPreset und Bildreparatur | echte geeignete Pose/Skizze → Bild; unqualifizierte Verfahren TEIL |
+| **DS5** | lokale KI-Regie, Script/Scene-Schemas, optional externe Textprovider (aus); revisionsabhängige Reruns | echtes lokales Drei-Szenen-Storyboard, Szene 2 selektiv neu |
+| **DS6** | Szenen/Clips, I2V/Keyframes, Audioimport, Timeline, FFmpeg-Schnitt/Export | kurzer echter 2–3-Shot-Film, geänderter Shot allein neu |
+| **DS6b** | SceneSpec → fester Blender-Builder → synchronisierte Guide-/Control-Pässe | kurze reale Blender-Kamerafahrt; ControlVideo nur nach Mac-Eignung |
+| **DS7** | typgeprüfte Flowrevisionen/Subflows, derselbe Executor | Node-Editor ändert F02, neue Version echter Durchlauf |
+| **DS9** | optionale Higgsfield-/Artlist-/Audio-/Blender-Zusätze nach tatsächlicher Providerfreigabe | je aktivem Modul eigener echter API-/Mac-/Kostenbeleg; sonst NOT_CONFIGURED |
+| **DS10** | LoRA-Training, Schwellenkalibrierung, 4K/Langvideo, E15, Alt-NOT_RUN, Recovery/Dauerbetrieb | belegte Qualifikationsmatrix, keine globale PASS-Abkürzung |
+
+**Claras Training:** nach Vorliegen der Charakterfotos parallel im Ressourcenfenster beginnen; kein mehrstündiger Blocker für DS0/DS1/CODE FIRST. Die zwei vorhandenen Bildarchitekturen und trainierte LoRA-Versionen getrennt behandeln.
+
+### 13.11 Test-, Nachweis- und Git-Regeln
+
+- **Eine Funktion je Paket:** Backend + SQLite/Migration + Protobuf/Service + React-GUI + Tests **gemeinsam**, keine monatelange separate Frontend-Aufholphase.
+- **UNIT** Typen/Zustände; **INTEGRATION** echte SQLite, Protobuf, Gate und Services; **E2E** Browser oder Kundentest bis Fachoutput; **MAC_LIVE** kurzer Lauf mit realer ComfyUI-/Blender-Engine; **EXTERNAL_LIVE** echte Konto-/Providerwege; **QUALIFICATION** unabhängige Qualität/Last/4K/Mehrstunden. Simulierte Events ≠ reale Modellqualifikation.
+- **Jedes funktionsfähige Paket mindestens ein kurzer realer Mac-Lauf;** DS2/3-a, -b, -c jeweils Tests und eigener Commit; keine produktive Gate-Umstellung ohne Parität. Lange Modell-, Video-, 4K- und LoRA-Qualifikationen in DS10, soweit sie keinen sicheren Codebau verhindern.
+- **Status:** OFFEN, CODE, TEIL, PASS, BLOCKIERT; Nachweisarten separat. Keine pauschalen PASS-Kennzeichnungen für erst geplante F01–F10 oder ungemessene Wan-/Control-/Higgsfield-Fähigkeiten.
+- **Migrationsschutz:** vorher Schema/SQLite-Backup, bestehende Assets/Jobs erhalten, Migration upgradet echten Bestand, idempotente Recovery, Regression vor Commit.
+- **Git:** direkt main, maximal zwei Agenten (Hauptentwickler + unabhängiger Auditor), keine Branches, nach Paket/DS2-Teilcommit Push, Status & bugs_v1.md aktuell, keine zweite verbindliche Masterplan-Datei.
+- **Historische Alt-Nachweise:** Die 25 ALT-Fälle aus der einmaligen Masterplan-3.2-Vorlage bleiben in §13.12 rückverfolgbar; notwendige DS8-Tests dürfen bei gleicher Scope/Revision/Evidenz für DS10 angerechnet werden, nicht automatisch.
+
+### 13.12 DS10-Qualifikationsmatrix und Alt-Nachweise
+
+| Verfahren | Bisherige Evidenz | Fehlender Nachweis |
+|---|---|---|
+| Krea-2-Standardbild mit Charakter-LoRA | Bildrender gemessen | Clara-LoRA, Identität, unabhängige Qualität |
+| LUSTIFY-SDXL-Bild | Bildrender geprüft | vollständige LoRA-/Identitätsqualifikation |
+| Pose/Depth/Mehrfachreferenz | registrierte Kandidaten | echte M4-Control-Treue und Zuordnung |
+| Wan/LTX I2V + lange Sequenzen | einzelne echte Videojobs | 15 s mit vier Keyframes, kontinuierliche Qualität |
+| Wan Animate / ControlVideo | Hersteller-/Engine-Kandidaten | M4-MPS-Funktion, Identität, Pose-/Guide-Abgleich |
+| SeedVR2/Upscale | Teilpfad | Native-vs-Upscale-4K-Qualität |
+| Blender Headless | geplant | lokale Version, Szene, synchrones GuideBundle |
+| Melody Gespräch | warme p95-Werte unter Bildlast | E15 unter Videolast, Ressourcen-/RAM-Grenzen |
+| Melody/Regie | nicht separat qualifiziert | valide Szenenobjekte, Referenztreue |
+| E16/E17/QC-Gates | CODE / Qualifikationsregeln | beschriftete unabhängige Schwellen, Fehlerquoten |
+
+**ALT-Liste, bestehende NOT_RUN-Nachweise mit Originalbezug (nicht durch Planmigration erledigt):**
+
+| ID | Historisch offener Test | Frühestens |
+|---|---|---|
+| ALT-01 | SP1 Default-Kloner am Handy inkl. Restart | DS8 / DS10 |
+| ALT-02 | SP1 zehn Vorlagen je Kloner-Befehl + Clara-Identität | DS4 / DS10 |
+| ALT-03 | SP1/SP5 Handyfreigabe per Antwort auf exakte Vorschau | DS8 / DS10 |
+| ALT-04 | SP2 echtes Telegram-Ab-/Anmelden mit Code | Etappe E / DS10 |
+| ALT-05 | SP2 zwei echte Telegram-Konten | Etappe E / DS10 |
+| ALT-06 | SP2 reale Edit/Delete-/777000-Ereignisse | Etappe E / DS10 |
+| ALT-07 | SP2 TDLib/Instagram-Echo/Unknown-Abgleich | Etappe E / DS10 |
+| ALT-08 | SP2 Foto/Video/Dokument/Selbstlöschen/Begleittext live | DS8 / DS10 |
+| ALT-09 | SP4 20 Handy-Testnachrichten | DS10 |
+| ALT-10 | SP4 Gedächtnistest 100–200 Schritte mit Neustart | DS10 |
+| ALT-11 | SP4 neutraler Einstufungstestsatz / Manipulationen | DS10 |
+| ALT-12 | SP4 Tipp-/Lesedauer mit zwei Kunden und Restart | DS10 |
+| ALT-13 | SP4 echter KI-Kundendialog inkl. E21-Hinweis | Etappe E / DS10 |
+| ALT-14 | SP5 Angebotstext aus echten SQLite-Geschäftsfakten | Etappe E / DS10 |
+| ALT-15 | SP5 reales Angebot mit zulässigem Produkt/Kanal | Etappe E / DS10 |
+| ALT-16 | SP5 Produktion nach Zahlung auf qualifiziertem Rezept | DS8 / DS10 |
+| ALT-17 | SP5 kompletter Kundentest am Handy bis Bild/Video | DS8 / DS10 |
+| ALT-18 | SP5 echte Systemfreigabe mit E16/E17-Schwellen | DS10 |
+| ALT-19 | SP5 Inhalts-/Identitäts-/Anatomie-Kalibrierung | DS10 |
+| ALT-20 | SP5 tatsächlicher Versand nach Zahlung/Freigabe + Fensterfall | DS8 / DS10 |
+| ALT-21 | SP5 PayPal/Gutschein/Fehlbetragsbestätigung | Etappe E / DS10 |
+| ALT-22 | SP4/E15 Melody-Antwortzeit während Video | DS10 |
+| ALT-23 | SP3 vollständiges Clara-Training, Versions-/Provenienznachweis | DS10 |
+| ALT-24 | SP3/B4 Video 15 s / vier Keyframes | DS10 |
+| ALT-25 | SP5 realer Versandfehler, Unknown/Timeout/Retry | DS8 / DS10 |
+
+**Nachweis pro ALT-ID:** Original-SP/BUG-Vermerk, Testfall, tatsächlich geprüfte Revision, Datum, Commit, Mac-Job- oder Kanal-ID, UNIT/INTEGRATION/E2E/MAC_LIVE/EXTERNAL_LIVE/QUALIFICATION, Status, Grund und Regression. Keine stillen Freigaben.
+
+### 13.13 Entscheidungskatalog und Übernahmevorgabe
+
+- **E27**: verbindlich gewollt – eine Darkfluenzer-App mit integriertem, intern abgegrenztem Studio und einer SQLite; auslagerungsfähiger ProductionService.
+- **E28–E33 (neue technische Planung, vor verbindlicher Vergabe gegen E-ID-Stand prüfen):** nur typisierte KI-Ausgaben; PLAN/DRAFT/MASTER/FINAL wo sinnvoll; Startbild-Pflicht je qualifiziertem I2V-Rezept; versionierte Kontrollsignale mit messbarem Abgleich; ein Executor mit Prioritäts-/Fairness-gerechter Engine-Stapelung; lokale Defaults und Cloud nur nach Opt-in/Kosten- und Datengate. **Nicht als separat unterschriebene Altentscheidungen darstellen.**
+- E1–E26, bestehende Inhalte und Sicherheits-/Kundengates bleiben gültig. **FREE ONLY** gilt für den kostenfreien lokalen Kern; optionale bezahlte Cloudadapter sind eine **vorgesehene ausdrückliche Ausnahme**, nicht ohne Betreiberaktivierung produktiv. **E19** gilt für Kundendialog weiterhin unverändert.
+- **Nur zwei verbindliche Pläne:** dieser Backend-Plan und PHASENPLAN_FRONTEND.md. bugs_v1.md als separates Fehlerregister. Die hochgeladene Masterdatei bleibt einmalige Übernahmereferenz und wird nicht als vierter Plan ins Repository kopiert.
+- **Implementierung ist noch offen:** nach dieser Dokumentübernahme startet der Hauptentwickler DS0, nicht ein unkontrollierter paralleler Blender-/Flow-Editor-Bau. Niemals den Planstand mit Git-/Mac-Implementierungs-PASS verwechseln.
