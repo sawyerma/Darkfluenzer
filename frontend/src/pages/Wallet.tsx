@@ -21,6 +21,7 @@ const ACCOUNT_STATE: Record<string, [string, Tone]> = {
   MISSING: ["NICHT EINGERICHTET", "neutral"],
 };
 // Wege ohne Backend-Anschluss: ehrlich als nicht eingerichtet, ohne Aktion (PayPal braucht den Tunnel).
+const CRYPTO = ["btc", "bsc"];
 const NOT_CONNECTED: readonly [string, string, string][] = [["paypal", "PayPal", "Bestätigte Eingänge im Monat · nicht angeschlossen"]];
 const VOUCHER_STATUS: Record<string, [string, Tone]> = {
   pending: ["zu prüfen", "warn"],
@@ -511,7 +512,10 @@ function MonthExport() {
 
 export function Wallet() {
   const wallet = useStateTopic(Topic.WALLET);
-  const accounts = wallet?.value.accounts ?? [];
+  // Startwege nach E6: PayPal und Amazon-Gutscheine; Krypto nur, wenn zugeschaltet (Adresse eingerichtet)
+  const all = wallet?.value.accounts ?? [];
+  const accounts = all.filter((a) => !(CRYPTO.includes(a.key) && a.state === "MISSING"));
+  const cryptoOff = all.length > 0 && !all.some((a) => CRYPTO.includes(a.key) && a.state !== "MISSING");
   const sources = wallet?.value.sources ?? [];
   const vouchers = wallet?.value.vouchers ?? [];
   const offers = wallet?.value.openOffers ?? [];
@@ -572,6 +576,7 @@ export function Wallet() {
       <div className="g-section">
         <details className="g-expert">
           <summary>Technische Details</summary>
+          {cryptoOff ? <small>Krypto (Bitcoin, BSC) nicht zugeschaltet · Adressen in config.toml [wallet]</small> : null}
           {sources.length > 0 ? (
             sources.map((s) => (
               <div key={s.name} className="g-stack">
