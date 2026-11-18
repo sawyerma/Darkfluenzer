@@ -195,6 +195,11 @@ message DefaultContact {
   // Testfreigabe statt Zahlung (SP5 Schritt 12)
   string test_pay_word = 18;
   bool test_auto_pay = 19;
+  // Freigabe vom Handy (SP5 Schritt 11)
+  bool phone_approval = 20;
+  string approve_word = 21;
+  string redo_word = 22;
+  string refund_word = 23;
 }
 
 message CommandWorkflow {

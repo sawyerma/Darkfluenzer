@@ -26,9 +26,9 @@ type Profile = { workflow: string; format: string; duration: string; finish: str
 const EMPTY: Profile = { workflow: "", format: "", duration: "", finish: "" };
 
 // Gruppen der Default-Steuerung (F7.4 „Identität & Dialog“, „KI & Medien“; Befehle FL-6), einklappbar
-type FoldId = "identity" | "media" | "commands" | "test";
+type FoldId = "identity" | "media" | "commands" | "test" | "phone";
 type Folds = Record<FoldId, boolean>;
-const FOLDS_OPEN: Folds = { identity: true, media: true, commands: false, test: false };
+const FOLDS_OPEN: Folds = { identity: true, media: true, commands: false, test: false, phone: false };
 
 /** Einklappbare Gruppe (F7 details): Kopf mit Zustand, damit auch geschlossen sichtbar ist, was
  *  fehlt (SP1: ausgeschaltete Schalter und fehlende Workflows sichtbar). */
@@ -110,6 +110,14 @@ function DefaultForm({
   const [payWord, setPayWord] = useState(contact.testPayWord);
   const [autoPay, setAutoPay] = useState(contact.testAutoPay);
   const changedTest = testDelay !== contact.testDelay || payWord.trim() !== contact.testPayWord || autoPay !== contact.testAutoPay;
+  // Freigabe vom Handy (SP5 Schritt 11): Schalter und drei Wörter
+  const [phone, setPhone] = useState(contact.phoneApproval);
+  const [phoneWords, setPhoneWords] = useState({ approve: contact.approveWord, redo: contact.redoWord, refund: contact.refundWord });
+  const changedPhone =
+    phone !== contact.phoneApproval ||
+    phoneWords.approve.trim() !== contact.approveWord ||
+    phoneWords.redo.trim() !== contact.redoWord ||
+    phoneWords.refund.trim() !== contact.refundWord;
   const reset = useCommand();
   const results = useEventTopic(Topic.AI_RESULT);
   // Messwerte je Testantwort (SP4 Schritt 8) aus ai_runs: laufende Sitzung, neueste zuerst
@@ -139,7 +147,8 @@ function DefaultForm({
     workflow !== contact.mediaWorkflow ||
     video !== contact.videoWorkflow ||
     (Number(candidates) || 0) !== contact.clonerCandidates ||
-    changedTest;
+    changedTest ||
+    changedPhone;
   const same = (a: Profile | undefined, b: Profile | undefined) => JSON.stringify(a ?? EMPTY) === JSON.stringify(b ?? EMPTY);
   const changedCommands = COMMANDS.some((c) => !same(profiles[c], saved[c]));
   const changed = changedIdentity || changedMedia || changedCommands;
@@ -187,6 +196,10 @@ function DefaultForm({
           testDelay,
           testPayWord: payWord.trim(),
           testAutoPay: autoPay,
+          phoneApproval: phone,
+          approveWord: phoneWords.approve.trim(),
+          redoWord: phoneWords.redo.trim(),
+          refundWord: phoneWords.refund.trim(),
           cancelWord: cancelWord.trim(),
           accountModes: Object.entries(modes)
             .filter(([k, m]) => m !== savedModes[k])
@@ -405,6 +418,33 @@ function DefaultForm({
             </div>
           );
         })}
+      </Fold>
+      <Fold
+        id="phone"
+        title="Freigabe vom Handy"
+        hint={phone ? `an · ${contact.approveWord} · ${contact.redoWord} · ${contact.refundWord}` : "aus"}
+        warn={false}
+        changed={changedPhone}
+        folds={folds}
+        toggle={toggle}
+      >
+        <label className="g-switch">
+          <input type="checkbox" checked={phone} onChange={(e) => setPhone(e.target.checked)} />
+          Vorschau wartender Aufträge an den Default (Telegram)
+        </label>
+        {(
+          [
+            ["approve", "Wort Freigeben"],
+            ["redo", "Wort Neu"],
+            ["refund", "Wort Erstatten"],
+          ] as const
+        ).map(([key, title]) => (
+          <div className="g-field" key={key}>
+            <label htmlFor={`df-phone-${key}`}>{title}</label>
+            <input id={`df-phone-${key}`} value={phoneWords[key]} onChange={(e) => setPhoneWords({ ...phoneWords, [key]: e.target.value })} />
+          </div>
+        ))}
+        <small>Wirkt nur als Antwort auf die Vorschau; Erstatten verlangt danach die Auftragsnummer.</small>
       </Fold>
       <Fold
         id="test"

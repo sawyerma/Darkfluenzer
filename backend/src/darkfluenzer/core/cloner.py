@@ -154,6 +154,9 @@ class ClonerMixin:
         default = self.store.default_contact()
         msg = self.store.message(inbound.message_id)
         conv = inbound.conversation_id
+        # Antwort auf eine Vorschau (Freigabe vom Handy, SP5 Schritt 11) vor allem anderen
+        if await self._phone_decision(conv, msg):
+            return
         # feste Wörter vor der Betriebsart (SP4 Schritt 8): nie Sprachmodell oder Gedächtnis
         said = msg["text"].strip().lower()
         word = (default.get("cancel_word") or "").strip().lower()

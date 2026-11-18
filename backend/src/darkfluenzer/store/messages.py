@@ -508,14 +508,63 @@ class MessagesMixin:
         )
         return [dict(r) for r in rows][::-1]
 
-    def default_conversation(self) -> int | None:
-        """Jüngste Konversation des Default-Kontakts (Karten zum Kundentest)."""
+    def default_conversation(self, platform: str = "") -> int | None:
+        """Jüngste Konversation des Default-Kontakts (Karten zum Kundentest); mit ``platform`` nur
+        dieser Plattform (Vorschau aufs Handy über Telegram, SP5 Schritt 11)."""
         row = self.db.execute(
             "SELECT c.id FROM channel_conversations c JOIN channel_identities i"
             " ON i.id = c.identity_id JOIN default_contact d ON d.customer_id = i.customer_id"
-            " ORDER BY c.id DESC LIMIT 1"
+            " WHERE ? = '' OR i.platform = ? ORDER BY c.id DESC LIMIT 1",
+            (platform, platform),
         ).fetchone()
         return row[0] if row else None
+
+    def add_phone_preview(self, message_id: int, order_id: int, media_id: int | None,
+                          reason: str) -> None:  # fmt: skip
+        with self.tx() as db:
+            db.execute(
+                "INSERT INTO phone_previews (message_id, order_id, media_id, reason, created_at)"
+                " VALUES (?,?,?,?,?)",
+                (message_id, order_id, media_id, reason, now()),
+            )
+
+    def open_phone_preview(self, order_id: int, media_id: int | None) -> dict | None:
+        row = self.db.execute(
+            "SELECT * FROM phone_previews WHERE order_id = ? AND media_id IS ?"
+            " AND (decision IS NULL OR decision = 'refund_asked')",
+            (order_id, media_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def phone_preview_for_reply(self, conversation_id: int, platform_id: str) -> dict | None:
+        """Vorschau, auf die eine Telegram-Antwort im Default-Chat verweist."""
+        row = self.db.execute(
+            "SELECT p.* FROM phone_previews p JOIN channel_messages m ON m.id = p.message_id"
+            " WHERE m.conversation_id = ? AND m.platform_message_id = ?",
+            (conversation_id, platform_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def open_phone_previews(self) -> int:
+        return self.db.execute(
+            "SELECT count(*) FROM phone_previews"
+            " WHERE decision IS NULL OR decision = 'refund_asked'"
+        ).fetchone()[0]
+
+    def decide_phone_preview(self, message_id: int, decision: str) -> None:
+        with self.tx() as db:
+            db.execute(
+                "UPDATE phone_previews SET decision = ?, decided_at = ? WHERE message_id = ?",
+                (decision, now(), message_id),
+            )
+
+    def identity_verified(self, conversation_id: int) -> bool:
+        row = self.db.execute(
+            "SELECT i.verified FROM channel_conversations c JOIN channel_identities i"
+            " ON i.id = c.identity_id WHERE c.id = ?",
+            (conversation_id,),
+        ).fetchone()
+        return bool(row and row[0])
 
     def notify_default(self, text: str) -> int | None:
         """Meldung ans Handy des Betreibers (Default-Chat, Produktion), z. B. Eingang nach Ablauf

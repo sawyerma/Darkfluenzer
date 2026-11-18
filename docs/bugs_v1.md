@@ -203,6 +203,18 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP5 Schritt 11 (Ausnahmeweg Handy, C5.10) – Etappe D im Code vollständig
+Commit: siehe git log „SP5 step 11“ / Migration 44 (phone_approval, Wörter, phone_previews),
+  core/phone.py (neu), core/autoprod (Vorschau beim Warten), core/cloner (Antwort vor allem
+  anderen), core/messages (Wörter prüfen), store (Vorschau-Hilfen, default_conversation je
+  Plattform), channel/commands.proto, DefaultPanel
+Nachweis: test_phone (Vorschau einmal, Rückfrage ohne Antwortbezug, Freigeben mit Zustellung und
+  „schon entschieden“, Erstatten mit Auftragsnummer, Neu, hartes Gate Inhaltsstufe), volle Suite
+  321 grün; Chrome-E2E isoliert 30/30, lesend echt 10/10; echte Migration 43→44
+NOT_RUN: Ablauf am echten Handy (Telegram-Antwort auf die Vorschau)
+Ergebnis: CODE (Integration isoliert belegt), Handy NOT_RUN
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP5 Schritt 8 (Systemfreigabe)
 Commit: siehe git log „SP5 step 8“ / Migration 43 (approval_mode, approvals.checks, Trigger
   approvals_system_gate), approval.check_gate (CUSTOMER_LOCKED), core/delivery (_approve),

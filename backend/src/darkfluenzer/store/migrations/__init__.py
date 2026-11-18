@@ -1026,6 +1026,25 @@ WHEN NEW.operator = 'System' AND NEW.decision = 'approved' AND (
 BEGIN SELECT RAISE(ABORT, 'approval: Systemfreigabe ohne vier bestandene Prüfwerte dieses Inhalts');
 END;
 """,
+    44: """
+-- Ausnahmeweg Handy (SP5 Schritt 11, bisher C5.10): Schalter und Wörter am Default-Kontakt; je
+-- Vorschau im Default-Chat genau eine Entscheidung (Freigeben, Neu, Erstatten mit Bestätigung).
+ALTER TABLE default_contact ADD COLUMN phone_approval INTEGER NOT NULL DEFAULT 0
+    CHECK (phone_approval IN (0, 1));
+ALTER TABLE default_contact ADD COLUMN approve_word TEXT NOT NULL DEFAULT 'Freigeben';
+ALTER TABLE default_contact ADD COLUMN redo_word TEXT NOT NULL DEFAULT 'Neu';
+ALTER TABLE default_contact ADD COLUMN refund_word TEXT NOT NULL DEFAULT 'Erstatten';
+CREATE TABLE phone_previews (
+    message_id INTEGER PRIMARY KEY REFERENCES channel_messages(id),
+    order_id   INTEGER NOT NULL REFERENCES orders(id),
+    media_id   INTEGER REFERENCES media(id),
+    reason     TEXT    NOT NULL,
+    decision   TEXT    CHECK (decision IN ('approved', 'regenerate', 'refund_asked', 'refunded')),
+    decided_at TEXT,
+    created_at TEXT    NOT NULL
+);
+CREATE INDEX phone_previews_order ON phone_previews(order_id);
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

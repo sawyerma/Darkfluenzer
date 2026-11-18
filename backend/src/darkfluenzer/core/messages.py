@@ -223,6 +223,16 @@ class MessagesMixin:
             return (
                 "Testfreigabe-Wort: ein Wort (höchstens 30 Zeichen), kein Befehl oder festes Wort."
             )
+        # Wörter der Freigabe vom Handy (SP5 Schritt 11): je ein Wort, verschieden, keine Befehle
+        phone_words = {
+            k: (getattr(msg, k).strip() or current[k])
+            for k in ("approve_word", "redo_word", "refund_word")
+        }
+        taken = [w.lower() for w in phone_words.values()]
+        if len(set(taken)) < 3 or any(
+            len(w) > 30 or " " in w or w in reserved or w == pay_word.lower() for w in taken
+        ):
+            return "Wörter der Freigabe vom Handy: drei verschiedene Wörter, keine Befehle."
         known = {a["key"] for a in self.store.channel_accounts()}
         for am in msg.account_modes:
             if am.key not in known:
@@ -252,6 +262,8 @@ class MessagesMixin:
                 "test_delay": int(msg.test_delay),
                 "test_pay_word": pay_word,
                 "test_auto_pay": int(msg.test_auto_pay),
+                "phone_approval": int(msg.phone_approval),
+                **phone_words,
             },
             senders,
             commands,

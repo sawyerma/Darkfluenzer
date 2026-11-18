@@ -436,6 +436,11 @@ message DefaultContactUpdate {
   // Testfreigabe statt Zahlung (SP5 Schritt 12): Wort (leer = bisheriges) und automatisch
   string test_pay_word = 15;
   bool test_auto_pay = 16;
+  // Freigabe vom Handy (SP5 Schritt 11): Schalter und Wörter (leer = bisheriges)
+  bool phone_approval = 17;
+  string approve_word = 18;
+  string redo_word = 19;
+  string refund_word = 20;
 }
 
 // Kundentest zurücksetzen (Befehl 63, SP4 Schritt 8): Testgedächtnis und Hinweisstatus leer.

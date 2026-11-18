@@ -34,6 +34,7 @@ from ..core.cloner import ClonerMixin
 from ..core.delivery import DeliveryMixin
 from ..core.messages import MessagesMixin
 from ..core.orders import OrdersMixin
+from ..core.phone import PhoneMixin
 from ..core.registry import RegistryMixin
 from ..core.render import RenderMixin
 from ..core.sales import SalesMixin
@@ -95,6 +96,7 @@ class Cockpit(
     MessagesMixin,
     ChatMixin,
     AutoProductionMixin,
+    PhoneMixin,
     SalesMixin,
     DeliveryMixin,
     CharactersMixin,
@@ -565,6 +567,10 @@ async def _conversation_page(request: web.Request) -> web.Response:
                 test_session=d["test_session"],
                 test_pay_word=d["test_pay_word"],
                 test_auto_pay=bool(d["test_auto_pay"]),
+                phone_approval=bool(d["phone_approval"]),
+                approve_word=d["approve_word"],
+                redo_word=d["redo_word"],
+                refund_word=d["refund_word"],
                 account_modes=[
                     channel_pb2.AccountMode(key=a["key"], mode=a["operating_mode"])
                     for a in store.channel_accounts()

@@ -532,6 +532,10 @@ class ProfilesMixin:
             "test_delay",
             "test_pay_word",
             "test_auto_pay",
+            "phone_approval",
+            "approve_word",
+            "redo_word",
+            "refund_word",
         }
         unknown = set(fields) - allowed
         if unknown:

@@ -266,11 +266,13 @@ class AutoProductionMixin:
         offer = self.store.offer(order.id)
         _product, figure = self._order_figure(offer or {})
         if figure is None or figure.get("approval_mode") != "system":
-            return  # Freigabeart Betreiber
+            await self._phone_preview(order, "Freigabeart Betreiber")  # Ausnahmeweg Handy
+            return
         if order.kind == "video":
             self._production_notice(
                 order, f"FREIGABE DURCH BETREIBER · {order.order_no} · Video (E23)"
             )
+            await self._phone_preview(order, "Video (E23)")
             return
         if missing := selection.unqualified(self.cfg.selection):
             labels = ", ".join(selection.LABELS[n] for n in missing)
@@ -278,6 +280,7 @@ class AutoProductionMixin:
                 order, f"FREIGABE DURCH BETREIBER · {order.order_no} · Prüfung nicht qualifiziert "
                 f"({labels})",
             )  # fmt: skip
+            await self._phone_preview(order, "Prüfung nicht qualifiziert")
             return
         result = self._order_result(order)
         if result is None:
@@ -296,6 +299,7 @@ class AutoProductionMixin:
             self._production_notice(
                 order, f"FREIGABE DURCH BETREIBER · {order.order_no} · Prüfung: {why}"
             )
+            await self._phone_preview(order, f"Prüfung: {why}")
             return
         checks = {k: v for k, v in verdict.values.items()} | {"score": verdict.score}
         if reason := await self._approve(order, result, "System", checks):
