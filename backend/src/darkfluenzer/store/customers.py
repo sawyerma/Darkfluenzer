@@ -145,9 +145,15 @@ class CustomersMixin:
             self.bump("customers")
 
     def customer_events(self, after: int, limit: int) -> tuple[list[dict], bool]:
+        """Ereignisse für EVENT 26 (BUG-048): Akten-Ereignisse und jede neue Nachricht einer Akte
+        (Eingang, Sendung, Systemkarte) – Liste, Ungelesen und Übersicht folgen ohne Öffnen."""
         rows = self.db.execute(
-            "SELECT e.id AS cursor, e.created_at AS committed_at, e.entity_id AS customer_id"
-            " FROM events e WHERE e.entity = 'customer' AND e.id > ? ORDER BY e.id DESC LIMIT ?",
+            "SELECT e.id AS cursor, e.created_at AS committed_at,"
+            " CASE WHEN e.entity = 'customer' THEN e.entity_id"
+            "  ELSE json_extract(e.data, '$.customer_id') END AS customer_id"
+            " FROM events e WHERE e.id > ? AND (e.entity = 'customer' OR (e.entity = 'message'"
+            "  AND e.event = 'added' AND json_extract(e.data, '$.customer_id') IS NOT NULL))"
+            " ORDER BY e.id DESC LIMIT ?",
             (after, limit + 1),
         ).fetchall()
         recent = [dict(r) for r in rows[:limit]]

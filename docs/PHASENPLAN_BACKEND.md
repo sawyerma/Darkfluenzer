@@ -591,6 +591,7 @@ Ersetzt H1, H2-Rest, S1 und den Kontenteil von C5.1. Grundlage: Code-Vergleich v
 3. **Kundenereignisse (`store.customer_events`).**
    - Heute: nur `created`, `named`, `read`, `age`, `updated`. Ein Eingang schreibt ein Nachrichtenereignis.
    - Neu: die Abfrage liefert zusätzlich die Nachrichtenereignisse `added`, die `customer_id` tragen. Keine Datenbankänderung.
+   - **Umgesetzt 18.11.2026:** `customer_events` liefert zusätzlich jedes `message added` mit `customer_id` (Eingang, eigene Sendung, Systemkarte); keine Datenbankänderung. Nachweis: `test_known_customer_message_reaches_customer_events_bug048` (mit der alten Abfrage rot). Mac-Lauf mit echter zweiter Nachricht NOT_RUN.
 4. **Ein TDLib-Empfänger (`channels/tdjson.py`).**
    - Heute: je `TdJson` ein Thread, der `td_receive` aufruft und Ereignisse anderer Clients verwirft. Nach dem Abmelden entsteht ein zweiter Thread.
    - Neu: genau ein Empfangsthread je Prozess, der nach `@client_id` an registrierte Clients verteilt. `TdJson.close()` meldet ab.

@@ -564,3 +564,17 @@ def test_cloner_command_workflows_reference_and_edit(cloner_cfg):
         assert params["keep"]  # Pflichtwert aus dem geprüften Graph
 
     _run(cfg, scenario)
+
+
+def test_known_customer_message_reaches_customer_events_bug048(tmp_path):
+    """BUG-048: die zweite Nachricht eines bekannten Kunden erzeugt ein Kundenereignis (EVENT 26)
+    mit gestiegenem Ungelesen, ohne die Akte zu öffnen."""
+    store = Store(tmp_path / "local")
+    first = _inbound(store, "1", "42", "hallo", "10")
+    cursor = max(r["cursor"] for r in store.customer_events(0, 100)[0])
+    _inbound(store, "2", "42", "bist du da?", "11")  # bekannter Kunde
+    rows, _ = store.customer_events(cursor, 100)
+    assert [r["customer_id"] for r in rows] == [first.customer.id]
+    (summary,) = store.customers_overview(first.customer.id)
+    assert summary["unread"] == 2 and summary["last_text"] == "bist du da?"
+    store.close()
