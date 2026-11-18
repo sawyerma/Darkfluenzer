@@ -1,5 +1,7 @@
 # DarkStudio – verbindlicher Protobuf-Routing- und Feldvertrag (18.11.2026)
 
+> **Korrektur durch Audit III:** Backend §13.18 und Frontend §6.13 haben Vorrang vor den älteren Darstellungen dieser Datei. Die zweite README ist nicht normativ.
+
 ## Feldkatalog-Prüfung II – **verbindliche bereinigte Felder** (18.11.2026)
 
 **Normativ:** [Studio_Protobuf_Feldkatalog.csv](Studio_Protobuf_Feldkatalog.csv) enthält für **alle ursprünglichen 1.781 Zeilen** die neuen Spalten `Vertragsstatus`, `Zieltyp_oder_Name`, `Grund_und_Eigentuemer` sowie **53 neue, ausdrücklich nur geplante Feldzeilen**. **[Studio_Protobuf_Routing_Vollstaendig.csv](Studio_Protobuf_Routing_Vollstaendig.csv)** enthält die nach Entdoppelung verbliebenen Vorschlagsrouten plus sieben bedarfsgebundene Ergänzungen. **Die ursprüngliche Markdown-Feldliste und [README_STUDIO_PROTOBUF.md](README_STUDIO_PROTOBUF.md) sind ab jetzt ausschließlich historische Quellen**; der ungefilterte alte Typbaum darf nicht automatisch in ausführbare Proto-Dateien umgewandelt werden.
@@ -7,14 +9,14 @@
 ### I. Verifizierte Duplikate / keine zweite Wahrheit
 
 - STATE **44/47/48** wurden bereits in der vorherigen Bereinigung verworfen. Stattdessen bestehende `TOPIC_JOBS_ACTIVE=2`, `TOPIC_RESOURCES=7`, `TOPIC_COMFY_INSTANCES=6`, `TOPIC_CHARACTERS=5` **additiv erweitern**. `StudioStoryboardsState.recent` ist eine **kleine `StudioStoryboardSummary`**, kein eingebettetes vollständiges Storyboard. Bei sehr vielen Einträgen bounded/paginiert.
-- `StudioModelCatalog` und `StudioCatalog` **als separate Typen entfallen**. Fähigkeiten und Modellauswahl sind **Projektionen einer** vorhandenen Workflow-/Modellregistry (`TOPIC_COMFY_WORKFLOWS=3`), ohne zweite Registrierungs-/Qualifikationsdatenbank. `StudioModelCapability` darf als normalisierte Registry-Projektion bestehen, Qualifikation ausschließlich aus realem Messlauf, niemals `studio_model_set_qualification=130`.
+- `StudioModelCatalog` und `StudioCatalog` **als separate Typen entfallen**. Fähigkeiten und Modellauswahl sind **Projektionen einer** vorhandenen Workflow-/Modellregistry (`TOPIC_COMFY_WORKFLOWS=3`), ohne zweite Registrierungs-/Qualifikationsdatenbank. `StudioModelCapability` entfällt als separate parallele Protobuf-Nachricht; bestehendes `WorkflowInfo/WorkflowParam` wird bei Bedarf um Capabilities ergänzt. Vier produktive Gates, `usage=production` und reale Messwerte bleiben bindend; niemals `studio_model_set_qualification=130`.
 - `StudioAssetRef.asset_id` und `existing_reference_id` **entfallen**; die Dateireferenz heißt allein `media_id:uint64`, die schon vorhandene Medien-ID. `StudioReference.reference_binding_id` ist nur eine **Bindungsrelation** mit Rolle auf eine Medien-ID, kein zweiter Dateischlüssel. Medien und Upload bleiben im einen vorhandenen Speicher.
 - `StudioApprovalRecord` entfällt als zweites Betreiber-Freigabesystem; interne Studio-`Review`-Messung ist **keine** Lieferfreigabe. Kundenmodule besitzen Zahlung, Freigabe und Handoff samt Gate/Trigger; Produkt entscheidet `customer_enabled`, niemals Task/Flow/FlowSummary. `StudioPromptTemplate` ist nur eine **neue Rollen-Sicht auf den einen vorhandenen E19-Promptprofil- und Versionsmechanismus**, keine zweite Promptdatenbank.
 
 ### II. Client-Vertrauen / Security-Grenzen – Pflicht bei DS0/DS2/3
 
 - `CommandRequest.oneof.studio_production_submit = 105` trägt künftig **`StudioProductionIntent`** (ausschließlich Aufgabe, Rezeptreferenz/-revision, eigenes Projekt, eigene Figur, freigegebene Medienreferenzen, strukturierte Eingabe und Ausgabeprofil). `StudioProductionRequest` bleibt **serverinternes**, aus Auth-Session/Order/Product/E33 zusammengesetztes DTO. Client darf weder `source`, `external_order_id`, `test_order`, `operator_id`, `priority`, `content_tier` noch `expected_order_revision` oder Service-Budget-/Zahlungsstatus festlegen. Das Backend validiert jede Referenz, Entitlement, Revision und Nachricht.
-- **Keine Rohdaten im COMMAND**: `StudioAssetImport.inline_bytes` entfällt; Bild-/Video-Bytes ausschließlich über den vorhandenen authentifizierten Upload/Media-Transport, nach SHA-/Eigentümerprüfung. `StudioAssetImport.content_tier` und `allowed_for_external_provider` entfallen als Browser-Autorisierung. Inhaltsstufe bestimmt die geprüfte Quelle/Workflow und bestehende Regel 13: unbekannt wird **wie explizit behandelt**, nie vom Client heruntergestuft.
+- **Ein zentraler Import-Owner:** Das veröffentlichte `InputFile.data` im authentifizierten und größenbegrenzten Command bleibt zulässig. Neues `StudioAssetImport.inline_bytes` als zweiter Byteweg und `staged_upload_id` ohne implementierte Staging-Route entfallen; Typ, SHA, Herkunft, Inhaltstier und Berechtigung prüft derselbe Media-Owner. `StudioAssetImport.content_tier` und `allowed_for_external_provider` entfallen als Browser-Autorisierung. Inhaltsstufe bestimmt die geprüfte Quelle/Workflow und bestehende Regel 13: unbekannt wird **wie explizit behandelt**, nie vom Client heruntergestuft.
 - `StudioCreativeBrief.original_wish` und `questions_to_customer` entfallen, Kundentext und Antworten bleiben im **customers**-Modul; das Studio sieht nur ein datensparsames, typisiertes, nicht-identifizierendes Produktionsbriefing und ausschließlich lokale KI. In `StudioShotActor.use_source_identity`, `StudioActorRig.transfer_source_appearance` und **`StudioBlockingSettingsUpdate.transfer_source_appearance`** entfallen alle drei Quell-Identitäts-/Appearance-Übernahmen; Referenzvideos liefern nur Bewegung, Pose, Kamera und Komposition.
 - **Kein Cloud-/Engine-Fallback**: `allow_fallback`, `fallback_enabled`, `fallback_model_ids` und über den Client steuerbare `allow_cloud`-Felder entfallen; externe Anbieter standardmäßig AUS bis ausdrückliche E33-Entscheidung. Kein `allow_customer_text_transfer`. Ein Netzwerk-`timeout_ms` zum Erkennen einer Provider-Verbindungsstörung ist **nicht** mit dem verbotenen Abbruch eines laufenden ComfyUI-Renders gleichzusetzen: `StudioNodeDefinition.timeout_ms`, `StudioNodeRun.timeout_ms` und `StudioFlowDefinition.max_runtime_ms` entfallen als Renderabbruch. Crash-/Reconnect-Reconciliation bleibt Pflicht.
 - `StudioShot.image_model`, `video_model` und `lora` entfallen als freie per-Shot-Wahl; nur kompatibles qualifiziertes Rezept/Character-Version. `StudioNodeDefinition.model`/`lora` nur aus Registry-/Rezeptrevision ableiten. Es gibt keine manuelle PASS-Schaltfläche; Qualifikation nur mit gespeicherten realen Prüfläufen.
@@ -43,15 +45,15 @@
 
 ## Verbindliche NO-LEGACY-Bereinigung (18.11.2026) – Vorrang vor historischen Bruttozahlen
 
-**Einzige verbindliche Routing-Matrix:** [Studio_Protobuf_Routing_Vollstaendig.csv](Studio_Protobuf_Routing_Vollstaendig.csv). **113 dokumentierte Routenzeilen** (**106 ursprüngliche** plus sieben geprüfte Erweiterungen) wurden einzeln mit `NEU_BEI_PAKETBEDARF`, `BESTAND_ERWEITERN` oder `ENTFAELLT_NICHT_IMPLEMENTIEREN` entschieden. **16 entfallen als Duplikate**, sodass höchstens **90 Einträge** umgesetzt werden, davon einige nur als Adapter/Erweiterung bereits existierender Fachfunktionen. **Nicht alle 90 müssen umgesetzt werden:** jede Einheit entsteht erst mit benanntem Aufrufer und echtem Paket.
+**Einzige verbindliche Routing-Matrix:** [Studio_Protobuf_Routing_Vollstaendig.csv](Studio_Protobuf_Routing_Vollstaendig.csv). **113 dokumentierte Routenzeilen** (**106 ursprüngliche** plus sieben geprüfte Erweiterungen) wurden einzeln mit `NEU_BEI_PAKETBEDARF`, `BESTAND_ERWEITERN` oder `ENTFAELLT_NICHT_IMPLEMENTIEREN` entschieden. **16 entfallen als Duplikate**, sodass höchstens **97 Einträge** verbleiben (84 neu bei Paketbedarf und 13 Bestands-Erweiterungen), davon einige nur als Adapter/Erweiterung bereits existierender Fachfunktionen. **Nicht alle 97 müssen umgesetzt werden:** jede Einheit entsteht erst mit benanntem Aufrufer und echtem Paket.
 
 | Klasse | Ursprünglich | Entfallen | Maximal vorgesehen |
 |---|---:|---:|---:|
-| COMMAND | 59 | 7 | 52 |
+| COMMAND | 61 | 7 | 54 |
 | STATE | 9 | 3 | 6 |
 | EVENT | 14 | 3 | 11 |
-| READ | 24 | 3 | 21 |
-| **Gesamt** | **106** | **16** | **90** |
+| READ | 29 | 3 | 26 |
+| **Gesamt** | **113** | **16** | **97** |
 
 **Verworfene Solltags:** COMMAND 120–122 (Bestands-Charaktere/Training), 128–130 (Bestands-Registry), 154 (Bestandsqueue); STATE 44 (Queue), 47 (Ressourcen), 48 (Charaktere); EVENT 62 (Assets), 67 (Charaktere), 70 (Handoff); READ 3 (Medienliste), 5 (Trainingsliste), 19 (Media-Metadaten). Diese wurden **noch nie** in `commands.proto`/`stream.proto` publiziert, daher gibt es aktuell keinen Wire-Entzug. Für künftige Studio-Schemas sind sie als zurückgezogene Vorschlagsnummern im Vertragsregister sichtbar und **dürfen ohne neue Freigabe nicht für andere Zwecke wiederverwendet** werden. Existierende alte Wire-Felder bleiben als Proto-v1-Kompatibilitätsdaten protokollseitig stabil, ihre **Handler/Alt-Dispatcher** werden nach Cutover entfernt.
 
@@ -70,7 +72,7 @@
 | Datei | Rolle |
 |---|---|
 | [Studio_Protobuf_Routing.csv](Studio_Protobuf_Routing.csv) | Hochgeladene Reservierung: **historische Vorschlagsmatrix 59 COMMAND, 9 STATE, 14 EVENT; nur der Status der bereinigten Routing-Volltabelle entscheidet** |
-| [Studio_Protobuf_Routing_Vollstaendig.csv](Studio_Protobuf_Routing_Vollstaendig.csv) | **106 ursprünglich spezifizierte Routen mit verbindlichem Status je Zeile**: 16 entfallen, höchstens 90 bleiben vorgesehen |
+| [Studio_Protobuf_Routing_Vollstaendig.csv](Studio_Protobuf_Routing_Vollstaendig.csv) | **113 Routingzeilen (106 ursprüngliche + 7 neue) mit verbindlichem Status je Zeile**: 16 entfallen, höchstens 97 bleiben bedarfsgebunden |
 | [Studio_Protobuf_Alle_Felder.md](Studio_Protobuf_Alle_Felder.md) | Hochgeladener Typ-/Feldkatalog: **195 Nachrichten, 1.781 Felder** mit Proto-Tags |
 | [Studio_Protobuf_Feldkatalog.csv](Studio_Protobuf_Feldkatalog.csv) | Aus der Markdown-Feldliste deterministisch abgeleitete maschinenlesbare Feldmatrix |
 | [README_STUDIO_PROTOBUF.md](README_STUDIO_PROTOBUF.md) | Hochgelieferte fachliche Transport-/DS-Spezifikation und GUI-Feldzuordnung |
@@ -92,7 +94,7 @@ flowchart LR
   STATE --> GUI
   EVENT --> GUI
   RECEIPT --> GUI
-  GUI -->|"StudioReadRequest: 24 Query-Varianten"| READ["POST /api/v1/studio/read: vorgesehen"]
+  GUI -->|"StudioReadRequest: bis 26 bedarfsgebundene Query-Varianten"| READ["POST /api/v1/studio/read: vorgesehen"]
   READ -->|"StudioReadResponse: paginierte Details"| GUI
   SERVICE -->|"nur verifizierter Export"| COORD["Koordinator/Handoff → Kunden-Gate"]
   COORD --> DISPATCH["Nur Kundenmodul: Zustellung"]
@@ -100,7 +102,7 @@ flowchart LR
 
 **Transportpflicht:** Mutation **nur** bestehender `CommandRequest` mit UUID `request_id` und CAS/erwarteter Revision; identische `request_id` + identischer Inhalt = idempotent, abweichender Inhalt = Fehler. `ACCEPTED` ist keine abgeschlossene Produktion. Terminaler `CommandReceipt` auf Topic 29, anschließend versionskonsistentes STATE/EVENT; Reconnect mit Cursor-/Gap-Abgleich. **Keine direkten Frontend-Aufrufe an ComfyUI, Cloud-Provider, SQL oder Media-Pfade.**
 
-**Read-Route (neu festgelegte SOLL-Schnittstelle):** `POST /api/v1/studio/read` mit `application/x-protobuf`, Body `StudioReadRequest`, Antwort `StudioReadResponse`, dieselbe Sitzung/CSRF-/Autorisierungsprüfung wie COMMAND. Serverseitig **genau eine** der 24 Leseoperationen verlangen. Nur bei Navigation/Detailöffnung/Filter/Revisionswechsel/Reconnect lesen, **kein Polling**, vollständige große Graphen nie periodisch im WS-STATE. Diese Route ist **noch nicht implementiert**; ihre genaue Route ist hier als verbindliches Integrationsziel festgelegt.
+**Read-Route (neu festgelegte SOLL-Schnittstelle):** `POST /api/v1/studio/read` mit `application/x-protobuf`, Body `StudioReadRequest`, Antwort `StudioReadResponse`, dieselbe Sitzung/CSRF-/Autorisierungsprüfung wie COMMAND. 29 READ-Tags sind dokumentiert, davon 3 gestrichen und maximal 26 bedarfsgebunden; serverseitig **genau eine tatsächlich implementierte** Leseoperation je Anfrage verlangen. Nur bei Navigation/Detailöffnung/Filter/Revisionswechsel/Reconnect lesen, **kein Polling**, vollständige große Graphen nie periodisch im WS-STATE. Diese Route ist **noch nicht implementiert**; ihre genaue Route ist hier als verbindliches Integrationsziel festgelegt.
 
 ## Priorität und ausdrücklich zu lösende Konflikte
 
@@ -110,7 +112,23 @@ flowchart LR
 4. **Liefer-Gate:** Studio hat **keinen Kunden-Senden-Command**. Koordinator schreibt `production_handoffs` ausschließlich über Kunden-Repository. Beide SQLite-Trigger prüfen `ready`, SHA, Revision, aktuelle Freigabe und Zahlung bzw. **alle fünf SPEC-008-Testbedingungen**; zusätzlich aktuelle Studio-Berechtigung und Bytes-Hash unmittelbar vor Dispatch. Widerruf wirkt auch nach vorheriger Freigabe.
 5. **Geheimnisse:** `StudioProviderSecretReplace.secret_utf8` ist strikt **write-only**; Backend muss Raw-Payload **vor Command-Journal, Tracing, Receipt, Logs, Snapshot und Crash-Berichten** ausnehmen. Speicherung ausschließlich im Schlüsselbund, niemals in SQLite/STATE/EVENT/CommandAudit. Vor echter Integration gesonderter Secret-Roundtrip-/Leak-Test.
 6. **Typvalidierung:** Proto3 ist keine fachliche Validierung. `StudioValue` trägt acht mögliche Werte ohne im gelieferten Feldverzeichnis sichtbares `oneof`; eine eindeutige Variante muss beim späteren .proto-Entwurf erhalten/gesichert und serverseitig validiert werden. `StudioReadRequest` muss genau eine Query enthalten. Eine deklarierte Nodefähigkeit/Control-Kombination ist noch kein Mac-Eignungsnachweis. Hochfrequente `StudioCameraSensorSample`-Daten bleiben beim Adapter, nicht in STATE.
-7. **Betrieb:** Alle Source-Felder/Tagnamen der drei Uploads bleiben erhalten. Bei Konflikt gehen die gültigen Produktregeln und Backend/Frontend-Phasenpläne vor; **dieser Index präzisiert die technische Integration**, ohne Kunden-, Schutz- oder Zahlungsregeln aufzuheben.
+7. **Betrieb:** Die vorgeschlagenen Herkunftstags bleiben im Feldkatalog dokumentiert, gestrichene Vorschlagsfelder werden nicht generiert; veröffentlichte v1-Wire-Tags dürfen nicht gelöscht werden. Bei Konflikt gehen die gültigen Produktregeln und Backend/Frontend-Phasenpläne vor; **dieser Index präzisiert die technische Integration**, ohne Kunden-, Schutz- oder Zahlungsregeln aufzuheben.
+
+## Audit III – maßgeblicher Bestandsvertrag (18.11.2026)
+
+**Status:** Normativer SOLL-Nachtrag, weder sechs kompilierte Studio-Protos noch Mac-/Handler-PASS. Backend §13.18 konkretisiert die Auftrags- und Cutoverlogik; Frontend §6.13 die einzige GUI. Kein zweiter SecretStore, AssetStore, Executor oder Eventjournal.
+
+1. **Auftragsmodell:** \`ActiveOrder\` führt heute die drei Quellen gemeinsam. Nach DS8 enthält \`customers/orders\` nur Kunden-Bestellungen (Angebot, Zahlung, Freigabe, Zustellung) mit \`production_id\`; Betreiber- und Default-Aufträge sind Studio-Produktionsläufe. Historische \`OrderStage\`/\`StageJob\`-Daten bleiben lesbar, neue Altstufen werden nach Cutover nicht mehr geschrieben. TOPIC 4 nur Kunden-Auftrag, TOPIC 41 die tatsächlichen Produktionen.
+2. **Vorhandene Protobuf-Typen priorisieren:** \`Resources\` (7), \`JobsActive/ActiveJob\` (2), \`ComfyInstances\` (6), \`WorkflowInfo/WorkflowParam\` (3), \`Character/CharacterLora/TrainingCheckpoint\` (5), \`MediaItem/MediaKind\`, \`MediaCheck\` sind Fachquellen. \`StudioResourceState\`, \`StudioQueueItem\`, \`StudioCharacterSheet\`, \`StudioTrainingRun\`, \`StudioModelCapability\`, \`StudioParameterSpec\`, \`StudioLoraRef\`, \`StudioQualityCheck\` entfallen als separate parallele Bestandsnachrichten; \`StudioMediaKind\` entfällt zugunsten des vorhandenen \`MediaKind\`. Echte neue Fachobjekte nur bei Paketbedarf.
+3. **Keine Datenreduktion:** \`ActiveJob.unknown/stalled_s\`, bestehende Klassen \`customer/default/cockpit/training\`, die vier Engine-Gates und \`WorkflowInfo.usage/content\` sowie alle \`MediaCheck\`-Einzelwerte bleiben erhalten. Eine Quelle \`operator\` wird für Jobpriorität auf \`cockpit\` abgebildet. \`gpu_busy_percent\` darf ohne gemessene M4-Quelle nicht generiert oder als UI-Wert vorgetäuscht werden.
+4. **Medien ohne Kundenidentität in Studio:** Veröffentlichte \`MediaItem\`-Tags \`caption/order_no/customer_no\` bleiben Wire-kompatibel. Studio-Leseweg/STATE gibt nur neutrale Medienreferenz (\`media_id\`, SHA, neutrale Metadaten) aus; die Kundenansicht ergänzt ihren Kontext ausschließlich über berechtigte Kundenprojektionen.
+5. **Alte Befehle nicht reservieren:** Bereits belegte Command-Tags **12, 21, 22, 24 und 38** bleiben samt Payloads erhalten. Erst nach DS8-Cutover wird die alte fachliche Ausführung entfernt/auf den einen \`ProductionClient\` umgestellt; nie eine zweite Live-Kette. \`studio_chat=49\` und \`studio_session_reset=50\` bleiben Melody-KI-Test, nicht Medien-Studio.
+6. **Eine CAS-Prüfung:** \`CommandRequest.expected_version\` (Tag 2) ist der maßgebliche serverseitige Aggregat-CAS. Doppelte geplante \`expected_revision\`-Felder in Studio-Command-Payloads entfallen. \`expected_version=0\` nur bei Neuanlage oder nachgewiesen unversionierter Bestandsaktion, nicht als Umgehung einer vorhandenen Studio-Revision. Referenz-/Rezeptrevisionen werden gesondert auf Gültigkeit geprüft, nicht als zweite CAS-Instanz.
+7. **Ein Import:** Bereits veröffentlichtes \`InputFile.data\` darf über die bestehende Session-/CSRF-/Größen-/Typ-/SHA-/Rechte-geprüfte Media-Importlogik laufen. \`StudioAssetImport.inline_bytes\` und \`staged_upload_id\` ohne Staging-Endpunkt entfallen. COMMAND 108 darf nur denselben Media-Owner nutzen. Keine zweite \`asset_id\`, Galerie oder Uploadpipeline.
+8. **Nur eine manuelle Kundenfreigabe:** Studio-QC automatisch aus realen Prüfdaten, Rezept verschärft nur Qualitätstore; notwendige Operatorfreigabe beim Kunden einmal über \`ApproveArtifact=34\` oder den verifizierten Handyweg. \`studio_export_review=150\` nur Eigenstudio. Handoff/Widerruf, Zahlung/Testausnahme, Inhaltsstufe, Hash und Revision weiterhin vor dem Versand prüfen.
+9. **Abnahme:** DS0 inventarisiert Wire-/Feld-/Owner-Status, verifiziert Typgraph, CAS/Upload-/Rechte-Tests; DS8 migriert idempotent alle Quellen und belegt bestehende Historie, keine alten Writes, ein Executor, ein Freigabeklick und echte Kurzläufe. Dokumentation ist kein PASS.
+
+**Korrigierte Zählung:** 113 dokumentierte Routenzeilen (106 ursprünglich + 7 ergänzt), 16 gestrichen, maximal **97 bedarfsgebunden**: 54 COMMAND, 6 STATE, 11 EVENT, 26 READ. Die originale zweite README ist keine gültige konkurrierende Spezifikation.
 
 ## Noch fehlende ausführbare Proto-Quellen – ausdrücklich offen
 

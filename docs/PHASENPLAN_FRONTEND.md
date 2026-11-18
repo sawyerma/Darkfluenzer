@@ -327,7 +327,7 @@ flowchart TD
   SET --> REC["Passendes qualifiziertes Rezept und Engine-Capabilities"]
   REC -->|gefunden| PRE["Bestätigte Einstellungen / Kosten / Gates"]
   REC -->|nicht qualifiziert| NO["NO_QUALIFIED_RECIPE mit Grund / Betreiberwahl"]
-  PRE --> CMD["Protobuf COMMAND mit request_id und expected_revision"]
+  PRE --> CMD["Protobuf COMMAND mit request_id und expected_version"]
   CMD --> RCPT["ACCEPTED: production_id; nicht abgeschlossen"]
   RCPT --> EVT["STATE/EVENT: NodeRuns und Fortschritt"]
   EVT --> RESULT["Vorschau / Ergebnis / QC / Export / Datei"]
@@ -368,7 +368,7 @@ sequenceDiagram
   participant DB as SQLite / Eventjournal
   participant Media as ComfyUI oder Blender
   Betreiber->>GUI: Aufgabe + Figur + Input + Erstellen
-  GUI->>WS: COMMAND(request_id, expected_revision)
+  GUI->>WS: COMMAND(request_id, expected_version)
   WS->>CMD: validieren, Scope und Rechte
   CMD->>Studio: submit(ProductionRequest)
   Studio->>DB: Produktion / NodeRuns persistieren
@@ -607,7 +607,7 @@ flowchart TD
 
 | Bedienbereich | Verbindlicher Weg | Fachliche Konsequenz |
 |---|---|---|
-| **Erstellen** | `StudioTaskProfile`, `StudioRecipeVersion`, `StudioCreativeBrief`, `StudioProductionRequest`; Commands 100–111, 105–107; STATE 40/41/42; EVENT 60–64 | Aufgabe → Rezept/Referenz/Prompt → echter Lauf und Status |
+| **Erstellen** | `StudioTaskProfile`, `StudioRecipeVersion`, `StudioCreativeBrief`, `StudioProductionIntent` (serverintern: `StudioProductionRequest`); Commands 100–111, 105–107; STATE 40/41/42; EVENT 60–64 | Aufgabe → Rezept/Referenz/Prompt → echter Lauf und Status |
 | **Storyboard/Regie** | Script-/Storyboard-/Scene-/Shot-/Camera-/SceneSpec-/Guide-/Timeline-Felder; Commands 112–118, 143–150, 154; STATE 43; EVENT 64/68/71 | Revisionssichere Shot-/Blocking-/Kameraführung; nur qualifizierte Adapter |
 | **Charaktere** | `StudioCharacterSheet`, `StudioLoraRef`, `StudioTrainingRun`, `StudioLookPreset`; entsprechende katalogisierte Commands; STATE 48; EVENT 67 | reale Charakter- und LoRA-Registry, keine zweite Datenhaltung |
 | **Projekte / Exporte** | `StudioProject`, `StudioProduction`, `StudioExportManifest`, `StudioHandoffValidity`; STATE 41/42; EVENT 60/63/69/70 | Studio zeigt Export, Kunden-Gate allein verantwortet Zustellung |
@@ -638,12 +638,31 @@ flowchart TD
 **Vorrang vor §6.10 und historischen UI-Schema-Skizzen:** [bereinigte Studio-Protobuf-Feldtabelle](../protocol/contracts/studio/Studio_Protobuf_Feldkatalog.csv), [bereinigte Routingtabelle](../protocol/contracts/studio/Studio_Protobuf_Routing_Vollstaendig.csv) und Backend **§13.17**. Die neu reservierten **COMMAND 159–160 und READ 25–29** sind Paket-SOLL, keine jetzt funktionsfähigen Buttons.
 
 - **Erstellen:** Der Browser darf nur Aufgabe, validierte Figuren-/Medienreferenzen, kreativen strukturierten Inhalt, Rezeptrevision und Ausgabeformat über `StudioProductionIntent` senden. **Kundenauftrag, Teststatus, Priorität, Inhaltsstufe, Zahlungen, Freigaben und externe Anbieterrechte sind niemals vom Frontend bestimmbar**. `source = customer` entsteht nur aus einem berechtigten Backend-Auftragsaufruf.
-- **Dateien / Referenzen:** ein bestehender gesicherter Upload, eine `media_id`, kein `inline_bytes` im Command; unbekannte Inhaltsstufe ist nicht frei als „standard“ setzbar. Studio-Karten zeigen dieselben Medien über IDs/Filter.
+- **Dateien / Referenzen:** ein zentraler, geprüfter Dateiimport mit bestehendem `InputFile.data` (kein zusätzliches `StudioAssetImport.inline_bytes`/undefiniertes Staging), eine `media_id`; unbekannte Inhaltsstufe ist nicht frei als „standard“ setzbar. Studio-Karten zeigen dieselben Medien über IDs/Filter.
 - **Labor / Modelle / Regie:** nur qualifizierte aktive Rezeptversionen, keine frei pro Shot gesetzten `image_model/video_model/lora`-Bypässe, keine manuell klickbare Modellqualifikation. E19-Promptprofile sind auch für Regie-Rollen dieselbe fachliche Versionierung.
 - **Storyboard / Pose / Torentscheidung:** Speichern und Lesen der Pose-Spur und gezieltes SceneRemove nur nach echter Aktivierung des jeweiligen DS-Pakets; ProductionControl benötigt konkreten Schritt, Urteil und ausgewählten Kandidaten. Nur kurze STATE-Zusammenfassungen, vollständige Szenen/Guide-Pässe/NodeRuns per autorisiertem READ.
 - **Sicherheit:** Keine Felder für fremde Personenidentität/Appearance-Transfer, keine Cloud-Fallback-Schalter, kein automatischer ComfyUI-Renderabbruch und keine separat im Studio vergebene Kunden-Freigabe. Nicht implementierte, gestrichene Felder werden aus DOM/Controls entfernt, nicht als zweiter Bedienweg angezeigt.
 
 **Browser-Abnahme:** manipulierte Protobuf-Payload mit `test_order`, `source`, `content_tier`, fremder `media_id`, unqualifiziertem Rezept oder Cloudtransfer muss serverseitig abgewiesen werden; `ACCEPTED` und späterer `COMPLETED` bleiben unterschiedliche Zustände. Kein GUI-PASS ohne echten Backend-Handler, Protobuf-Schema-/Feldtests und Mac-Kurzlauf.
+
+### 6.13 Drittes Audit – eindeutige GUI-/Backend-Grenzen
+
+**Verbindlicher Nachtrag zu §6.10–6.12 und F7; Backend §13.18 hat Vorrang. SOLL, nicht als implementiert nachgewiesen.**
+
+| UI-Funktion | Einziger Bedien- und Datenweg | Abnahmekriterium |
+|---|---|---|
+| Betreiber, Default/Kloner und Kunde | eine \`production_id\`, ein Executor, ein NodeRun- und Medien-/SHA-Verlauf; Studio/Projekte und Kundenkarte öffnen denselben Run | \`ActiveOrder\` ab DS8 nur kaufmännischer Kundenauftrag mit Produktionsverweis, keine zweite aktive Stufenmaschine |
+| Queue und Ressourcen | bestehende \`JobsActive\` (2), \`Resources\` (7), \`ComfyInstances\` (6) | \`unknown\`, \`stalled_s\` und Priorität bleiben sichtbar, keine redundante Queue/Resource-STATE |
+| Modelle und Parameter | bestehende \`WorkflowInfo/WorkflowParam\` (3), vier Engine-Gates, \`usage\` und \`content\` | keine \`StudioModelCapability\`-/\`StudioParameterSpec\`-Kopie, keine erfundenen PASS-Werte |
+| Charaktere, LoRA, Training | bestehende \`Characters\` (5), \`CharacterLora\`, \`TrainingCheckpoint\`, Befehle 25/64/67 | keine zweite Registry, Training bleibt beim einen Job-Owner |
+| Medien und QC | bestehende \`MediaItem.media_id\`, \`MediaKind\`, \`MediaCheck\`, Revisions-/Hash-Referenzen | Studio zeigt keine personenbezogenen \`caption/order_no/customer_no\`; Kunden-UI reichert autorisiert an |
+| Kandidaten-/Schrittkontrolle | ein \`StudioProductionControl\` mit production_id, node_run_id, verdict und selected_media_id | ersetzt nach DS8 die *fachliche* Auswahl von Command 22, nicht dessen veröffentlichtes Proto-Tag |
+| Kundenfreigabe | **einmalig** \`ApproveArtifact=34\` oder verifizierte Handy-Freigabe, sofern nötig | Studio-Review 150 nur Eigenproduktion; Kunden-Studio-QC automatisch, kein zweiter Pflichtklick |
+| Mutationen und Versionen | \`CommandRequest.expected_version\` als einzige CAS-Prüfung auf adressiertem Fachaggregat | kein zusätzlicher payloadinterner \`expected_revision\`-CAS; veraltete Revision abweisen |
+| Upload und Referenzen | ein zentraler geprüfter \`InputFile.data\`-Import und danach eine \`media_id\` | kein \`inline_bytes\`-Zweitweg oder \`staged_upload_id\` ohne echten Endpunkt |
+| KI-Test | vorhandene Befehle 49/50 | als **Melody-KI-Test** beschriften, nicht als Medien-Studio-Kommandos |
+
+**Zusätzliche Tests:** Studio/Erstellen, Default-Kloner, Kundenakte, Dateien und Reconnect müssen auf denselben persistenten Run und dieselben Artifakt-IDs zugreifen; alte abgeschlossene/laufende Aufträge müssen lesbar bleiben. Ein Kunden-Gate darf nicht aus einem Studio-COMPLETED den Status DELIVERED ableiten. Keine Bedienung ohne verfügbaren Backend-Handler; nicht implementierte Funktionen deaktiviert und mit Grund. \`gpu_busy_percent\` nur bei reproduzierbarer M4-Telemetrie, sonst nicht anzeigen.
 
 ## Anhang A – Freigegebene Klickreferenz F7
 

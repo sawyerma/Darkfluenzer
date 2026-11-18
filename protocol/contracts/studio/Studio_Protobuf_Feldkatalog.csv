@@ -35,19 +35,19 @@ studio_common.proto;StudioStringList;1;values;string;repeated;87;NUR_BEI_PAKETBE
 studio_common.proto;StudioParameter;1;key;string;singular;93;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_common.proto;StudioParameter;2;value;StudioValue;singular;94;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_common.proto;StudioParameter;3;unit;string;singular;95;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioParameterSpec;1;key;string;singular;101;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioParameterSpec;2;kind;StudioNodePortKind;singular;102;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioParameterSpec;3;required;bool;singular;103;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioParameterSpec;4;default_value;StudioValue;singular;104;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioParameterSpec;5;minimum;double;optional;105;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioParameterSpec;6;maximum;double;optional;106;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioParameterSpec;7;allowed;string;repeated;107;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioParameterSpec;8;label;string;singular;108;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioParameterSpec;9;expert;bool;singular;109;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioParameterSpec;10;unit;string;singular;110;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_common.proto;StudioParameterSpec;1;key;string;singular;101;ENTFAELLT_GANZE_NACHRICHT;WorkflowParam (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioParameterSpec;2;kind;StudioNodePortKind;singular;102;ENTFAELLT_GANZE_NACHRICHT;WorkflowParam (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioParameterSpec;3;required;bool;singular;103;ENTFAELLT_GANZE_NACHRICHT;WorkflowParam (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioParameterSpec;4;default_value;StudioValue;singular;104;ENTFAELLT_GANZE_NACHRICHT;WorkflowParam (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioParameterSpec;5;minimum;double;optional;105;ENTFAELLT_GANZE_NACHRICHT;WorkflowParam (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioParameterSpec;6;maximum;double;optional;106;ENTFAELLT_GANZE_NACHRICHT;WorkflowParam (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioParameterSpec;7;allowed;string;repeated;107;ENTFAELLT_GANZE_NACHRICHT;WorkflowParam (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioParameterSpec;8;label;string;singular;108;ENTFAELLT_GANZE_NACHRICHT;WorkflowParam (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioParameterSpec;9;expert;bool;singular;109;ENTFAELLT_GANZE_NACHRICHT;WorkflowParam (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioParameterSpec;10;unit;string;singular;110;ENTFAELLT_GANZE_NACHRICHT;WorkflowParam (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
 studio_common.proto;StudioAssetRef;1;asset_id;string;singular;116;ENTFAELLT_FELD;;Eine Datei = bisheriges media.id, Referenzbindungen separat
 studio_common.proto;StudioAssetRef;2;sha256;string;singular;117;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioAssetRef;3;kind;StudioMediaKind;singular;118;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_common.proto;StudioAssetRef;3;kind;MediaKind;singular;118;TYP_ODER_NAME_KORRIGIEREN;singular MediaKind kind;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_common.proto;StudioAssetRef;4;mime;string;singular;119;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_common.proto;StudioAssetRef;5;byte_size;uint64;singular;120;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_common.proto;StudioAssetRef;6;dimensions;StudioFrameSize;singular;121;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -79,13 +79,13 @@ studio_common.proto;StudioCharacterRef;2;character_revision;uint64;singular;156;
 studio_common.proto;StudioCharacterRef;3;display_name;string;singular;157;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_common.proto;StudioCharacterRef;4;sheet_asset_id;string;singular;158;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_common.proto;StudioCharacterRef;5;synthetic_identity_key;string;singular;159;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioLoraRef;1;lora_key;string;singular;165;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioLoraRef;2;architecture;string;singular;166;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioLoraRef;3;base_engine;string;singular;167;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioLoraRef;4;sha256;string;singular;168;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioLoraRef;5;revision;uint64;singular;169;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioLoraRef;6;strength;double;optional;170;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioLoraRef;7;qualification;StudioEvidence;singular;171;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_common.proto;StudioLoraRef;1;lora_key;string;singular;165;ENTFAELLT_GANZE_NACHRICHT;CharacterLora (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioLoraRef;2;architecture;string;singular;166;ENTFAELLT_GANZE_NACHRICHT;CharacterLora (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioLoraRef;3;base_engine;string;singular;167;ENTFAELLT_GANZE_NACHRICHT;CharacterLora (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioLoraRef;4;sha256;string;singular;168;ENTFAELLT_GANZE_NACHRICHT;CharacterLora (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioLoraRef;5;revision;uint64;singular;169;ENTFAELLT_GANZE_NACHRICHT;CharacterLora (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioLoraRef;6;strength;double;optional;170;ENTFAELLT_GANZE_NACHRICHT;CharacterLora (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioLoraRef;7;qualification;StudioEvidence;singular;171;ENTFAELLT_GANZE_NACHRICHT;CharacterLora (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
 studio_common.proto;StudioModelRef;1;model_id;string;singular;177;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_common.proto;StudioModelRef;2;architecture;string;singular;178;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_common.proto;StudioModelRef;3;provider_kind;StudioProviderKind;singular;179;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -113,20 +113,20 @@ studio_common.proto;StudioError;3;field_path;string;singular;220;NUR_BEI_PAKETBE
 studio_common.proto;StudioError;4;retryable;bool;singular;221;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_common.proto;StudioError;5;provider_request_id;string;singular;222;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_common.proto;StudioError;6;occurred_unix_ms;int64;singular;223;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;1;check_id;string;singular;229;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;2;metric;string;singular;230;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;3;verdict;StudioReviewVerdict;singular;231;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;4;value;double;optional;232;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;5;threshold;double;optional;233;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;6;unit;string;singular;234;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;7;reason;string;singular;235;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;8;inspector_version;string;singular;236;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;9;model_sha256;string;singular;237;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;10;asset_sha256;string;singular;238;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;11;evaluated_unix_ms;int64;singular;239;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;12;evidence;StudioEvidence;singular;240;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioQualityCheck;13;required;bool;singular;241;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_common.proto;StudioOutputSpec;1;kind;StudioMediaKind;singular;247;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_common.proto;StudioQualityCheck;1;check_id;string;singular;229;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioQualityCheck;2;metric;string;singular;230;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioQualityCheck;3;verdict;StudioReviewVerdict;singular;231;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioQualityCheck;4;value;double;optional;232;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioQualityCheck;5;threshold;double;optional;233;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioQualityCheck;6;unit;string;singular;234;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioQualityCheck;7;reason;string;singular;235;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioQualityCheck;8;inspector_version;string;singular;236;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioQualityCheck;9;model_sha256;string;singular;237;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioQualityCheck;10;asset_sha256;string;singular;238;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioQualityCheck;11;evaluated_unix_ms;int64;singular;239;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioQualityCheck;12;evidence;StudioEvidence;singular;240;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioQualityCheck;13;required;bool;singular;241;ENTFAELLT_GANZE_NACHRICHT;MediaCheck + referenziertes QC-Urteil;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_common.proto;StudioOutputSpec;1;kind;MediaKind;singular;247;TYP_ODER_NAME_KORRIGIEREN;singular MediaKind kind;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_common.proto;StudioOutputSpec;2;output_dimensions;StudioFrameSize;singular;248;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_common.proto;StudioOutputSpec;3;native_dimensions;StudioFrameSize;singular;249;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_common.proto;StudioOutputSpec;4;fps_num;uint32;singular;250;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -199,58 +199,58 @@ studio_catalog.proto;StudioRecipeVersion;16;output_spec;StudioOutputSpec;singula
 studio_catalog.proto;StudioRecipeVersion;17;recipe_sha256;string;singular;344;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioRecipeVersion;18;created_unix_ms;int64;singular;345;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioRecipeVersion;19;created_by;string;singular;346;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioRecipeVersion;20;default_approval;StudioApprovalPolicy;singular;347;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_catalog.proto;StudioRecipeVersion;20;default_approval;StudioApprovalPolicy;singular;347;ENTFAELLT_FELD;StudioStageGate als QC-Mindestprüfung;Audit III: Rezept kann Qualitätsgates verschärfen, keine Kunden-Operatorfreigabe vergeben
 studio_catalog.proto;StudioRecipeVersion;21;retry_limit;uint32;singular;348;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioRecipeVersion;22;default_budget;StudioMoney;singular;349;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioCompatibility;1;model;StudioModelRef;singular;355;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCompatibility;2;lora;StudioLoraRef;singular;356;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_catalog.proto;StudioCompatibility;2;lora;CharacterLora;singular;356;TYP_ODER_NAME_KORRIGIEREN;singular CharacterLora lora;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_catalog.proto;StudioCompatibility;3;compatible;bool;singular;357;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioCompatibility;4;status;StudioCapabilityStatus;singular;358;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioCompatibility;5;reasons;string;repeated;359;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioCompatibility;6;supported_reference_roles;StudioReferenceRole;repeated;360;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioCompatibility;7;supported_control_types;StudioNodePortKind;repeated;361;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioCompatibility;8;mac_m4_evidence;StudioEvidence;singular;362;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioModelCapability;1;capability_id;string;singular;368;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;2;model;StudioModelRef;singular;369;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;3;display_name;string;singular;370;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;4;task;StudioTaskKind;singular;371;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;5;inputs;StudioNodePortKind;repeated;372;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;6;outputs;StudioNodePortKind;repeated;373;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;7;reference_roles;StudioReferenceRole;repeated;374;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;8;lora_architectures;string;repeated;375;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;9;compatible_control_models;string;repeated;376;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;10;allowed_resolutions;StudioFrameSize;repeated;377;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;11;max_duration_ms;uint64;singular;378;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;12;max_fps_num;uint32;singular;379;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;13;max_fps_den;uint32;singular;380;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;14;max_references;uint32;singular;381;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;15;supports_start_end_frames;bool;singular;382;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;16;supports_pose;bool;singular;383;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;17;supports_depth;bool;singular;384;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;18;supports_mask;bool;singular;385;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;19;supports_motion;bool;singular;386;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;20;supports_audio;bool;singular;387;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;21;supports_lora;bool;singular;388;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;22;supports_mps;bool;singular;389;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;23;supports_batch;bool;singular;390;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;24;workflow_key;string;singular;391;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;25;checkpoint_sha256;string;singular;392;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;26;evidence;StudioEvidence;singular;393;QUALIFIKATION_NUR_MESSLAUF;;Nicht per Klick auf PASS setzen, Evidence aus realem Lauf
-studio_catalog.proto;StudioModelCapability;27;available;StudioCapabilityStatus;singular;394;QUALIFIKATION_NUR_MESSLAUF;;Nicht per Klick auf PASS setzen, Evidence aus realem Lauf
-studio_catalog.proto;StudioModelCapability;28;license_id;string;singular;395;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;29;license_url;string;singular;396;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;30;qualification_note;string;singular;397;QUALIFIKATION_NUR_MESSLAUF;;Nicht per Klick auf PASS setzen, Evidence aus realem Lauf
-studio_catalog.proto;StudioModelCapability;31;estimated_unified_memory_bytes;uint64;singular;398;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;32;measured_p50_seconds;double;singular;399;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;33;measured_p95_seconds;double;singular;400;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;34;last_qualified_unix_ms;int64;singular;401;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;35;node_adapter_id;string;singular;402;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;36;parameters;StudioParameterSpec;repeated;403;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;37;supports_seed;bool;singular;404;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;38;supports_inpaint;bool;singular;405;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;39;supports_video_control;bool;singular;406;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;40;supports_vision;bool;singular;407;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
-studio_catalog.proto;StudioModelCapability;41;supports_structured_output;bool;singular;408;BESTANDSREGISTRY_PROJEKTION;;Nur vom vorhandenen Manifest/Registry abgeleitet, nie zweite Tabelle
+studio_catalog.proto;StudioModelCapability;1;capability_id;string;singular;368;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;2;model;StudioModelRef;singular;369;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;3;display_name;string;singular;370;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;4;task;StudioTaskKind;singular;371;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;5;inputs;StudioNodePortKind;repeated;372;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;6;outputs;StudioNodePortKind;repeated;373;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;7;reference_roles;StudioReferenceRole;repeated;374;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;8;lora_architectures;string;repeated;375;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;9;compatible_control_models;string;repeated;376;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;10;allowed_resolutions;StudioFrameSize;repeated;377;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;11;max_duration_ms;uint64;singular;378;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;12;max_fps_num;uint32;singular;379;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;13;max_fps_den;uint32;singular;380;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;14;max_references;uint32;singular;381;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;15;supports_start_end_frames;bool;singular;382;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;16;supports_pose;bool;singular;383;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;17;supports_depth;bool;singular;384;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;18;supports_mask;bool;singular;385;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;19;supports_motion;bool;singular;386;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;20;supports_audio;bool;singular;387;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;21;supports_lora;bool;singular;388;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;22;supports_mps;bool;singular;389;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;23;supports_batch;bool;singular;390;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;24;workflow_key;string;singular;391;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;25;checkpoint_sha256;string;singular;392;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;26;evidence;StudioEvidence;singular;393;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;27;available;StudioCapabilityStatus;singular;394;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;28;license_id;string;singular;395;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;29;license_url;string;singular;396;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;30;qualification_note;string;singular;397;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;31;estimated_unified_memory_bytes;uint64;singular;398;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;32;measured_p50_seconds;double;singular;399;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;33;measured_p95_seconds;double;singular;400;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;34;last_qualified_unix_ms;int64;singular;401;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;35;node_adapter_id;string;singular;402;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;36;parameters;StudioParameterSpec;repeated;403;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;37;supports_seed;bool;singular;404;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;38;supports_inpaint;bool;singular;405;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;39;supports_video_control;bool;singular;406;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;40;supports_vision;bool;singular;407;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioModelCapability;41;supports_structured_output;bool;singular;408;ENTFAELLT_GANZE_NACHRICHT;WorkflowInfo (TOPIC 3);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
 studio_catalog.proto;StudioModelCatalog;1;models;StudioModelCapability;repeated;414;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
 studio_catalog.proto;StudioModelCatalog;2;compatibilities;StudioCompatibility;repeated;415;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
 studio_catalog.proto;StudioModelCatalog;3;version;uint64;singular;416;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
@@ -259,7 +259,7 @@ studio_catalog.proto;StudioComparisonItem;1;candidate_id;string;singular;423;NUR
 studio_catalog.proto;StudioComparisonItem;2;model;StudioModelRef;singular;424;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioComparisonItem;3;workflow_key;string;singular;425;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioComparisonItem;4;output;StudioAssetRef;singular;426;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioComparisonItem;5;checks;StudioQualityCheck;repeated;427;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_catalog.proto;StudioComparisonItem;5;checks;MediaCheck;repeated;427;TYP_ODER_NAME_KORRIGIEREN;repeated MediaCheck checks;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_catalog.proto;StudioComparisonItem;6;cost;StudioCost;singular;428;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioComparisonItem;7;elapsed_ms;uint64;singular;429;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioComparisonItem;8;error;StudioError;singular;430;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -360,19 +360,19 @@ studio_catalog.proto;StudioProviderSettings;6;global_monthly_budget;StudioMoney;
 studio_catalog.proto;StudioProviderSettings;7;global_remaining_budget;StudioMoney;singular;555;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioProviderSettings;8;version;uint64;singular;556;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioProviderSettings;9;customer_conversation_external_enabled;bool;singular;557;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;1;character;StudioCharacterRef;singular;563;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;2;identity_references;StudioAssetRef;repeated;564;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;3;loras;StudioLoraRef;repeated;565;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;4;default_look;StudioLookRef;singular;566;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;5;looks;StudioLookPreset;repeated;567;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;6;identity_qualification;StudioEvidence;singular;568;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;7;trigger;string;singular;569;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;8;class_word;string;singular;570;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;9;usable_training_images;uint32;singular;571;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;10;required_training_images;uint32;singular;572;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;11;revision;uint64;singular;573;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;12;updated_unix_ms;int64;singular;574;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioCharacterSheet;13;status_reason;string;singular;575;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_catalog.proto;StudioCharacterSheet;1;character;StudioCharacterRef;singular;563;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioCharacterSheet;2;identity_references;StudioAssetRef;repeated;564;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioCharacterSheet;3;loras;StudioLoraRef;repeated;565;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioCharacterSheet;4;default_look;StudioLookRef;singular;566;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioCharacterSheet;5;looks;StudioLookPreset;repeated;567;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioCharacterSheet;6;identity_qualification;StudioEvidence;singular;568;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioCharacterSheet;7;trigger;string;singular;569;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioCharacterSheet;8;class_word;string;singular;570;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioCharacterSheet;9;usable_training_images;uint32;singular;571;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioCharacterSheet;10;required_training_images;uint32;singular;572;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioCharacterSheet;11;revision;uint64;singular;573;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioCharacterSheet;12;updated_unix_ms;int64;singular;574;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioCharacterSheet;13;status_reason;string;singular;575;ENTFAELLT_GANZE_NACHRICHT;Character (TOPIC 5);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
 studio_catalog.proto;StudioLookPreset;1;look;StudioLookRef;singular;581;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioLookPreset;2;title;string;singular;582;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioLookPreset;3;reference_materials;StudioReference;repeated;583;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -380,31 +380,31 @@ studio_catalog.proto;StudioLookPreset;4;reference_clothing;StudioReference;repea
 studio_catalog.proto;StudioLookPreset;5;reference_styles;StudioReference;repeated;585;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioLookPreset;6;reference_lighting;StudioReference;repeated;586;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioLookPreset;7;character;StudioCharacterRef;singular;587;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioLookPreset;8;lora;StudioLoraRef;singular;588;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_catalog.proto;StudioLookPreset;8;lora;CharacterLora;singular;588;TYP_ODER_NAME_KORRIGIEREN;singular CharacterLora lora;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_catalog.proto;StudioLookPreset;9;render_parameters;StudioParameter;repeated;589;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioLookPreset;10;active;bool;singular;590;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioLookPreset;11;created_unix_ms;int64;singular;591;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioLookPreset;12;color_profile;string;singular;592;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioLookPreset;13;negative_prompt;string;singular;593;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;1;training_id;string;singular;599;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;2;character;StudioCharacterRef;singular;600;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;3;dataset_id;string;singular;601;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;4;dataset_sha256;string;singular;602;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;5;base_model;StudioModelRef;singular;603;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;6;target_lora;StudioLoraRef;singular;604;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;7;registered_workflow_key;string;singular;605;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;8;underlying_job_id;string;singular;606;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;9;status;StudioRunStatus;singular;607;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;10;step_current;uint64;singular;608;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;11;step_total;uint64;singular;609;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;12;loss;double;singular;610;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;13;checkpoint_asset_id;string;singular;611;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;14;rank;uint32;singular;612;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;15;revision;uint64;singular;613;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;16;started_unix_ms;uint64;singular;614;TYP_ODER_NAME_KORRIGIEREN;int64 started_unix_ms;Einheitliche Zeitstempel
-studio_catalog.proto;StudioTrainingRun;17;updated_unix_ms;uint64;singular;615;TYP_ODER_NAME_KORRIGIEREN;int64 updated_unix_ms;Einheitliche Zeitstempel
-studio_catalog.proto;StudioTrainingRun;18;error;StudioError;singular;616;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioTrainingRun;19;qualification;StudioEvidence;singular;617;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_catalog.proto;StudioTrainingRun;1;training_id;string;singular;599;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;2;character;StudioCharacterRef;singular;600;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;3;dataset_id;string;singular;601;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;4;dataset_sha256;string;singular;602;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;5;base_model;StudioModelRef;singular;603;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;6;target_lora;StudioLoraRef;singular;604;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;7;registered_workflow_key;string;singular;605;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;8;underlying_job_id;string;singular;606;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;9;status;StudioRunStatus;singular;607;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;10;step_current;uint64;singular;608;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;11;step_total;uint64;singular;609;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;12;loss;double;singular;610;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;13;checkpoint_asset_id;string;singular;611;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;14;rank;uint32;singular;612;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;15;revision;uint64;singular;613;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;16;started_unix_ms;uint64;singular;614;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;17;updated_unix_ms;uint64;singular;615;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;18;error;StudioError;singular;616;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioTrainingRun;19;qualification;StudioEvidence;singular;617;ENTFAELLT_GANZE_NACHRICHT;TrainingCheckpoint und vorhandene Jobs-Historie;Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
 studio_catalog.proto;StudioProject;1;project_id;string;singular;623;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioProject;2;name;string;singular;624;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioProject;3;default_character;StudioCharacterRef;singular;625;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -420,23 +420,23 @@ studio_catalog.proto;StudioProject;12;created_unix_ms;int64;singular;634;NUR_BEI
 studio_catalog.proto;StudioProject;13;updated_unix_ms;int64;singular;635;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioProject;14;archived;bool;singular;636;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioProject;15;owner;string;singular;637;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;1;unified_memory_total_bytes;uint64;singular;643;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;2;unified_memory_available_bytes;uint64;singular;644;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;3;unified_memory_reserved_bytes;uint64;singular;645;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;4;swap_used_bytes;uint64;singular;646;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;5;gpu_busy_percent;uint64;singular;647;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;6;running_media_jobs;uint32;singular;648;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;7;queued_media_jobs;uint32;singular;649;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;8;running_text_jobs;uint32;singular;650;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;9;running_blender_jobs;uint32;singular;651;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;10;pending_customer_jobs;uint32;singular;652;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;11;admission_paused;bool;singular;653;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;12;admission_reason;string;singular;654;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;13;measured_unix_ms;int64;singular;655;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;14;backend_loop_lag_ms;double;singular;656;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;15;media_instance;string;singular;657;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;16;text_instance;string;singular;658;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_catalog.proto;StudioResourceState;17;workers;StudioWorkerStatus;repeated;659;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_catalog.proto;StudioResourceState;1;unified_memory_total_bytes;uint64;singular;643;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;2;unified_memory_available_bytes;uint64;singular;644;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;3;unified_memory_reserved_bytes;uint64;singular;645;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;4;swap_used_bytes;uint64;singular;646;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;5;gpu_busy_percent;uint64;singular;647;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;6;running_media_jobs;uint32;singular;648;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;7;queued_media_jobs;uint32;singular;649;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;8;running_text_jobs;uint32;singular;650;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;9;running_blender_jobs;uint32;singular;651;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;10;pending_customer_jobs;uint32;singular;652;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;11;admission_paused;bool;singular;653;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;12;admission_reason;string;singular;654;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;13;measured_unix_ms;int64;singular;655;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;14;backend_loop_lag_ms;double;singular;656;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;15;media_instance;string;singular;657;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;16;text_instance;string;singular;658;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_catalog.proto;StudioResourceState;17;workers;StudioWorkerStatus;repeated;659;ENTFAELLT_GANZE_NACHRICHT;Resources (TOPIC 7);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
 studio_catalog.proto;StudioWorkerStatus;1;worker_id;string;singular;665;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioWorkerStatus;2;resource;StudioResourceClass;singular;666;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_catalog.proto;StudioWorkerStatus;3;version;string;singular;667;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -588,7 +588,7 @@ studio_creative.proto;StudioStoryboard;8;title;string;singular;869;NUR_BEI_PAKET
 studio_creative.proto;StudioStoryboard;9;scenes;StudioScene;repeated;870;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioStoryboard;10;output_spec;StudioOutputSpec;singular;871;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioStoryboard;11;status;StudioRunStatus;singular;872;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_creative.proto;StudioStoryboard;12;review_policy;StudioApprovalPolicy;singular;873;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_creative.proto;StudioStoryboard;12;review_policy;StudioApprovalPolicy;singular;873;TYP_ODER_NAME_KORRIGIEREN;nur Studio-/Storyboard-QC, keine Kundenfreigabe;Audit III: Kunden-Freigabe bleibt bei ApproveArtifact=34 oder Handy
 studio_creative.proto;StudioStoryboard;13;notes;string;singular;874;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioStoryboard;14;updated_unix_ms;int64;singular;875;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioStoryboard;15;preview_asset_id;string;singular;876;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -636,7 +636,7 @@ studio_creative.proto;StudioShot;23;guide_video;StudioAssetRef;singular;927;NUR_
 studio_creative.proto;StudioShot;24;draft_video;StudioAssetRef;singular;928;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioShot;25;final_video;StudioAssetRef;singular;929;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioShot;26;output;StudioOutputSpec;singular;930;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_creative.proto;StudioShot;27;checks;StudioQualityCheck;repeated;931;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_creative.proto;StudioShot;27;checks;MediaCheck;repeated;931;TYP_ODER_NAME_KORRIGIEREN;repeated MediaCheck checks;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_creative.proto;StudioShot;28;verdict;StudioReviewVerdict;singular;932;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioShot;29;provider_policy;StudioProviderChoice;singular;933;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioShot;30;guide_channels;StudioGuideTransfer;repeated;934;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -869,7 +869,7 @@ studio_creative.proto;StudioGuideBundle;18;blender_version;string;singular;1250;
 studio_creative.proto;StudioGuideBundle;19;builder_sha256;string;singular;1251;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioGuideBundle;20;guide_bundle_sha256;string;singular;1252;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioGuideBundle;21;guide_review;StudioReviewVerdict;singular;1253;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_creative.proto;StudioGuideBundle;22;checks;StudioQualityCheck;repeated;1254;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_creative.proto;StudioGuideBundle;22;checks;MediaCheck;repeated;1254;TYP_ODER_NAME_KORRIGIEREN;repeated MediaCheck checks;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_creative.proto;StudioGuideMatch;1;guide_id;string;singular;1260;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
 studio_creative.proto;StudioGuideMatch;2;output_asset_id;string;singular;1261;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
 studio_creative.proto;StudioGuideMatch;3;pose_similarity;double;optional;1262;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
@@ -913,7 +913,7 @@ studio_creative.proto;StudioTimeline;6;fps_num;uint32;singular;1314;NUR_BEI_PAKE
 studio_creative.proto;StudioTimeline;7;fps_den;uint32;singular;1315;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioTimeline;8;total_frames;uint64;singular;1316;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioTimeline;9;export_profile;StudioOutputSpec;singular;1317;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_creative.proto;StudioTimeline;10;continuity_checks;StudioQualityCheck;repeated;1318;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_creative.proto;StudioTimeline;10;continuity_checks;MediaCheck;repeated;1318;TYP_ODER_NAME_KORRIGIEREN;repeated MediaCheck continuity_checks;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_creative.proto;StudioTimeline;11;verdict;StudioReviewVerdict;singular;1319;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioTimeline;12;updated_unix_ms;int64;singular;1320;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_creative.proto;StudioShotPreset;1;preset_id;string;singular;1326;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -969,7 +969,7 @@ studio_flow.proto;StudioNodeDefinition;6;inputs;StudioPortDefinition;repeated;13
 studio_flow.proto;StudioNodeDefinition;7;outputs;StudioPortDefinition;repeated;1398;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodeDefinition;8;parameters;StudioParameter;repeated;1399;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodeDefinition;9;model;StudioModelRef;singular;1400;RECIPE_REGISTRY_ABGELEITET;;Nur geprüfte Rezept-/Registry-Revision
-studio_flow.proto;StudioNodeDefinition;10;lora;StudioLoraRef;singular;1401;RECIPE_REGISTRY_ABGELEITET;;Nur geprüfte Rezept-/Registry-Revision
+studio_flow.proto;StudioNodeDefinition;10;lora;CharacterLora;singular;1401;TYP_ODER_NAME_KORRIGIEREN;singular CharacterLora lora;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_flow.proto;StudioNodeDefinition;11;provider_policy;StudioProviderChoice;singular;1402;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodeDefinition;12;resource;StudioResourceClass;singular;1403;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodeDefinition;13;canvas_position;StudioVec2;singular;1404;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -999,7 +999,7 @@ studio_flow.proto;StudioNodePortValue;3;scalar;StudioValue;singular;1432;NUR_BEI
 studio_flow.proto;StudioNodePortValue;4;assets;StudioAssetRef;repeated;1433;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodePortValue;5;references;StudioReference;repeated;1434;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodePortValue;6;character;StudioCharacterRef;singular;1435;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioNodePortValue;7;lora;StudioLoraRef;singular;1436;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_flow.proto;StudioNodePortValue;7;lora;CharacterLora;singular;1436;TYP_ODER_NAME_KORRIGIEREN;singular CharacterLora lora;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_flow.proto;StudioNodePortValue;8;model;StudioModelRef;singular;1437;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodePortValue;9;brief;StudioCreativeBrief;singular;1438;ENTFAELLT_FELD;;Nur Objekt-ID/Revision/Hash statt komplette Payloads
 studio_flow.proto;StudioNodePortValue;10;script;StudioScriptVersion;singular;1439;ENTFAELLT_FELD;;Nur Objekt-ID/Revision/Hash statt komplette Payloads
@@ -1008,7 +1008,7 @@ studio_flow.proto;StudioNodePortValue;12;scene;StudioScene;singular;1441;ENTFAEL
 studio_flow.proto;StudioNodePortValue;13;shot;StudioShot;singular;1442;ENTFAELLT_FELD;;Nur Objekt-ID/Revision/Hash statt komplette Payloads
 studio_flow.proto;StudioNodePortValue;14;scene_spec;StudioSceneSpec;singular;1443;ENTFAELLT_FELD;;Nur Objekt-ID/Revision/Hash statt komplette Payloads
 studio_flow.proto;StudioNodePortValue;15;guide;StudioGuideBundle;singular;1444;ENTFAELLT_FELD;;Nur Objekt-ID/Revision/Hash statt komplette Payloads
-studio_flow.proto;StudioNodePortValue;16;checks;StudioQualityCheck;repeated;1445;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_flow.proto;StudioNodePortValue;16;checks;MediaCheck;repeated;1445;TYP_ODER_NAME_KORRIGIEREN;repeated MediaCheck checks;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_flow.proto;StudioNodePortValue;17;export_manifest_id;string;singular;1446;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodePortValue;18;look;StudioLookRef;singular;1447;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodePortValue;19;provenance_hash;string;singular;1448;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1070,7 +1070,7 @@ studio_flow.proto;StudioFlowValidation;1;flow_id;string;singular;1533;NUR_BEI_PA
 studio_flow.proto;StudioFlowValidation;2;flow_revision;uint64;singular;1534;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioFlowValidation;3;executable;bool;singular;1535;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioFlowValidation;4;issues;StudioValidationIssue;repeated;1536;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioFlowValidation;5;missing_capabilities;StudioModelCapability;repeated;1537;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_flow.proto;StudioFlowValidation;5;missing_capabilities;WorkflowInfo;repeated;1537;TYP_ODER_NAME_KORRIGIEREN;repeated WorkflowInfo missing_capabilities;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_flow.proto;StudioFlowValidation;6;estimated_cost;StudioMoney;singular;1538;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioFlowValidation;7;estimated_memory_bytes;uint64;singular;1539;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioFlowValidation;8;compile_fingerprint;string;singular;1540;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1093,7 +1093,7 @@ studio_flow.proto;StudioNodeRun;14;input_fingerprint;string;singular;1561;NUR_BE
 studio_flow.proto;StudioNodeRun;15;output_fingerprint;string;singular;1562;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodeRun;16;output_assets;StudioAssetRef;repeated;1563;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodeRun;17;model;StudioModelRef;singular;1564;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioNodeRun;18;lora;StudioLoraRef;singular;1565;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_flow.proto;StudioNodeRun;18;lora;CharacterLora;singular;1565;TYP_ODER_NAME_KORRIGIEREN;singular CharacterLora lora;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_flow.proto;StudioNodeRun;19;adapter_id;string;singular;1566;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodeRun;20;workflow_key;string;singular;1567;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodeRun;21;workflow_sha256;string;singular;1568;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1108,7 +1108,7 @@ studio_flow.proto;StudioNodeRun;29;started_unix_ms;int64;singular;1576;NUR_BEI_P
 studio_flow.proto;StudioNodeRun;30;updated_unix_ms;int64;singular;1577;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodeRun;31;finished_unix_ms;int64;singular;1578;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodeRun;32;error;StudioError;singular;1579;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioNodeRun;33;checks;StudioQualityCheck;repeated;1580;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_flow.proto;StudioNodeRun;33;checks;MediaCheck;repeated;1580;TYP_ODER_NAME_KORRIGIEREN;repeated MediaCheck checks;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_flow.proto;StudioNodeRun;34;cost;StudioCost;singular;1581;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodeRun;35;cache_hit;bool;singular;1582;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioNodeRun;36;result_verified;bool;singular;1583;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1178,7 +1178,7 @@ studio_flow.proto;StudioProduction;17;storyboard_revision;uint64;singular;1661;N
 studio_flow.proto;StudioProduction;18;timeline_id;string;singular;1662;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioProduction;19;timeline_revision;uint64;singular;1663;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioProduction;20;nodes;StudioNodeRun;repeated;1664;ENTFAELLT_FELD;;Node-Details per READ, Lieferberechtigung/Freigabe nur Kundengate
-studio_flow.proto;StudioProduction;21;quality_checks;StudioQualityCheck;repeated;1665;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_flow.proto;StudioProduction;21;quality_checks;MediaCheck;repeated;1665;TYP_ODER_NAME_KORRIGIEREN;repeated MediaCheck quality_checks;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_flow.proto;StudioProduction;22;active_export_id;string;singular;1666;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioProduction;23;overall_review;StudioReviewVerdict;singular;1667;ENTFAELLT_FELD;;Node-Details per READ, Lieferberechtigung/Freigabe nur Kundengate
 studio_flow.proto;StudioProduction;24;review_policy;StudioApprovalPolicy;singular;1668;ENTFAELLT_FELD;;Node-Details per READ, Lieferberechtigung/Freigabe nur Kundengate
@@ -1216,7 +1216,7 @@ studio_flow.proto;StudioExportManifest;9;timeline_id;string;singular;1704;NUR_BE
 studio_flow.proto;StudioExportManifest;10;timeline_revision;uint64;singular;1705;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioExportManifest;11;flow_id;string;singular;1706;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioExportManifest;12;flow_revision;uint64;singular;1707;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioExportManifest;13;checks;StudioQualityCheck;repeated;1708;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_flow.proto;StudioExportManifest;13;checks;MediaCheck;repeated;1708;TYP_ODER_NAME_KORRIGIEREN;repeated MediaCheck checks;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_flow.proto;StudioExportManifest;14;verdict;StudioReviewVerdict;singular;1709;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioExportManifest;15;operator_review_required;bool;singular;1710;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioExportManifest;16;ready_for_handoff;bool;singular;1711;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1278,24 +1278,24 @@ studio_flow.proto;StudioHandoffValidity;9;current_qc;StudioReviewVerdict;singula
 studio_flow.proto;StudioHandoffValidity;10;content_tier;string;singular;1782;TYP_ODER_NAME_KORRIGIEREN;StudioContentTier content_tier;UNKNOWN=0 fail-closed wie explizit, nur geprüfte Backend-Stufe
 studio_flow.proto;StudioHandoffValidity;11;reason_code;string;singular;1783;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioHandoffValidity;12;checked_unix_ms;int64;singular;1784;NUR_SERVER_ABGELEITET;;Berechnung ausschließlich im Kundengate
-studio_flow.proto;StudioQueueItem;1;queue_id;string;singular;1790;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;2;production_id;string;singular;1791;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;3;node_run_id;string;singular;1792;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;4;resource;StudioResourceClass;singular;1793;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;5;source;StudioSource;singular;1794;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;6;priority;uint32;singular;1795;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;7;status;StudioStepStatus;singular;1796;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;8;enqueued_unix_ms;int64;singular;1797;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;9;earliest_start_unix_ms;int64;singular;1798;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;10;deadline_unix_ms;int64;singular;1799;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;11;estimated_memory_bytes;uint64;singular;1800;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;12;estimated_duration_ms;uint64;singular;1801;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;13;elapsed_ms;uint64;singular;1802;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;14;progress_current;uint32;singular;1803;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;15;progress_total;uint32;singular;1804;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;16;block_reason;string;singular;1805;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;17;model_id;string;singular;1806;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_flow.proto;StudioQueueItem;18;admission_allowed;bool;singular;1807;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_flow.proto;StudioQueueItem;1;queue_id;string;singular;1790;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;2;production_id;string;singular;1791;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;3;node_run_id;string;singular;1792;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;4;resource;StudioResourceClass;singular;1793;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;5;source;StudioSource;singular;1794;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;6;priority;uint32;singular;1795;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;7;status;StudioStepStatus;singular;1796;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;8;enqueued_unix_ms;int64;singular;1797;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;9;earliest_start_unix_ms;int64;singular;1798;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;10;deadline_unix_ms;int64;singular;1799;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;11;estimated_memory_bytes;uint64;singular;1800;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;12;estimated_duration_ms;uint64;singular;1801;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;13;elapsed_ms;uint64;singular;1802;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;14;progress_current;uint32;singular;1803;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;15;progress_total;uint32;singular;1804;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;16;block_reason;string;singular;1805;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;17;model_id;string;singular;1806;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
+studio_flow.proto;StudioQueueItem;18;admission_allowed;bool;singular;1807;ENTFAELLT_GANZE_NACHRICHT;ActiveJob (TOPIC 2);Audit III: redundanter Protobuf-Entwurf, bestehenden Fachtyp/Owner erweitern statt zweiter Datenquelle
 studio_flow.proto;StudioProductionSummary;1;production_id;string;singular;1813;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioProductionSummary;2;project_id;string;singular;1814;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioProductionSummary;3;title;string;singular;1815;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1313,9 +1313,9 @@ studio_flow.proto;StudioProductionSummary;14;external_order_id;string;singular;1
 studio_flow.proto;StudioProductionSummary;15;needs_review;bool;singular;1827;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_flow.proto;StudioProductionSummary;16;can_open_in_studio;bool;singular;1828;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProjectUpsert;1;project;StudioProject;singular;1836;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioProjectUpsert;2;expected_revision;uint64;singular;1837;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioProjectUpsert;2;expected_revision;uint64;singular;1837;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioProjectArchive;1;project_id;string;singular;1843;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioProjectArchive;2;expected_revision;uint64;singular;1844;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioProjectArchive;2;expected_revision;uint64;singular;1844;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioProjectArchive;3;archived;bool;singular;1845;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioTaskSelect;1;project_id;string;singular;1851;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioTaskSelect;2;task_profile_id;string;singular;1852;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1323,7 +1323,7 @@ studio_commands.proto;StudioTaskSelect;3;recipe_id;string;singular;1853;NUR_BEI_
 studio_commands.proto;StudioTaskSelect;4;recipe_revision;uint64;singular;1854;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioTaskSelect;5;expected_project_revision;uint64;singular;1855;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioRecipeUpsert;1;recipe;StudioRecipeVersion;singular;1861;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioRecipeUpsert;2;expected_revision;uint64;singular;1862;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioRecipeUpsert;2;expected_revision;uint64;singular;1862;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioRecipeActivate;1;task_profile_id;string;singular;1868;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioRecipeActivate;2;recipe_id;string;singular;1869;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioRecipeActivate;3;recipe_revision;uint64;singular;1870;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1331,11 +1331,11 @@ studio_commands.proto;StudioRecipeActivate;4;expected_profile_version;uint64;sin
 studio_commands.proto;StudioRecipeActivate;5;comparison_id;string;singular;1872;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProductionSubmit;1;production;StudioProductionRequest;singular;1878;TYP_ODER_NAME_KORRIGIEREN;StudioProductionIntent production;Client nur sichere Eingaben, Server baut StudioProductionRequest
 studio_commands.proto;StudioProductionControl;1;production_id;string;singular;1884;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioProductionControl;2;expected_revision;uint64;singular;1885;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioProductionControl;2;expected_revision;uint64;singular;1885;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioProductionControl;3;operation;StudioProductionOperation;singular;1886;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProductionControl;4;reason;string;singular;1887;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProductionRerun;1;production_id;string;singular;1893;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioProductionRerun;2;expected_revision;uint64;singular;1894;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioProductionRerun;2;expected_revision;uint64;singular;1894;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioProductionRerun;3;from_node_id;string;singular;1895;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProductionRerun;4;scene_id;string;singular;1896;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProductionRerun;5;shot_id;string;singular;1897;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1344,12 +1344,12 @@ studio_commands.proto;StudioProductionRerun;7;reason;string;singular;1899;NUR_BE
 studio_commands.proto;StudioAssetImport;1;project_id;string;singular;1905;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAssetImport;2;existing_media_id;uint64;singular;1906;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAssetImport;3;existing_reference_id;uint64;singular;1907;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioAssetImport;4;inline_bytes;bytes;singular;1908;ENTFAELLT_FELD;;Bestehender MediaUpload, Client bestimmt weder Inhaltstier noch externe Freigabe
-studio_commands.proto;StudioAssetImport;5;staged_upload_id;string;singular;1909;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioAssetImport;4;inline_bytes;bytes;singular;1908;ENTFAELLT_FELD;InputFile.data (bestehender geprüfter Upload);Audit III: kein zweiter Byteweg, vorhandenes InputFile.data bleibt bei validiertem Import zulässig
+studio_commands.proto;StudioAssetImport;5;staged_upload_id;string;singular;1909;ENTFAELLT_FELD;InputFile.data / bestehender Media-Import;Audit III: kein implementierter Staging-Endpunkt; keine zweite Upload-Pipeline
 studio_commands.proto;StudioAssetImport;6;filename;string;singular;1910;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAssetImport;7;mime;string;singular;1911;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAssetImport;8;declared_sha256;string;singular;1912;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioAssetImport;9;kind;StudioMediaKind;singular;1913;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioAssetImport;9;kind;MediaKind;singular;1913;TYP_ODER_NAME_KORRIGIEREN;singular MediaKind kind;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_commands.proto;StudioAssetImport;10;roles;StudioReferenceRole;repeated;1914;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAssetImport;11;content_tier;string;singular;1915;ENTFAELLT_FELD;;Bestehender MediaUpload, Client bestimmt weder Inhaltstier noch externe Freigabe
 studio_commands.proto;StudioAssetImport;12;allowed_for_external_provider;bool;singular;1916;ENTFAELLT_FELD;;Bestehender MediaUpload, Client bestimmt weder Inhaltstier noch externe Freigabe
@@ -1360,12 +1360,12 @@ studio_commands.proto;StudioAssetRoleUpdate;4;scene_id;string;singular;1925;NUR_
 studio_commands.proto;StudioAssetRoleUpdate;5;shot_id;string;singular;1926;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAssetRoleUpdate;6;actor_id;string;singular;1927;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAssetRoleUpdate;7;strength;double;optional;1928;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioAssetRoleUpdate;8;expected_revision;uint64;singular;1929;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioAssetRoleUpdate;8;expected_revision;uint64;singular;1929;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioAssetDetach;1;project_id;string;singular;1935;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAssetDetach;2;reference_binding_id;string;singular;1936;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioAssetDetach;3;expected_revision;uint64;singular;1937;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioAssetDetach;3;expected_revision;uint64;singular;1937;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioBriefUpsert;1;brief;StudioCreativeBrief;singular;1943;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioBriefUpsert;2;expected_revision;uint64;singular;1944;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioBriefUpsert;2;expected_revision;uint64;singular;1944;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioScriptGenerate;1;brief_id;string;singular;1950;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioScriptGenerate;2;brief_revision;uint64;singular;1951;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioScriptGenerate;3;project_id;string;singular;1952;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1376,7 +1376,7 @@ studio_commands.proto;StudioScriptGenerate;7;desired_shots;uint32;singular;1956;
 studio_commands.proto;StudioScriptGenerate;8;operator_note;string;singular;1957;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioScriptGenerate;9;policy;StudioProviderChoice;singular;1958;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioScriptUpsert;1;script;StudioScriptVersion;singular;1964;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioScriptUpsert;2;expected_revision;uint64;singular;1965;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioScriptUpsert;2;expected_revision;uint64;singular;1965;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioStoryboardGenerate;1;script_id;string;singular;1971;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioStoryboardGenerate;2;script_revision;uint64;singular;1972;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioStoryboardGenerate;3;project_id;string;singular;1973;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1384,7 +1384,7 @@ studio_commands.proto;StudioStoryboardGenerate;4;provider;StudioProviderChoice;s
 studio_commands.proto;StudioStoryboardGenerate;5;target_duration_ms;uint64;singular;1975;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioStoryboardGenerate;6;output;StudioOutputSpec;singular;1976;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioStoryboardUpsert;1;storyboard;StudioStoryboard;singular;1982;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioStoryboardUpsert;2;expected_revision;uint64;singular;1983;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioStoryboardUpsert;2;expected_revision;uint64;singular;1983;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioSceneUpsert;1;storyboard_id;string;singular;1989;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioSceneUpsert;2;expected_storyboard_revision;uint64;singular;1990;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioSceneUpsert;3;scene;StudioScene;singular;1991;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1400,7 +1400,7 @@ studio_commands.proto;StudioShotRemove;3;scene_id;string;singular;2010;NUR_BEI_P
 studio_commands.proto;StudioShotRemove;4;shot_id;string;singular;2011;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioShotRemove;5;expected_shot_revision;uint64;singular;2012;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioLookUpsert;1;look;StudioLookPreset;singular;2018;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioLookUpsert;2;expected_revision;uint64;singular;2019;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioLookUpsert;2;expected_revision;uint64;singular;2019;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioCharacterSheetUpdate;1;character_id;uint64;singular;2025;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
 studio_commands.proto;StudioCharacterSheetUpdate;2;expected_revision;uint64;singular;2026;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
 studio_commands.proto;StudioCharacterSheetUpdate;3;identity_references;StudioReference;repeated;2027;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
@@ -1419,7 +1419,7 @@ studio_commands.proto;StudioTrainingControl;2;expected_revision;uint64;singular;
 studio_commands.proto;StudioTrainingControl;3;operation;StudioProductionOperation;singular;2050;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
 studio_commands.proto;StudioTrainingControl;4;checkpoint_asset_id;string;singular;2051;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
 studio_commands.proto;StudioFlowUpsert;1;definition;StudioFlowDefinition;singular;2057;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioFlowUpsert;2;expected_revision;uint64;singular;2058;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioFlowUpsert;2;expected_revision;uint64;singular;2058;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioFlowValidate;1;draft;StudioFlowDefinition;singular;2064;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioFlowValidate;2;check_live_capabilities;bool;singular;2065;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioFlowActivate;1;flow_id;string;singular;2071;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1445,14 +1445,14 @@ studio_commands.proto;StudioModelSetQualification;3;evidence;StudioEvidence;sing
 studio_commands.proto;StudioModelSetQualification;4;test_evidence_ids;string;repeated;2116;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
 studio_commands.proto;StudioModelSetQualification;5;expected_catalog_version;uint64;singular;2117;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
 studio_commands.proto;StudioProviderAccountUpsert;1;account;StudioProviderAccount;singular;2123;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioProviderAccountUpsert;2;expected_revision;uint64;singular;2124;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioProviderAccountUpsert;2;expected_revision;uint64;singular;2124;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioProviderSecretReplace;1;account_id;string;singular;2130;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProviderSecretReplace;2;secret_utf8;string;singular;2131;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProviderSecretReplace;3;expected_account_revision;uint64;singular;2132;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProviderSecretClear;1;account_id;string;singular;2138;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProviderSecretClear;2;expected_account_revision;uint64;singular;2139;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProviderAccountRemove;1;account_id;string;singular;2145;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioProviderAccountRemove;2;expected_revision;uint64;singular;2146;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioProviderAccountRemove;2;expected_revision;uint64;singular;2146;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioProviderTest;1;account_id;string;singular;2152;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProviderTest;2;model_id;string;singular;2153;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProviderTest;3;test_auth;bool;singular;2154;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1461,7 +1461,7 @@ studio_commands.proto;StudioProviderTest;5;test_schema_response;bool;singular;21
 studio_commands.proto;StudioProviderTest;6;maximum_test_cost;StudioMoney;singular;2157;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioProviderModelsRefresh;1;account_id;string;singular;2163;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioRoleBindingUpsert;1;binding;StudioRoleBinding;singular;2169;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioRoleBindingUpsert;2;expected_revision;uint64;singular;2170;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioRoleBindingUpsert;2;expected_revision;uint64;singular;2170;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioGlobalProviderSettingsUpdate;1;default_policy;StudioProviderPolicy;singular;2176;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioGlobalProviderSettingsUpdate;2;external_providers_master_enabled;bool;singular;2177;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioGlobalProviderSettingsUpdate;3;customer_conversation_external_enabled;bool;singular;2178;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1485,7 +1485,7 @@ studio_commands.proto;StudioDirectorNoteDecision;3;note_id;string;singular;2205;
 studio_commands.proto;StudioDirectorNoteDecision;4;accept;bool;singular;2206;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioDirectorNoteDecision;5;operator_reason;string;singular;2207;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioSceneSpecUpsert;1;scene_spec;StudioSceneSpec;singular;2213;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioSceneSpecUpsert;2;expected_revision;uint64;singular;2214;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioSceneSpecUpsert;2;expected_revision;uint64;singular;2214;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioBlenderBuild;1;scene_spec_id;string;singular;2220;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioBlenderBuild;2;scene_spec_revision;uint64;singular;2221;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioBlenderBuild;3;render_preset_id;string;singular;2222;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1500,7 +1500,7 @@ studio_commands.proto;StudioGuideCompareRequest;1;guide_id;string;singular;2240;
 studio_commands.proto;StudioGuideCompareRequest;2;output_asset_id;string;singular;2241;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioGuideCompareRequest;3;metric_ids;string;repeated;2242;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioCameraInputRegister;1;scene_spec_id;string;singular;2248;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioCameraInputRegister;2;expected_revision;uint64;singular;2249;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioCameraInputRegister;2;expected_revision;uint64;singular;2249;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioCameraInputRegister;3;camera_id;string;singular;2250;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioCameraInputRegister;4;camera_input;StudioCameraExternalInput;singular;2251;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioCameraInputCalibration;1;input_id;string;singular;2257;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1510,7 +1510,7 @@ studio_commands.proto;StudioCameraInputCalibration;4;neutral_translation_m;Studi
 studio_commands.proto;StudioCameraInputCalibration;5;axes_id;string;singular;2261;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioCameraInputCalibration;6;time_offset_ms;int64;singular;2262;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioBlockingSettingsUpdate;1;scene_spec_id;string;singular;2268;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioBlockingSettingsUpdate;2;expected_revision;uint64;singular;2269;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioBlockingSettingsUpdate;2;expected_revision;uint64;singular;2269;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioBlockingSettingsUpdate;3;camera_id;string;singular;2270;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioBlockingSettingsUpdate;4;blocking_mode;StudioBlockingMode;singular;2271;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioBlockingSettingsUpdate;5;transfer;StudioGuideTransfer;repeated;2272;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1520,9 +1520,9 @@ studio_commands.proto;StudioBlockingSettingsUpdate;8;transfer_actor_position;boo
 studio_commands.proto;StudioBlockingSettingsUpdate;9;transfer_source_appearance;bool;singular;2276;ENTFAELLT_FELD;;Fremde Vorlage nur Form/Pose/Bewegung
 studio_commands.proto;StudioBlockingSettingsUpdate;10;target_actor_id;string;singular;2277;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioTimelineUpsert;1;timeline;StudioTimeline;singular;2283;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioTimelineUpsert;2;expected_revision;uint64;singular;2284;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioTimelineUpsert;2;expected_revision;uint64;singular;2284;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioExportRequest;1;production_id;string;singular;2290;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioExportRequest;2;expected_revision;uint64;singular;2291;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioExportRequest;2;expected_revision;uint64;singular;2291;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioExportRequest;3;timeline_id;string;singular;2292;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioExportRequest;4;timeline_revision;uint64;singular;2293;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioExportRequest;5;output;StudioOutputSpec;singular;2294;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1533,7 +1533,7 @@ studio_commands.proto;StudioExportReview;2;export_revision;uint64;singular;2303;
 studio_commands.proto;StudioExportReview;3;verdict;StudioReviewVerdict;singular;2304;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioExportReview;4;reason;string;singular;2305;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioExportRevoke;1;export_id;string;singular;2311;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioExportRevoke;2;expected_revision;uint64;singular;2312;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioExportRevoke;2;expected_revision;uint64;singular;2312;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioExportRevoke;3;reason;string;singular;2313;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioComparisonStart;1;project_id;string;singular;2319;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioComparisonStart;2;task_profile_id;string;singular;2320;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1543,7 +1543,7 @@ studio_commands.proto;StudioComparisonStart;5;reference_set;StudioReference;repe
 studio_commands.proto;StudioComparisonStart;6;prompt;string;singular;2324;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioComparisonStart;7;cost_ceiling;StudioMoney;singular;2325;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioComparisonSelect;1;comparison_id;string;singular;2331;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioComparisonSelect;2;expected_revision;uint64;singular;2332;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioComparisonSelect;2;expected_revision;uint64;singular;2332;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioComparisonSelect;3;selected_candidate_id;string;singular;2333;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioComparisonSelect;4;activate_as_standard;bool;singular;2334;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioQueueControl;1;queue_id;string;singular;2340;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
@@ -1551,16 +1551,16 @@ studio_commands.proto;StudioQueueControl;2;operation;StudioProductionOperation;s
 studio_commands.proto;StudioQueueControl;3;reason;string;singular;2342;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
 studio_commands.proto;StudioQueueControl;4;expected_resource_version;uint64;singular;2343;ENTFAELLT_GANZE_NACHRICHT;;Kein Auftragnehmer / paralleler Bestandsweg
 studio_commands.proto;StudioPromptTemplateUpsert;1;template;StudioPromptTemplate;singular;2349;E19_PROMPTMECHANIK_ERWEITERN;;Ein Versionierungs-/Speichermechanismus mit separatem Regie-Scopes
-studio_commands.proto;StudioPromptTemplateUpsert;2;expected_revision;uint64;singular;2350;E19_PROMPTMECHANIK_ERWEITERN;;Ein Versionierungs-/Speichermechanismus mit separatem Regie-Scopes
+studio_commands.proto;StudioPromptTemplateUpsert;2;expected_revision;uint64;singular;2350;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioShotPresetUpsert;1;preset;StudioShotPreset;singular;2356;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioShotPresetUpsert;2;expected_revision;uint64;singular;2357;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioShotPresetUpsert;2;expected_revision;uint64;singular;2357;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioAudioGenerate;1;production_id;string;singular;2363;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAudioGenerate;2;shot_id;string;singular;2364;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAudioGenerate;3;cue;StudioAudioCue;singular;2365;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAudioGenerate;4;provider;StudioProviderChoice;singular;2366;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAudioGenerate;5;cost_ceiling;StudioMoney;singular;2367;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_commands.proto;StudioAudioPresetUpsert;1;preset;StudioAudioProviderPreset;singular;2373;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_commands.proto;StudioAudioPresetUpsert;2;expected_revision;uint64;singular;2374;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_commands.proto;StudioAudioPresetUpsert;2;expected_revision;uint64;singular;2374;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_stream.proto;StudioTasksState;1;tasks;StudioTaskProfile;repeated;2382;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_stream.proto;StudioTasksState;2;active_recipes;StudioRecipeVersion;repeated;2383;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_stream.proto;StudioTasksState;3;version;uint64;singular;2384;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1749,7 +1749,7 @@ studio_stream.proto;StudioAssetsPage;1;items;StudioAssetRef;repeated;2711;NUR_BE
 studio_stream.proto;StudioAssetsPage;2;page;StudioPageInfo;singular;2712;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_stream.proto;StudioFlowsPage;1;items;StudioFlowSummary;repeated;2718;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_stream.proto;StudioFlowsPage;2;page;StudioPageInfo;singular;2719;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
-studio_stream.proto;StudioTrainingPage;1;items;StudioTrainingRun;repeated;2725;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
+studio_stream.proto;StudioTrainingPage;1;items;TrainingCheckpoint;repeated;2725;TYP_ODER_NAME_KORRIGIEREN;repeated TrainingCheckpoint items;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_stream.proto;StudioTrainingPage;2;page;StudioPageInfo;singular;2726;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_stream.proto;StudioLooksPage;1;items;StudioLookPreset;repeated;2732;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
 studio_stream.proto;StudioLooksPage;2;page;StudioPageInfo;singular;2733;NUR_BEI_PAKETBEDARF;;Erst bei realem Aufrufer, DS-Paket und Test bauen
@@ -1773,9 +1773,9 @@ studio_stream.proto;StudioReadResponse;15;timeline;StudioTimeline;singular;2760;
 studio_stream.proto;StudioReadResponse;16;export_manifest;StudioExportManifest;singular;2761;ONEOF_ERGEBNIS;;Genau ein Antwort-Payload, Fehler separat
 studio_stream.proto;StudioReadResponse;17;handoff_validity;StudioHandoffValidity;singular;2762;ONEOF_ERGEBNIS;;Genau ein Antwort-Payload, Fehler separat
 studio_stream.proto;StudioReadResponse;18;comparison;StudioComparisonRun;singular;2763;ONEOF_ERGEBNIS;;Genau ein Antwort-Payload, Fehler separat
-studio_stream.proto;StudioReadResponse;19;training;StudioTrainingRun;singular;2764;ONEOF_ERGEBNIS;;Genau ein Antwort-Payload, Fehler separat
+studio_stream.proto;StudioReadResponse;19;training;TrainingCheckpoint;singular;2764;TYP_ODER_NAME_KORRIGIEREN;singular TrainingCheckpoint training;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_stream.proto;StudioReadResponse;20;asset;StudioAssetRef;singular;2765;ENTFAELLT_FELD;;Vorhandene MediaPage, Jobs/Characters und MediaRoute
-studio_stream.proto;StudioReadResponse;21;character_sheet;StudioCharacterSheet;singular;2766;ONEOF_ERGEBNIS;;Genau ein Antwort-Payload, Fehler separat
+studio_stream.proto;StudioReadResponse;21;character_sheet;Character;singular;2766;TYP_ODER_NAME_KORRIGIEREN;singular Character character_sheet;Audit III: bestehenden Protobuf-Typ und Owner nutzen statt separater Studio-Doppeldefinition; Schema/ACL/Scope vor Codegen validieren
 studio_stream.proto;StudioReadResponse;22;looks;StudioLooksPage;singular;2767;ONEOF_ERGEBNIS;;Genau ein Antwort-Payload, Fehler separat
 studio_stream.proto;StudioReadResponse;23;look;StudioLookPreset;singular;2768;ONEOF_ERGEBNIS;;Genau ein Antwort-Payload, Fehler separat
 studio_stream.proto;StudioReadResponse;24;node_run;StudioNodeRun;singular;2769;ONEOF_ERGEBNIS;;Genau ein Antwort-Payload, Fehler separat
@@ -1811,10 +1811,10 @@ studio_stream.proto;StudioAudioPresetsPage;1;items;StudioAudioProviderPreset;rep
 studio_stream.proto;StudioAudioPresetsPage;2;page;StudioPageInfo;singular;NEU_DS0_ENTWURF;NEU_BEI_PAKETBEDARF;;Nur Sollschema, nicht kompiliert, vor Code-Integration DS0 Proto-/Enum-/oneof-Test
 studio_commands.proto;StudioPoseTrackUpsert;1;pose_track_id;string;singular;NEU_DS0_ENTWURF;NEU_BEI_PAKETBEDARF;;Nur Sollschema, nicht kompiliert, vor Code-Integration DS0 Proto-/Enum-/oneof-Test
 studio_commands.proto;StudioPoseTrackUpsert;2;scene_spec_id;string;singular;NEU_DS0_ENTWURF;NEU_BEI_PAKETBEDARF;;Nur Sollschema, nicht kompiliert, vor Code-Integration DS0 Proto-/Enum-/oneof-Test
-studio_commands.proto;StudioPoseTrackUpsert;3;expected_revision;uint64;singular;NEU_DS0_ENTWURF;NEU_BEI_PAKETBEDARF;;Nur Sollschema, nicht kompiliert, vor Code-Integration DS0 Proto-/Enum-/oneof-Test
+studio_commands.proto;StudioPoseTrackUpsert;3;expected_revision;uint64;singular;NEU_DS0_ENTWURF;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioPoseTrackUpsert;4;keyframes;StudioPoseFrame;repeated;NEU_DS0_ENTWURF;NEU_BEI_PAKETBEDARF;;Nur Sollschema, nicht kompiliert, vor Code-Integration DS0 Proto-/Enum-/oneof-Test
 studio_commands.proto;StudioSceneRemove;1;scene_id;string;singular;NEU_DS0_ENTWURF;NEU_BEI_PAKETBEDARF;;Nur Sollschema, nicht kompiliert, vor Code-Integration DS0 Proto-/Enum-/oneof-Test
-studio_commands.proto;StudioSceneRemove;2;expected_revision;uint64;singular;NEU_DS0_ENTWURF;NEU_BEI_PAKETBEDARF;;Nur Sollschema, nicht kompiliert, vor Code-Integration DS0 Proto-/Enum-/oneof-Test
+studio_commands.proto;StudioSceneRemove;2;expected_revision;uint64;singular;NEU_DS0_ENTWURF;ENTFAELLT_FELD;CommandRequest.expected_version (Tag 2);Audit III: nur eine maßgebliche CAS-Version im bereits veröffentlichten Command-Umschlag
 studio_commands.proto;StudioSceneRemove;3;reason;string;singular;NEU_DS0_ENTWURF;NEU_BEI_PAKETBEDARF;;Nur Sollschema, nicht kompiliert, vor Code-Integration DS0 Proto-/Enum-/oneof-Test
 studio_commands.proto;StudioProductionControl;5;node_run_id;string;singular;NEU_DS0_ENTWURF;NEU_BEI_PAKETBEDARF;;Nur Sollschema, nicht kompiliert, vor Code-Integration DS0 Proto-/Enum-/oneof-Test
 studio_commands.proto;StudioProductionControl;6;verdict;StudioReviewVerdict;singular;NEU_DS0_ENTWURF;NEU_BEI_PAKETBEDARF;;Nur Sollschema, nicht kompiliert, vor Code-Integration DS0 Proto-/Enum-/oneof-Test
