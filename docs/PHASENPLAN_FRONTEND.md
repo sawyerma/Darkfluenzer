@@ -2,10 +2,10 @@
 
 > **Verbindlicher Studio-Ausbau (18.11.2026):** Abschnitt 6 ergänzt Masterplan 3.2 und die Diagramme; die bisherige F7-Referenz bleibt für den bestehenden Cockpit-Bestand gültig. Neue Studio-Navigation: sechs Hauptreiter (ComfyUI → Studio), darunter **genau fünf** Studio-Ansichten. Backend-Vertrag: **PHASENPLAN_BACKEND.md §13**. Dokumentation ist SOLL, kein Implementierungs-PASS.
 
-**Stand:** 17.11.2026 (Frontend-Teile der Sammelpakete SP1–SP6, Änderungsblätter und Korrektur nach den Prüfberichten) · **Status:** **freigegeben** durch den Betreiber am 17.11.2026, verbindlich. Umsetzung in der Reihenfolge des Backend-Plans §6, Priorität CODE FIRST.
-**Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Produktziel, Regeln, Entscheidungen E1–E26, Statusbegriffe §2.3, Reihenfolge, Paketnummern; **[17.11., Planlogik]** nach der Logikprüfung korrigiert; **[18.11.]** E24–E26 und die Schwellenregel zu E16/E17 entschieden) und `docs/bugs_v1.md`.
+**Stand:** 18.11.2026 – historischer SP1–SP6-Bestand und neuer Studio-Ausbau DS0–DS10 (§6). **Ausführungsreihenfolge: Backend §13.10**, nicht die historische SP-Liste; CODE FIRST. Die geplante Studio-Navigation ist SOLL, kein vorweggenommener Implementierungs-PASS.
+**Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Regeln, Entscheidungen E1–E27; E28–E33 ausdrücklich offen; §13.4 Handoff-/Gate, §13.10 Paketfolge) und `docs/bugs_v1.md`. Die ältere §6-Reihenfolge ist historisch.
 **Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; laufendes Cockpit am 17.11.2026.
-**Gestaltungsreferenz:** `docs/design/Darkfluenzer_Cockpit_Interaktiv.html` und Anhang A (F7, wörtlich aus dem archivierten FRONT V1).
+**Gestaltungsreferenz:** `docs/design/Darkfluenzer_Studio_Klickdemo.html` für **Studio** (§6.9); `docs/design/Darkfluenzer_Cockpit_Interaktiv.html`/Anhang A (F7) für die **übrigen fünf Hauptreiter**. Demo-/Mockdaten sind niemals produktive Zustände.
 
 ---
 
@@ -13,7 +13,7 @@
 
 - **Bestehende GUI erhalten und ergänzen, nicht neu schreiben.** React/Vite, generierte Protobuf-Typen, keine neue UI-Bibliothek, kein Electron, keine LLM- oder Chat-Logik im Browser.
 - **Ein Stylesheet:** `frontend/src/shared/graphite.css`. Keine Datei je Seite, keine eigene Video- oder Bildgestaltung.
-- **Sechs Hauptreiter:** Übersicht · Nachrichten · ComfyUI · Dateien · Wallet · Einstellungen (E13). Neue Funktionen kommen in passende Reiter (KI-Studio unter ComfyUI → KI, Charaktertraining unter ComfyUI, Kloner und Kundentest im Default-Kontakt).
+- **Sechs Hauptreiter (verbindliches Ziel):** Übersicht · Nachrichten · **Studio** · Dateien · Wallet · Einstellungen. Studio hat **genau fünf Unteransichten**: Erstellen · Storyboard · Charaktere · Projekte · Labor. Der bestehende technische ComfyUI-Graph bleibt unter **Labor**. Persona-/Promptprofile und LoRA-Training → **Studio → Charaktere**; Melody-Chat-Test, technischer Gedächtnis-/Kontextinspektor, KI-Vergleich und Parameter → **Studio → Labor → Technik → KI**, mit **direktem Link „Im Chat testen“ aus Charaktere**. Kundengedächtnis bearbeiten → **Nachrichten → Kundenakte**; Kloner/Kundentest bleiben im Default-Kontakt.
 - **Daten nur per Push:** STATE und EVENT über den einen WebSocket `/ws/v1/stream`; Detailabfragen nur bei Ansichts-, Filter-, Seiten- oder Kundenwechsel, relevanter Fachversion, Reconnect oder manuellem Neuladen. Keine Abfrageschleifen. Alte Antworten (Version, Seite, Kunde, Verbindung) verwerfen; gleiche Anfragen zusammenfassen.
 - **Aktionen nur als Protobuf-Befehl** mit `request_id`, Scope und erwarteter Revision. `ACCEPTED` ist kein Erfolg; die Oberfläche zeigt den Zustand erst nach dem terminalen Receipt. Nach Verbindungsverlust dieselbe `request_id` wieder aufnehmen, nie blind neu senden.
 - **Kein Bedienelement ohne Backend.** Jedes Element kennt die Zustände leer · lädt · gesperrt mit Grund · Fehler. Geplante Funktionen bleiben ehrlich deaktiviert.
@@ -24,7 +24,9 @@
 
 ---
 
-## 2. Ist-Stand (17.11.2026)
+## 2. Historischer GUI-Ist-Stand (17.11.2026)
+
+**Datierte Momentaufnahme, nicht die heutige Live-Funktionsliste.** Seit dem 18.11. sind sechs Hauptreiter, Einstellungen und GUI-Korrekturpakete dokumentiert (§4.0a). Das geprüfte `frontend/src/App.tsx` nennt den bisherigen Reiter weiterhin `ComfyUI`; `Studio` und dessen fünf neue Unteransichten werden erst in DS1/DS2/3 umgesetzt. Aktuelle Designreferenz §6.9.
 
 | Reiter | Vorhanden | Fehlt |
 |---|---|---|
@@ -75,9 +77,11 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
 
 **Composer:** nur im gewählten verbundenen Kanal; „KI antworten“ (Entwurf nach Antwortmodus), „Antwort senden“ (genau einmal, Receipt); ungesendete Entwürfe bleiben an ihrer Akte; bei Handy-Übergabe pausiert die Automatik.
 
-### 3.3 ComfyUI
+### 3.3 Historische ComfyUI-Technik → künftig Studio/Labor
 
-**Spalten:** links nur Workflows aus der Registry, gruppiert Fotos · Videos · KI, mit Status; Mitte Arbeitsfläche (Prompt, Negativ nur wenn deklariert, Quellbild/Upload/„Aus Dateien“, Maske, Ergebnis); rechts Steuerung (Charakter, Workflow-Info, Format, Kandidaten, Fertigstellen mit, erweiterte Einstellungen – bei jedem Workflowwechsel zugeklappt –, Generieren bzw. Training starten), darunter Warteschlange und Instanzen.
+**Zuordnung:** Folgende technischen Einzelworkflows/Parameter und Nachweise bleiben erhalten, sind aber **keine** neue Normalnavigation „Fotos · Videos · KI“. Aufgaben liegen in **Studio/Erstellen**, Charaktere und Promptprofil in **Studio/Charaktere**, technische ComfyUI-Graphen und KI-Tests unter **Studio/Labor**. Alte Spaltenanweisungen gelten als technisches Funktionsinventar und sind bei der neuen Klickdemo §6.9 zu berücksichtigen.
+
+**Historische Spalten:** links nur Workflows aus der Registry, gruppiert Fotos · Videos · KI, mit Status; Mitte Arbeitsfläche (Prompt, Negativ nur wenn deklariert, Quellbild/Upload/„Aus Dateien“, Maske, Ergebnis); rechts Steuerung (Charakter, Workflow-Info, Format, Kandidaten, Fertigstellen mit, erweiterte Einstellungen – bei jedem Workflowwechsel zugeklappt –, Generieren bzw. Training starten), darunter Warteschlange und Instanzen.
 
 - **Erweiterte Einstellungen:** alle tatsächlich registrierten Eingänge mit Typ, Grenzen und Fehler am Feld; Ganzzahlen vor dem Senden geprüft (BUG-025).
 - **Einheitliche Videosteuerung (SP1):** Komponente `VideoSettings` für alle Video-Workflows. Feste Reihenfolge direkt unter Prompt und Startbild: **Gesamtlänge (s)**, Bildrate, Auflösung, Abschnittslänge (nur wenn die Engine Abschnitte nutzt). Gleiche Beschriftung für LTX, Wan und Remix; Grenzen aus dem STATE. **Umgesetzt 17.11.2026** (`pages/comfyui/VideoSettings.tsx`): LTX, Wan 2.2 und Remix zeigen Gesamtlänge (s), Bildrate (fps), Breite, Höhe an derselben Stelle, Abschnittslänge nur bei Wan/Remix.
@@ -109,11 +113,13 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
 - **Referenzanalyse (B5.6, FL-5):** Knopf „Analysieren“ an Vorlage und Datei; Ergebnis als bearbeitbarer Prompt mit Pose, Licht, Kamera, Komposition; „Als Prompt übernehmen“ oder „Als Referenz verwenden“.
 - **Workflowverwaltung (Bestand):** öffnen im echten ComfyUI, übernehmen, aktivieren/deaktivieren, löschen (nur Definition, nie Modelle oder Medien).
 
-### 3.4 ComfyUI → KI (KI-Studio, B5)
+### 3.4 KI-Studio-Fachfunktionen → Studio/Charaktere und Studio/Labor (B5)
+
+**Verbindliche neue Aufteilung:** Persona, Systemprompt, Verhaltensblöcke und Profilversionen je Figur unter **Charaktere**; Melody-Chat-Test, Einstufungsprüfung, technische Memos-/Kontextinspektion und Vergleich unter **Labor → Technik → KI**. **„Im Chat testen“** und **„KI-Lauf prüfen“** öffnen direkt die passende Ansicht, ohne den Umweg durch eine lange Workflowliste. Kundenbezogenes Gedächtnis bleibt in **Nachrichten/Kundenakte**. Fachlogik E19/E20/E26 unverändert, keine neue sechste Studio-Unteransicht.
 
 **[17.11., E19]** Das gesamte Gesprächsverhalten jeder Influencerin wird hier über die Prompts des registrierten ComfyUI-2-Sprachworkflows eingestellt, ohne Python-Änderung. Jedes Feld ist an einen echten Eingang von `clara_chat_melody` gebunden (Backend SP4 Schritt 1); Felder ohne Graph-Bindung gibt es nicht.
 
-Links die KI-Workflows aus der Registry; Mitte Tabs **Chat-Test · Persona · Gedächtnis · Vergleich**; rechts Modell & Figur (Melody1437 v2.0 Q6_K aus der Registry), Textgenerierung (nur Parameter, die der Knoten wirklich hat), Kontext, KI-Warteschlange.
+**Historische F7.9-Ansicht:** links KI-Workflows, mittig Chat-Test/Persona/Gedächtnis/Vergleich, rechts echte Modell-/Kontextparameter. **Neue Zuordnung:** Persona-Felder in Charaktere, technische KI-Workflows/Chat-Test/Gedächtnisinspektor/Vergleich in Labor → Technik → KI; dieselben Fachwerte aus Registry/STATE.
 
 - **Textdialog → Persona (Promptprofil der gewählten Influencerin):** getrennte Felder **Systemprompt**, **Persona**, **Positive Anweisungen**, **Negative Anweisungen**, **Gesprächs- und Verkaufsstrategie**, **Beispieldialoge**, dazu die Funktionsanweisungen (KI-Hinweis, Wunsch-Zusammenfassung, Angebot, Zustellung, Vertrösten, Fansly-Verweis, Schema der strukturierten Ergebnisse). Der Ehrlichkeitsblock (Regel 12 c) ist kein Feld; er wird aus dem registrierten Graphen nur angezeigt.
 - **Rechts, Textgenerierung:** Modell- und Samplingparameter des Knotens (`max_tokens`, `temperature`, `top_p`, `repeat_penalty`; erweitert `repeat_last_n`, `n_ctx`, `enable_thinking`), Grenzen aus der Registry.
@@ -155,7 +161,9 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 
 ---
 
-## 4. Pakete (Nummern wie im Backend-Plan)
+## 4. Historische SP-Frontend-Pakete (Fachumfang bleibt; neue Umsetzungsreihenfolge Backend §13.10)
+
+Bereits implementierte GUI-Funktionen bleiben erhalten. Offene SP-Funktionen in die passenden DS-Pakete bzw. die nach DS8 folgende Etappe E und nach DS10 abschließende Etappe F integrieren; **keine zweite isolierte Frontend-Aufholphase**.
 
 **Reihenfolge:** Die Frontend-Teile folgen den Etappen des Backend-Plans (§6). **[17.11., CODE FIRST]** Zuerst vollständige Implementierung mit automatisierten Tests und kurzen echten Läufen; Modellqualifikationen (Training, lange Renders) danach. Zustände in der Oberfläche trennen beides: gebaut, aber nicht qualifiziert heißt `CODE` oder `TEIL`, nie PASS.
 
@@ -345,6 +353,8 @@ flowchart TD
 
 **Erweiterter Editor erst DS7:** React Flow darf als **gezielte Ausnahme** zur bisherigen Regel „keine neue UI-Bibliothek“ für den Experten-Canvas eingeführt werden, wenn Lizenzen, Bundle und bestehende Gestaltung geprüft sind. Kein weiterer eigenständiger Canvas-/Ausführungsserver. Einheitliches Stylesheet graphite.css bleibt die Designgrundlage.
 
+**Klarer Platz der KI-Arbeitsflächen:** `Studio → Charaktere` enthält pro Influencerin Persona/Prompt-/Verhaltensprofil und aktiven Versionsstand. `Studio → Labor → Technik → KI` enthält den echten Melody-Chat-Test, technische Gedächtnis- und Kontextinspektion, Einstufung/Prüfansicht, Versionen-A/B und alle ComfyUI-2-Modellparameter. `Nachrichten → Kundenakte` behält Kunden-Memory-Editieren. Direktlinks „Im Chat testen“ und „KI-Lauf prüfen“ verbinden diese Ansichten; **kein sechster Unterreiter**.
+
 ### 6.4 UI- und Backend-Zugriff: wer darf was?
 
 ~~~mermaid
@@ -525,12 +535,13 @@ flowchart TD
 | DS4 | Referenzrollen, Pose-/Kontur-/Maskenvorschau, LookPreset, CharacterSheet, Vorher/Nachher | echte geeignete Pose zu Bild |
 | DS5 | Storyboard, Szenenkarten, KI-Regie-Vorschläge, Revisionen; Provider-Rollen unter Einstellungen | drei Szenen + nur Szene 2 neu |
 | DS6 | Timeline, Clips/Tonspur, Draft/Master/Final, Shot neu, Exportprofil | kurzer echter Mehrshot-Film |
-| DS6b | Blender Blocking, Guides, Kamerapfad, Preview/Final-Vergleich und Lookvarianten | reales GuideBundle; Video-Control nur falls verfügbar |
+| DS6b-1 | SceneSpec, Proxy-/Kamera-Blocking, getrennte Kameratracks, Playblast/GuideBundle | echter kurzer M4-Blender-Lauf, Bedienelemente/Revisionen im Chrome-Test |
+| DS6b-2 (bedingt) | Pose/Rig/FULL_REFERENCE, qualifizierte ControlVideo-Engine und Abweichungsvergleich | nur nach belegtem M4-ControlVideo-Lauf, sonst TEIL und DS7 fortsetzen |
 | DS7 | integrierter React-Flow-Experten-Canvas, Typ-/Zyklus-/Capability-Fehler, Versionen | neue Flowrevision im echten kurzen Lauf |
 | DS9 | nur tatsächlich konfigurierte Cloud-/Audio-Zusätze und belegte Kosten | deaktiviert ohne Key; MAC/EXTERNAL_LIVE falls aktiviert |
 | DS10 | Betriebs-/Qualifikationsansicht und ehrliche Modell-/Alt-Nachweise | Qualität/4K/Last/History erst nach konkreten Messungen |
 
-**Nach DS8** offene Etappe-E-Oberflächen für PayPal, Konten/Geheimnisse, Kanalverwaltung und Nachlauf fertigstellen. **Nach DS10** finale Etappe-F-Betriebs-/Rechts-/Releaseansichten; zwingende Sicherung und E21 vor echtem öffentlichen Kundenkontakt gelten weiterhin sofort.
+**Entscheidungspunkte:** G-DS1 Bild/Rezept; G-DS8 zehn isolierte Idempotenz-/E2E-Fälle plus je geeigneter kurzer echter Mac-/Kanallauf; G-DS6 kurzer Mehrshot-/Exportlauf. Vollständiger 15-s-/4K-/Mehrstunden-Test DS10. Offenes qualitätsbezogenes Gate als TEIL sichtbar, keine erfundene Freigabe. **Nach DS8** offene Etappe-E-Oberflächen für PayPal, Konten/Geheimnisse, Kanalverwaltung und Nachlauf fertigstellen. **Nach DS10** finale Etappe-F-Betriebs-/Rechts-/Releaseansichten; zwingende Sicherung und E21 vor echtem öffentlichen Kundenkontakt gelten weiterhin sofort.
 
 ### 6.8 Klickabnahme, Gestaltung und Statusdisziplin
 
@@ -603,6 +614,8 @@ Wörtlich aus dem archivierten `PHASENPLAN_FRONT_V1.md` (F7, Betreiberfreigabe 1
 
 
 ### A.0 F7 — Abgenommene klickbare Cockpit-Referenz (Betreiberfreigabe 15.11.2026)
+
+**Geltungsgrenze 18.11.:** F7 bleibt für Übersicht, Nachrichten, Dateien, Wallet und Einstellungen verbindlich; die alte Navigation „ComfyUI → Fotos/Videos/KI“ ist **historisch und wird nicht neu gebaut**. Für Studio gilt §6.9. Historische Details in F7.5/F7.9 dokumentieren bestehende Fach- und Bedienfunktionen, nicht konkurrierende Studio-Routen.
 
 **Verbindliche Datei:** [Darkfluenzer_Cockpit_Interaktiv.html](design/Darkfluenzer_Cockpit_Interaktiv.html) — eigenständige HTML/CSS/JavaScript-Datei; im Browser öffnen, ohne Build, Backend oder Netzwerkzugriff. **Diese F7-Vereinbarung ist die Designreferenz für die nächste GUI-Anpassung; die noch nicht implementierten Funktionen bleiben fachlich F4/F3c/F5.** Designgetreue Umsetzung bedeutet insbesondere: keine neuen Menüs, künstlichen Status-Kacheln, Formularvorschauen oder Werbetexte. Screenshots der vom Betreiber freigegebenen Astra-Ansichten vom 14.11.2026 sind die visuelle Vergleichsgrundlage. Der HTML-Prototyp enthält bewusst nur stilisierte Bild-/Video-Platzhalter, niemals vorgetäuschte ComfyUI-Ergebnisse.
 
@@ -719,7 +732,9 @@ Die freigegebene **Übersicht** und **Nachrichtenansicht** sind im Betreiber-Cha
 
 ---
 
-#### F7.9 KI-Studio – verbindliche klickbare ComfyUI-2-Referenz (Betreiberfreigabe 16.11.2026)
+#### F7.9 Historische KI-Studio-Designreferenz (Fachfunktionen erhalten, Navigation migriert)
+
+**Vorrang ab DS1:** Die folgende ältere Klickvorlage bleibt für Modell-/Profilfelder, Chat-Test und Gedächtnis fachlich relevant, **nicht** für Unterregister „Fotos · Videos · KI“. Persona → **Charaktere**, technischer Melody-Test/Memory-Kontext/Vergleich → **Labor → Technik → KI**, Kundengedächtnis → **Nachrichten**. Studio-Layout ausschließlich gemäß der neuen Klickdemo §6.9.
 
 **Verbindliche Betreiberentscheidung:** Der am 16.11.2026 im Chat freigegebene klickbare **Darkfluenzer-KI-Studio-HTML-Prototyp** ist die maßgebliche Gestaltung und Interaktion für die KI-Seite in **ComfyUI**. Die im Prototyp sichtbaren Register, Formularanordnungen, Button-Texte, Spalten und Arbeitsabläufe sind umzusetzen; echte Zustände und Modellantworten dürfen nicht durch Beispielwerte ersetzt werden. Die HTML-Vorschau selbst ist ausschließlich eine **offline lauffähige Designreferenz**: ihre simulierten Antworten, Modellnamen, Werte und sechs geplanten Workflows beweisen keine installierte KI. **Bei Konflikt mit einer älteren generischen ComfyUI-Anweisung gilt für den KI-Reiter dieses F7.9; für Fotos/Videos F7.5.**
 
