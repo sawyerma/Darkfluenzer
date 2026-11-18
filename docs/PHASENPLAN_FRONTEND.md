@@ -1,7 +1,7 @@
 # Darkfluenzer – PHASENPLAN_FRONTEND.md
 
 **Stand:** 17.11.2026 (Frontend-Teile der Sammelpakete SP1–SP6, Änderungsblätter und Korrektur nach den Prüfberichten) · **Status:** **freigegeben** durch den Betreiber am 17.11.2026, verbindlich. Umsetzung in der Reihenfolge des Backend-Plans §6, Priorität CODE FIRST.
-**Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Produktziel, Regeln, Entscheidungen E1–E26, Statusbegriffe §2.3, Reihenfolge, Paketnummern; **[17.11., Planlogik]** nach der Logikprüfung korrigiert, offene Wahlpunkte E24–E26) und `docs/bugs_v1.md`.
+**Gilt zusammen mit:** `docs/PHASENPLAN_BACKEND.md` (Produktziel, Regeln, Entscheidungen E1–E26, Statusbegriffe §2.3, Reihenfolge, Paketnummern; **[17.11., Planlogik]** nach der Logikprüfung korrigiert; **[18.11.]** E24–E26 und die Schwellenregel zu E16/E17 entschieden) und `docs/bugs_v1.md`.
 **Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; laufendes Cockpit am 17.11.2026.
 **Gestaltungsreferenz:** `docs/design/Darkfluenzer_Cockpit_Interaktiv.html` und Anhang A (F7, wörtlich aus dem archivierten FRONT V1).
 
@@ -97,6 +97,7 @@ Karten und Liste nur aus echten Projektionen: **Kundenakten** (externe Akten ohn
   - Vor „Trainieren“ steht die geschätzte Dauer; der Knopf ist gesperrt, solange bezahlte Aufträge warten.
   - **Umgesetzt 17.11.2026 (Teil):** Gesamtschritte und geschätzte Dauer aus `step_s` über dem Knopf („noch keine Messung“ ohne Lauf).
   - **Training mit Checkpoints [17.11., Wellen gestrichen] (Backend SP3 Schritt 3):** Gesamtschritte, aktuelle Schrittzahl, geschätzte Restdauer, letzter gültiger Checkpoint, Knöpfe „Fortsetzen“ und „Beenden“; Probebilder optional.
+  - **[18.11., E25]** Pausiert ein Training automatisch für einen bezahlten Kundenauftrag, zeigt der Trainingsbereich „pausiert für Kundenauftrag · Checkpoint n“ und die Warteschlange den Auftrag davor; nach dem Kundenauftrag läuft das Training von selbst weiter.
   - **Umgesetzt 17.11.2026:** je Lauf „Checkpoint n von m · Verlust“ mit „Fortsetzen“ und „Beenden“ im Trainingsbereich; Checkpoint-Abstand als Feld des Trainingsformulars. Laufender Fortschritt und Restdauer kommen aus der Warteschlange (jobs.active).
   - Versionen: Tabelle aus der Registry mit Figur, Architektur, Datensatz, Schritten, Rang; Probebilder mit Identitätswert; „Aktiv setzen“ je Architektur.
   - Dateien, Herkunft: LoRA-Schlüssel, Stärke, Identitätswert.
@@ -117,7 +118,7 @@ Links die KI-Workflows aus der Registry; Mitte Tabs **Chat-Test · Persona · Ge
 - **Versionen:** Speichern legt eine neue Version an; zwei Versionen nebeneinander vergleichen; eine Version zuerst im Chat-Test ausführen; aktivieren oder auf eine frühere zurücksetzen (Befehl 68), wirksam ohne Backend-Neustart.
 - **Chat-Test:** echte Melody-Inferenz mit Sitzung, „Nachricht an Clara …“, Enter sendet, Shift+Enter Zeilenumbruch. Je Antwort Messwerte (Gesamtzeit, Wartezeit; die Zeit bis zum ersten Token nur, wenn der Knoten sie liefert) und die verwendeten Versionen von Profilblöcken, Modell und Workflow; aufklappbar der tatsächlich zusammengesetzte Prompt. Testdaten getrennt von Kundendaten.
 - **Gedächtnis:** Liste mit Quelle und Zeit (B5.3), Kontextinspektor (welche Einträge in den nächsten Lauf gehen).
-- **Prüfansicht** für die strukturierten Ergebnisse des Workflows (Kaufbereitschaft, Wunsch, Prompt).
+- **Prüfansicht** für die strukturierten Ergebnisse des Workflows (Kaufbereitschaft, Wunsch, Prompt). **[18.11., E26]** Der neutrale Einstufungslauf (ohne Persona) erscheint je Antwort getrennt von der Persona-Antwort: Einstufung mit Beleg, danach der Antworttext.
 - **Vergleich** nur mit freigegebenem zweitem Profil.
 - Eigene Profile je Influencerin; die Auswahl der Figur wechselt das ganze Profil, nichts wird zwischen Clara und Lucy gemischt.
 - Außerhalb von ComfyUI bleiben ausschließlich technische Berechtigungs-, Transaktions- und Versandprüfungen; sie erscheinen als Zustand, nicht als Schalter.
@@ -212,10 +213,10 @@ Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`,
 
 - **Influencerin-Block:** Produktliste mit Art, Workflow, Kandidatenzahl, Höchstlänge und Zusatzleistungen; Zahlungswege; Angebotsgültigkeit; Schalter Bildautomatik und Freigabeart.
 - **Kundenakte rechts:** Medienwunsch mit Quellnachrichten; Angebot mit gesperrtem Faktenblock (mit Lieferzeit) und Zahlungswegen; Zahlungsstatus; Produktion mit Prüfwerten je Kandidat und „Neu erzeugen“; Zustellung mit Versandart und Begleittext; Nachlauf mit Neuauflage und Erstattung.
-- **[17.11., Planlogik] Zustände und Karten:** „Zahlung in Prüfung“ (`payment_review`, Gutschein wartet); „Eingang nach Ablauf“ als nicht zugeordneter Eingang mit „Neuem Angebot zuordnen“ und „Erstatten“ (E24 offen); „Zustellung wartet auf Kontakt“ (`awaiting_contact`, Instagram-Fenster); „Gegenprüfung fehlt“ (Backend SP3 Schritt 7); „Video wartet auf Freigabe“ (E23); „Testbetrieb beendet“ bei Wechsel der Betriebsart mit offenen Testaufträgen. Jede Karte nennt die Auftragsnummer.
+- **[17.11., Planlogik] Zustände und Karten:** „Zahlung in Prüfung“ (`payment_review`, Gutschein wartet); „Eingang nach Ablauf“ als nicht zugeordneter Eingang mit „Neuem Angebot zuordnen“ und „Erstatten“ (E24: keine automatische Neuzuordnung, der Betreiber entscheidet); „Zustellung wartet auf Kontakt“ (`awaiting_contact`, Instagram-Fenster); „Gegenprüfung fehlt“ (Backend SP3 Schritt 7); „Video wartet auf Freigabe“ (E23); „Testbetrieb beendet“ bei Wechsel der Betriebsart mit offenen Testaufträgen. Jede Karte nennt die Auftragsnummer.
 - **Auftragskarte:** zeigt, ob das System oder der Betreiber freigegeben hat; „wartet auf Betreiber“ mit Freigeben, Neu, Erstatten („Freigeben“ nur bei technischem oder qualitativem Fehlschlag; bei Videos bis zu einer qualifizierten Videoprüfung immer, E23). **[17.11., Planlogik]** „Erstatten“ verlangt eine zweite Bestätigung mit der Auftragsnummer; am Handy gelten Freigabewörter nur als Antwort auf die Vorschau des Auftrags.
 - **Wallet:** PayPal-Konto und -Eingänge; Kulanz-Zuordnung zeigt Fehlbetrag und Grenze und verlangt eine Bestätigung (E10, SPEC-010).
-- **Kandidaten:** vier Prüfwerte (Identität, Inhaltsstufe, Technik, Qualität); ohne geprüftes Modell steht dort „Prüfmodell fehlt, Freigabe durch Betreiber“ (E16, E17).
+- **Kandidaten:** vier Prüfwerte (Identität, Inhaltsstufe, Technik, Qualität); ohne geprüftes Modell oder qualifizierte Schwelle steht dort „Prüfung nicht qualifiziert, Freigabe durch Betreiber“ (E16, E17: **[18.11.]** Schwellen nur aus beschrifteten, unabhängig validierten Referenzdaten; bis dahin keine automatische Freigabe).
 - **Warteschlange:** Vorrang je Job sichtbar.
 - **Kundentest:** Marke TEST an Auftrag, Medien und Karten; Testaufträge nie im Wallet.
 - **Übersicht:** Zähler „wartet auf Betreiber“; Kennzahlen je Workflow (bestanden, Reklamationen, Neuauflagen).
