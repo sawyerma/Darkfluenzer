@@ -116,6 +116,11 @@ Wörtlich aus V0 §2.1, ergänzt um die Betreiberregeln vom 14.–17.11.:
 - **FREE ONLY:** lokal betreibbare, kostenlose Komponenten; keine Cloud-KI-API. Lizenzen werden dokumentiert, sind aber kein Auswahlkriterium.
 - **NO JSON als Konfiguration:** TOML und Protobuf; JSON nur, wo externe APIs oder ComfyUI-Workflows es erfordern.
 - **NO DUPLICATION:** vorhandene Funktionen wiederverwenden, keine doppelte Architektur.
+- **EIN WEG JE SACHE – VERBINDLICH (§13.16):** Eine Produktionsmaschine, Job-/Ressourcenqueue, Workflow-/Modell-Registry, Charakter-/LoRA-/Trainingsverwaltung, Medienablage, SQLite, Protobuf-Schicht, Secret-/Settings-Katalog und je Funktion nur ein GUI-Bedienweg. **Keine zweite Studio-Queue, kein zweiter AssetStore, kein zweites Registry-/Charaktersystem, kein dauerhafter Legacy-Adapter.** Vor jeder Implementierung gilt die [bereinigte Protobuf-Tabelle](../protocol/contracts/studio/Studio_Protobuf_Routing_Vollstaendig.csv).
+- **ERSETZEN UND ENTFERNEN IM CUTOVER-PAKET:** DS2/DS3 und DS8 bilden einen zusammenhängenden kontrollierten Umbau. Bis zum Umschaltmoment **nur der alte Weg produktiv**, neuer Flow nur isoliert zur Parität; danach **nur der neue Weg**, im **selben DS8-Cutover** alten ausführenden Autoprod-/Cloner-/Order-Renderweg, alte UI-Handler und Imports entfernen. Keine zwei Live-Engines. Historische Datensätze bleiben für Audit erhalten.
+- **TATSÄCHLICHER MODULUMZUG:** vorhandene Fachfunktionen nach `studio/`, `customers/`, `shared/` verschieben (keine zweite Kopie). Alle **27** heutigen `core/`-Dateien sind einzeln in [Core_Modul_Migration.csv](../protocol/contracts/studio/Core_Modul_Migration.csv) zugeordnet. Nach DS8 **kein ausführendes/importiertes `core/`**. Bestehende `store/`-Daten werden fachlich in gemeinsame DB-Koordination plus Studio-/Kunden-Repositories getrennt; **SQLite-Datei nicht duplizieren**.
+- **NICHTS AUF VORRAT:** Jede neue Proto-Nachricht/Tabellenspalte/Datei/Komponente braucht einen nachweisbaren Aufrufer, Owner, Paket und Test; markierte Doppelrouten `ENTFAELLT_NICHT_IMPLEMENTIEREN` werden **nicht** gebaut. Bestehende veröffentlichte Proto-Tags **niemals löschen/neu verwenden**; nur alte Handler nach sicherem Cutover entfernen und Wire-Kompatibilität sichern.
+- **TESTGATES:** Pro Paket Architekturimport- und SQL-Grenztests (`studio ↛ customers`, `shared ↛ Fachmodule`, `customers → ProductionClient`), Audit ungenutzter Funktionen/Commands/Spalten sowie Richtwert **800 Codezeilen je Datei** mit Warnung und schrittweiser Teilung. Nicht automatisch historische SQLite-, Medien- oder Journalbelege löschen.
 - **MAIN ONLY:** keine Branches oder Worktrees. **MAX 2 AGENTS.**
 - **GIT:** je abgeschlossenem Paket Tests, Commit, Push auf `main`.
 - **Geheimnisse nur im macOS-Schlüsselbund** (Konto `darkfluenzer`): `darkfluenzer.telegram.api_id`, `darkfluenzer.telegram.api_hash`, `darkfluenzer.telegram.db_key`, Instagram-Token, Meta-App-Secret, PayPal-Zugang. Nie in `.env`, TOML, Git, Logs, STATE, EVENT, Receipt, Befehlsjournal oder LLM-Kontext. In den Befehlen `secret_set` und `channel_account_login` reist der Wert einmal über die angemeldete lokale Cockpit-Verbindung (Sitzung + CSRF) zum Backend und wird dort nicht gespeichert; der Journal-Hash wird ohne den Wert gebildet. Eingabe über `darkfluenzer secret set` (verdeckt bzw. stdin, Übergabe an `security -i` über stdin); vorhandene Einträge nur nach ausdrücklicher Bestätigung ersetzen. Telegram-Code und 2FA-Passwort gehen nur temporär an TDLib.
@@ -1715,3 +1720,68 @@ flowchart TD
   S -->|"nur geprüfter Export"| H["Koordinator + Kunden-Handoff"]
   H --> G["Kunden-Gate / Trigger / Versand"]
 ~~~
+
+### 13.16 Ein Weg je Sache – bindende Code- und Proto-Bereinigung (18.11.2026)
+
+**Betreiberentscheidung:** Der Studio-Ausbau ist ein **physischer Umbau ohne Parallelarchitektur**. Eine Besitz-/Importliste über einem weiter produktiven alten `core/` genügt nicht. Diese Regel präzisiert §2.2, §13.1, §13.5 und §13.15. Maßgeblich ist **nur die [bereinigte Studio-Routingmatrix](../protocol/contracts/studio/Studio_Protobuf_Routing_Vollstaendig.csv)** mit den Spalten `Status`, `Eigentuemer_oder_Bestand`, `Lieferpaket`. Der ursprüngliche hochgeladene 106-Einträge-Katalog bleibt historische Quelle, **kein Auftrag, 106 neue Funktionen zu bauen**.
+
+| Bereich | Bleibt und wird tatsächlich umgezogen/erweitert | Entfällt im betreffenden Cutover |
+|---|---|---|
+| **Flow** | Ein `studio/flows`-Executor für Cockpit, Default/Kloner und Kunden; Kunden besitzen Angebote/Payment/Outbox | `core/autoprod.py`, Order-Renderstufen und Cloner-Renderteil in **DS8**, keine zweite Produktionspipeline |
+| **Registry** | Bestehende Manifest-/Workflow-/Modell-Registry unter `studio/registry`, Workflows STATE **3** | Studio-COMMAND **128–130** (zweite Modellregistrierung) |
+| **Queue/RAM** | Vorhandene `store/jobs.py` + `core/render.py` als **ein** Dispatcher unter `studio/render`, Flow-NodeRuns in bestehende Jobs; Topics **2** und **7** | Studio-COMMAND **154**, STATE **44, 47** |
+| **Charakter/LoRA** | Vorhandene Charakter-/LoRA-/Trainingsstruktur, Befehle **25/64/67**, Charakter STATE **5** | Studio-COMMAND **120–122**, STATE **48** |
+| **Medien/Referenzen** | Bestehende `media/`, `store/media.py`, eine Galerie, vorhandener gesicherter Upload, Topics **21/22/25** | Eigener AssetStore, Studio EVENT **62**, READ **3, 19**; COMMAND **108** nur als dünne Erweiterung des bestehenden Uploads |
+| **Secrets/Provider** | Ein `shared/settings` und bisheriger `keychain.py`; Account-, Status- und Testverfahren dort erweitern | Eigenständiger Studio-SecretStore. **Fables angenommene Befehle 60/62 existieren im geprüften `commands.proto` nicht**; die Studio-GUI-Befehle **132/133/135** bleiben nur bei realem Bedarf als Zugang zum **bestehenden** Keychain-/Connection-Test-Dienst |
+| **Kunden-Handoff** | Kundendomäne, bestehender `OrderUpdated` EVENT **23**, zwei SQLite-Trigger und Pre-Dispatch-Prüfung | Studio EVENT **70**, ein zweites Versand-/Gate-System |
+| **Sonstiges** | Vorhandene Trainings-/Jobs-Historie und eine Mediengalerie, Labor für ComfyUI-Technik | Doppelte Studio-Trainingsliste EVENT **67**, READ **5**, zweite Galerie oder technische Workflowhauptseite |
+
+**Protokollbilanz:** Von **106** bisher ausschließlich als SOLL dokumentierten Routenzeilen **entfallen 16** als Duplikate (COMMAND **120–122, 128–130, 154**; STATE **44, 47, 48**; EVENT **62, 67, 70**; READ **3, 5, 19**). Höchstens **90** verbleiben bedarfsgebunden (**52 COMMAND, 6 STATE, 11 EVENT, 21 READ**), davon weitere als **BESTAND_ERWEITERN** statt neuer Fachfunktion. Alle entfernten Studio-Nummern waren am geprüften HEAD **noch nicht veröffentlicht**; bestehende v1-Tags bleiben für Wire-Kompatibilität erhalten, niemals neu belegen. Nicht implementierte Vorschläge sind nicht `PASS`; ihre Nummern ohne erneute Prüfung nicht anders verwenden.
+
+**Physischer Zielbaum nach DS8 (eine Python-App, eine SQLite, keine zweite GUI):**
+
+~~~text
+backend/src/darkfluenzer/
+  app.py  config.py  keychain.py
+  web/                 http.py  stream.py  commands.py  mappers/
+  shared/              db.py  journal.py  settings.py  supervise.py  llm.py  ops/
+  studio/
+    service.py  contracts.py
+    tasks/             profiles.py  recipes.py  comparison.py
+    flows/             engine.py  planner.py  fingerprint.py  steps/  templates/
+    render/            dispatcher.py  admission.py  pipeline.py  gallery.py
+    registry/          workflows.py  models.py
+    characters/        profiles.py  training.py  identity.py  looks.py
+    director/          providers.py  script.py  storyboard.py
+    film/              timeline.py  join.py  export.py
+    previz/            scenespec.py  blender_runner.py  bl_build.py
+    checks/            content.py  anatomy.py  technical.py  selection.py
+    nodes/             base.py  local.py  comfy.py
+    repo/
+  customers/
+    chat/              service.py  ai.py  dialog.py  persona.py  memory.py  behavior.py
+    cloner/            intake.py  text.py  instruction.py
+    sales/             orders.py  offers.py  payments.py  eta.py
+    delivery/          gate.py  handoff.py  outbox.py  phone.py
+    channels/          telegram/ instagram/
+    payments/
+    repo/
+  v1/                  vorhandener Protobuf-Codegen
+~~~
+
+**Die Verzeichnisstruktur ist eine Eigentums- und Zielskizze, keine Anweisung, leere Dateien oder doppelte Services anzulegen.** `core/` darf nach DS8 **nicht mehr bestehen**. Bestehende `media/`, `nodes/`, `store/`, `channels/` und `payments/` werden ohne Kopien fachlich zugeordnet/verschoben. `store/` bleibt bis zum geprüften Umbau die **einzige** SQLite-Implementierung und wird dann ohne zweite DB-Datei auf `shared/db`, `studio/repo`, `customers/repo` aufgeteilt. `core/base.py`, `characters.py`, `cloner.py`, `orders.py` sind fachlich zu **teilen**, nicht blind zu verschieben. Verbindliche Einzeldetails für alle 27 heutigen Dateien: [Core_Modul_Migration.csv](../protocol/contracts/studio/Core_Modul_Migration.csv).
+
+**EIN Cutover trotz Zwischencommits:** DS2/3-a/b/c erstellen, testen und versionieren den neuen Code nur **isoliert**; produktive Medienjobs durchlaufen weiter ausschließlich den vorhandenen Pfad. Nach dokumentierter Parität, Gate-/Trigger-Sicherheit, echtem Mac-Lauf für Default/Betreiber/Kunden-Test, Neustart-/Idempotenzprüfung und Klärung laufender Altjobs wird in **DS8** der Produktivaufruf ein einziges Mal umgestellt und **im selben Paket** alter Dispatcher, `autoprod`, Cloner-/Order-Render und alte Mixin-/GUI-/CLI-Einstiege **entfernt**. DS8 hat **kein PASS**, solange `core/` noch produktiv importiert wird oder eine zweite Queue/Registry/Medienablage existiert.
+
+~~~mermaid
+flowchart LR
+  A["DS0: Kern-Dateien, Protobuf-/Tabellen-/GUI-Matrix"] --> B["DS1: bestehende Registry um Task-/Rezepte erweitern"]
+  B --> C["DS2/3-a/b/c: neuer Flow isoliert testen, Bestand bleibt produktiv"]
+  C --> G{"DS8 Parität, Gate, Neustart, reale Kurzläufe?"}
+  G -->|"nicht bestanden"| H["Kein Cutover; nur alter Weg produktiv"]
+  G -->|"bestanden"| I["EINMALIG umschalten; alte ausführende Pfade löschen"]
+  I --> J["Keine core-Imports; ein Job-/DB-/Medien-/Registry-System"]
+  J --> K["DS8 PASS → DS4"]
+~~~
+
+**Paketabnahme:** Test auf fehlende fachliche Doppelowner, unerlaubte Imports, SQL-Fremdzugriff, keine zweite Queue/Registry/DB/Galerie, alte Commands/Handler/GUI-Pfade entfernt, ungenutzte Funktionen/Tabellenfelder auditiert, richtwertige 800-Codezeilen-Warnung; tatsächliche fachliche Regression, Mac-Kurztest und Commit/Push. Veröffentlichte Proto-Tags, historische DB-/Kunden-/Medien-/Ereignisdaten werden **nicht** ohne sichere Migration gelöscht. Kein dauerhafter Adapter wird durch Umbenennen zu `legacy` gerettet.

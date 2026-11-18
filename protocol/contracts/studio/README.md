@@ -1,13 +1,35 @@
 # DarkStudio – verbindlicher Protobuf-Routing- und Feldvertrag (18.11.2026)
 
+## Verbindliche NO-LEGACY-Bereinigung (18.11.2026) – Vorrang vor historischen Bruttozahlen
+
+**Einzige verbindliche Routing-Matrix:** [Studio_Protobuf_Routing_Vollstaendig.csv](Studio_Protobuf_Routing_Vollstaendig.csv). **106 ursprünglich vorgesehene Einträge** wurden einzeln mit `NEU_BEI_PAKETBEDARF`, `BESTAND_ERWEITERN` oder `ENTFAELLT_NICHT_IMPLEMENTIEREN` entschieden. **16 entfallen als Duplikate**, sodass höchstens **90 Einträge** umgesetzt werden, davon einige nur als Adapter/Erweiterung bereits existierender Fachfunktionen. **Nicht alle 90 müssen umgesetzt werden:** jede Einheit entsteht erst mit benanntem Aufrufer und echtem Paket.
+
+| Klasse | Ursprünglich | Entfallen | Maximal vorgesehen |
+|---|---:|---:|---:|
+| COMMAND | 59 | 7 | 52 |
+| STATE | 9 | 3 | 6 |
+| EVENT | 14 | 3 | 11 |
+| READ | 24 | 3 | 21 |
+| **Gesamt** | **106** | **16** | **90** |
+
+**Verworfene Solltags:** COMMAND 120–122 (Bestands-Charaktere/Training), 128–130 (Bestands-Registry), 154 (Bestandsqueue); STATE 44 (Queue), 47 (Ressourcen), 48 (Charaktere); EVENT 62 (Assets), 67 (Charaktere), 70 (Handoff); READ 3 (Medienliste), 5 (Trainingsliste), 19 (Media-Metadaten). Diese wurden **noch nie** in `commands.proto`/`stream.proto` publiziert, daher gibt es aktuell keinen Wire-Entzug. Für künftige Studio-Schemas sind sie als zurückgezogene Vorschlagsnummern im Vertragsregister sichtbar und **dürfen ohne neue Freigabe nicht für andere Zwecke wiederverwendet** werden. Existierende alte Wire-Felder bleiben als Proto-v1-Kompatibilitätsdaten protokollseitig stabil, ihre **Handler/Alt-Dispatcher** werden nach Cutover entfernt.
+
+**Wichtige Korrektur zu bestehenden Befehlen 60/62:** Im geprüften `commands.proto` gibt es **keine** Befehle 60 oder 62. Deshalb bleiben die Studio-UI-Aktionen **132 (Secret setzen), 133 (Secret löschen), 135 (Provider-Verbindung testen)** bei tatsächlichem Bedarf als *neue typisierte Zugänge zum bestehenden einzigen* `keychain.py`-/Settings-Dienst vorgesehen. **Kein zweiter Secret-Store, keine zweite Providerverwaltung.** Es gibt nur ein gemeinsames Settings-Katalogsystem. COMMAND 108 bindet, falls benötigt, die **bestehende** `media.pipeline.store_input`-/Uploadlogik an; kein weiterer Datei-/Asset-Store.
+
+**Vorrang:** Gültige Sicherheits-/Kundenregeln und Backend §13.16 → diese **bereinigte Matrix** → Feldkatalog (nur Schema-Kandidaten, nicht alles implementieren) → historische [README_STUDIO_PROTOBUF.md](README_STUDIO_PROTOBUF.md) und [Studio_Protobuf_Routing.csv](Studio_Protobuf_Routing.csv) als Quellenarchiv. Es gibt **keine zweite verbindliche Routing-Tabelle**. `NEU_BEI_PAKETBEDARF` ist keine sofortige Implementierungsfreigabe; im Paket sind Schema, Handler, Protobuf-Read/State/Event, SQLite-Migration falls nötig, GUI-Aufrufer und Test gemeinsam nachzuweisen.
+
+**Cutoverregel:** DS2/DS3-a/b/c und DS8 sind **eine zusammenhängende Migration mit Zwischencommits**. Bis zum DS8-Umschaltmoment bleibt *nur der alte Weg produktiv*, die neue Engine läuft ausschließlich isoliert zur Paritätsprüfung. Danach ist *nur die neue Flow-Maschine produktiv*, die alten Renderdispatcher, altes `autoprod` und Cloner-Renderpfade werden im **selben Gesamt-Cutover** gelöscht, inklusive alter GUI-Einstiege und Tests. Kein paralleler Live-Doppelbetrieb und keine dauerhaften Legacy-Adapter. Bestandstabellen dürfen historisch weiter lesbar bleiben; doppelte aktive Tabellen/Queues sind verboten.
+
+
+
 **Geltung:** Dieser Ordner ist die **versionierte Protokoll-Sollvorgabe** zu Backend-Phasenplan §13 und Frontend-Phasenplan §6. Er ist **kein dritter Phasenplan** und implementiert keine UI-/Backend-Handler. Die Feld- und Tagzuordnung wird mit diesem Commit für DS0–DS10 festgelegt; Änderungen benötigen explizite Protokollmigration und Regression.
 
 ## Verbindliche Dateien und Quelle
 
 | Datei | Rolle |
 |---|---|
-| [Studio_Protobuf_Routing.csv](Studio_Protobuf_Routing.csv) | Hochgeladene Reservierung: **59 Commands (Tags 100–158), 9 STATE (Topics 40–48), 14 EVENT (Topics 60–73)** |
-| [Studio_Protobuf_Routing_Vollstaendig.csv](Studio_Protobuf_Routing_Vollstaendig.csv) | **106 durchgängige Routen**: die 82 Reservierungen plus **24** bedarfsgesteuerte Protobuf-Reads |
+| [Studio_Protobuf_Routing.csv](Studio_Protobuf_Routing.csv) | Hochgeladene Reservierung: **historische Vorschlagsmatrix 59 COMMAND, 9 STATE, 14 EVENT; nur der Status der bereinigten Routing-Volltabelle entscheidet** |
+| [Studio_Protobuf_Routing_Vollstaendig.csv](Studio_Protobuf_Routing_Vollstaendig.csv) | **106 ursprünglich spezifizierte Routen mit verbindlichem Status je Zeile**: 16 entfallen, höchstens 90 bleiben vorgesehen |
 | [Studio_Protobuf_Alle_Felder.md](Studio_Protobuf_Alle_Felder.md) | Hochgeladener Typ-/Feldkatalog: **195 Nachrichten, 1.781 Felder** mit Proto-Tags |
 | [Studio_Protobuf_Feldkatalog.csv](Studio_Protobuf_Feldkatalog.csv) | Aus der Markdown-Feldliste deterministisch abgeleitete maschinenlesbare Feldmatrix |
 | [README_STUDIO_PROTOBUF.md](README_STUDIO_PROTOBUF.md) | Hochgelieferte fachliche Transport-/DS-Spezifikation und GUI-Feldzuordnung |

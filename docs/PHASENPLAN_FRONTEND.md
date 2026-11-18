@@ -617,6 +617,22 @@ flowchart TD
 
 **Status & Umsetzung:** Die sechs neuen Studio-Proto-Dateien und 21 Enumdefinitionen sind in den Uploads **nicht enthalten**. Die Git-Ablage fixiert **SOLL-IDs**, keine bereits lauffähigen DTOs. DS0 muss die echten `*.proto` und Enums ergänzen/prüfen, Schema-Codegen und Handshake nachweisen; jedes DS-Paket aktiviert nur die tatsächlich implementierten Handler. **Nicht verfügbare Buttons bleiben begründet deaktiviert.** `ACCEPTED` ist keine abgeschlossene Produktion, und eine im HTML klickbare Funktion ist kein funktionales PASS. Für Kunden bleibt LOCAL_ONLY, für F06 Regel 4 und für Lieferungen das widerrufbare Kundengate verbindlich.
 
+### 6.11 Ein Bedienweg je Funktion – keine doppelte Studio-GUI
+
+**Vorrang gegenüber §6.10-Bruttokatalog:** [Bereinigte Studio-Protobuf-Tabelle](../protocol/contracts/studio/Studio_Protobuf_Routing_Vollstaendig.csv) mit verbindlichem Zeilenstatus und Backend-Plan **§13.16**. Aus **106** ursprünglichen Vorschlägen entfallen **16** redundante Routen; die übrigen sind nur bei tatsächlichem Bedarf anzulegen oder als **BESTAND_ERWEITERN** über bereits funktionierende Dienste auszuführen. Es werden **keine** 106 neuen Handler, Galerien oder Seiten gebaut.
+
+| Funktion | Einziger Bedienort | Datenquelle / Routing |
+|---|---|---|
+| Bilder, Video, Kundenproduktionskette | Studio → Erstellen und dieselbe `production_id` aus Nachrichten | ein Studio-Executor, dieselben Render-/Jobtabellen |
+| ComfyUI-/Modell-Registry | Studio → **Labor** (bisherige Workflowseite wandert hierher) | bestehende Workflows, STATE 3, keine zweite Registry |
+| Queue / Unified Memory | Studio-Produktionskette und Diagnose im Labor | bestehende JobsActive STATE **2**, Resources **7** |
+| Charaktere, LoRA, Training | Studio → **Charaktere** mit KI-Prompt-/Profil-Links | bestehender `Characters` STATE **5**, ein Trainings-/LoRA-Bestand |
+| Medien/Referenzen | **Dateien-Hauptreiter**; Studio zeigt nur Projekt-/Shot-Filter auf dieselben Medien | MediaPage, MEDIA_ADDED **21**, MEDIA_REMOVED **22**, REFERENCE_ADDED **25** |
+| Anbieter, Secrets | **Einstellungen → KI-Anbieter/Rollen**, niemals ein zweites Labor-Formular | ein Settings-/Keychain-Dienst, nur bei Bedarf typisierte zusätzliche Protobuf-Zugänge |
+| Handoff/Lieferung | Kundenakte in **Nachrichten**, „Im Studio öffnen“ ist ein Link auf dieselbe Produktion | Kundenmodul und ORDER_UPDATED **23**, keine Versandentscheidung im Studio |
+
+**Abnahmekriterium:** Jede gespeicherte Betreiberaktion führt über **genau einen** definierten Protobuf-Befehl oder Read auf einen Fach-Owner, eine persistierte Revision und ein vorhandenes STATE/EVENT-/Receipt-System. Die alte ComfyUI-Hauptfläche wird mit ihrem technischen Bestand in das **Labor umgezogen**, nicht kopiert. **Kein zweiter Medienkatalog, Trainings- oder Settings-Screen, kein zweiter Render-Button mit eigener Pipeline.** Nach dem DS8-Cutover dürfen alte Render-Routen nicht mehr ausführbar sein; vor dem Cutover darf die neue Flow-Maschine keine zweite Live-Produktionskette bilden. Browser-Regression überprüft Navigation, Doppelclick/Refresh, Reconnect, unveränderte Kunden-/Liefer-Gates und den Klickdemo-Look.
+
 ## Anhang A – Freigegebene Klickreferenz F7
 
 Wörtlich aus dem archivierten `PHASENPLAN_FRONT_V1.md` (F7, Betreiberfreigabe 15./16.11.2026) übernommen. Verweise auf „V0“, „FRONT“ oder Abschnittsnummern beziehen sich auf die Archivfassungen. Bei Widerspruch gilt dieser Plan, insbesondere §1 (sechs Reiter, einheitliche Bedienung je Art) und §3. Die früheren Abschnitte F0–F6 sind durch §1–§4 dieses Plans und den Backend-Plan ersetzt und liegen im Archiv.

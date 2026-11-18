@@ -1,4 +1,7 @@
-# DarkStudio / Darkfluenzer – vollständiger Protobuf-Sollvertrag
+# DarkStudio / Darkfluenzer – ursprünglicher Protobuf-Sollvertrag (historische Quelle)
+
+> **VERBINDLICHE BEREINIGUNG 18.11.2026 – EIN WEG PRO SACHE:** Dieser Upload ist die ursprüngliche Soll-Spezifikation **vor** dem im Git dokumentierten Architekturabgleich. **Nur die bereinigte [Studio_Protobuf_Routing_Vollstaendig.csv](Studio_Protobuf_Routing_Vollstaendig.csv) ist normativ**; diese README belegt Herkunft, ursprüngliche Feldideen und deren Gültigkeitsgrenzen. Protokolltags, Nachrichten oder neue Dienste, die in der Routing-Tabelle den Status `ENTFAELLT_NICHT_IMPLEMENTIEREN` haben, werden **nicht** als zweiter Weg implementiert. Freigegebene Bestandsschnittstellen werden erweitert und fachlich umgezogen. Die 59/9/14/24 Einträge in dieser historischen Vorlage sind **Bruttoliste, keine Anzahl zu implementierender neuer Routen**. Die verbindliche Bereinigung steht auch in PHASENPLAN_BACKEND.md §13.16. 
+
 
 **Stand:** 18.11.2026  
 **Bezug:** `DarkStudio_Darkfluenzer_MASTERPLAN_3_2_final.md`, Darkfluenzer `main`, bestehende v1-Proto-Schemas, klickbare HTML-Studio-Vorschau.  
