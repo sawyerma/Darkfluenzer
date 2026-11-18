@@ -199,6 +199,18 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP4 Schritt 2 (Promptprofile, Backend) / SPEC-016 Teil
+Commit: siehe git log „SP4 step 2“ / store.profiles, core.persona, core.characters, Migration 26, Protos
+Behauptung: influencers.persona war ein Textfeld, eine Änderung überschrieb die alte Fassung
+Korrektur: unveränderliche Versionen je Influencerin, aktive Version, Befehl 35 additiv (Entwurf), Befehl 68
+  (aktivieren/zurücksetzen), STATE 9 mit Blöcken und Versionen; Modellparameter nur aus einem registrierten
+  Sprachworkflow mit Grenzen
+Nachweis: tests/test_persona.py (Migration 26 mit Sicherung, Unveränderlichkeit per Trigger, Zurücksetzen,
+  Trennung je Influencerin, Befehle 35/68 und STATE); volle Backend-Suite 210 grün; Migration an Kopie der
+  echten Datenbank (Integrität ok)
+Ergebnis: CODE (Backend); KI-Studio und Übergabe an den Sprachworkflow OFFEN
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: E17 Fingerzahl (CountHallu-Fingerzähler) – Durchsicht und Probe
 Commit: – (nicht eingebaut)
 Behauptung: Fingerzahl sollte nach Durchsicht des YOLO-v13-Codes folgen

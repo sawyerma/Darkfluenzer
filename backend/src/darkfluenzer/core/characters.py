@@ -14,7 +14,8 @@ from ..v1 import (
     influencer_pb2,
 )
 from ..v1 import stream_pb2 as spb
-from .base import _Call, log
+from . import persona
+from .base import _Call, _unix_ms, log
 
 # Enden asynchron mit eigener Receipt: Render mit dem Job, ComfyUI mit Start/Stopp
 # Feste, nicht editierbare Persona-Regel (PHASENPLAN_V0 Regel 12 c)
@@ -277,6 +278,8 @@ class CharactersMixin:
         msg = influencer_pb2.Influencers(
             honesty_rule=HONESTY_RULE, version=self.store.domain_version("influencers")
         )
+        for key, label in persona.PROFILE_BLOCKS:
+            msg.profile_blocks.add(key=key, label=label)
         for row in self.store.influencers():
             item = msg.influencers.add(
                 influencer_id=row["id"],
@@ -288,10 +291,24 @@ class CharactersMixin:
             )
             for price in row["prices"]:
                 item.prices.add(**price)
+            active = row.get("persona_active")
+            for v in self.store.persona_versions(row["id"]):
+                item.persona_versions.add(
+                    version=v["version"], blocks=v["blocks"], params=v["params"], note=v["note"],
+                    created_ms=_unix_ms(v["created_at"]),
+                )  # fmt: skip
+                if v["id"] == active:
+                    item.persona_active = v["version"]
         return msg.SerializeToString()
 
     async def _influencer_update(self, msg: commands_pb2.InfluencerUpdate, call: _Call) -> str:
-        """Profil der Influencerin speichern – gilt für alle Kunden (FRONT F4 V1.12 Punkt 12)."""
+        """Profil der Influencerin speichern – gilt für alle Kunden (FRONT F4 V1.12 Punkt 12);
+        mit ``profile`` zusätzlich eine Version des Promptprofils (SP4 Schritt 2)."""
+        draft = msg.profile if msg.HasField("profile") else None
+        if draft is not None and (
+            reason := persona.check_draft(self.manifest, dict(draft.blocks), dict(draft.params))
+        ):
+            return reason
         if msg.character_id:
             self.store.character(msg.character_id)  # unbekannt: StoreError -> Ablehnung
         if len(msg.prices) > MAX_PRICE_ITEMS:
@@ -316,5 +333,28 @@ class CharactersMixin:
             ],
         )
         call.entity = f"influencer:{influencer_id}"
+        active = self.store.active_persona(influencer_id)
+        blocks = dict(active["blocks"]) if active else {}
+        if draft is not None:
+            self.store.save_persona_version(
+                influencer_id, dict(draft.blocks), dict(draft.params), draft.note,
+                activate=draft.activate,
+            )  # fmt: skip
+        elif msg.persona.strip() != blocks.get("persona", ""):
+            # bisheriges Feld Persona: als neue, sofort aktive Version (nur dieser Block geändert)
+            blocks["persona"] = msg.persona.strip()
+            self.store.save_persona_version(
+                influencer_id, blocks, dict(active["params"]) if active else {},
+                "Persona im Influencerin-Block geändert", activate=True,
+            )  # fmt: skip
+        self.hub.set_state(spb.TOPIC_INFLUENCERS, self._influencers())
+        return ""
+
+    async def _prompt_profile_activate(
+        self, msg: commands_pb2.PromptProfileActivate, call: _Call
+    ) -> str:
+        """Version des Promptprofils aktivieren oder zurücksetzen (Befehl 68), ohne Neustart."""
+        call.entity = f"influencer:{msg.influencer_id}"
+        self.store.activate_persona_version(msg.influencer_id, msg.version)
         self.hub.set_state(spb.TOPIC_INFLUENCERS, self._influencers())
         return ""

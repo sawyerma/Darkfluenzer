@@ -24,17 +24,29 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n darkfluenzer/v1/influencer.proto\x12\x0f\x64\x61rkfluenzer.v1\"t\n\tPriceItem\x12\x18\n\x07product\x18\x01 \x01(\tR\x07product\x12\x1f\n\x0bprice_cents\x18\x02 \x01(\x03R\npriceCents\x12,\n\x12hd_surcharge_cents\x18\x03 \x01(\x03R\x10hdSurchargeCents\"\xef\x01\n\nInfluencer\x12#\n\rinfluencer_id\x18\x01 \x01(\x04R\x0cinfluencerId\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12!\n\x0c\x63haracter_id\x18\x03 \x01(\x04R\x0b\x63haracterId\x12\x18\n\x07persona\x18\x04 \x01(\tR\x07persona\x12\x1b\n\tai_notice\x18\x05 \x01(\tR\x08\x61iNotice\x12\x32\n\x06prices\x18\x06 \x03(\x0b\x32\x1a.darkfluenzer.v1.PriceItemR\x06prices\x12\x1a\n\x08revision\x18\x07 \x01(\x04R\x08revision\"\x89\x01\n\x0bInfluencers\x12=\n\x0binfluencers\x18\x01 \x03(\x0b\x32\x1b.darkfluenzer.v1.InfluencerR\x0binfluencers\x12!\n\x0chonesty_rule\x18\x02 \x01(\tR\x0bhonestyRule\x12\x18\n\x07version\x18\x03 \x01(\x04R\x07versionb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n darkfluenzer/v1/influencer.proto\x12\x0f\x64\x61rkfluenzer.v1\"t\n\tPriceItem\x12\x18\n\x07product\x18\x01 \x01(\tR\x07product\x12\x1f\n\x0bprice_cents\x18\x02 \x01(\x03R\npriceCents\x12,\n\x12hd_surcharge_cents\x18\x03 \x01(\x03R\x10hdSurchargeCents\"\xe2\x02\n\nInfluencer\x12#\n\rinfluencer_id\x18\x01 \x01(\x04R\x0cinfluencerId\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12!\n\x0c\x63haracter_id\x18\x03 \x01(\x04R\x0b\x63haracterId\x12\x18\n\x07persona\x18\x04 \x01(\tR\x07persona\x12\x1b\n\tai_notice\x18\x05 \x01(\tR\x08\x61iNotice\x12\x32\n\x06prices\x18\x06 \x03(\x0b\x32\x1a.darkfluenzer.v1.PriceItemR\x06prices\x12\x1a\n\x08revision\x18\x07 \x01(\x04R\x08revision\x12J\n\x10persona_versions\x18\x08 \x03(\x0b\x32\x1f.darkfluenzer.v1.PersonaVersionR\x0fpersonaVersions\x12%\n\x0epersona_active\x18\t \x01(\rR\rpersonaActive\"\xdd\x02\n\x0ePersonaVersion\x12\x18\n\x07version\x18\x01 \x01(\rR\x07version\x12\x43\n\x06\x62locks\x18\x02 \x03(\x0b\x32+.darkfluenzer.v1.PersonaVersion.BlocksEntryR\x06\x62locks\x12\x43\n\x06params\x18\x03 \x03(\x0b\x32+.darkfluenzer.v1.PersonaVersion.ParamsEntryR\x06params\x12\x12\n\x04note\x18\x04 \x01(\tR\x04note\x12\x1d\n\ncreated_ms\x18\x05 \x01(\x03R\tcreatedMs\x1a\x39\n\x0b\x42locksEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\x1a\x39\n\x0bParamsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x01R\x05value:\x02\x38\x01\"6\n\x0cProfileBlock\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\"\xcf\x01\n\x0bInfluencers\x12=\n\x0binfluencers\x18\x01 \x03(\x0b\x32\x1b.darkfluenzer.v1.InfluencerR\x0binfluencers\x12!\n\x0chonesty_rule\x18\x02 \x01(\tR\x0bhonestyRule\x12\x18\n\x07version\x18\x03 \x01(\x04R\x07version\x12\x44\n\x0eprofile_blocks\x18\x04 \x03(\x0b\x32\x1d.darkfluenzer.v1.ProfileBlockR\rprofileBlocksb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'darkfluenzer.v1.influencer_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
+  _globals['_PERSONAVERSION_BLOCKSENTRY']._loaded_options = None
+  _globals['_PERSONAVERSION_BLOCKSENTRY']._serialized_options = b'8\001'
+  _globals['_PERSONAVERSION_PARAMSENTRY']._loaded_options = None
+  _globals['_PERSONAVERSION_PARAMSENTRY']._serialized_options = b'8\001'
   _globals['_PRICEITEM']._serialized_start=53
   _globals['_PRICEITEM']._serialized_end=169
   _globals['_INFLUENCER']._serialized_start=172
-  _globals['_INFLUENCER']._serialized_end=411
-  _globals['_INFLUENCERS']._serialized_start=414
-  _globals['_INFLUENCERS']._serialized_end=551
+  _globals['_INFLUENCER']._serialized_end=526
+  _globals['_PERSONAVERSION']._serialized_start=529
+  _globals['_PERSONAVERSION']._serialized_end=878
+  _globals['_PERSONAVERSION_BLOCKSENTRY']._serialized_start=762
+  _globals['_PERSONAVERSION_BLOCKSENTRY']._serialized_end=819
+  _globals['_PERSONAVERSION_PARAMSENTRY']._serialized_start=821
+  _globals['_PERSONAVERSION_PARAMSENTRY']._serialized_end=878
+  _globals['_PROFILEBLOCK']._serialized_start=880
+  _globals['_PROFILEBLOCK']._serialized_end=934
+  _globals['_INFLUENCERS']._serialized_start=937
+  _globals['_INFLUENCERS']._serialized_end=1144
 # @@protoc_insertion_point(module_scope)

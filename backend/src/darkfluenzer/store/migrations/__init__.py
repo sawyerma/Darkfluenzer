@@ -521,6 +521,31 @@ WHEN NEW.status = 'sent' AND (
                        AND o.status = 'approved'))))
 BEGIN SELECT RAISE(ABORT, 'delivery: Gate beim Versand nicht erfüllt'); END;
 """,
+    26: """
+-- Promptprofile je Influencerin (SP4 Schritt 2, E19): jede gespeicherte Fassung ist eine eigene,
+-- unveränderliche Version; aktiv ist genau eine (influencers.persona_active). Der bisherige
+-- Persona-Text wird Version 1.
+CREATE TABLE persona_versions (
+    id            INTEGER PRIMARY KEY,
+    influencer_id INTEGER NOT NULL REFERENCES influencers(id),
+    version       INTEGER NOT NULL CHECK (version > 0),
+    blocks        TEXT    NOT NULL DEFAULT '{}',
+    params        TEXT    NOT NULL DEFAULT '{}',
+    note          TEXT    NOT NULL DEFAULT '',
+    created_at    TEXT    NOT NULL,
+    UNIQUE (influencer_id, version)
+);
+CREATE TRIGGER persona_versions_no_update BEFORE UPDATE ON persona_versions
+BEGIN SELECT RAISE(ABORT, 'persona_versions: unveränderlich'); END;
+CREATE TRIGGER persona_versions_no_delete BEFORE DELETE ON persona_versions
+BEGIN SELECT RAISE(ABORT, 'persona_versions: unveränderlich'); END;
+ALTER TABLE influencers ADD COLUMN persona_active INTEGER REFERENCES persona_versions(id);
+INSERT INTO persona_versions (influencer_id, version, blocks, note, created_at)
+    SELECT id, 1, json_object('persona', persona), 'aus dem bisherigen Profil', updated_at
+    FROM influencers WHERE persona != '';
+UPDATE influencers SET persona_active = (
+    SELECT v.id FROM persona_versions v WHERE v.influencer_id = influencers.id AND v.version = 1);
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

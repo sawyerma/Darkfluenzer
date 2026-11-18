@@ -221,6 +221,23 @@ message InfluencerUpdate {
   string persona = 5;
   string ai_notice = 6;
   repeated PriceItem prices = 7;
+  // Promptprofil speichern (SP4 Schritt 2, additiv): neue Version, wenn sich Blöcke oder
+  // Parameter von der letzten unterscheiden; mit activate sofort aktiv
+  ProfileDraft profile = 8;
+}
+
+message ProfileDraft {
+  map<string, string> blocks = 1;
+  map<string, double> params = 2;
+  string note = 3;
+  bool activate = 4;
+}
+
+// Version des Promptprofils aktivieren bzw. auf einen früheren Stand zurücksetzen (Befehl 68):
+// wirkt ab dem nächsten Lauf, ohne Neustart.
+message PromptProfileActivate {
+  uint64 influencer_id = 1;
+  uint32 version = 2;
 }
 
 // Inhaltsstufe eines Mediums auf „explizit“ anheben – nie absenken (Regel 13).
@@ -385,6 +402,7 @@ message CommandRequest {
     LoraActivate lora_activate = 64;
     RevealFolder reveal_folder = 65;
     CharacterPhotosAdd character_photos_add = 67;
+    PromptProfileActivate prompt_profile_activate = 68;
   }
 }
 

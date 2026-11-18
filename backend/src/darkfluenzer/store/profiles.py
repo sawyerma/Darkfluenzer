@@ -70,6 +70,91 @@ class ProfilesMixin:
             self.bump("influencers")
             return influencer_id
 
+    # ------------------------------------------------------------------ Promptprofile (SP4 2)
+
+    def persona_versions(self, influencer_id: int) -> list[dict]:
+        rows = self.db.execute(
+            "SELECT * FROM persona_versions WHERE influencer_id = ? ORDER BY version",
+            (influencer_id,),
+        )
+        return [
+            dict(r) | {"blocks": json.loads(r["blocks"]), "params": json.loads(r["params"])}
+            for r in rows
+        ]
+
+    def active_persona(self, influencer_id: int) -> dict | None:
+        """Aktive Version des Promptprofils (Blöcke, Parameter) oder None."""
+        row = self.db.execute(
+            "SELECT v.* FROM influencers i JOIN persona_versions v ON v.id = i.persona_active"
+            " WHERE i.id = ?",
+            (influencer_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return dict(row) | {
+            "blocks": json.loads(row["blocks"]),
+            "params": json.loads(row["params"]),
+        }
+
+    def save_persona_version(
+        self, influencer_id: int, blocks: dict, params: dict, note: str, *, activate: bool
+    ) -> tuple[int, bool]:
+        """Neue Version, wenn sich Blöcke oder Parameter von der letzten unterscheiden (leere
+        Blöcke entfallen); mit ``activate`` sofort aktiv. Liefert (Version, neu angelegt)."""
+        blocks = {k: v for k, v in blocks.items() if v.strip()}
+        with self.tx() as db:
+            if (
+                db.execute("SELECT 1 FROM influencers WHERE id = ?", (influencer_id,)).fetchone()
+                is None
+            ):
+                raise StoreError(f"Influencerin {influencer_id} unbekannt.")
+            last = db.execute(
+                "SELECT version, blocks, params FROM persona_versions WHERE influencer_id = ?"
+                " ORDER BY version DESC LIMIT 1",
+                (influencer_id,),
+            ).fetchone()
+            same = last is not None and (
+                json.loads(last["blocks"]),
+                json.loads(last["params"]),
+            ) == (blocks, params)
+            if same:
+                version, created = last["version"], False
+            else:
+                version, created = (last["version"] + 1 if last else 1), True
+                db.execute(
+                    "INSERT INTO persona_versions (influencer_id, version, blocks, params, note,"
+                    " created_at) VALUES (?,?,?,?,?,?)",
+                    (influencer_id, version, json.dumps(blocks, ensure_ascii=False),
+                     json.dumps(params), note.strip(), now()),
+                )  # fmt: skip
+                self._event("influencer", influencer_id, "persona_saved", version=version)
+            if activate:
+                self.activate_persona_version(influencer_id, version)
+            self.bump("influencers")
+            return version, created
+
+    def activate_persona_version(self, influencer_id: int, version: int) -> bool:
+        """Version aktivieren bzw. auf einen früheren Stand zurücksetzen (Befehl 68); das Feld
+        persona der Influencerin folgt dem Block „persona“. False: war schon aktiv."""
+        with self.tx() as db:
+            row = db.execute(
+                "SELECT id, blocks FROM persona_versions WHERE influencer_id = ? AND version = ?",
+                (influencer_id, version),
+            ).fetchone()
+            if row is None:
+                raise StoreError(f"Version {version} des Promptprofils gibt es nicht.")
+            text = json.loads(row["blocks"]).get("persona", "")
+            # Revision (CAS des Profils) nur, wenn sich der sichtbare Persona-Text ändert
+            n = db.execute(
+                "UPDATE influencers SET persona_active = ?, revision = revision + (persona != ?),"
+                " persona = ?, updated_at = ? WHERE id = ? AND coalesce(persona_active, 0) != ?",
+                (row["id"], text, text, now(), influencer_id, row["id"]),
+            ).rowcount
+            if n:
+                self._event("influencer", influencer_id, "persona_activated", version=version)
+                self.bump("influencers")
+            return bool(n)
+
     def characters(self) -> list[dict]:
         return [dict(r) for r in self.db.execute("SELECT * FROM characters ORDER BY id")]
 

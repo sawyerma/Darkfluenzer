@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/influencer.proto.
  */
 export const file_darkfluenzer_v1_influencer: GenFile = /*@__PURE__*/
-  fileDesc("CiBkYXJrZmx1ZW56ZXIvdjEvaW5mbHVlbmNlci5wcm90bxIPZGFya2ZsdWVuemVyLnYxIk0KCVByaWNlSXRlbRIPCgdwcm9kdWN0GAEgASgJEhMKC3ByaWNlX2NlbnRzGAIgASgDEhoKEmhkX3N1cmNoYXJnZV9jZW50cxgDIAEoAyKpAQoKSW5mbHVlbmNlchIVCg1pbmZsdWVuY2VyX2lkGAEgASgEEgwKBG5hbWUYAiABKAkSFAoMY2hhcmFjdGVyX2lkGAMgASgEEg8KB3BlcnNvbmEYBCABKAkSEQoJYWlfbm90aWNlGAUgASgJEioKBnByaWNlcxgGIAMoCzIaLmRhcmtmbHVlbnplci52MS5QcmljZUl0ZW0SEAoIcmV2aXNpb24YByABKAQiZgoLSW5mbHVlbmNlcnMSMAoLaW5mbHVlbmNlcnMYASADKAsyGy5kYXJrZmx1ZW56ZXIudjEuSW5mbHVlbmNlchIUCgxob25lc3R5X3J1bGUYAiABKAkSDwoHdmVyc2lvbhgDIAEoBGIGcHJvdG8z");
+  fileDesc("CiBkYXJrZmx1ZW56ZXIvdjEvaW5mbHVlbmNlci5wcm90bxIPZGFya2ZsdWVuemVyLnYxIk0KCVByaWNlSXRlbRIPCgdwcm9kdWN0GAEgASgJEhMKC3ByaWNlX2NlbnRzGAIgASgDEhoKEmhkX3N1cmNoYXJnZV9jZW50cxgDIAEoAyL8AQoKSW5mbHVlbmNlchIVCg1pbmZsdWVuY2VyX2lkGAEgASgEEgwKBG5hbWUYAiABKAkSFAoMY2hhcmFjdGVyX2lkGAMgASgEEg8KB3BlcnNvbmEYBCABKAkSEQoJYWlfbm90aWNlGAUgASgJEioKBnByaWNlcxgGIAMoCzIaLmRhcmtmbHVlbnplci52MS5QcmljZUl0ZW0SEAoIcmV2aXNpb24YByABKAQSOQoQcGVyc29uYV92ZXJzaW9ucxgIIAMoCzIfLmRhcmtmbHVlbnplci52MS5QZXJzb25hVmVyc2lvbhIWCg5wZXJzb25hX2FjdGl2ZRgJIAEoDSKbAgoOUGVyc29uYVZlcnNpb24SDwoHdmVyc2lvbhgBIAEoDRI7CgZibG9ja3MYAiADKAsyKy5kYXJrZmx1ZW56ZXIudjEuUGVyc29uYVZlcnNpb24uQmxvY2tzRW50cnkSOwoGcGFyYW1zGAMgAygLMisuZGFya2ZsdWVuemVyLnYxLlBlcnNvbmFWZXJzaW9uLlBhcmFtc0VudHJ5EgwKBG5vdGUYBCABKAkSEgoKY3JlYXRlZF9tcxgFIAEoAxotCgtCbG9ja3NFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGi0KC1BhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAToCOAEiKgoMUHJvZmlsZUJsb2NrEgsKA2tleRgBIAEoCRINCgVsYWJlbBgCIAEoCSKdAQoLSW5mbHVlbmNlcnMSMAoLaW5mbHVlbmNlcnMYASADKAsyGy5kYXJrZmx1ZW56ZXIudjEuSW5mbHVlbmNlchIUCgxob25lc3R5X3J1bGUYAiABKAkSDwoHdmVyc2lvbhgDIAEoBBI1Cg5wcm9maWxlX2Jsb2NrcxgEIAMoCzIdLmRhcmtmbHVlbnplci52MS5Qcm9maWxlQmxvY2tiBnByb3RvMw");
 
 /**
  * @generated from message darkfluenzer.v1.PriceItem
@@ -87,6 +87,20 @@ export type Influencer = Message<"darkfluenzer.v1.Influencer"> & {
    * @generated from field: uint64 revision = 7;
    */
   revision: bigint;
+
+  /**
+   * Promptprofile (SP4 Schritt 2): alle gespeicherten Versionen, unveränderlich, fortlaufend
+   *
+   * @generated from field: repeated darkfluenzer.v1.PersonaVersion persona_versions = 8;
+   */
+  personaVersions: PersonaVersion[];
+
+  /**
+   * aktive Version (0 = noch keine); wirkt ab dem nächsten Lauf
+   *
+   * @generated from field: uint32 persona_active = 9;
+   */
+  personaActive: number;
 };
 
 /**
@@ -95,6 +109,73 @@ export type Influencer = Message<"darkfluenzer.v1.Influencer"> & {
  */
 export const InfluencerSchema: GenMessage<Influencer> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_influencer, 1);
+
+/**
+ * Eine gespeicherte Fassung des Promptprofils einer Influencerin (SP4 Schritt 2, E19).
+ *
+ * @generated from message darkfluenzer.v1.PersonaVersion
+ */
+export type PersonaVersion = Message<"darkfluenzer.v1.PersonaVersion"> & {
+  /**
+   * @generated from field: uint32 version = 1;
+   */
+  version: number;
+
+  /**
+   * Block -> Text; Schlüssel aus Influencers.profile_blocks
+   *
+   * @generated from field: map<string, string> blocks = 2;
+   */
+  blocks: { [key: string]: string };
+
+  /**
+   * Modellparameter des registrierten Sprachworkflows (Name -> Wert)
+   *
+   * @generated from field: map<string, double> params = 3;
+   */
+  params: { [key: string]: number };
+
+  /**
+   * @generated from field: string note = 4;
+   */
+  note: string;
+
+  /**
+   * @generated from field: int64 created_ms = 5;
+   */
+  createdMs: bigint;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.PersonaVersion.
+ * Use `create(PersonaVersionSchema)` to create a new message.
+ */
+export const PersonaVersionSchema: GenMessage<PersonaVersion> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_influencer, 2);
+
+/**
+ * Bearbeitbarer Block des Promptprofils; Reihenfolge und Beschriftung kommen vom Backend.
+ *
+ * @generated from message darkfluenzer.v1.ProfileBlock
+ */
+export type ProfileBlock = Message<"darkfluenzer.v1.ProfileBlock"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.ProfileBlock.
+ * Use `create(ProfileBlockSchema)` to create a new message.
+ */
+export const ProfileBlockSchema: GenMessage<ProfileBlock> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_influencer, 3);
 
 /**
  * STATE influencers
@@ -118,6 +199,13 @@ export type Influencers = Message<"darkfluenzer.v1.Influencers"> & {
    * @generated from field: uint64 version = 3;
    */
   version: bigint;
+
+  /**
+   * bearbeitbare Blöcke des Promptprofils (SP4 Schritt 2) in Anzeigereihenfolge
+   *
+   * @generated from field: repeated darkfluenzer.v1.ProfileBlock profile_blocks = 4;
+   */
+  profileBlocks: ProfileBlock[];
 };
 
 /**
@@ -125,5 +213,5 @@ export type Influencers = Message<"darkfluenzer.v1.Influencers"> & {
  * Use `create(InfluencersSchema)` to create a new message.
  */
 export const InfluencersSchema: GenMessage<Influencers> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_influencer, 2);
+  messageDesc(file_darkfluenzer_v1_influencer, 4);
 

@@ -105,6 +105,7 @@ class CommandsMixin:
             "start_cloner_order": self._start_cloner_order,
             "character_update": self._character_update,
             "influencer_update": self._influencer_update,
+            "prompt_profile_activate": self._prompt_profile_activate,
             "media_content_tier": self._media_content_tier,
             "customer_age_mark": self._customer_age_mark,
             "send_ai_notice": self._send_ai_notice,

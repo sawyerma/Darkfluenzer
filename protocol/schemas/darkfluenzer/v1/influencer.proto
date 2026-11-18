@@ -24,6 +24,27 @@ message Influencer {
   repeated PriceItem prices = 6;
   // Profilrevision (CAS für influencer_update)
   uint64 revision = 7;
+  // Promptprofile (SP4 Schritt 2): alle gespeicherten Versionen, unveränderlich, fortlaufend
+  repeated PersonaVersion persona_versions = 8;
+  // aktive Version (0 = noch keine); wirkt ab dem nächsten Lauf
+  uint32 persona_active = 9;
+}
+
+// Eine gespeicherte Fassung des Promptprofils einer Influencerin (SP4 Schritt 2, E19).
+message PersonaVersion {
+  uint32 version = 1;
+  // Block -> Text; Schlüssel aus Influencers.profile_blocks
+  map<string, string> blocks = 2;
+  // Modellparameter des registrierten Sprachworkflows (Name -> Wert)
+  map<string, double> params = 3;
+  string note = 4;
+  int64 created_ms = 5;
+}
+
+// Bearbeitbarer Block des Promptprofils; Reihenfolge und Beschriftung kommen vom Backend.
+message ProfileBlock {
+  string key = 1;
+  string label = 2;
 }
 
 // STATE influencers
@@ -32,4 +53,6 @@ message Influencers {
   // feste, nicht editierbare Ehrlichkeitsregel (V0 Regel 12 c)
   string honesty_rule = 2;
   uint64 version = 3;
+  // bearbeitbare Blöcke des Promptprofils (SP4 Schritt 2) in Anzeigereihenfolge
+  repeated ProfileBlock profile_blocks = 4;
 }
