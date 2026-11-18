@@ -1,6 +1,6 @@
 import type { Character } from "../../core/generated/darkfluenzer/v1/character_pb";
 import { type FormEvent, useState } from "react";
-import { PHOTO_STATUS, WORKFLOW_TONE } from "./common";
+import { LORA_GATE, PHOTO_STATUS, gate } from "./common";
 import { Topic } from "../../core/generated/darkfluenzer/v1/stream_pb";
 import { useCommand } from "../../core/commands";
 import { useStateTopic } from "../../core/state";
@@ -260,8 +260,8 @@ export function TrainingFolder({ character, version }: { character: Character | 
             {l.key} · {l.arch}
           </span>
           <span className="g-value">
-            <span className="g-badge" data-tone={WORKFLOW_TONE[l.status] ?? "neutral"}>
-              {l.status}
+            <span className="g-badge" data-tone={gate(LORA_GATE, l.status)[1]} title={gate(LORA_GATE, l.status)[3]}>
+              {gate(LORA_GATE, l.status)[0]}
             </span>
             {l.active ? (
               <button type="button" className="g-button" disabled={cmd.pending} onClick={() => activate("", l.arch)}>

@@ -10,15 +10,17 @@
   --g-tab-selected: #1d1d1d;
 
   /* Linien */
-  --g-line: #464646;
+  --g-line: #414149; /* F7 --line */
   --g-line-panel: #424242;
-  --g-line-badge: #595959;
-  --g-line-button: #626262;
+  --g-line-badge: #606069; /* F7 .tag */
+  --g-line-button: #5c5c65; /* F7 .button */
+  --g-button-bg: #3b3b42;
 
   /* Text */
-  --g-text: #f0f0f0;
+  --g-text: #eeeeef; /* F7 --text */
   --g-text-strong: #ffffff;
-  --g-muted: #b2b2b2;
+  --g-muted: #a4a4b0; /* F7 --muted */
+  --g-label: #c1c1ca; /* F7 .fieldlabel */
   --g-tab: #b8b8b8;
   --g-focus: #eeeeee;
 
@@ -30,8 +32,11 @@
   --g-bad: #b91c1c;
   --g-bad-text: #f0a5ac;
   --g-warn-text: #f2c46d;
-  --g-input: #262626;
-  --g-line-input: #565656;
+  --g-input: #29292f; /* F7 .input */
+  --g-line-input: #55555f;
+  --g-brand-light: #eaa6c7; /* F7 --pink-light (Fokus) */
+  --g-inner: #303037; /* F7 .innercard */
+  --g-inner-line: #50505a;
   --g-backdrop: #000a;
 
   /* Marke: pinkes C, identisch zum App-Icon (launcher/make_icon.swift) */
@@ -90,9 +95,11 @@
   --g-r-navtab: 9px;
   --g-r-tabs: 28px;
   --g-r-tab: 24px;
-  --g-r-brand: 8px;
-  --g-r-badge: 22px;
-  --g-r-button: 18px;
+  --g-r-brand: 12px; /* F7 .logo */
+  --g-r-badge: 6px; /* F7 .tag */
+  --g-r-button: 7px; /* F7 .button.sm */
+  --g-r-button-lg: 10px; /* F7 .button */
+  --g-r-inner: 10px;
   --g-r-thumb: 6px;
   --g-r-input: 9px;
   --g-r-row: 8px;
@@ -141,8 +148,11 @@
   --g-pad-main: 0;
   --g-pad-panel: 32px;
   --g-pad-section: 20px 0 0;
-  --g-pad-badge: 4px 10px;
-  --g-pad-button: 6px 14px;
+  --g-pad-badge: 3px 7px;
+  --g-pad-button: 5px 10px;
+  --g-pad-button-lg: 9px 12px;
+  --g-pad-card: 16px 18px;
+  --g-pad-inner: 14px;
   --g-pad-tag: 1px 5px;
   --g-pad-bubble: 10px 13px;
   --g-dim-disabled: 0.35;
@@ -153,7 +163,7 @@
   --g-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
   --g-fs-base: 14px;
   --g-lh-base: 1.45;
-  --g-fs-h1: 20px;
+  --g-fs-h1: 22px; /* F7 Seitentitel h2 22px/650 */
   --g-fs-value: 26px;
   --g-fs-metric: 37px;
   --g-fs-brand: 22px;
@@ -166,6 +176,7 @@
   --g-fw-brand: 800;
   --g-fw-bold: 700;
   --g-fw-semibold: 650;
+  --g-fw-label: 620;
 
   color-scheme: dark;
 }
@@ -216,9 +227,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 /* Inhalt im App-Rahmen (F7): kein zweiter Rahmen; Drei-Spalten-Seiten randlos (g-flush) */
 .g-panel { padding: var(--g-pad-panel); }
 .g-panel.g-flush { padding: 0; display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.g-panel h1 { margin: 0; font-size: var(--g-fs-h1); line-height: var(--g-lh-h1); font-weight: var(--g-fw-bold); }
+.g-panel h1 { margin: 0; font-size: var(--g-fs-h1); line-height: var(--g-lh-h1); font-weight: var(--g-fw-semibold); }
 .g-section { padding: var(--g-pad-section); }
 .g-section h2 { margin: 0 0 var(--g-gap-sm); font-size: var(--g-fs-h2); font-weight: var(--g-fw-semibold); }
+.g-section > small { color: var(--g-muted); font-size: var(--g-fs-small); }
 .g-line {
   display: flex; justify-content: space-between; align-items: center; gap: var(--g-gap-md);
   min-height: var(--g-line-min-h); font-size: var(--g-fs-body);
@@ -247,10 +259,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-badge[data-tone="stale"] { border-style: dashed; opacity: var(--g-dim-stale); }
 
 /* Aktionen */
-.g-actions { display: flex; flex-wrap: wrap; gap: var(--g-gap-sm); margin-top: var(--g-gap-md); }
+.g-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--g-gap-sm); margin-top: var(--g-gap-md); }
 .g-button {
   border: 1px solid var(--g-line-button); border-radius: var(--g-r-button);
-  padding: var(--g-pad-button); background: transparent; color: var(--g-accent);
+  padding: var(--g-pad-button); background: var(--g-button-bg); color: var(--g-accent);
   font: var(--g-fw-semibold) var(--g-fs-small) / var(--g-lh-base) var(--g-font);
   text-decoration: none; cursor: pointer;
 }
@@ -368,10 +380,12 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-listrow .g-value { flex: 0 1 auto; justify-content: flex-end; }
 .g-listpanel .g-listrow.g-row { padding: 16px 18px; } /* Knopfzeile: .g-row setzt sonst padding 0 */
 .g-kpi[data-stale] { opacity: var(--g-dim-stale); }
-.g-card { display: flex; flex-direction: column; gap: var(--g-gap-xs); padding: var(--g-pad-row); border: 1px solid var(--g-line); border-radius: var(--g-r-row); background: var(--g-well); }
+/* Karten im F7-Kartenstil (.metric), eingebettete Karten wie .innercard */
+.g-card { display: flex; flex-direction: column; gap: var(--g-gap-xs); padding: var(--g-pad-card); border: 1px solid var(--g-metric-line); border-radius: var(--g-r-metric); background: var(--g-metric); }
+.g-card .g-card, .g-control .g-card { padding: var(--g-pad-inner); border-color: var(--g-inner-line); border-radius: var(--g-r-inner); background: var(--g-inner); }
 .g-expert summary { cursor: pointer; color: var(--g-muted); font-size: var(--g-fs-small); }
 .g-expert[open] summary { color: var(--g-text-strong); }
-.g-button.g-block { width: 100%; }
+.g-button.g-block { width: 100%; padding: var(--g-pad-button-lg); border-radius: var(--g-r-button-lg); font-size: var(--g-fs-body); } /* F7 .rightfull */
 .g-result { margin-top: var(--g-gap-lg); padding-top: var(--g-gap-md); border-top: 1px solid var(--g-line); }
 .g-training { margin: var(--g-gap-md) 0 var(--g-gap-lg); }
 .g-stack { display: flex; flex-direction: column; gap: var(--g-gap-xs); padding: var(--g-gap-sm) 0; border-bottom: 1px solid var(--g-line); }
@@ -404,7 +418,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 /* Formular */
 .g-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--g-gap-md); margin-top: var(--g-gap-lg); }
 .g-field { display: flex; flex-direction: column; gap: var(--g-gap-xs); min-width: 0; }
-.g-field label { color: var(--g-muted); font-size: var(--g-fs-small); }
+.g-field label { color: var(--g-label); font-size: var(--g-fs-small); font-weight: var(--g-fw-label); } /* F7 .fieldlabel */
 .g-wide { grid-column: 1 / -1; }
 .g-form input, .g-form textarea, .g-form select, .g-input {
   width: 100%; min-width: 0; padding: var(--g-pad-input); border: 1px solid var(--g-line-input);
@@ -416,6 +430,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-input.g-input-auto { width: auto; flex: 0 0 auto; }
 .g-form input[type="file"] { padding: var(--g-gap-xs); }
 .g-form :focus-visible, .g-input:focus-visible { outline: 2px solid var(--g-focus); outline-offset: 1px; }
+.g-form input:focus, .g-form select:focus, .g-form textarea:focus, .g-input:focus { border-color: var(--g-brand-light); } /* F7 */
 .g-form .g-actions small { color: var(--g-muted); font-size: var(--g-fs-small); }
 .g-error { color: var(--g-bad-text); font-size: var(--g-fs-small); overflow-wrap: anywhere; }
 .g-file { display: flex; align-items: center; gap: var(--g-gap-sm); }
@@ -468,6 +483,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-stage { margin-bottom: var(--g-gap-md); }
 .g-candidates { display: grid; gap: var(--g-gap-md); grid-template-columns: repeat(auto-fill, minmax(var(--g-tile-min), 1fr)); margin-top: var(--g-gap-sm); }
 .g-candidate { display: flex; flex-direction: column; gap: var(--g-gap-xs); }
+/* Seed und Inhaltsstufe in einer Zeile, Auswahl darunter über die Kachelbreite (kein Umbruch in schmalen Kacheln) */
+.g-candidate > .g-line { flex-wrap: wrap; gap: var(--g-gap-xs); border-bottom: 0; }
+.g-candidate > .g-line > small { flex: 1 1 100%; }
+.g-candidate > .g-line > .g-button { flex: 1 1 100%; }
 .g-candidate[data-chosen] .g-zoom { outline: 2px solid var(--g-brand); outline-offset: -2px; }
 .g-zoom { overflow: hidden; aspect-ratio: 3 / 4; border: 1px solid var(--g-line); border-radius: var(--g-r-row); background: var(--g-well); cursor: zoom-in; }
 .g-zoom img { width: 100%; height: 100%; object-fit: cover; display: block; transform-origin: var(--zx, 50%) var(--zy, 50%); }
@@ -672,6 +691,6 @@ button.g-account:hover { border-color: var(--g-brand); }
 .g-diff small { display: block; color: var(--g-muted); }
 
 /* Einstellungen (§3.7): eine Karte je Gruppe */
-.g-settings .g-card { gap: var(--g-gap-sm); padding: var(--g-pad-row); }
+.g-settings .g-card { gap: var(--g-gap-sm); }
 .g-settings .g-card h2 { margin: 0 0 var(--g-gap-xs); font-size: var(--g-fs-h2); font-weight: var(--g-fw-semibold); }
 .g-link { color: var(--g-text-strong); font-size: var(--g-fs-small); text-decoration: underline; text-underline-offset: 2px; }

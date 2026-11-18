@@ -50,7 +50,8 @@ function CustomerFile({ customer, registers, live }: { customer: CustomerSummary
           <button type="button" role="tab" aria-selected={view === "all"} onClick={() => setChosen("all")}>
             Gesamter Verlauf
           </button>
-          {PLATFORMS.map((p) => (
+          {/* WhatsApp folgt später (C7): Unterregister nur, wenn der Kunde dort schon verknüpft ist */}
+          {PLATFORMS.filter((p) => p !== "whatsapp" || linked.has(p)).map((p) => (
             <button
               key={p}
               type="button"

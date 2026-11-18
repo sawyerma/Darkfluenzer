@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Instances, readyUrl } from "./comfyui/Instances";
 import { KiStudio } from "./comfyui/KiStudio";
+import { WORKFLOW_GATE, gate } from "./comfyui/common";
 import { Queue } from "./comfyui/Queue";
 import { type RenderIntent, takeProductionIntent, takeRenderIntent } from "../core/intent";
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
@@ -96,7 +97,8 @@ export function ComfyUI() {
       <strong>{w.title}</strong>
       <small>
         {w.enabled ? "" : "deaktiviert · "}
-        {w.modelsReady ? "bereit" : `fehlt ${w.missingGb.toFixed(1)} GB`} · {w.status}
+        {w.modelsReady ? "Modelle bereit" : `fehlt ${w.missingGb.toFixed(1)} GB`} ·{" "}
+        <span title={gate(WORKFLOW_GATE, w.status)[3]}>{gate(WORKFLOW_GATE, w.status)[2]}</span>
       </small>
     </button>
   );

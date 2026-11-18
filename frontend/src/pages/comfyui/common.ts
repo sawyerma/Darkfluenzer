@@ -13,7 +13,26 @@ export const STATE_LABEL: Record<ComfyState, [string, Tone]> = {
   [ComfyState.FAILED]: ["FEHLER", "bad"],
 };
 
-export const WORKFLOW_TONE: Record<string, Tone> = { PASS: "ok", OFFEN: "neutral", GESPERRT: "bad" };
+/** Nachweisstatus aus dem Manifest statt bloßem PASS (GUI-Prüfung 18.11. Punkt 7):
+ *  [Abzeichen, Ton, Kurztext, Erklärung]. Workflow: Abnahme-Render des registrierten Graphen – ein
+ *  geänderter Graph fällt auf OFFEN zurück (models.replace_workflow_graph); GESPERRT nimmt das Backend
+ *  nicht an. LoRA: nach dem Training OFFEN bis zur Freigabe. */
+type Gate = [string, Tone, string, string];
+export const WORKFLOW_GATE: Record<string, Gate> = {
+  PASS: ["RENDER GEPRÜFT", "ok", "Render geprüft", "Abnahme-Render dieses registrierten Graphen bestanden (Manifest PASS); nach einer Graph-Änderung wieder ungeprüft."],
+  OFFEN: ["UNGEPRÜFT", "neutral", "ungeprüft", "Noch kein abgenommener Render dieses Graphen (Manifest OFFEN)."],
+  FAIL: ["RENDER FEHLGESCHLAGEN", "bad", "Render fehlgeschlagen", "Abnahme-Render fehlgeschlagen (Manifest FAIL)."],
+  GESPERRT: ["GESPERRT", "bad", "gesperrt", "Gesperrt (Manifest GESPERRT): das Backend nimmt keinen Render an."],
+};
+export const LORA_GATE: Record<string, Gate> = {
+  PASS: ["FREIGEGEBEN", "ok", "freigegeben", "Nach Prüfung freigegeben (Manifest PASS)."],
+  OFFEN: ["NICHT FREIGEGEBEN", "neutral", "nicht freigegeben", "Trainiert; Prüfung und Freigabe offen (Manifest OFFEN)."],
+  FAIL: ["PRÜFUNG NICHT BESTANDEN", "bad", "Prüfung nicht bestanden", "Prüfung nicht bestanden (Manifest FAIL)."],
+  GESPERRT: ["GESPERRT", "bad", "gesperrt", "Gesperrt (Manifest GESPERRT): nicht aktivierbar."],
+};
+export function gate(map: Record<string, Gate>, status: string): Gate {
+  return map[status] ?? [status || "UNBEKANNT", "neutral", status || "unbekannt", ""];
+}
 
 export const LABEL: Record<string, string> = {
   video: "Abschnitte",

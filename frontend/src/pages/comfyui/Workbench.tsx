@@ -2,7 +2,7 @@ import { VIDEO_ORDER, VideoSettings } from "./VideoSettings";
 import { Candidates } from "./Candidates";
 import { CharacterControl, TrainingFolder, useCharacter } from "./Character";
 import { Instances } from "./Instances";
-import { LABEL, WORKFLOW_TONE, duration } from "./common";
+import { LABEL, WORKFLOW_GATE, duration, gate } from "./common";
 import { LoadDraft, Queue } from "./Queue";
 import type { MediaItem } from "../../core/generated/darkfluenzer/v1/media_pb";
 import { MediaPicker } from "../Files";
@@ -354,8 +354,8 @@ export function Workbench({
             <span>Workflow</span>
             <span className="g-value">
               <span className="g-ellipsis">{wf.title}</span>
-              <span className="g-badge" data-tone={WORKFLOW_TONE[wf.status] ?? "neutral"}>
-                {wf.status}
+              <span className="g-badge" data-tone={gate(WORKFLOW_GATE, wf.status)[1]} title={gate(WORKFLOW_GATE, wf.status)[3]}>
+                {gate(WORKFLOW_GATE, wf.status)[0]}
               </span>
             </span>
           </div>

@@ -78,14 +78,17 @@ test("ComfyUI: Kandidat im eingeklappten Auftrag auswählen – Auftrag verläss
   await page.getByRole("tab", { name: /^Fotos/ }).click();
   await page.locator(".g-wfitem").filter({ hasText: "Krea 2 Turbo · Text zu Bild" }).click();
   const orders = page.locator("details.g-order");
-  await expect(orders).toHaveCount(2);
-  const second = orders.nth(1);
+  const waiting = orders.filter({ has: page.locator("summary .g-badge", { hasText: "AUSWAHL" }) });
+  await expect(waiting.nth(1)).toBeVisible(); // mindestens zwei Testaufträge in Auswahl
+  const before = await orders.count();
+  const second = waiting.nth(1);
+  await expect(second).not.toHaveAttribute("open");
   const no = (await second.locator("summary .g-ellipsis").innerText()).split(" · ")[0] ?? "";
   await expect(second.locator(".g-order-thumbs img")).toHaveCount(3);
   await second.locator("summary").click();
   await second.getByRole("button", { name: "Auswählen" }).first().click();
   // ohne Fertigstellen geht der Auftrag zur Prüfung und verschwindet aus den Kandidaten (Push)
   await expect(page.locator("details.g-order summary", { hasText: no })).toHaveCount(0);
-  await expect(orders).toHaveCount(1);
+  await expect(orders).toHaveCount(before - 1);
   expect(errors).toEqual([]);
 });
