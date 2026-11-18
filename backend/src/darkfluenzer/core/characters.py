@@ -14,7 +14,7 @@ from ..v1 import (
     influencer_pb2,
 )
 from ..v1 import stream_pb2 as spb
-from . import assessment, behavior, persona
+from . import assessment, behavior, dialog, persona
 from .base import _Call, _unix_ms, log
 
 # Enden asynchron mit eigener Receipt: Render mit dem Job, ComfyUI mit Start/Stopp
@@ -290,9 +290,13 @@ class CharactersMixin:
                 auto_replies=bool(row["auto_replies"]),
                 behavior=self._behavior(row).values(),
                 behavior_version=self.store.behavior_of(row["id"])[0],
+                payment_ways=row["payment_ways"],
+                offer_valid_min=row["offer_valid_min"],
+                payment_ways_available=dialog.ways_available(self.cfg),
             )
             for price in row["prices"]:
-                item.prices.add(**price)
+                problems = self._product_problems(row, price)  # echte Kunden: streng (SP5 1)
+                item.prices.add(**price, deliverable=not problems, problems=problems)
             active = row.get("persona_active")
             for v in self.store.persona_versions(row["id"]):
                 item.persona_versions.add(
@@ -302,6 +306,22 @@ class CharactersMixin:
                 if v["id"] == active:
                     item.persona_active = v["version"]
         return msg.SerializeToString()
+
+    def _product_reason(self, item) -> str:
+        """Eingabe eines Produkts prüfen (Art, Kandidaten, Länge, Workflow registriert); ob es
+        lieferbar ist, zeigt der STATE (Gründe)."""
+        if item.kind not in ("", "image", "video"):
+            return "Art nur Bild oder Video."
+        if not 0 <= item.candidates <= self.cfg.production.candidates_max:
+            return f"Kandidaten 1 bis {self.cfg.production.candidates_max}."
+        if item.max_duration_s < 0 or item.max_delivery_s < 0:
+            return "Längen nicht negativ."
+        if item.kind == "video" and item.max_duration_s > self.cfg.production.video_max_s:
+            return f"Höchstlänge bis {self.cfg.production.video_max_s:.0f} s."
+        for key in (item.workflow, item.finish_workflow):
+            if key and key not in self.manifest.workflows:
+                return f"Workflow {key} ist nicht registriert."
+        return ""
 
     async def _behavior_update(self, msg: commands_pb2.BehaviorUpdate, call: _Call) -> str:
         """Verhaltensprofil (Befehl 53, SP4 Schritt 7): Zahlen prüfen, neue Version aktiv."""
@@ -330,6 +350,11 @@ class CharactersMixin:
         for item in msg.prices:
             if not item.product.strip() or item.price_cents <= 0 or item.hd_surcharge_cents < 0:
                 return "Preisliste: Produkt, Preis > 0 € und HD-Aufschlag ≥ 0 € angeben."
+            if reason := self._product_reason(item):
+                return f"{item.product.strip()}: {reason}"
+        unknown = [w for w in msg.payment_ways if w not in dialog.PAYMENT_WAYS]
+        if unknown:
+            return f"Zahlungsweg unbekannt: {', '.join(unknown)}."
         influencer_id = self.store.save_influencer(
             msg.influencer_id,
             msg.revision,
@@ -339,15 +364,27 @@ class CharactersMixin:
             msg.ai_notice.strip(),
             [
                 {
+                    "id": i.id,
                     "product": i.product,
                     "price_cents": i.price_cents,
                     "hd_surcharge_cents": i.hd_surcharge_cents,
+                    "kind": i.kind or "image",
+                    "workflow": i.workflow,
+                    "finish_workflow": i.finish_workflow if i.kind == "video" else "",
+                    "candidates": i.candidates or 1,
+                    "max_duration_s": i.max_duration_s if i.kind == "video" else 0,
+                    "max_delivery_s": i.max_delivery_s,
+                    "original_file": i.original_file,
+                    "self_destruct": i.self_destruct,
                 }
                 for i in msg.prices
             ],
         )
         call.entity = f"influencer:{influencer_id}"
         self.store.set_influencer_switches(influencer_id, msg.text_ai, msg.auto_replies)  # C5.1
+        self.store.set_influencer_sales(  # SP5 Schritt 1
+            influencer_id, list(msg.payment_ways) or ["amazon"], msg.offer_valid_min
+        )
         active = self.store.active_persona(influencer_id)
         blocks = dict(active["blocks"]) if active else {}
         if draft is not None:

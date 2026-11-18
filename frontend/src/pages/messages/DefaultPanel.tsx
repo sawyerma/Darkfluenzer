@@ -495,7 +495,6 @@ export function DefaultPanel({
             toggle={toggle}
           />
           <InfluencerBlock
-            key={`${current?.influencerId ?? "neu"}-${current?.revision ?? 0}`}
             influencer={current}
             mediaTitle={titles[contact.mediaWorkflow]}
             videoTitle={titles[contact.videoWorkflow]}

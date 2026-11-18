@@ -68,7 +68,7 @@ export function CustomerPanel({ customer, identities }: { customer: CustomerSumm
           <Row label="Influencerin">{figure?.name ?? "nicht festgelegt"}</Row>
         </dl>
         {figure ? (
-          <InfluencerBlock key={`${figure.influencerId}-${figure.revision}`} influencer={figure} />
+          <InfluencerBlock key={String(figure.influencerId)} influencer={figure} />
         ) : (
           <small>Influencerin im Default-Kontakt anlegen.</small>
         )}
@@ -96,6 +96,7 @@ function OfferForm({
   const [note, setNote] = useState("");
   const ident = channels.find((i) => i.identityId === identityId) ?? channels[0];
   const item = figure?.prices[position];
+  const deliverable = item?.deliverable ?? false;
   const total = item ? item.priceCents + (hd ? item.hdSurchargeCents : 0n) : 0n;
   const reason = !figure
     ? "Influencerin-Profil fehlt"
@@ -107,7 +108,9 @@ function OfferForm({
           ? "Noch keine Konversation"
           : ident.aiNotice !== "sent"
             ? "Erst den KI-Hinweis über diesen Kanal senden"
-            : "";
+            : !deliverable
+              ? `Nicht lieferbar: ${item?.problems.join("; ") || "unbekannt"}`
+              : "";
 
   async function send() {
     if (reason || !ident || !figure) return;
@@ -121,6 +124,7 @@ function OfferForm({
           revision: ident.revision,
           influencerId: figure.influencerId,
           position,
+          productId: item?.id ?? 0n,
           hd,
           note: note.trim(),
         },
@@ -164,8 +168,9 @@ function OfferForm({
               onChange={(e) => setPosition(Number(e.target.value))}
             >
               {figure.prices.map((p, n) => (
-                <option key={n} value={n}>
+                <option key={String(p.id) || n} value={n}>
                   {p.product} · {EUR.format(Number(p.priceCents) / 100)}
+                  {p.deliverable ? "" : " · nicht lieferbar"}
                 </option>
               ))}
             </select>

@@ -82,6 +82,9 @@ def test_facts_payment_ways_follow_configuration(cfg):
     facts = dialog.facts_for(cfg, {"prices": list(PRICES)})
     assert facts.payment_ways == ("amazon",)  # ohne Wallet, PayPal noch nicht angeschlossen
     assert facts.text() == "Foto: 20,00 €, HD-Aufschlag 5,00 €\nZahlungswege: Amazon-Gutschein"
-    facts = dialog.facts_for(dataclasses.replace(cfg, wallet=_wallet(cfg)), {"prices": []})
+    wallet_cfg = dataclasses.replace(cfg, wallet=_wallet(cfg))
+    assert dialog.facts_for(wallet_cfg, {"prices": []}).payment_ways == ("amazon",)  # gewählte
+    chosen = {"prices": [], "payment_ways": ["amazon", "btc", "usdt", "usdc", "paypal"]}
+    facts = dialog.facts_for(wallet_cfg, chosen)  # nur eingerichtete (SP5 Schritt 1)
     assert facts.payment_ways == ("amazon", "btc", "usdt")
     assert facts.text() == "Zahlungswege: Amazon-Gutschein, Bitcoin, USDT"

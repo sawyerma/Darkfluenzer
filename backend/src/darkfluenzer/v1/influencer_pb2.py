@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n darkfluenzer/v1/influencer.proto\x12\x0f\x64\x61rkfluenzer.v1\"t\n\tPriceItem\x12\x18\n\x07product\x18\x01 \x01(\tR\x07product\x12\x1f\n\x0bprice_cents\x18\x02 \x01(\x03R\npriceCents\x12,\n\x12hd_surcharge_cents\x18\x03 \x01(\x03R\x10hdSurchargeCents\"\xf4\x04\n\nInfluencer\x12#\n\rinfluencer_id\x18\x01 \x01(\x04R\x0cinfluencerId\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12!\n\x0c\x63haracter_id\x18\x03 \x01(\x04R\x0b\x63haracterId\x12\x18\n\x07persona\x18\x04 \x01(\tR\x07persona\x12\x1b\n\tai_notice\x18\x05 \x01(\tR\x08\x61iNotice\x12\x32\n\x06prices\x18\x06 \x03(\x0b\x32\x1a.darkfluenzer.v1.PriceItemR\x06prices\x12\x1a\n\x08revision\x18\x07 \x01(\x04R\x08revision\x12J\n\x10persona_versions\x18\x08 \x03(\x0b\x32\x1f.darkfluenzer.v1.PersonaVersionR\x0fpersonaVersions\x12%\n\x0epersona_active\x18\t \x01(\rR\rpersonaActive\x12%\n\x0estudio_session\x18\n \x01(\rR\rstudioSession\x12\x17\n\x07text_ai\x18\x0b \x01(\x08R\x06textAi\x12!\n\x0c\x61uto_replies\x18\x0c \x01(\x08R\x0b\x61utoReplies\x12\x45\n\x08\x62\x65havior\x18\r \x03(\x0b\x32).darkfluenzer.v1.Influencer.BehaviorEntryR\x08\x62\x65havior\x12)\n\x10\x62\x65havior_version\x18\x0e \x01(\rR\x0f\x62\x65haviorVersion\x1a;\n\rBehaviorEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x01R\x05value:\x02\x38\x01\"\xdd\x02\n\x0ePersonaVersion\x12\x18\n\x07version\x18\x01 \x01(\rR\x07version\x12\x43\n\x06\x62locks\x18\x02 \x03(\x0b\x32+.darkfluenzer.v1.PersonaVersion.BlocksEntryR\x06\x62locks\x12\x43\n\x06params\x18\x03 \x03(\x0b\x32+.darkfluenzer.v1.PersonaVersion.ParamsEntryR\x06params\x12\x12\n\x04note\x18\x04 \x01(\tR\x04note\x12\x1d\n\ncreated_ms\x18\x05 \x01(\x03R\tcreatedMs\x1a\x39\n\x0b\x42locksEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\x1a\x39\n\x0bParamsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x01R\x05value:\x02\x38\x01\"6\n\x0cProfileBlock\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\"\xfc\x01\n\x0bInfluencers\x12=\n\x0binfluencers\x18\x01 \x03(\x0b\x32\x1b.darkfluenzer.v1.InfluencerR\x0binfluencers\x12!\n\x0chonesty_rule\x18\x02 \x01(\tR\x0bhonestyRule\x12\x18\n\x07version\x18\x03 \x01(\x04R\x07version\x12\x44\n\x0eprofile_blocks\x18\x04 \x03(\x0b\x32\x1d.darkfluenzer.v1.ProfileBlockR\rprofileBlocks\x12+\n\x11\x61ssessment_schema\x18\x05 \x01(\tR\x10\x61ssessmentSchemab\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n darkfluenzer/v1/influencer.proto\x12\x0f\x64\x61rkfluenzer.v1\"\xd1\x03\n\tPriceItem\x12\x18\n\x07product\x18\x01 \x01(\tR\x07product\x12\x1f\n\x0bprice_cents\x18\x02 \x01(\x03R\npriceCents\x12,\n\x12hd_surcharge_cents\x18\x03 \x01(\x03R\x10hdSurchargeCents\x12\x0e\n\x02id\x18\x04 \x01(\x04R\x02id\x12\x12\n\x04kind\x18\x05 \x01(\tR\x04kind\x12\x1a\n\x08workflow\x18\x06 \x01(\tR\x08workflow\x12\'\n\x0f\x66inish_workflow\x18\x07 \x01(\tR\x0e\x66inishWorkflow\x12\x1e\n\ncandidates\x18\x08 \x01(\rR\ncandidates\x12$\n\x0emax_duration_s\x18\t \x01(\x01R\x0cmaxDurationS\x12$\n\x0emax_delivery_s\x18\n \x01(\x01R\x0cmaxDeliveryS\x12#\n\roriginal_file\x18\x0b \x01(\x08R\x0coriginalFile\x12#\n\rself_destruct\x18\x0c \x01(\x08R\x0cselfDestruct\x12 \n\x0b\x64\x65liverable\x18\r \x01(\x08R\x0b\x64\x65liverable\x12\x1a\n\x08problems\x18\x0e \x03(\tR\x08problems\"\xf5\x05\n\nInfluencer\x12#\n\rinfluencer_id\x18\x01 \x01(\x04R\x0cinfluencerId\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12!\n\x0c\x63haracter_id\x18\x03 \x01(\x04R\x0b\x63haracterId\x12\x18\n\x07persona\x18\x04 \x01(\tR\x07persona\x12\x1b\n\tai_notice\x18\x05 \x01(\tR\x08\x61iNotice\x12\x32\n\x06prices\x18\x06 \x03(\x0b\x32\x1a.darkfluenzer.v1.PriceItemR\x06prices\x12\x1a\n\x08revision\x18\x07 \x01(\x04R\x08revision\x12J\n\x10persona_versions\x18\x08 \x03(\x0b\x32\x1f.darkfluenzer.v1.PersonaVersionR\x0fpersonaVersions\x12%\n\x0epersona_active\x18\t \x01(\rR\rpersonaActive\x12%\n\x0estudio_session\x18\n \x01(\rR\rstudioSession\x12\x17\n\x07text_ai\x18\x0b \x01(\x08R\x06textAi\x12!\n\x0c\x61uto_replies\x18\x0c \x01(\x08R\x0b\x61utoReplies\x12\x45\n\x08\x62\x65havior\x18\r \x03(\x0b\x32).darkfluenzer.v1.Influencer.BehaviorEntryR\x08\x62\x65havior\x12)\n\x10\x62\x65havior_version\x18\x0e \x01(\rR\x0f\x62\x65haviorVersion\x12!\n\x0cpayment_ways\x18\x0f \x03(\tR\x0bpaymentWays\x12&\n\x0foffer_valid_min\x18\x10 \x01(\rR\rofferValidMin\x12\x34\n\x16payment_ways_available\x18\x11 \x03(\tR\x14paymentWaysAvailable\x1a;\n\rBehaviorEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x01R\x05value:\x02\x38\x01\"\xdd\x02\n\x0ePersonaVersion\x12\x18\n\x07version\x18\x01 \x01(\rR\x07version\x12\x43\n\x06\x62locks\x18\x02 \x03(\x0b\x32+.darkfluenzer.v1.PersonaVersion.BlocksEntryR\x06\x62locks\x12\x43\n\x06params\x18\x03 \x03(\x0b\x32+.darkfluenzer.v1.PersonaVersion.ParamsEntryR\x06params\x12\x12\n\x04note\x18\x04 \x01(\tR\x04note\x12\x1d\n\ncreated_ms\x18\x05 \x01(\x03R\tcreatedMs\x1a\x39\n\x0b\x42locksEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\x1a\x39\n\x0bParamsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x01R\x05value:\x02\x38\x01\"6\n\x0cProfileBlock\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\"\xfc\x01\n\x0bInfluencers\x12=\n\x0binfluencers\x18\x01 \x03(\x0b\x32\x1b.darkfluenzer.v1.InfluencerR\x0binfluencers\x12!\n\x0chonesty_rule\x18\x02 \x01(\tR\x0bhonestyRule\x12\x18\n\x07version\x18\x03 \x01(\x04R\x07version\x12\x44\n\x0eprofile_blocks\x18\x04 \x03(\x0b\x32\x1d.darkfluenzer.v1.ProfileBlockR\rprofileBlocks\x12+\n\x11\x61ssessment_schema\x18\x05 \x01(\tR\x10\x61ssessmentSchemab\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,20 +37,20 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_PERSONAVERSION_BLOCKSENTRY']._serialized_options = b'8\001'
   _globals['_PERSONAVERSION_PARAMSENTRY']._loaded_options = None
   _globals['_PERSONAVERSION_PARAMSENTRY']._serialized_options = b'8\001'
-  _globals['_PRICEITEM']._serialized_start=53
-  _globals['_PRICEITEM']._serialized_end=169
-  _globals['_INFLUENCER']._serialized_start=172
-  _globals['_INFLUENCER']._serialized_end=800
-  _globals['_INFLUENCER_BEHAVIORENTRY']._serialized_start=741
-  _globals['_INFLUENCER_BEHAVIORENTRY']._serialized_end=800
-  _globals['_PERSONAVERSION']._serialized_start=803
-  _globals['_PERSONAVERSION']._serialized_end=1152
-  _globals['_PERSONAVERSION_BLOCKSENTRY']._serialized_start=1036
-  _globals['_PERSONAVERSION_BLOCKSENTRY']._serialized_end=1093
-  _globals['_PERSONAVERSION_PARAMSENTRY']._serialized_start=1095
-  _globals['_PERSONAVERSION_PARAMSENTRY']._serialized_end=1152
-  _globals['_PROFILEBLOCK']._serialized_start=1154
-  _globals['_PROFILEBLOCK']._serialized_end=1208
-  _globals['_INFLUENCERS']._serialized_start=1211
-  _globals['_INFLUENCERS']._serialized_end=1463
+  _globals['_PRICEITEM']._serialized_start=54
+  _globals['_PRICEITEM']._serialized_end=519
+  _globals['_INFLUENCER']._serialized_start=522
+  _globals['_INFLUENCER']._serialized_end=1279
+  _globals['_INFLUENCER_BEHAVIORENTRY']._serialized_start=1220
+  _globals['_INFLUENCER_BEHAVIORENTRY']._serialized_end=1279
+  _globals['_PERSONAVERSION']._serialized_start=1282
+  _globals['_PERSONAVERSION']._serialized_end=1631
+  _globals['_PERSONAVERSION_BLOCKSENTRY']._serialized_start=1515
+  _globals['_PERSONAVERSION_BLOCKSENTRY']._serialized_end=1572
+  _globals['_PERSONAVERSION_PARAMSENTRY']._serialized_start=1574
+  _globals['_PERSONAVERSION_PARAMSENTRY']._serialized_end=1631
+  _globals['_PROFILEBLOCK']._serialized_start=1633
+  _globals['_PROFILEBLOCK']._serialized_end=1687
+  _globals['_INFLUENCERS']._serialized_start=1690
+  _globals['_INFLUENCERS']._serialized_end=1942
 # @@protoc_insertion_point(module_scope)

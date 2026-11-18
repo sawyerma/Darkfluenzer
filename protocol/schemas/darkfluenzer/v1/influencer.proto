@@ -10,6 +10,21 @@ message PriceItem {
   // Preis und HD-Aufschlag in Cent (Euro)
   int64 price_cents = 2;
   int64 hd_surcharge_cents = 3;
+  // Produkt (SP5 Schritt 1): feste ID (0 = neu), Art image | video, Workflow (Video: Bild-Workflow,
+  // finish_workflow = Animation), Kandidaten, Höchstlänge (s), Lieferzeit-Grenze (s, 0 = keine),
+  // Zusatzleistungen
+  uint64 id = 4;
+  string kind = 5;
+  string workflow = 6;
+  string finish_workflow = 7;
+  uint32 candidates = 8;
+  double max_duration_s = 9;
+  double max_delivery_s = 10;
+  bool original_file = 11;
+  bool self_destruct = 12;
+  // lieferbar (Gates §9.1, aktive LoRA, E14) und sonst die Gründe – nur im STATE
+  bool deliverable = 13;
+  repeated string problems = 14;
 }
 
 message Influencer {
@@ -36,6 +51,11 @@ message Influencer {
   // Verhaltensprofil (SP4 Schritt 7): wirksame Werte (Startwerte [behavior] + aktive Version)
   map<string, double> behavior = 13;
   uint32 behavior_version = 14;
+  // Verkauf (SP5 Schritt 1): gewählte Zahlungswege, Angebotsgültigkeit (min, 0 = Vorgabe) und die
+  // eingerichteten Wege (Konfiguration)
+  repeated string payment_ways = 15;
+  uint32 offer_valid_min = 16;
+  repeated string payment_ways_available = 17;
 }
 
 // Eine gespeicherte Fassung des Promptprofils einer Influencerin (SP4 Schritt 2, E19).

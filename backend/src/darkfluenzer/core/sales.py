@@ -6,6 +6,7 @@ import time
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_CEILING, Decimal
 
+from ..media import pipeline
 from ..payments.chain import SATOSHI, decimal_text
 from ..store import StoreError
 from ..v1 import (
@@ -32,6 +33,43 @@ def _eur(cents: int) -> str:
 
 class SalesMixin:
     """Wallet, Angebote, Zahlungen, Gutscheine; Teil von ``Cockpit``."""
+
+    def _product_problems(self, figure: dict, product: dict, *, test: bool = False) -> list[str]:
+        """Lieferbar (SP5 Schritt 1, §9.1, E14)? Leer = ja, sonst die Gründe. Workflow registriert,
+        aktiv, Modelle bereit, Art passend, Inhaltsstufe standard, Engine für Produktion (im
+        Kundentest genügt die Evaluation), aktive LoRA der Figur, wenn der Workflow sie lädt."""
+        problems = []
+        steps = ((product["workflow"], "Workflow"), (product["finish_workflow"], "Animation"))
+        for key, role in steps:
+            if role == "Animation" and product["kind"] != "video":
+                continue
+            wf = self.manifest.workflows.get(key or "")
+            if wf is None:
+                problems.append(f"{role} fehlt" if not key else f"{role} {key} nicht registriert")
+                continue
+            eng = self.manifest.engines[wf.engine]
+            want = "video" if role == "Animation" else "image"
+            if wf.training or eng.kind != want:
+                label = "Video" if want == "video" else "Bild"
+                problems.append(f"{wf.title}: kein {label}-Workflow")
+            if reason := self._not_startable(wf):
+                problems.append(f"{wf.title}: {reason}")
+            if wf.content != "standard":
+                problems.append(f"{wf.title}: Inhaltsstufe nicht standard")
+            if eng.usage != "production" and not test:
+                problems.append(f"{wf.title}: Engine nicht für Produktion freigegeben")
+            if wf.lora is not None and role == "Workflow":
+                character = figure.get("character_id")
+                lora = (
+                    pipeline.active_lora(self.store, self.manifest, character, wf)
+                    if character
+                    else ""
+                )
+                if not lora:
+                    problems.append(f"{wf.title}: keine aktive Charakter-LoRA der Figur (E14)")
+        if product["kind"] == "video" and not product["max_duration_s"]:
+            problems.append("Video: Höchstlänge fehlt")
+        return problems
 
     def _wallet_state(self) -> bytes:
         """STATE wallet: Konten mit Guthaben, Euro-Wert, Kurszeit, letzter Prüfung, Quellen."""
@@ -158,13 +196,22 @@ class SalesMixin:
         figure = next((f for f in self.store.influencers() if f["id"] == msg.influencer_id), None)
         if figure is None:
             return "Influencerin-Profil unbekannt."
-        if msg.position >= len(figure["prices"]):
+        if msg.product_id:  # feste Produkt-ID (SP5 Schritt 1)
+            item = next((p for p in figure["prices"] if p["id"] == msg.product_id), None)
+            if item is None:
+                return "Produkt unbekannt oder entfernt."
+        elif msg.position < len(figure["prices"]):
+            item = figure["prices"][msg.position]
+        else:
             return "Position der Preisliste unbekannt."
-        item = figure["prices"][msg.position]
+        if problems := self._product_problems(figure, item):
+            return f"{item['product']} ist nicht lieferbar: {'; '.join(problems)}."
         price = item["price_cents"] + (item["hd_surcharge_cents"] if msg.hd else 0)
         assert self.cfg.wallet is not None  # sonst lehnt _offer_amounts ab
         amounts = self._offer_amounts(price)
-        expires = datetime.now(UTC) + timedelta(minutes=self.cfg.wallet.offer_valid_min)
+        # Gültigkeit an der Influencerin (SP5 Schritt 1), sonst Vorgabe der Konfiguration
+        valid_min = figure.get("offer_valid_min") or self.cfg.wallet.offer_valid_min
+        expires = datetime.now(UTC) + timedelta(minutes=valid_min)
         with self.store.tx():
             order = self.store.create_offer(
                 msg.customer_id,
@@ -174,6 +221,8 @@ class SalesMixin:
                 price,
                 expires.isoformat(timespec="milliseconds"),
                 amounts,
+                product_id=item["id"],
+                kind=item["kind"],
             )
             text = self._offer_text(
                 order, item["product"], msg.hd, price, amounts, expires, msg.note

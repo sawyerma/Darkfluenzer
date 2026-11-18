@@ -259,6 +259,9 @@ message InfluencerUpdate {
   // Schalter (C5.1): Text-KI und automatische Antworten
   bool text_ai = 9;
   bool auto_replies = 10;
+  // Verkauf (SP5 Schritt 1): Zahlungswege und Angebotsgültigkeit (min, 0 = Vorgabe)
+  repeated string payment_ways = 11;
+  uint32 offer_valid_min = 12;
 }
 
 message ProfileDraft {
@@ -339,6 +342,8 @@ message CreateOffer {
   bool hd = 7;
   // persönlicher Satz des Betreibers vor den Zahlungsangaben (optional)
   string note = 8;
+  // Produkt mit fester ID (SP5 Schritt 1); 0 = über position
+  uint64 product_id = 9;
 }
 
 // „Freigeben & senden“ (Befehl 34): Ergebnis eines Kundenauftrags in Prüfung freigeben und hinter

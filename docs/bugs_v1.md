@@ -200,6 +200,21 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP5 Schritt 1 (Produkte)
+Commit: siehe git log „SP5 step 1“ / Migration 38 (products, influencers.payment_ways/offer_valid_min),
+  store/profiles (_save_products, set_influencer_sales), core/sales (_product_problems, product_id),
+  core/dialog (Zahlungswege), core/characters, influencer.proto PriceItem 4–14, commands.proto
+  CreateOffer 9, InfluencerBlock (Produktzeilen, Zahlungswege, Gültigkeit), CustomerPanel
+Nachweis: test_products, test_customer_orders, volle Suite 299 grün; Chrome-E2E isoliert 25/25 (neu
+  products.spec.ts), lesend am echten Cockpit 10/10; echte Migration 37→38 mit Sicherung, Telegram
+  wieder angemeldet
+Behoben dabei: Influencerin-Block klappte nach dem Speichern zu und verlor die Bestätigung (Schlüssel
+  mit Revision); Zahlenfelder ohne sichtbare Beschriftung; Einstellungstest zählte Seed-Konten mit
+NOT_RUN: Angebot an einen echten Kunden (keine Engine mit Nutzung production, keine Influencerin in
+  der echten Datenbank)
+Ergebnis: CODE (Integration isoliert belegt), Kundenlauf NOT_RUN
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: C5.1 (Influencerin vollständig) / BUG-020
 Commit: siehe git log „C5.1“ / store/customers (customer_figures), CustomerSummary 12–15, customer-page Filter,
   CustomerList (Figur, Filter), Channels (Kanalzeile je Plattform), graphite.css (--g-figure-*, .g-ftag)

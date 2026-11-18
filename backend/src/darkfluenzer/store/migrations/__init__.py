@@ -813,6 +813,42 @@ DROP TABLE ai_runs;
 ALTER TABLE ai_runs_v37 RENAME TO ai_runs;
 CREATE INDEX ai_runs_studio ON ai_runs(influencer_id, session) WHERE kind = 'studio';
 """,
+    38: """
+-- Produkte (SP5 Schritt 1): feste ID je Position statt Listenindex, Art, Workflow (Video:
+-- Bild-Workflow und Animation als Fertigstellen), Kandidaten, Höchstlänge, Lieferzeit-Grenze,
+-- Zusatzleistungen; entfernte Positionen bleiben (Angebote verweisen darauf). Zahlungswege und
+-- Angebotsgültigkeit an der Influencerin.
+CREATE TABLE products (
+    id                 INTEGER PRIMARY KEY,
+    influencer_id      INTEGER NOT NULL REFERENCES influencers(id),
+    position           INTEGER NOT NULL,
+    product            TEXT    NOT NULL CHECK (length(trim(product)) > 0),
+    price_cents        INTEGER NOT NULL CHECK (price_cents > 0),
+    hd_surcharge_cents INTEGER NOT NULL DEFAULT 0 CHECK (hd_surcharge_cents >= 0),
+    kind               TEXT    NOT NULL DEFAULT 'image' CHECK (kind IN ('image', 'video')),
+    workflow           TEXT    NOT NULL DEFAULT '',
+    finish_workflow    TEXT    NOT NULL DEFAULT '',
+    candidates         INTEGER NOT NULL DEFAULT 1 CHECK (candidates BETWEEN 1 AND 12),
+    max_duration_s     REAL    NOT NULL DEFAULT 0 CHECK (max_duration_s >= 0),
+    max_delivery_s     REAL    NOT NULL DEFAULT 0 CHECK (max_delivery_s >= 0),
+    original_file      INTEGER NOT NULL DEFAULT 0 CHECK (original_file IN (0, 1)),
+    self_destruct      INTEGER NOT NULL DEFAULT 0 CHECK (self_destruct IN (0, 1)),
+    status             TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'removed')),
+    created_at         TEXT    NOT NULL,
+    updated_at         TEXT    NOT NULL
+);
+INSERT INTO products (influencer_id, position, product, price_cents, hd_surcharge_cents,
+    created_at, updated_at)
+SELECT influencer_id, position, product, price_cents, hd_surcharge_cents,
+       strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+FROM influencer_prices ORDER BY influencer_id, position;
+DROP TABLE influencer_prices;
+CREATE INDEX products_influencer ON products(influencer_id, position) WHERE status = 'active';
+ALTER TABLE influencers ADD COLUMN payment_ways TEXT NOT NULL DEFAULT '["amazon"]';
+ALTER TABLE influencers ADD COLUMN offer_valid_min INTEGER NOT NULL DEFAULT 0
+    CHECK (offer_valid_min >= 0);
+ALTER TABLE offers ADD COLUMN product_id INTEGER REFERENCES products(id);
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

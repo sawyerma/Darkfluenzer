@@ -24,18 +24,22 @@ class PaymentsMixin:
         price_cents: int,
         expires_at: str,
         amounts: dict[str, tuple[str, str, float, int]],
+        *,
+        product_id: int | None = None,
+        kind: str = "image",
     ) -> Order:
         """Kundenauftrag mit Angebot (Status offered) und eindeutigen Beträgen je Zahlungsweg
         (method -> (Dezimaltext, genannte Adresse, Kurs, Kurszeit)). Alles in einer Transaktion."""
         with self.tx() as db:
             label = f"{product} + HD" if hd else product
-            order = self.create_order(customer_id, "image", label)
+            order = self.create_order(customer_id, kind, label)  # Art vom Produkt (SP5 1)
             self.set_offer(order.order_no, label, price_cents, "EUR")
             db.execute(
                 "INSERT INTO offers (order_id, conversation_id, product, hd, price_cents,"
-                " expires_at, created_at) VALUES (?,?,?,?,?,?,?)",
-                (order.id, conversation_id, product, int(hd), price_cents, expires_at, now()),
-            )
+                " expires_at, created_at, product_id) VALUES (?,?,?,?,?,?,?,?)",
+                (order.id, conversation_id, product, int(hd), price_cents, expires_at, now(),
+                 product_id),
+            )  # fmt: skip
             for method, (amount, address, rate, rate_ms) in amounts.items():
                 db.execute(
                     "INSERT INTO offer_amounts (order_id, method, amount, address, rate, rate_ms)"

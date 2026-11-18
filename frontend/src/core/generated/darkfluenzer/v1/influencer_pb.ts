@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/influencer.proto.
  */
 export const file_darkfluenzer_v1_influencer: GenFile = /*@__PURE__*/
-  fileDesc("CiBkYXJrZmx1ZW56ZXIvdjEvaW5mbHVlbmNlci5wcm90bxIPZGFya2ZsdWVuemVyLnYxIk0KCVByaWNlSXRlbRIPCgdwcm9kdWN0GAEgASgJEhMKC3ByaWNlX2NlbnRzGAIgASgDEhoKEmhkX3N1cmNoYXJnZV9jZW50cxgDIAEoAyLDAwoKSW5mbHVlbmNlchIVCg1pbmZsdWVuY2VyX2lkGAEgASgEEgwKBG5hbWUYAiABKAkSFAoMY2hhcmFjdGVyX2lkGAMgASgEEg8KB3BlcnNvbmEYBCABKAkSEQoJYWlfbm90aWNlGAUgASgJEioKBnByaWNlcxgGIAMoCzIaLmRhcmtmbHVlbnplci52MS5QcmljZUl0ZW0SEAoIcmV2aXNpb24YByABKAQSOQoQcGVyc29uYV92ZXJzaW9ucxgIIAMoCzIfLmRhcmtmbHVlbnplci52MS5QZXJzb25hVmVyc2lvbhIWCg5wZXJzb25hX2FjdGl2ZRgJIAEoDRIWCg5zdHVkaW9fc2Vzc2lvbhgKIAEoDRIPCgd0ZXh0X2FpGAsgASgIEhQKDGF1dG9fcmVwbGllcxgMIAEoCBI7CghiZWhhdmlvchgNIAMoCzIpLmRhcmtmbHVlbnplci52MS5JbmZsdWVuY2VyLkJlaGF2aW9yRW50cnkSGAoQYmVoYXZpb3JfdmVyc2lvbhgOIAEoDRovCg1CZWhhdmlvckVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAToCOAEimwIKDlBlcnNvbmFWZXJzaW9uEg8KB3ZlcnNpb24YASABKA0SOwoGYmxvY2tzGAIgAygLMisuZGFya2ZsdWVuemVyLnYxLlBlcnNvbmFWZXJzaW9uLkJsb2Nrc0VudHJ5EjsKBnBhcmFtcxgDIAMoCzIrLmRhcmtmbHVlbnplci52MS5QZXJzb25hVmVyc2lvbi5QYXJhbXNFbnRyeRIMCgRub3RlGAQgASgJEhIKCmNyZWF0ZWRfbXMYBSABKAMaLQoLQmxvY2tzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARotCgtQYXJhbXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAE6AjgBIioKDFByb2ZpbGVCbG9jaxILCgNrZXkYASABKAkSDQoFbGFiZWwYAiABKAkiuAEKC0luZmx1ZW5jZXJzEjAKC2luZmx1ZW5jZXJzGAEgAygLMhsuZGFya2ZsdWVuemVyLnYxLkluZmx1ZW5jZXISFAoMaG9uZXN0eV9ydWxlGAIgASgJEg8KB3ZlcnNpb24YAyABKAQSNQoOcHJvZmlsZV9ibG9ja3MYBCADKAsyHS5kYXJrZmx1ZW56ZXIudjEuUHJvZmlsZUJsb2NrEhkKEWFzc2Vzc21lbnRfc2NoZW1hGAUgASgJYgZwcm90bzM");
+  fileDesc("CiBkYXJrZmx1ZW56ZXIvdjEvaW5mbHVlbmNlci5wcm90bxIPZGFya2ZsdWVuemVyLnYxIqsCCglQcmljZUl0ZW0SDwoHcHJvZHVjdBgBIAEoCRITCgtwcmljZV9jZW50cxgCIAEoAxIaChJoZF9zdXJjaGFyZ2VfY2VudHMYAyABKAMSCgoCaWQYBCABKAQSDAoEa2luZBgFIAEoCRIQCgh3b3JrZmxvdxgGIAEoCRIXCg9maW5pc2hfd29ya2Zsb3cYByABKAkSEgoKY2FuZGlkYXRlcxgIIAEoDRIWCg5tYXhfZHVyYXRpb25fcxgJIAEoARIWCg5tYXhfZGVsaXZlcnlfcxgKIAEoARIVCg1vcmlnaW5hbF9maWxlGAsgASgIEhUKDXNlbGZfZGVzdHJ1Y3QYDCABKAgSEwoLZGVsaXZlcmFibGUYDSABKAgSEAoIcHJvYmxlbXMYDiADKAkikgQKCkluZmx1ZW5jZXISFQoNaW5mbHVlbmNlcl9pZBgBIAEoBBIMCgRuYW1lGAIgASgJEhQKDGNoYXJhY3Rlcl9pZBgDIAEoBBIPCgdwZXJzb25hGAQgASgJEhEKCWFpX25vdGljZRgFIAEoCRIqCgZwcmljZXMYBiADKAsyGi5kYXJrZmx1ZW56ZXIudjEuUHJpY2VJdGVtEhAKCHJldmlzaW9uGAcgASgEEjkKEHBlcnNvbmFfdmVyc2lvbnMYCCADKAsyHy5kYXJrZmx1ZW56ZXIudjEuUGVyc29uYVZlcnNpb24SFgoOcGVyc29uYV9hY3RpdmUYCSABKA0SFgoOc3R1ZGlvX3Nlc3Npb24YCiABKA0SDwoHdGV4dF9haRgLIAEoCBIUCgxhdXRvX3JlcGxpZXMYDCABKAgSOwoIYmVoYXZpb3IYDSADKAsyKS5kYXJrZmx1ZW56ZXIudjEuSW5mbHVlbmNlci5CZWhhdmlvckVudHJ5EhgKEGJlaGF2aW9yX3ZlcnNpb24YDiABKA0SFAoMcGF5bWVudF93YXlzGA8gAygJEhcKD29mZmVyX3ZhbGlkX21pbhgQIAEoDRIeChZwYXltZW50X3dheXNfYXZhaWxhYmxlGBEgAygJGi8KDUJlaGF2aW9yRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4ASKbAgoOUGVyc29uYVZlcnNpb24SDwoHdmVyc2lvbhgBIAEoDRI7CgZibG9ja3MYAiADKAsyKy5kYXJrZmx1ZW56ZXIudjEuUGVyc29uYVZlcnNpb24uQmxvY2tzRW50cnkSOwoGcGFyYW1zGAMgAygLMisuZGFya2ZsdWVuemVyLnYxLlBlcnNvbmFWZXJzaW9uLlBhcmFtc0VudHJ5EgwKBG5vdGUYBCABKAkSEgoKY3JlYXRlZF9tcxgFIAEoAxotCgtCbG9ja3NFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGi0KC1BhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAToCOAEiKgoMUHJvZmlsZUJsb2NrEgsKA2tleRgBIAEoCRINCgVsYWJlbBgCIAEoCSK4AQoLSW5mbHVlbmNlcnMSMAoLaW5mbHVlbmNlcnMYASADKAsyGy5kYXJrZmx1ZW56ZXIudjEuSW5mbHVlbmNlchIUCgxob25lc3R5X3J1bGUYAiABKAkSDwoHdmVyc2lvbhgDIAEoBBI1Cg5wcm9maWxlX2Jsb2NrcxgEIAMoCzIdLmRhcmtmbHVlbnplci52MS5Qcm9maWxlQmxvY2sSGQoRYXNzZXNzbWVudF9zY2hlbWEYBSABKAliBnByb3RvMw");
 
 /**
  * @generated from message darkfluenzer.v1.PriceItem
@@ -32,6 +32,67 @@ export type PriceItem = Message<"darkfluenzer.v1.PriceItem"> & {
    * @generated from field: int64 hd_surcharge_cents = 3;
    */
   hdSurchargeCents: bigint;
+
+  /**
+   * Produkt (SP5 Schritt 1): feste ID (0 = neu), Art image | video, Workflow (Video: Bild-Workflow,
+   * finish_workflow = Animation), Kandidaten, Höchstlänge (s), Lieferzeit-Grenze (s, 0 = keine),
+   * Zusatzleistungen
+   *
+   * @generated from field: uint64 id = 4;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string kind = 5;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string workflow = 6;
+   */
+  workflow: string;
+
+  /**
+   * @generated from field: string finish_workflow = 7;
+   */
+  finishWorkflow: string;
+
+  /**
+   * @generated from field: uint32 candidates = 8;
+   */
+  candidates: number;
+
+  /**
+   * @generated from field: double max_duration_s = 9;
+   */
+  maxDurationS: number;
+
+  /**
+   * @generated from field: double max_delivery_s = 10;
+   */
+  maxDeliveryS: number;
+
+  /**
+   * @generated from field: bool original_file = 11;
+   */
+  originalFile: boolean;
+
+  /**
+   * @generated from field: bool self_destruct = 12;
+   */
+  selfDestruct: boolean;
+
+  /**
+   * lieferbar (Gates §9.1, aktive LoRA, E14) und sonst die Gründe – nur im STATE
+   *
+   * @generated from field: bool deliverable = 13;
+   */
+  deliverable: boolean;
+
+  /**
+   * @generated from field: repeated string problems = 14;
+   */
+  problems: string[];
 };
 
 /**
@@ -132,6 +193,24 @@ export type Influencer = Message<"darkfluenzer.v1.Influencer"> & {
    * @generated from field: uint32 behavior_version = 14;
    */
   behaviorVersion: number;
+
+  /**
+   * Verkauf (SP5 Schritt 1): gewählte Zahlungswege, Angebotsgültigkeit (min, 0 = Vorgabe) und die
+   * eingerichteten Wege (Konfiguration)
+   *
+   * @generated from field: repeated string payment_ways = 15;
+   */
+  paymentWays: string[];
+
+  /**
+   * @generated from field: uint32 offer_valid_min = 16;
+   */
+  offerValidMin: number;
+
+  /**
+   * @generated from field: repeated string payment_ways_available = 17;
+   */
+  paymentWaysAvailable: string[];
 };
 
 /**

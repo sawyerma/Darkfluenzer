@@ -87,9 +87,12 @@ def euro(cents: int) -> str:
     return f"{cents / 100:.2f}".replace(".", ",") + " €"
 
 
-def facts_for(cfg: Config, influencer: dict) -> Facts:
-    """Fakten einer Influencerin: Preisliste aus SQLite, Zahlungswege aus der Konfiguration –
-    Amazon-Gutschein immer (E6), Krypto nur mit Wallet, PayPal erst mit Anschluss (SP5 3)."""
+PAYMENT_WAYS = ("amazon", "btc", "usdt", "usdc", "paypal")
+
+
+def ways_available(cfg: Config) -> list[str]:
+    """Eingerichtete Zahlungswege: Amazon-Gutschein immer (E6), Krypto nur mit Wallet, PayPal erst
+    mit Anschluss (SP5 Schritt 3)."""
     ways = ["amazon"]
     if cfg.wallet is not None:
         if cfg.wallet.btc_address:
@@ -97,6 +100,14 @@ def facts_for(cfg: Config, influencer: dict) -> Facts:
         if cfg.wallet.bsc_address:
             symbols = {t.symbol.lower() for t in cfg.wallet.tokens}
             ways += [w for w in CRYPTO_WAYS[1:] if w in symbols]
+    return ways
+
+
+def facts_for(cfg: Config, influencer: dict) -> Facts:
+    """Fakten einer Influencerin: Produkte aus SQLite, Zahlungswege = gewählte der Influencerin
+    (SP5 Schritt 1), soweit eingerichtet."""
+    chosen = influencer.get("payment_ways") or ["amazon"]
+    ways = [w for w in chosen if w in ways_available(cfg)]
     labels = {key: terms[0] for key, terms in cfg.dialog.payment_terms.items() if terms}
     return Facts(tuple(influencer.get("prices") or ()), tuple(ways), labels)
 

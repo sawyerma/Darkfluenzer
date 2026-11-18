@@ -22,8 +22,12 @@ def test_migration_26_turns_the_old_persona_into_version_1(tmp_path, monkeypatch
     local = tmp_path / "local"
     monkeypatch.setattr(store_db, "SCHEMA_VERSION", 25)
     old = Store(local)
-    old.save_influencer(0, 0, "Clara", None, "warm, direkt", "", [])
-    old.save_influencer(0, 0, "Lucy", None, "", "", [])
+    for name, text in (("Clara", "warm, direkt"), ("Lucy", "")):  # Stand vor Migration 26
+        old.db.execute(
+            "INSERT INTO influencers (name, persona, ai_notice, created_at, updated_at)"
+            " VALUES (?,?,'','t','t')",
+            (name, text),
+        )
     old.close()
     monkeypatch.undo()
     s = Store(local)

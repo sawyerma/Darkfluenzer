@@ -181,6 +181,7 @@
   --g-fs-body: 13px;
   --g-fs-small: 12px;
   --g-fs-tiny: 11px;
+  --g-w-num: 6em;
   --g-fw-brand: 800;
   --g-fw-bold: 700;
   --g-fw-semibold: 650;
@@ -370,6 +371,12 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-cmd .g-field label { font-family: var(--g-font-mono); color: var(--g-text); }
 .g-cmd .g-sub label { font-family: inherit; color: var(--g-muted); font-size: var(--g-fs-small); }
 .g-behavior { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--g-gap-sm); }
+.g-product { display: flex; flex-direction: column; gap: var(--g-gap-xs); padding-bottom: var(--g-gap-sm); border-bottom: 1px solid var(--g-line); }
+.g-product-row { display: flex; flex-wrap: wrap; gap: var(--g-gap-sm); align-items: center; }
+.g-product-row select, .g-product-row input { min-width: 0; }
+.g-product-num { display: flex; align-items: center; gap: var(--g-gap-xs); white-space: nowrap; color: var(--g-muted); font-size: var(--g-fs-small); }
+.g-product-num input { width: var(--g-w-num); }
+.g-ok-text { color: var(--g-ok); }
 .g-cards { display: grid; gap: 16px; margin-top: 28px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 /* Kennzahlkarte (F7-Referenz .metric) */
 .g-card.g-kpi { gap: 0; padding: 25px; min-height: 170px; background: var(--g-metric); border-color: var(--g-metric-line); border-radius: var(--g-r-metric); }

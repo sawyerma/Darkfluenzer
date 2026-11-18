@@ -9,6 +9,18 @@ from .db import (
     now,
 )
 
+PRODUCT_FIELDS = (
+    "id, product, price_cents, hd_surcharge_cents, kind, workflow, finish_workflow, candidates,"
+    " max_duration_s, max_delivery_s, original_file, self_destruct"
+)
+
+
+def _product(row) -> dict:
+    out = dict(row)
+    out["original_file"] = bool(out.get("original_file"))
+    out["self_destruct"] = bool(out.get("self_destruct"))
+    return out
+
 
 class ProfilesMixin:
     """Influencerinnen, Charaktere, Default-Kontakt; Teil von ``Store``."""
@@ -17,12 +29,38 @@ class ProfilesMixin:
         out = []
         for row in self.db.execute("SELECT * FROM influencers ORDER BY id"):
             prices = self.db.execute(
-                "SELECT product, price_cents, hd_surcharge_cents FROM influencer_prices"
-                " WHERE influencer_id = ? ORDER BY position",
+                f"SELECT {PRODUCT_FIELDS} FROM products"
+                " WHERE influencer_id = ? AND status = 'active' ORDER BY position",
                 (row["id"],),
             )
-            out.append(dict(row) | {"prices": [dict(p) for p in prices]})
+            out.append(
+                dict(row)
+                | {
+                    "prices": [_product(p) for p in prices],
+                    "payment_ways": json.loads(row["payment_ways"] or "[]"),
+                }
+            )
         return out
+
+    def product(self, product_id: int) -> dict:
+        row = self.db.execute(
+            f"SELECT {PRODUCT_FIELDS}, influencer_id, status FROM products WHERE id = ?",
+            (product_id,),
+        ).fetchone()
+        if row is None:
+            raise StoreError(f"Produkt {product_id} unbekannt.")
+        return _product(row) | {"influencer_id": row["influencer_id"], "status": row["status"]}
+
+    def set_influencer_sales(
+        self, influencer_id: int, payment_ways: list[str], offer_valid_min: int
+    ) -> None:
+        """Zahlungswege und Angebotsgültigkeit der Influencerin (SP5 Schritt 1; 0 = Vorgabe)."""
+        with self.tx() as db:
+            db.execute(
+                "UPDATE influencers SET payment_ways = ?, offer_valid_min = ? WHERE id = ?",
+                (json.dumps(payment_ways), int(offer_valid_min), influencer_id),
+            )
+            self.bump("influencers")
 
     def save_behavior(self, influencer_id: int, data: dict) -> int:
         """Neue Version des Verhaltensprofils (nur Zahlen), sofort aktiv; liefert die Version."""
@@ -95,6 +133,50 @@ class ProfilesMixin:
                 (message_id, now(), consolation_id),
             )
 
+    def _save_products(self, db, influencer_id: int, prices: list[dict], ts: str) -> None:
+        """Produkte mit fester ID (SP5 Schritt 1): mit ``id`` ändern, ohne neu anlegen; nicht
+        mehr genannte werden ``removed`` (Angebote verweisen weiter auf sie)."""
+        known = {
+            r[0]
+            for r in db.execute(
+                "SELECT id FROM products WHERE influencer_id = ? AND status = 'active'",
+                (influencer_id,),
+            )
+        }
+        kept = set()
+        for pos, item in enumerate(prices):
+            values = (
+                pos, item["product"].strip(), item["price_cents"], item["hd_surcharge_cents"],
+                item.get("kind") or "image", item.get("workflow", ""),
+                item.get("finish_workflow", ""), int(item.get("candidates") or 1),
+                float(item.get("max_duration_s") or 0), float(item.get("max_delivery_s") or 0),
+                int(bool(item.get("original_file"))), int(bool(item.get("self_destruct"))),
+            )  # fmt: skip
+            pid = int(item.get("id") or 0)
+            if pid and pid in known:
+                db.execute(
+                    "UPDATE products SET position = ?, product = ?, price_cents = ?,"
+                    " hd_surcharge_cents = ?, kind = ?, workflow = ?, finish_workflow = ?,"
+                    " candidates = ?, max_duration_s = ?, max_delivery_s = ?, original_file = ?,"
+                    " self_destruct = ?, updated_at = ? WHERE id = ?",
+                    (*values, ts, pid),
+                )
+                kept.add(pid)
+            elif pid:
+                raise StoreError(f"Produkt {pid} gehört nicht zu dieser Influencerin.")
+            else:
+                db.execute(
+                    "INSERT INTO products (position, product, price_cents, hd_surcharge_cents,"
+                    " kind, workflow, finish_workflow, candidates, max_duration_s,"
+                    " max_delivery_s, original_file, self_destruct, influencer_id, created_at,"
+                    " updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (*values, influencer_id, ts, ts),
+                )
+        for gone in known - kept:
+            db.execute(
+                "UPDATE products SET status = 'removed', updated_at = ? WHERE id = ?", (ts, gone)
+            )
+
     def set_influencer_switches(
         self, influencer_id: int, text_ai: bool, auto_replies: bool
     ) -> None:
@@ -142,16 +224,7 @@ class ProfilesMixin:
                 ).rowcount
                 if n != 1:
                     raise StoreError("Profil wurde inzwischen geändert – Ansicht ist aktuell.")
-                db.execute(
-                    "DELETE FROM influencer_prices WHERE influencer_id = ?", (influencer_id,)
-                )
-            for pos, item in enumerate(prices):
-                db.execute(
-                    "INSERT INTO influencer_prices (influencer_id, position, product, price_cents,"
-                    " hd_surcharge_cents) VALUES (?,?,?,?,?)",
-                    (influencer_id, pos, item["product"].strip(), item["price_cents"],
-                     item["hd_surcharge_cents"]),
-                )  # fmt: skip
+            self._save_products(db, influencer_id, prices, ts)
             self._event("influencer", influencer_id, "saved", name=name)
             self.bump("influencers")
             return influencer_id

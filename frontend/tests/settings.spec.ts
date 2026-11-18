@@ -42,16 +42,18 @@ test("Einstellungen: zwei Telegram-Konten mit je eigenem Zustand (SP2 Schritt 4)
   await page.goto("/#einstellungen");
   await expect(page.locator(".g-nav-end")).toHaveText("VERBUNDEN");
   const card = page.locator(".g-card", { hasText: "Kanäle" });
+  // zwei konfigurierte Konten; Seeds anderer Tests (SP4 Figuren) legen weitere Telegram-Konten an
   const telegram = card.locator(".g-stack").filter({ has: page.locator('.g-ptag[data-platform="telegram"]') });
-  await expect(telegram).toHaveCount(2);
+  await expect(telegram.nth(1)).toBeVisible();
+  const count = await telegram.count();
   // je Konto ein eigener Adapter: eigener Zustand statt „weiteres Konto“
-  for (const i of [0, 1]) {
+  for (let i = 0; i < count; i++) {
     await expect(telegram.nth(i).locator(".g-account-line small")).toHaveText(/^Konto \S+ · /);
     await expect(telegram.nth(i)).toContainText("TDLib fehlt");
   }
   await expect(card).not.toContainText("weiteres Konto");
   const keys = await telegram.locator(".g-account-line small").allTextContents();
-  expect(new Set(keys.map((k) => k.split(" · ")[0])).size).toBe(2);
+  expect(new Set(keys.map((k) => k.split(" · ")[0])).size).toBe(count);
   await card.screenshot({ path: "test-results/sp2s4-zwei-telegram-konten.png" });
   expect(errors).toEqual([]);
 });

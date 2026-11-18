@@ -11,6 +11,7 @@ import io
 import struct
 import types
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from PIL import Image
@@ -175,6 +176,8 @@ def test_customer_order_chain(cfg, monkeypatch):
 
         cockpit.wallet.rates = {"bitcoin": 80000.0, "tether": 0.9}
         cockpit.wallet.rate_ms = int(time.time() * 1000)
+        # Lieferbarkeit (SP5 Schritt 1) prüft test_products; hier geht es um die Auftragskette
+        monkeypatch.setattr(cockpit, "_product_problems", lambda *_a, **_k: [])
         channel = types.SimpleNamespace(  # Kanal verbunden, angemeldet als das Konto der Akte
             state="READY", wake=asyncio.Event(), platform="telegram", account=BOT, key="telegram"
         )
@@ -210,6 +213,7 @@ def test_customer_order_chain(cfg, monkeypatch):
         store.set_message_status(notice, "sent", platform_message_id="1")
         assert "Position" in await send(create_offer=offer(position=3))
         assert await send(create_offer=offer()) == ""
+        store.set_influencer_sales(figure, ["amazon"], 15)  # Gültigkeit an der Influencerin
         assert await send(create_offer=offer()) == ""  # zweites Angebot: andere Beträge
         o1, o2 = [
             store.order(r[0])
@@ -218,6 +222,9 @@ def test_customer_order_chain(cfg, monkeypatch):
             )
         ]
         a1, a2 = store.offer(o1.id)["amounts"], store.offer(o2.id)["amounts"]
+        left = [datetime.fromisoformat(store.offer(o.id)["expires_at"]) - datetime.now(UTC)
+                for o in (o1, o2)]  # fmt: skip
+        assert 55 * 60 < left[0].total_seconds() <= 3600 and left[1].total_seconds() <= 15 * 60
         assert o1.price_amount == 2500 and a1["usdt"] == "27.7801" and a2["usdt"] == "27.7802"
         assert a1["btc"] == "0.00031251" and a1["btc"] != a2["btc"]
         (text,) = [

@@ -571,9 +571,11 @@ def test_influencer_profile_for_all_customers(cfg):
         prices = [price(product="Foto", price_cents=2499, hd_surcharge_cents=500)]
         assert await send(influencer_update=update(prices=prices)) == ""
         (clara,) = store.influencers()
-        assert clara["prices"] == [
-            {"product": "Foto", "price_cents": 2499, "hd_surcharge_cents": 500}
-        ]
+        (foto,) = clara["prices"]  # Produkt mit fester ID (SP5 Schritt 1)
+        assert (foto["product"], foto["price_cents"], foto["hd_surcharge_cents"]) == (
+            "Foto", 2499, 500,
+        )  # fmt: skip
+        assert foto["id"] and foto["kind"] == "image"
         bad = [price(product="Foto", price_cents=0)]
         assert "Preisliste" in await send(influencer_update=update(influencer_id=1, prices=bad))
         stale = update(influencer_id=1, revision=7, ai_notice="Hi, ich bin KI-Creatorin")
