@@ -200,17 +200,17 @@ Geprüft und mit E19 vereinbar (keine Änderung): BUG-050 (Gutscheincode-Muster 
 
 | ID | Konflikt | Verbindliche Korrektur | Stand |
 |---|---|---|---|
-| SPEC-022 | \`ActiveOrder\`/\`OrderStage\`/\`StageJob\` bilden Betreiber, Default und Kunden gemeinsam ab | ab DS8 \`customers/orders\` nur Kundenbestellungen, Produktionsläufe in Studio; historische Stufen weiterhin lesbar | Implementierung DS0/DS8 OFFEN |
+| SPEC-022 | `ActiveOrder`/`OrderStage`/`StageJob` bilden Betreiber, Default und Kunden gemeinsam ab | ab DS8 `customers/orders` nur Kundenbestellungen, Produktionsläufe in Studio; historische Stufen weiterhin lesbar | Implementierung DS0/DS8 OFFEN |
 | SPEC-023 | veröffentlichte Protobuf-Tags 12/21/22/24/38 sollten nach Ersatz reserviert werden | Tags/Payloads bewahren; Alt-Handler erst nach geprüftem Cutover ablösen | DS0/DS8 OFFEN |
-| SPEC-024 | \`CommandRequest.expected_version\` gegen neues payloadinternes \`expected_revision\` | nur eine maßgebliche CAS-Prüfung im bestehenden Umschlag | DS0/DS2/3 OFFEN |
-| SPEC-025 | \`InputFile.data\`, \`inline_bytes\`, \`staged_upload_id\` als mehrere konkurrierende Dateiwege | Bestand-Import validieren und weiterverwenden, Zusatz-Byteweg/undefiniertes Staging streichen | DS0/DS1 OFFEN |
+| SPEC-024 | `CommandRequest.expected_version` gegen neues payloadinternes `expected_revision` | nur eine maßgebliche CAS-Prüfung im bestehenden Umschlag | DS0/DS2/3 OFFEN |
+| SPEC-025 | `InputFile.data`, `inline_bytes`, `staged_upload_id` als mehrere konkurrierende Dateiwege | Bestand-Import validieren und weiterverwenden, Zusatz-Byteweg/undefiniertes Staging streichen | DS0/DS1 OFFEN |
 | SPEC-026 | zweite Ressourcen-, Queue-, Charakter-, LoRA-, Trainings-, Workflow- und QC-Protobuf-Typen | Bestand vorrangig erweitern, nur neue Studio-Fachobjekte neu definieren | DS0–DS4 OFFEN |
-| SPEC-027 | \`MediaItem\` enthält Kunden-/Bestellfelder | veröffentlichte Tags behalten, Studio-Projektion anonymisieren, Kunden-Webschicht berechtigt anreichern | DS2/3+DS8 OFFEN |
+| SPEC-027 | `MediaItem` enthält Kunden-/Bestellfelder | veröffentlichte Tags behalten, Studio-Projektion anonymisieren, Kunden-Webschicht berechtigt anreichern | DS2/3+DS8 OFFEN |
 | SPEC-028 | Studio-Review plus Kunden-Operatorfreigabe verdoppelt Klicks | Kunden-Studio-QC automatisch; Freigabe gegebenenfalls einmal über Befehl 34 oder Handy | DS2/3-b+DS8 OFFEN |
-| SPEC-029 | Studio-Duplikat verliert \`unknown\`, \`stalled_s\`, vier Produktionsgates, \`MediaCheck\`-Einzelwerte | bestehende Mess-/Gatedaten und Prioritäten unverändert übernehmen | DS0–DS2/3 OFFEN |
+| SPEC-029 | Studio-Duplikat verliert `unknown`, `stalled_s`, vier Produktionsgates, `MediaCheck`-Einzelwerte | bestehende Mess-/Gatedaten und Prioritäten unverändert übernehmen | DS0–DS2/3 OFFEN |
 | SPEC-030 | zweite README konkurriert; Zählung 106/90 veraltet | nur normative README/CSV; 113 Einträge, 16 gestrichen, höchstens 97 bedarfsgebunden | Dokumentation korrigiert; Proto-DS0 OFFEN |
-| SPEC-031 | \`gpu_busy_percent\` ohne reproduzierbare Messquelle | keine erfundene GPU-Last-Anzeige/Proto-Deklaration | DS10 OFFEN |
-| SPEC-032 | \`studio_chat=49\`/\`studio_session_reset=50\` mit Medien-Studio verwechselt | Tags stabil, in GUI und Kommentaren „Melody-KI-Test“ | DS1 OFFEN |
+| SPEC-031 | `gpu_busy_percent` ohne reproduzierbare Messquelle | keine erfundene GPU-Last-Anzeige/Proto-Deklaration | DS10 OFFEN |
+| SPEC-032 | `studio_chat=49`/`studio_session_reset=50` mit Medien-Studio verwechselt | Tags stabil, in GUI und Kommentaren „Melody-KI-Test“ | DS1 OFFEN |
 
 
 ## 6. Protokollzeile je Befund

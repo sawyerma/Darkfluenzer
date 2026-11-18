@@ -651,18 +651,18 @@ flowchart TD
 
 | UI-Funktion | Einziger Bedien- und Datenweg | Abnahmekriterium |
 |---|---|---|
-| Betreiber, Default/Kloner und Kunde | eine \`production_id\`, ein Executor, ein NodeRun- und Medien-/SHA-Verlauf; Studio/Projekte und Kundenkarte öffnen denselben Run | \`ActiveOrder\` ab DS8 nur kaufmännischer Kundenauftrag mit Produktionsverweis, keine zweite aktive Stufenmaschine |
-| Queue und Ressourcen | bestehende \`JobsActive\` (2), \`Resources\` (7), \`ComfyInstances\` (6) | \`unknown\`, \`stalled_s\` und Priorität bleiben sichtbar, keine redundante Queue/Resource-STATE |
-| Modelle und Parameter | bestehende \`WorkflowInfo/WorkflowParam\` (3), vier Engine-Gates, \`usage\` und \`content\` | keine \`StudioModelCapability\`-/\`StudioParameterSpec\`-Kopie, keine erfundenen PASS-Werte |
-| Charaktere, LoRA, Training | bestehende \`Characters\` (5), \`CharacterLora\`, \`TrainingCheckpoint\`, Befehle 25/64/67 | keine zweite Registry, Training bleibt beim einen Job-Owner |
-| Medien und QC | bestehende \`MediaItem.media_id\`, \`MediaKind\`, \`MediaCheck\`, Revisions-/Hash-Referenzen | Studio zeigt keine personenbezogenen \`caption/order_no/customer_no\`; Kunden-UI reichert autorisiert an |
-| Kandidaten-/Schrittkontrolle | ein \`StudioProductionControl\` mit production_id, node_run_id, verdict und selected_media_id | ersetzt nach DS8 die *fachliche* Auswahl von Command 22, nicht dessen veröffentlichtes Proto-Tag |
-| Kundenfreigabe | **einmalig** \`ApproveArtifact=34\` oder verifizierte Handy-Freigabe, sofern nötig | Studio-Review 150 nur Eigenproduktion; Kunden-Studio-QC automatisch, kein zweiter Pflichtklick |
-| Mutationen und Versionen | \`CommandRequest.expected_version\` als einzige CAS-Prüfung auf adressiertem Fachaggregat | kein zusätzlicher payloadinterner \`expected_revision\`-CAS; veraltete Revision abweisen |
-| Upload und Referenzen | ein zentraler geprüfter \`InputFile.data\`-Import und danach eine \`media_id\` | kein \`inline_bytes\`-Zweitweg oder \`staged_upload_id\` ohne echten Endpunkt |
+| Betreiber, Default/Kloner und Kunde | eine `production_id`, ein Executor, ein NodeRun- und Medien-/SHA-Verlauf; Studio/Projekte und Kundenkarte öffnen denselben Run | `ActiveOrder` ab DS8 nur kaufmännischer Kundenauftrag mit Produktionsverweis, keine zweite aktive Stufenmaschine |
+| Queue und Ressourcen | bestehende `JobsActive` (2), `Resources` (7), `ComfyInstances` (6) | `unknown`, `stalled_s` und Priorität bleiben sichtbar, keine redundante Queue/Resource-STATE |
+| Modelle und Parameter | bestehende `WorkflowInfo/WorkflowParam` (3), vier Engine-Gates, `usage` und `content` | keine `StudioModelCapability`-/`StudioParameterSpec`-Kopie, keine erfundenen PASS-Werte |
+| Charaktere, LoRA, Training | bestehende `Characters` (5), `CharacterLora`, `TrainingCheckpoint`, Befehle 25/64/67 | keine zweite Registry, Training bleibt beim einen Job-Owner |
+| Medien und QC | bestehende `MediaItem.media_id`, `MediaKind`, `MediaCheck`, Revisions-/Hash-Referenzen | Studio zeigt keine personenbezogenen `caption/order_no/customer_no`; Kunden-UI reichert autorisiert an |
+| Kandidaten-/Schrittkontrolle | ein `StudioProductionControl` mit production_id, node_run_id, verdict und selected_media_id | ersetzt nach DS8 die *fachliche* Auswahl von Command 22, nicht dessen veröffentlichtes Proto-Tag |
+| Kundenfreigabe | **einmalig** `ApproveArtifact=34` oder verifizierte Handy-Freigabe, sofern nötig | Studio-Review 150 nur Eigenproduktion; Kunden-Studio-QC automatisch, kein zweiter Pflichtklick |
+| Mutationen und Versionen | `CommandRequest.expected_version` als einzige CAS-Prüfung auf adressiertem Fachaggregat | kein zusätzlicher payloadinterner `expected_revision`-CAS; veraltete Revision abweisen |
+| Upload und Referenzen | ein zentraler geprüfter `InputFile.data`-Import und danach eine `media_id` | kein `inline_bytes`-Zweitweg oder `staged_upload_id` ohne echten Endpunkt |
 | KI-Test | vorhandene Befehle 49/50 | als **Melody-KI-Test** beschriften, nicht als Medien-Studio-Kommandos |
 
-**Zusätzliche Tests:** Studio/Erstellen, Default-Kloner, Kundenakte, Dateien und Reconnect müssen auf denselben persistenten Run und dieselben Artifakt-IDs zugreifen; alte abgeschlossene/laufende Aufträge müssen lesbar bleiben. Ein Kunden-Gate darf nicht aus einem Studio-COMPLETED den Status DELIVERED ableiten. Keine Bedienung ohne verfügbaren Backend-Handler; nicht implementierte Funktionen deaktiviert und mit Grund. \`gpu_busy_percent\` nur bei reproduzierbarer M4-Telemetrie, sonst nicht anzeigen.
+**Zusätzliche Tests:** Studio/Erstellen, Default-Kloner, Kundenakte, Dateien und Reconnect müssen auf denselben persistenten Run und dieselben Artifakt-IDs zugreifen; alte abgeschlossene/laufende Aufträge müssen lesbar bleiben. Ein Kunden-Gate darf nicht aus einem Studio-COMPLETED den Status DELIVERED ableiten. Keine Bedienung ohne verfügbaren Backend-Handler; nicht implementierte Funktionen deaktiviert und mit Grund. `gpu_busy_percent` nur bei reproduzierbarer M4-Telemetrie, sonst nicht anzeigen.
 
 ## Anhang A – Freigegebene Klickreferenz F7
 
