@@ -27,19 +27,32 @@ class PaymentsMixin:
         *,
         product_id: int | None = None,
         kind: str = "image",
+        facts: str = "",
+        delivery_s: float | None = None,
+        payments: list[dict] | None = None,
     ) -> Order:
-        """Kundenauftrag mit Angebot (Status offered) und eindeutigen Beträgen je Zahlungsweg
-        (method -> (Dezimaltext, genannte Adresse, Kurs, Kurszeit)). Alles in einer Transaktion."""
+        """Kundenauftrag mit Angebot (Status offered) und eindeutigen Beträgen je Krypto-Weg
+        (method -> (Dezimaltext, genannte Adresse, Kurs, Kurszeit)); ``payments`` = je
+        angebotenem Zahlungsweg Betrag, Währung, Ziel, Hinweis (SP5 Schritt 2), ``facts`` = der
+        Faktenblock wie gesendet. Alles in einer Transaktion."""
         with self.tx() as db:
             label = f"{product} + HD" if hd else product
             order = self.create_order(customer_id, kind, label)  # Art vom Produkt (SP5 1)
             self.set_offer(order.order_no, label, price_cents, "EUR")
             db.execute(
                 "INSERT INTO offers (order_id, conversation_id, product, hd, price_cents,"
-                " expires_at, created_at, product_id) VALUES (?,?,?,?,?,?,?,?)",
+                " expires_at, created_at, product_id, facts, delivery_s)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?)",
                 (order.id, conversation_id, product, int(hd), price_cents, expires_at, now(),
-                 product_id),
+                 product_id, facts, delivery_s),
             )  # fmt: skip
+            for p in payments or []:
+                db.execute(
+                    "INSERT INTO offer_payments (order_id, way, amount, currency, target, note)"
+                    " VALUES (?,?,?,?,?,?)",
+                    (order.id, p["way"], p["amount"], p["currency"], p.get("target", ""),
+                     p.get("note", "")),
+                )  # fmt: skip
             for method, (amount, address, rate, rate_ms) in amounts.items():
                 db.execute(
                     "INSERT INTO offer_amounts (order_id, method, amount, address, rate, rate_ms)"
@@ -63,7 +76,131 @@ class PaymentsMixin:
             "SELECT method, amount FROM offer_amounts WHERE order_id = ? ORDER BY method",
             (order_id,),
         )
-        return dict(row) | {"amounts": {r["method"]: r["amount"] for r in amounts}}
+        return dict(row) | {
+            "amounts": {r["method"]: r["amount"] for r in amounts},
+            "payments": self.offer_payments(order_id),
+        }
+
+    def set_offer_facts(self, order_id: int, facts: str) -> None:
+        with self.tx() as db:
+            db.execute("UPDATE offers SET facts = ? WHERE order_id = ?", (facts, order_id))
+
+    def offer_payments(self, order_id: int) -> list[dict]:
+        """Angebotene Zahlungswege in der Reihenfolge der Influencerin (Anlage)."""
+        rows = self.db.execute(
+            "SELECT way, amount, currency, target, note FROM offer_payments WHERE order_id = ?"
+            " ORDER BY rowid",
+            (order_id,),
+        )
+        return [dict(r) for r in rows]
+
+    def open_offer_of(self, conversation_id: int) -> dict | None:
+        """Jüngstes Angebot der Konversation, das noch auf Zahlung wartet (offered,
+        payment_review); None, wenn keins."""
+        row = self.db.execute(
+            "SELECT o.order_no, o.status, f.* FROM orders o JOIN offers f ON f.order_id = o.id"
+            " WHERE f.conversation_id = ? AND o.status IN ('offered', 'payment_review')"
+            " ORDER BY o.id DESC LIMIT 1",
+            (conversation_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def last_rejection(self, conversation_id: int) -> str | None:
+        """Zeit der letzten Ablehnung eines Angebots in der Konversation (Sperrzeit)."""
+        row = self.db.execute(
+            "SELECT max(o.updated_at) FROM orders o JOIN offers f ON f.order_id = o.id"
+            " WHERE f.conversation_id = ? AND o.status = 'cancelled'"
+            " AND o.status_reason = 'abgelehnt'",
+            (conversation_id,),
+        ).fetchone()
+        return row[0] if row else None
+
+    def reject_offer(self, order_no: str, by: str) -> None:
+        """Kunde lehnt ab (Einstufung, SP5 Schritt 2): Auftrag cancelled mit Grund „abgelehnt“;
+        danach gilt die Sperrzeit der Influencerin."""
+        with self.tx():
+            self.transition(order_no, "cancelled", reason="abgelehnt", by=by)
+            order = self.order(order_no)
+            offer = self.offer(order.id)
+            if offer:
+                self.add_system_card(
+                    offer["conversation_id"], f"ANGEBOT ABGELEHNT · {order_no}", order_id=order.id
+                )
+
+    def expire_offers(self, at: str) -> list[str]:
+        """Zeitaufgabe (SP5 Schritt 2): Angebote im Status offered mit abgelaufener Frist ->
+        cancelled mit Grund „abgelaufen“ und Karte; in payment_review ruht die Frist."""
+        rows = self.db.execute(
+            "SELECT o.order_no, o.id, f.conversation_id FROM orders o"
+            " JOIN offers f ON f.order_id = o.id WHERE o.status = 'offered' AND f.expires_at < ?",
+            (at,),
+        ).fetchall()
+        done = []
+        for r in rows:
+            with self.tx():
+                self.transition(r["order_no"], "cancelled", reason="abgelaufen", by="Frist")
+                self.add_system_card(
+                    r["conversation_id"], f"ANGEBOT ABGELAUFEN · {r['order_no']}", order_id=r["id"]
+                )
+            done.append(r["order_no"])
+        return done
+
+    def start_payment_review(self, customer_id: int, why: str) -> str | None:
+        """Zahlungsnachweis eingegangen (Gutscheincode, später begonnene PayPal-Zahlung): jüngstes
+        offenes Angebot der Akte nach payment_review, die Frist ruht ab jetzt. Liefert die
+        Auftragsnummer oder None."""
+        with self.tx() as db:
+            row = db.execute(
+                "SELECT o.order_no, o.id, f.conversation_id FROM orders o"
+                " JOIN offers f ON f.order_id = o.id WHERE o.customer_id = ?"
+                " AND o.status = 'offered' ORDER BY o.id DESC LIMIT 1",
+                (customer_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            self.transition(row["order_no"], "payment_review", by=why)
+            db.execute(
+                "UPDATE offers SET review_started_at = ? WHERE order_id = ?", (now(), row["id"])
+            )
+            self.add_system_card(
+                row["conversation_id"],
+                f"ZAHLUNG IN PRÜFUNG · {why} · {row['order_no']} – Frist ruht",
+                order_id=row["id"],
+            )
+            return row["order_no"]
+
+    def end_payment_review(self, customer_id: int, why: str) -> str | None:
+        """Nachweis abgelehnt: zurück nach offered, die Frist verlängert sich um die Prüfdauer
+        (Restfrist). Nur, wenn kein weiterer Gutschein der Akte offen ist."""
+        with self.tx() as db:
+            pending = db.execute(
+                "SELECT 1 FROM vouchers WHERE customer_id = ? AND status = 'pending'",
+                (customer_id,),
+            ).fetchone()
+            row = db.execute(
+                "SELECT o.order_no, o.id, f.conversation_id, f.expires_at, f.review_started_at"
+                " FROM orders o JOIN offers f ON f.order_id = o.id WHERE o.customer_id = ?"
+                " AND o.status = 'payment_review' ORDER BY o.id DESC LIMIT 1",
+                (customer_id,),
+            ).fetchone()
+            if row is None or pending:
+                return None
+            started = datetime.fromisoformat(row["review_started_at"] or now())
+            paused = datetime.now(UTC) - started
+            expires = datetime.fromisoformat(row["expires_at"]) + paused
+            until = expires.isoformat(timespec="milliseconds")
+            db.execute(
+                "UPDATE offers SET expires_at = ?, review_started_at = NULL WHERE order_id = ?",
+                (until, row["id"]),
+            )
+            self.transition(row["order_no"], "offered", by=why)
+            local = expires.astimezone().strftime("%d.%m.%Y, %H:%M Uhr")
+            self.add_system_card(
+                row["conversation_id"],
+                f"ZAHLUNG ABGELEHNT · {why} · {row['order_no']} – Angebot gilt bis {local}",
+                order_id=row["id"],
+            )
+            return row["order_no"]
 
     def offer_amount_rows(self, order_id: int) -> list[dict]:
         rows = self.db.execute(
@@ -79,13 +216,17 @@ class PaymentsMixin:
             if inflow["status"] != "unassigned":
                 raise StoreError("Eingang ist noch nicht bestätigt oder schon zugeordnet.")
             order = self.order(order_no)
-            if order.source != "customer" or order.status not in ("offered", "accepted"):
+            if order.source != "customer" or order.status not in (
+                "offered",
+                "payment_review",
+                "accepted",
+            ):
                 raise StoreError(f"{order_no}: kein offenes Angebot ({order.status}).")
             if reason := _uncovered(inflow, order.price_amount or 0, self.offer(order.id)):
                 raise StoreError(
                     f"Eingang deckt den Angebotspreis nicht ({reason}) – bleibt nicht zugeordnet."
                 )
-            if order.status == "offered":
+            if order.status in ("offered", "payment_review"):
                 self.transition(order_no, "accepted", by=by)
             self.record_payment(
                 order_no,
@@ -120,21 +261,38 @@ class PaymentsMixin:
         hit = db.execute(
             "SELECT o.order_no FROM offer_amounts a JOIN offers f ON f.order_id = a.order_id"
             " JOIN orders o ON o.id = a.order_id WHERE a.method = ? AND a.amount = ?"
-            " AND f.created_at <= ? AND f.expires_at >= ? AND o.status IN ('offered', 'accepted')",
+            " AND f.created_at <= ? AND (f.expires_at >= ? OR o.status = 'payment_review')"
+            " AND o.status IN ('offered', 'payment_review', 'accepted')",
             (inflow["method"], inflow["amount"], inflow["detected_at"], inflow["detected_at"]),
         ).fetchone()
         if hit:
             self.assign_inflow(payment_id, hit["order_no"], "automatisch")
+            return
+        late = db.execute(
+            "SELECT o.order_no, o.id, f.conversation_id FROM offer_amounts a"
+            " JOIN offers f ON f.order_id = a.order_id JOIN orders o ON o.id = a.order_id"
+            " WHERE a.method = ? AND a.amount = ? AND o.status = 'cancelled'",
+            (inflow["method"], inflow["amount"]),
+        ).fetchone()
+        if late:  # E24: keine automatische Neuzuordnung, der Betreiber entscheidet
+            text = (
+                f"EINGANG NACH ABLAUF · {inflow['asset']} {inflow['amount']} passt zu "
+                f"{late['order_no']} (nicht mehr gültig) – neuem Angebot zuordnen oder erstatten"
+            )
+            self.add_system_card(late["conversation_id"], text, order_id=late["id"])
+            self.notify_default(text)
 
     def open_offers(self) -> list[dict]:
         """Angebote, die noch auf Zahlung warten (Ziele für Befehl 41), neueste zuerst."""
         rows = self.db.execute(
-            "SELECT o.id, o.order_no, o.customer_id, c.customer_no, c.display_name, f.product,"
-            " f.hd, f.price_cents, f.expires_at FROM orders o JOIN offers f ON f.order_id = o.id"
-            " JOIN customers c ON c.id = o.customer_id WHERE o.status IN ('offered', 'accepted')"
+            "SELECT o.id, o.order_no, o.status, o.customer_id, c.customer_no, c.display_name,"
+            " f.product, f.hd, f.price_cents, f.expires_at FROM orders o"
+            " JOIN offers f ON f.order_id = o.id"
+            " JOIN customers c ON c.id = o.customer_id"
+            " WHERE o.status IN ('offered', 'payment_review', 'accepted')"
             " ORDER BY o.id DESC"
         ).fetchall()
-        return [dict(r) | {"amounts": self.offer(r["id"])["amounts"]} for r in rows]
+        return [dict(r) | {"payments": self.offer_payments(r["id"])} for r in rows]
 
     def add_voucher(self, customer_id: int, message_id: int | None, code: str) -> int | None:
         with self.tx() as db:
@@ -172,6 +330,10 @@ class PaymentsMixin:
                 raise StoreError("Gutschein unbekannt oder schon entschieden.")
             self._event("voucher", voucher_id, "rejected")
             self.bump("payments")
+            customer = db.execute(
+                "SELECT customer_id FROM vouchers WHERE id = ?", (voucher_id,)
+            ).fetchone()[0]
+            self.end_payment_review(customer, "Gutschein abgelehnt")
 
     def redeem_voucher(self, voucher_id: int, amount_cents: int) -> int:
         """Betreiber hat den Gutschein bei Amazon eingelöst und trägt den Betrag ein (Befehl 42):
@@ -202,11 +364,14 @@ class PaymentsMixin:
             self.bump("payments")
             open_order = db.execute(
                 "SELECT order_no FROM orders WHERE customer_id = ? AND source = 'customer'"
-                " AND status IN ('offered', 'accepted') AND price_amount <= ? ORDER BY id DESC",
+                " AND status IN ('offered', 'payment_review', 'accepted') AND price_amount <= ?"
+                " ORDER BY id DESC",
                 (v["customer_id"], amount_cents),
             ).fetchone()
             if open_order:
                 self.assign_inflow(payment_id, open_order["order_no"], "Gutschein")
+            else:  # deckt keinen Angebotspreis: Prüfung endet, Angebot läuft mit Restfrist
+                self.end_payment_review(v["customer_id"], "Gutschein deckt den Preis nicht")
             return payment_id
 
     def upsert_payment(

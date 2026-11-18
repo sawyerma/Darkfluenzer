@@ -292,6 +292,7 @@ class CharactersMixin:
                 behavior_version=self.store.behavior_of(row["id"])[0],
                 payment_ways=row["payment_ways"],
                 offer_valid_min=row["offer_valid_min"],
+                offer_cooldown_min=row["offer_cooldown_min"],
                 payment_ways_available=dialog.ways_available(self.cfg),
             )
             for price in row["prices"]:
@@ -383,7 +384,10 @@ class CharactersMixin:
         call.entity = f"influencer:{influencer_id}"
         self.store.set_influencer_switches(influencer_id, msg.text_ai, msg.auto_replies)  # C5.1
         self.store.set_influencer_sales(  # SP5 Schritt 1
-            influencer_id, list(msg.payment_ways) or ["amazon"], msg.offer_valid_min
+            influencer_id,
+            list(msg.payment_ways) or ["amazon"],
+            msg.offer_valid_min,
+            msg.offer_cooldown_min,
         )
         active = self.store.active_persona(influencer_id)
         blocks = dict(active["blocks"]) if active else {}

@@ -106,12 +106,14 @@ export const drafts = new Map<string, string>();
 
 export const ORDER_STATUS: Record<string, string> = {
   offered: "Angeboten · wartet auf Zahlung",
+  payment_review: "Zahlung in Prüfung · Frist ruht",
   accepted: "Angenommen · wartet auf Zahlung",
   paid: "Bezahlt · wartet auf Produktion",
   producing: "In Produktion",
   review: "Zur Prüfung",
   approved: "Freigegeben",
   delivered: "Ausgeliefert",
+  awaiting_contact: "Zustellung wartet auf Kontakt",
   cancelled: "Abgebrochen",
   refunded: "Erstattet",
 };
@@ -123,4 +125,4 @@ export const DELIVERY_STATUS: Record<string, [string, Tone]> = {
   unknown: ["Versand ungeklärt", "bad"],
 };
 
-export const METHOD_LABEL: Record<string, string> = { btc: "Bitcoin", usdt: "USDT · BSC", usdc: "USDC · BSC" };
+export const METHOD_LABEL: Record<string, string> = { amazon: "Amazon-Gutschein", btc: "Bitcoin", usdt: "USDT · BSC", usdc: "USDC · BSC", paypal: "PayPal" };

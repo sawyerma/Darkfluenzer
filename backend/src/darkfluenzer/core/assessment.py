@@ -7,9 +7,12 @@ Das Backend typisiert es streng und leitet daraus nur autorisierte Folgen ab –
   aufheben kann nur der Betreiber (Befehl 44, protokolliert).
 - ``explicit_wish`` → kein Auftrag; die Antwort (Fansly-Verweis) formuliert Melody.
 - ``purchase_readiness`` ≥ ``OFFER_READINESS`` mit Wunsch → Angebot (SP5).
+- ``offer_response`` = ``reject`` → offenes Angebot abgelehnt, Sperrzeit der Influencerin (SP5
+  Schritt 2); ``accept`` ändert nichts (es zählt die Zahlung).
 
 Schema-Vertrag (``SCHEMA_HINT``): Pflicht sind ``minor_hint``, ``explicit_wish`` und
-``purchase_readiness`` (0–3); optional ``minor_evidence``, ``readiness_evidence``, ``intent`` und
+``purchase_readiness`` (0–3); optional ``minor_evidence``, ``readiness_evidence``, ``intent``,
+``offer_response`` (accept, reject, leer) und
 ``wish`` mit ``kind`` (image, video, leer), ``description``, ``source``, und ``memory`` (Liste
 mit ``level`` customer, memo, event, self, ``text`` und optional ``replaces``, SP4 Schritt 5).
 """
@@ -20,12 +23,13 @@ from dataclasses import dataclass, field
 
 OFFER_READINESS = 2  # ab dieser Kaufbereitschaft mit Wunsch folgt das Angebot (SP5)
 WISH_KINDS = ("image", "video", "")
+OFFER_RESPONSES = ("accept", "reject", "")
 MEMORY_LEVELS = ("customer", "memo", "event", "self")
 REQUIRED = ("minor_hint", "explicit_wish", "purchase_readiness")
 SCHEMA_HINT = (
     '{"minor_hint": false, "minor_evidence": "", "explicit_wish": false, "purchase_readiness": 0, '
     '"readiness_evidence": "", "wish": {"kind": "", "description": "", "source": ""}, '
-    '"intent": "", '
+    '"intent": "", "offer_response": "", '
     '"memory": [{"level": "customer|memo|event|self", "text": "", "replaces": 0}]}'
 )
 
@@ -56,6 +60,7 @@ class Assessment:
     wish: Wish = field(default_factory=Wish)
     intent: str = ""
     memory: tuple[MemoryItem, ...] = ()
+    offer_response: str = ""
 
     @property
     def consequences(self) -> list[str]:
@@ -63,10 +68,13 @@ class Assessment:
         out = []
         if self.minor_hint:
             out.append("lock_minor")
+        if self.offer_response == "reject" and not self.minor_hint:
+            out.append("offer_rejected")
         if self.explicit_wish:
             out.append("no_order_explicit")
         elif (
             not self.minor_hint
+            and self.offer_response != "reject"
             and self.purchase_readiness >= OFFER_READINESS
             and self.wish.description.strip()
         ):
@@ -97,6 +105,9 @@ def parse(value: object) -> tuple[Assessment | None, str]:
     wish = Wish(**{k: raw_wish.get(k, "") for k in ("kind", "description", "source")})
     if any(not isinstance(v, str) for v in vars(wish).values()) or wish.kind not in WISH_KINDS:
         return None, "Einstufung: wish braucht kind (image, video oder leer), description, source."
+    response = value.get("offer_response", "") or ""
+    if response not in OFFER_RESPONSES:
+        return None, "Einstufung: offer_response nur accept, reject oder leer."
     raw_memory = value.get("memory") or []
     if not isinstance(raw_memory, list):
         return None, "Einstufung: memory muss eine Liste sein."
@@ -111,7 +122,7 @@ def parse(value: object) -> tuple[Assessment | None, str]:
             memory.append(MemoryItem(item["level"], text.strip(), replaces))
     typed = Assessment(
         value["minor_hint"], value["explicit_wish"], readiness, wish=wish, memory=tuple(memory),
-        **texts,
+        offer_response=response, **texts,
     )  # fmt: skip
     return typed, ""
 

@@ -306,6 +306,10 @@ class DialogConfig:
     public_contact_cleared: bool = False
     # so viele letzte Ein- und Ausgänge gehen als Gesprächskontext in einen Kundenlauf
     chat_turns: int = 12
+    # Abstand der Zeitaufgabe, die abgelaufene Angebote schließt (SP5 Schritt 2)
+    offer_check_s: float = 30.0
+    # Gültigkeit eines Angebots (min) ohne [wallet] und ohne Wert an der Influencerin
+    offer_valid_min: int = 60
 
 
 @dataclass(frozen=True)
@@ -802,6 +806,8 @@ def load(root: Path | None = None) -> Config:
         repeat_similarity=similar,
         public_contact_cleared=_flag(dialog_section, "public_contact_cleared", False, "dialog"),
         chat_turns=int(_positive(dialog_section, "chat_turns", 12, "dialog")),
+        offer_check_s=float(_positive(dialog_section, "offer_check_s", 30, "dialog")),
+        offer_valid_min=int(_positive(dialog_section, "offer_valid_min", 60, "dialog")),
     )
     cl = data.get("cloner", {})
     if not isinstance(cl, dict):

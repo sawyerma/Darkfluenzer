@@ -20,6 +20,7 @@ interface Row {
   finish: string;
   candidates: string;
   duration: string;
+  delivery: string;
   original: boolean;
   selfDestruct: boolean;
   deliverable: boolean;
@@ -155,6 +156,7 @@ function InfluencerForm({ influencer, mediaTitle, videoTitle, cmd }: Props & { c
       finish: p.finishWorkflow,
       candidates: String(p.candidates || 1),
       duration: p.maxDurationS ? String(p.maxDurationS) : "",
+      delivery: p.maxDeliveryS ? String(Math.round(p.maxDeliveryS / 60)) : "",
       original: p.originalFile,
       selfDestruct: p.selfDestruct,
       deliverable: p.deliverable,
@@ -163,6 +165,8 @@ function InfluencerForm({ influencer, mediaTitle, videoTitle, cmd }: Props & { c
   );
   const [ways, setWays] = useState<string[]>(influencer?.paymentWays.length ? [...influencer.paymentWays] : ["amazon"]);
   const [valid, setValid] = useState(influencer?.offerValidMin ? String(influencer.offerValidMin) : "");
+  // Sperrzeit nach einer Ablehnung (SP5 Schritt 2)
+  const [cooldown, setCooldown] = useState(influencer?.offerCooldownMin ? String(influencer.offerCooldownMin) : "");
   const workflows = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
   const imageWfs = workflows.filter((w) => w.kind === "image" && !w.training);
   const videoWfs = workflows.filter((w) => w.kind === "video" && w.params.some((x) => x.upload && x.name === "image"));
@@ -203,11 +207,13 @@ function InfluencerForm({ influencer, mediaTitle, videoTitle, cmd }: Props & { c
             finishWorkflow: r.kind === "video" ? r.finish : "",
             candidates: Number(r.candidates) || 1,
             maxDurationS: r.kind === "video" ? Number(r.duration) || 0 : 0,
+            maxDeliveryS: (Number(r.delivery) || 0) * 60,
             originalFile: r.original,
             selfDestruct: r.selfDestruct,
           })),
           paymentWays: ways,
           offerValidMin: Number(valid) || 0,
+          offerCooldownMin: Number(cooldown) || 0,
         },
       },
       { done: "Profil gespeichert – gilt für alle Kunden." },
@@ -315,6 +321,15 @@ function InfluencerForm({ influencer, mediaTitle, videoTitle, cmd }: Props & { c
                   onChange={(e) => edit(i, "candidates", e.target.value)}
                 />
               </label>
+              <label className="g-product-num">
+                Lieferzeit max. min
+                <input
+                  aria-label={`Lieferzeit max. min ${r.product || i + 1}`}
+                  inputMode="numeric"
+                  value={r.delivery}
+                  onChange={(e) => edit(i, "delivery", e.target.value)}
+                />
+              </label>
               <label className="g-switch">
                 <input type="checkbox" checked={r.original} onChange={(e) => edit(i, "original", e.target.checked)} />
                 Originaldatei
@@ -350,6 +365,7 @@ function InfluencerForm({ influencer, mediaTitle, videoTitle, cmd }: Props & { c
                 finish: "",
                 candidates: "1",
                 duration: "",
+                delivery: "",
                 original: false,
                 selfDestruct: false,
                 deliverable: false,
@@ -374,6 +390,10 @@ function InfluencerForm({ influencer, mediaTitle, videoTitle, cmd }: Props & { c
         <div className="g-field">
           <label htmlFor={`inf-valid-${label}`}>Angebot gültig (Minuten, leer = Vorgabe)</label>
           <input id={`inf-valid-${label}`} inputMode="numeric" value={valid} onChange={(e) => setValid(e.target.value)} />
+        </div>
+        <div className="g-field">
+          <label htmlFor={`inf-cooldown-${label}`}>Sperrzeit nach Ablehnung (Minuten, leer = keine)</label>
+          <input id={`inf-cooldown-${label}`} inputMode="numeric" value={cooldown} onChange={(e) => setCooldown(e.target.value)} />
         </div>
       </div>
       {influencer ? <BehaviorEditor key={`${influencer.influencerId}-${influencer.behaviorVersion}`} influencer={influencer} /> : null}

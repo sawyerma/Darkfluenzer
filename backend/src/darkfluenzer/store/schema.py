@@ -2,20 +2,25 @@
 
 from __future__ import annotations
 
-SCHEMA_VERSION = 38
+SCHEMA_VERSION = 39
 DB_NAME = "darkfluenzer.sqlite3"
 ORDER_KINDS = ("image", "video")
 ARTIFACT_ROLES = ("input", "master", "mask", "candidate", "preview", "edit", "refined", "sent")
 # Erlaubte Auftragsübergänge (alles andere wird abgewiesen)
 TRANSITIONS: dict[str, set[str]] = {
     "draft": {"offered", "cancelled"},
-    "offered": {"accepted", "cancelled"},
+    # payment_review (SP5 Schritt 2): Zahlungsnachweis eingegangen, Frist ruht; bestätigt ->
+    # accepted -> paid, abgelehnt -> offered mit Restfrist
+    "offered": {"accepted", "payment_review", "cancelled"},
+    "payment_review": {"accepted", "offered", "cancelled"},
     "accepted": {"paid", "cancelled"},
     "paid": {"producing", "refunded"},
     "producing": {"review", "refunded"},
     "review": {"producing", "approved", "refunded"},
     "approved": {"delivered", "producing", "refunded"},
     "delivered": set(),
+    # awaiting_contact: Zustellung geparkt, bis der Kunde wieder schreibt (Übergänge SP5 Schritt 9)
+    "awaiting_contact": set(),
     "cancelled": set(),
     "refunded": set(),
 }

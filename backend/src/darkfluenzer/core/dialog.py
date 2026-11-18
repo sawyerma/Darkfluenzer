@@ -47,6 +47,8 @@ class Facts:
     prices: tuple[dict, ...] = ()
     payment_ways: tuple[str, ...] = ()
     labels: dict[str, str] = field(default_factory=dict)  # Zahlungsweg -> Anzeigename
+    # Lieferstand je Produkt-ID (SP5 Schritt 2): „Lieferzeit ca. … Minuten“ oder nicht lieferbar
+    status: dict[int, str] = field(default_factory=dict)
 
     def amounts(self) -> set[int]:
         """Erlaubte Beträge in Cent: Preis, HD-Aufschlag, Preis mit Aufschlag."""
@@ -64,7 +66,8 @@ class Facts:
             hd = (
                 f", HD-Aufschlag {euro(p['hd_surcharge_cents'])}" if p["hd_surcharge_cents"] else ""
             )
-            lines.append(f"{p['product']}: {euro(p['price_cents'])}{hd}")
+            state = f" · {self.status[p['id']]}" if p.get("id") in self.status else ""
+            lines.append(f"{p['product']}: {euro(p['price_cents'])}{hd}{state}")
         ways = [self.labels.get(w, w) for w in self.payment_ways]
         lines.append(f"Zahlungswege: {', '.join(ways) if ways else 'keine freigegeben'}")
         return "\n".join(lines)
@@ -103,13 +106,13 @@ def ways_available(cfg: Config) -> list[str]:
     return ways
 
 
-def facts_for(cfg: Config, influencer: dict) -> Facts:
+def facts_for(cfg: Config, influencer: dict, status: dict[int, str] | None = None) -> Facts:
     """Fakten einer Influencerin: Produkte aus SQLite, Zahlungswege = gewählte der Influencerin
-    (SP5 Schritt 1), soweit eingerichtet."""
+    (SP5 Schritt 1), soweit eingerichtet; ``status`` = Lieferstand je Produkt (SP5 Schritt 2)."""
     chosen = influencer.get("payment_ways") or ["amazon"]
     ways = [w for w in chosen if w in ways_available(cfg)]
     labels = {key: terms[0] for key, terms in cfg.dialog.payment_terms.items() if terms}
-    return Facts(tuple(influencer.get("prices") or ()), tuple(ways), labels)
+    return Facts(tuple(influencer.get("prices") or ()), tuple(ways), labels, dict(status or {}))
 
 
 def _cents(raw: str) -> int:

@@ -697,6 +697,7 @@ def create_app(cfg: Config) -> web.Application:
         tasks = [
             watched("Beobachter", cockpit.observe),
             watched("Hauptstrang-Messung", cockpit.watch_loop),
+            watched("Angebotsfristen", cockpit.offer_expiry),
         ]
         for lane in cockpit.lanes.values():
             tasks.append(

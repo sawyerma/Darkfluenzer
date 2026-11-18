@@ -71,6 +71,8 @@ message OpenOffer {
   int64 expires_ms = 7;
   // je Zahlungsweg „USDT 24.9937“
   repeated string amounts = 8;
+  // offered | payment_review (Frist ruht) | accepted
+  string status = 9;
 }
 
 // STATE wallet

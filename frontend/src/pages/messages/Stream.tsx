@@ -63,6 +63,10 @@ function CustomerOrder({ order }: { order: ActiveOrder }) {
   const [notExplicit, setNotExplicit] = useState(false);
   const offer = order.offer;
   const expired = offer && Number(offer.expiresMs) < Date.now() && ["offered", "accepted"].includes(order.status);
+  // SP5 Schritt 2: angebotene Wege; ältere Angebote ohne Wegeliste zeigen die Krypto-Beträge
+  const payments = offer?.payments.length
+    ? offer.payments
+    : (offer?.amounts ?? []).map((a) => ({ way: a.method, amount: a.amount, currency: a.asset, target: a.address, note: "" }));
   const last = order.deliveries.at(-1);
   const standard = order.resultTier === "standard";
   return (
@@ -73,16 +77,35 @@ function CustomerOrder({ order }: { order: ActiveOrder }) {
             {offer.product}
             {offer.hd ? " + HD" : ""} · {EUR.format(offer.priceCents / 100)}
           </Row>
-          <Row label="Gültig bis">{expired ? `abgelaufen (${shortTime(offer.expiresMs)})` : shortTime(offer.expiresMs)}</Row>
-          {offer.amounts.map((a) => (
-            <Row key={a.method} label={METHOD_LABEL[a.method] ?? a.method}>
+          <Row label="Gültig bis">
+            {order.status === "payment_review"
+              ? `${shortTime(offer.expiresMs)} · ruht seit ${shortTime(offer.reviewStartedMs)}`
+              : expired
+                ? `abgelaufen (${shortTime(offer.expiresMs)})`
+                : shortTime(offer.expiresMs)}
+          </Row>
+          {offer.deliveryS ? <Row label="Lieferzeit">ca. {Math.max(5, Math.ceil(offer.deliveryS / 300) * 5)} min nach Zahlung</Row> : null}
+          {order.statusReason ? <Row label="Grund">{order.statusReason}</Row> : null}
+          {payments.map((p) => (
+            <Row key={p.way} label={METHOD_LABEL[p.way] ?? p.way}>
               <span className="g-mono">
-                {a.amount} {a.asset}
+                {p.amount} {p.currency}
               </span>
-              <small className="g-mono"> an {a.address}</small>
+              {p.target ? <small className="g-mono"> an {p.target}</small> : null}
             </Row>
           ))}
         </dl>
+      ) : null}
+      {offer?.facts ? (
+        <details className="g-fold">
+          <summary>
+            <span>Faktenblock</span>
+            <span className="g-fold-hint">wörtlich gesendet · gesperrt</span>
+          </summary>
+          <pre className="g-pre" aria-label="Faktenblock">
+            {offer.facts}
+          </pre>
+        </details>
       ) : null}
       {order.status === "paid" ? (
         <div className="g-actions">

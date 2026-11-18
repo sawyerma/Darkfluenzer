@@ -56,6 +56,8 @@ message Influencer {
   repeated string payment_ways = 15;
   uint32 offer_valid_min = 16;
   repeated string payment_ways_available = 17;
+  // Sperrzeit nach einer Ablehnung (min, 0 = keine; SP5 Schritt 2)
+  uint32 offer_cooldown_min = 18;
 }
 
 // Eine gespeicherte Fassung des Promptprofils einer Influencerin (SP4 Schritt 2, E19).

@@ -849,7 +849,57 @@ ALTER TABLE influencers ADD COLUMN offer_valid_min INTEGER NOT NULL DEFAULT 0
     CHECK (offer_valid_min >= 0);
 ALTER TABLE offers ADD COLUMN product_id INTEGER REFERENCES products(id);
 """,
+    39: """
+-- Angebot (SP5 Schritt 2): Zahlung in Prüfung (payment_review, die Frist ruht), geparkte Zustellung
+-- (awaiting_contact, Übergänge SP5 Schritt 9) und Grund des Status (z. B. „abgelaufen“,
+-- „abgelehnt“). Neubau der Tabelle wegen der CHECK-Liste, alle Zeilen behalten ihre ID.
+CREATE TABLE orders_v39 (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_no      TEXT GENERATED ALWAYS AS ('DF-O-' || printf('%06d', id)) STORED,
+    source        TEXT    NOT NULL DEFAULT 'customer'
+                  CHECK (source IN ('operator', 'cloner', 'customer')),
+    customer_id   INTEGER REFERENCES customers(id),
+    kind          TEXT    NOT NULL CHECK (kind IN ('image', 'video')),
+    request       TEXT    NOT NULL,
+    offer         TEXT,
+    price_amount  INTEGER CHECK (price_amount IS NULL OR price_amount > 0),
+    currency      TEXT,
+    status        TEXT    NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'offered',
+                  'payment_review', 'accepted', 'paid', 'producing', 'review', 'approved',
+                  'delivered', 'awaiting_contact', 'cancelled', 'refunded')),
+    status_reason TEXT,
+    created_at    TEXT    NOT NULL,
+    updated_at    TEXT    NOT NULL,
+    CHECK ((source = 'customer') = (customer_id IS NOT NULL))
+);
+INSERT INTO orders_v39 (id, source, customer_id, kind, request, offer, price_amount, currency,
+                        status, created_at, updated_at)
+SELECT id, source, customer_id, kind, request, offer, price_amount, currency, status,
+       created_at, updated_at FROM orders;
+DROP TABLE orders;
+ALTER TABLE orders_v39 RENAME TO orders;
+CREATE UNIQUE INDEX orders_no ON orders(order_no);
+CREATE INDEX orders_customer ON orders(customer_id);
+-- Faktenblock wörtlich wie gesendet, Lieferzeit bei Angebot, Beginn der Zahlungsprüfung
+ALTER TABLE offers ADD COLUMN facts TEXT NOT NULL DEFAULT '';
+ALTER TABLE offers ADD COLUMN delivery_s REAL;
+ALTER TABLE offers ADD COLUMN review_started_at TEXT;
+-- je angebotenem Zahlungsweg: Betrag, Ziel (Adresse oder Link), Hinweis; die eindeutigen
+-- Krypto-Beträge für die Zuordnung bleiben in offer_amounts
+CREATE TABLE offer_payments (
+    order_id INTEGER NOT NULL REFERENCES offers(order_id),
+    way      TEXT    NOT NULL CHECK (way IN ('amazon', 'btc', 'usdt', 'usdc', 'paypal')),
+    amount   TEXT    NOT NULL,
+    currency TEXT    NOT NULL,
+    target   TEXT    NOT NULL DEFAULT '',
+    note     TEXT    NOT NULL DEFAULT '',
+    PRIMARY KEY (order_id, way)
+);
+-- Sperrzeit nach einer Ablehnung (Minuten, 0 = keine)
+ALTER TABLE influencers ADD COLUMN offer_cooldown_min INTEGER NOT NULL DEFAULT 0
+    CHECK (offer_cooldown_min >= 0);
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
-REBUILDS = {5, 6, 7, 34, 37}
+REBUILDS = {5, 6, 7, 34, 37, 39}

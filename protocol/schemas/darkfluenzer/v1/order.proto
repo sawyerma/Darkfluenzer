@@ -62,6 +62,22 @@ message CustomerOffer {
   int64 expires_ms = 4;
   repeated OfferAmount amounts = 5;
   uint64 conversation_id = 6;
+  // SP5 Schritt 2: Faktenblock wörtlich wie gesendet, Lieferzeit bei Angebot (s, 0 = unbekannt),
+  // angebotene Zahlungswege, Beginn der Zahlungsprüfung (Frist ruht; 0 = keine)
+  string facts = 7;
+  double delivery_s = 8;
+  repeated OfferPayment payments = 9;
+  int64 review_started_ms = 10;
+}
+
+// Ein angebotener Zahlungsweg (SP5 Schritt 2): amazon | btc | usdt | usdc | paypal, Betrag als
+// Dezimaltext in der Währung, Ziel (Adresse oder Link) und Hinweis
+message OfferPayment {
+  string way = 1;
+  string amount = 2;
+  string currency = 3;
+  string target = 4;
+  string note = 5;
 }
 
 // Eine Zustellung (V0 §8.4 Punkt 9): pending (im Postausgang) | sent | failed; „unknown“ =
@@ -94,6 +110,8 @@ message ActiveOrder {
   uint64 result_media_id = 12;
   string result_path = 13;
   string result_tier = 14;
+  // Grund des Status, z. B. „abgelaufen“ oder „abgelehnt“ (SP5 Schritt 2)
+  string status_reason = 15;
 }
 
 // STATE orders.active: Aufträge in Produktion (Stufen laufen oder warten auf den Betreiber)

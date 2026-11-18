@@ -256,6 +256,7 @@ function Assign({ p, offers }: { p: Payment; offers: readonly OpenOffer[] }) {
         {offers.map((o) => (
           <option key={o.orderNo} value={o.orderNo}>
             {o.orderNo} · {o.displayName || o.customerNo} · {o.product} · {EUR.format(o.priceCents / 100)} · {o.amounts.join(", ")}
+            {o.status === "payment_review" ? " · Zahlung in Prüfung" : ""}
           </option>
         ))}
       </select>

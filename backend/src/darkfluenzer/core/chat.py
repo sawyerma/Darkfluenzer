@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import UTC, datetime
+import re
+from datetime import UTC, datetime, timedelta
 
 from ..media import models
 from ..store import StoreError
@@ -21,6 +22,8 @@ from . import assessment, behavior, dialog, memory
 from .base import _Call, log
 
 LOCK_REASON = "Akte gesperrt (minderjährig vermutet)."
+# Angebotstext des Sprachlaufs: ohne Ziffern und Währungszeichen, die Fakten hängt das Backend an
+OFFER_TEXT = re.compile(r"[0-9€$£]")
 
 
 class ChatMixin:
@@ -306,7 +309,10 @@ class ChatMixin:
             for t in turns[: len(turns) - tail]
         )
         message = "\n".join(newest)
-        facts = dialog.facts_for(self.cfg, figure)
+        status = (
+            {} if test else {p["id"]: self._product_status(figure, p) for p in figure["prices"]}
+        )
+        facts = dialog.facts_for(self.cfg, figure, status)  # mit Lieferstand (SP5 Schritt 2)
         chosen = memory.select(self.store, self.cfg, *frame["memory"], message)
         values = {k: persona["blocks"].get(k, "") for k in models.PROFILE_INPUTS}
         values |= {"context": context, "memory": memory.as_input(chosen), "facts": facts.text()}
@@ -357,6 +363,9 @@ class ChatMixin:
             return  # gesperrt bzw. im Test: Hinweis auf Minderjährigkeit, keine Antwort
         row = self.store.ai_run(run_id)
         customer_id = frame["customer_id"]
+        offer = None
+        if typed is not None and "offer_ready" in typed.consequences and not test:
+            offer = self._dialog_offer(conv, typed, figure)
         if state.get("dirty"):  # neue Nachricht während der Erzeugung: verworfen, neu erzeugt
             message_id = self.store.queue_reply(
                 customer_id, conv, row["answer"], status="draft", ai_run_id=run_id, test=test
@@ -365,23 +374,35 @@ class ChatMixin:
             self._message_changed(message_id)
             return
         failed = [g["reason"] for g in self._gates_of(row) if not g["ok"]]
+        if offer is not None and OFFER_TEXT.search(row["answer"]):
+            failed.append(
+                "Angebotstext enthält Ziffern oder ein Währungszeichen (Faktenblock vom Backend)."
+            )
         allowed = "" if test else self._auto_allowed(conv, ident, figure)
         why = failed + ([allowed] if allowed else [])
-        if not why:
-            when = self._reply_time(conv, figure, row["answer"])
-            if test and not self.store.default_contact()["test_delay"]:
-                when = None  # Kundentest ohne „Verzögerung wie Kunde“: sofort
-            message_id = self.store.queue_reply(
-                customer_id, conv, row["answer"], status="queued", ai_run_id=run_id,
-                scheduled_at=when, test=test,
-            )  # fmt: skip
-            if adapter is not None:
-                adapter.wake.set()
-        else:
-            message_id = self.store.queue_reply(
-                customer_id, conv, row["answer"], status="draft", ai_run_id=run_id,
-                reason="; ".join(why), test=test,
-            )  # fmt: skip
+        text = row["answer"]
+        with self.store.tx():
+            if offer is not None:  # Faktenblock wörtlich angehängt (SP5 Schritt 2)
+                _order, facts = self._place_offer(offer, customer_id, conv)
+                text = f"{text.strip()}\n\n{facts}"
+            if not why:
+                when = self._reply_time(conv, figure, row["answer"])
+                if test and not self.store.default_contact()["test_delay"]:
+                    when = None  # Kundentest ohne „Verzögerung wie Kunde“: sofort
+                message_id = self.store.queue_reply(
+                    customer_id, conv, text, status="queued", ai_run_id=run_id,
+                    scheduled_at=when, test=test,
+                )  # fmt: skip
+            else:
+                message_id = self.store.queue_reply(
+                    customer_id, conv, text, status="draft", ai_run_id=run_id,
+                    reason="; ".join(why), test=test,
+                )  # fmt: skip
+        if not why and adapter is not None:
+            adapter.wake.set()
+        if offer is not None:
+            self._orders_changed()
+            self._wallet_changed()
         self._message_changed(message_id)
         if self._fill is None or self._fill.done():  # Vertröst-Texte nachlegen (Leerlauf)
             self._fill = asyncio.create_task(self._fill_consolations(figure))
@@ -521,15 +542,57 @@ class ChatMixin:
                 pass
             self._message_changed(0)
             return True
+        if "offer_rejected" in typed.consequences:
+            open_offer = None if frame["test"] else self.store.open_offer_of(conv)
+            if open_offer is not None and open_offer["status"] == "offered":
+                self.store.reject_offer(open_offer["order_no"], "Einstufung")
+                self._orders_changed()
+                self._wallet_changed()
+            elif frame["test"]:
+                self.store.add_system_card(conv, f"{prefix}ANGEBOT ABGELEHNT")
         if typed.explicit_wish:
             self.store.add_system_card(
                 conv, f"{prefix}EXPLIZITER WUNSCH · kein Auftrag – Antwort nach der Strategie"
             )
-        elif "offer_ready" in typed.consequences:
+        elif "offer_ready" in typed.consequences and frame["test"]:
             wish = typed.wish.description or "–"
-            self.store.add_system_card(conv, f"{prefix}KAUFBEREIT · {wish} · Angebot folgt (SP5)")
+            self.store.add_system_card(
+                conv, f"{prefix}KAUFBEREIT · {wish} · Testangebot folgt mit dem Testweg (SP5 12)"
+            )
         self._message_changed(0)
         return False
+
+    def _dialog_offer(self, conv: int, typed: assessment.Assessment, figure: dict):
+        """Angebot aus dem Dialog (SP5 Schritt 2): Wunsch bestätigt und Kaufbereitschaft ab Stufe
+        2. Genau ein lieferbares Produkt der gewünschten Art innerhalb der Lieferzeitgrenze und
+        mit Zahlungsweg → Angebotsplan; sonst Karte mit Grund und keine Anlage. Ein offenes
+        Angebot genügt; nach einer Ablehnung gilt die Sperrzeit der Influencerin."""
+        wish = typed.wish.description or "–"
+        if self.store.open_offer_of(conv) is not None:
+            return None
+        cooldown = figure.get("offer_cooldown_min") or 0
+        last = self.store.last_rejection(conv)
+        if cooldown and last:
+            until = datetime.fromisoformat(last) + timedelta(minutes=cooldown)
+            if until > datetime.now(UTC):
+                local = until.astimezone().strftime("%H:%M")
+                self.store.add_system_card(
+                    conv, f"KAUFBEREIT · {wish} · Sperrzeit nach Ablehnung bis {local} Uhr"
+                )
+                return None
+        kind = typed.wish.kind
+        items = [p for p in figure["prices"] if not kind or p["kind"] == kind]
+        plans = [self._offer_plan(figure, p, False) for p in items]
+        ready = [p for p in plans if not isinstance(p, str)]
+        if len(ready) == 1:
+            return ready[0]
+        if ready:
+            names = ", ".join(p.label for p in ready)
+            text = f"mehrere Produkte passen ({names}) – Angebot im Cockpit wählen"
+        else:
+            text = "kein Angebot: " + (" ".join(plans) if plans else "kein Produkt dieser Art")
+        self.store.add_system_card(conv, f"KAUFBEREIT · {wish} · {text}")
+        return None
 
     # ------------------------------------------------------------------ Versand-Gate
 

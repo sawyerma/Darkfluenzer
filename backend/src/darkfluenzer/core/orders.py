@@ -276,6 +276,7 @@ def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
     """Auftrag mit Stufen, Jobs und Kandidaten (STATE orders.active, Systemkarte)."""
     item.order_no, item.source, item.kind = order.order_no, order.source, order.kind
     item.request, item.status = order.request, order.status
+    item.status_reason = store.order_reason(order.id) or ""
     for st in store.stages(order.id):
         stage = item.stages.add(
             seq=st.seq,
@@ -315,6 +316,12 @@ def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
             _unix_ms(offer["expires_at"]),
         )
         item.offer.conversation_id = offer["conversation_id"]
+        item.offer.facts = offer.get("facts") or ""
+        item.offer.delivery_s = offer.get("delivery_s") or 0.0
+        if offer.get("review_started_at"):
+            item.offer.review_started_ms = _unix_ms(offer["review_started_at"])
+        for p in offer["payments"]:
+            item.offer.payments.add(**p)
         for row in store.offer_amount_rows(order.id):
             network = "bitcoin" if row["method"] == "btc" else "bsc"
             item.offer.amounts.add(

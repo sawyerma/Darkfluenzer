@@ -94,6 +94,7 @@ class MessagesMixin:
             message_id = cur.lastrowid
             if any([self.add_voucher(customer.id, message_id, code) for code in codes]):
                 self.add_system_card(conv, "GUTSCHEIN ERHALTEN · im Reiter Wallet prüfen")
+                self.start_payment_review(customer.id, "Gutschein erhalten")
             return Inbound(customer, identity, conv, message_id, created)
 
     def _platform_messages(
@@ -513,6 +514,15 @@ class MessagesMixin:
             " ORDER BY c.id DESC LIMIT 1"
         ).fetchone()
         return row[0] if row else None
+
+    def notify_default(self, text: str) -> int | None:
+        """Meldung ans Handy des Betreibers (Default-Chat, Produktion), z. B. Eingang nach Ablauf
+        (E24); None, wenn noch kein Default-Chat besteht."""
+        conv = self.default_conversation()
+        if conv is None:
+            return None
+        default = self.default_contact()
+        return self.queue_reply(default["customer_id"], conv, text, status="queued", ai_run_id=None)
 
     def mark_test(self, message_id: int) -> None:
         """Eingang gehört zum Kundentest (eigener Verlauf, nie Produktion)."""

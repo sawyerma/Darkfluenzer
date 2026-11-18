@@ -316,6 +316,32 @@ class JobsMixin:
         mid = len(values) // 2
         return values[mid] if len(values) % 2 else (values[mid - 1] + values[mid]) / 2
 
+    def run_seconds(self, workflow: str, runs: int) -> float:
+        """Median der Laufdauer (s) der letzten ``runs`` erfolgreichen Läufe des Workflows
+        (Lieferzeit, SP5 Schritt 2); 0 = keine Messung."""
+        rows = self.db.execute(
+            "SELECT json_extract(e.data, '$.duration_s') FROM events e JOIN jobs j"
+            " ON j.id = e.entity_id WHERE e.entity = 'job' AND e.event = 'status'"
+            " AND json_extract(e.data, '$.status') = 'done' AND j.workflow = ?"
+            " AND json_extract(e.data, '$.duration_s') > 0 ORDER BY e.id DESC LIMIT ?",
+            (workflow, runs),
+        ).fetchall()
+        values = sorted(float(r[0]) for r in rows)
+        if not values:
+            return 0.0
+        mid = len(values) // 2
+        return values[mid] if len(values) % 2 else (values[mid - 1] + values[mid]) / 2
+
+    def pending_jobs(self) -> list[dict]:
+        """Laufende und wartende Jobs mit Workflow, Vorrangklasse, Startzeit und Schrittzahl
+        (Lieferzeit, SP5 Schritt 2)."""
+        rows = self.db.execute(
+            "SELECT id, workflow, status, priority, updated_at,"
+            " json_extract(params, '$.steps') AS steps FROM jobs"
+            " WHERE status IN ('queued', 'running') ORDER BY id"
+        )
+        return [dict(r) for r in rows]
+
     def finished_jobs_after(self, after: int, limit: int) -> list[dict]:
         """Abgeschlossene Jobs mit Cursor (events.id) > ``after``, aufsteigend, höchstens
         ``limit`` – für den Abgleich ab einer gemerkten Position (SP0 Schritt 6, BUG-107)."""

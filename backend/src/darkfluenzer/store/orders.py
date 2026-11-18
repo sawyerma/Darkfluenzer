@@ -47,6 +47,12 @@ class OrdersMixin:
             raise StoreError(f"Auftrag {order_no} unbekannt.")
         return _order(row)
 
+    def order_reason(self, order_id: int) -> str | None:
+        """Grund des aktuellen Status (z. B. „abgelaufen“, SP5 Schritt 2)."""
+        row = self.db.execute("SELECT status_reason FROM orders WHERE id = ?", (order_id,))
+        found = row.fetchone()
+        return found[0] if found else None
+
     def order_dir(self, order: Order) -> Path:
         return self.local / "customers" / order.customer_no / "orders" / order.order_no
 
@@ -194,7 +200,10 @@ class OrdersMixin:
         recent = [dict(r) | {"data": json.loads(r["data"])} for r in rows[:limit]]
         return recent[::-1], len(rows) > limit
 
-    def transition(self, order_no: str, new_status: str, **data: object) -> Order:
+    def transition(
+        self, order_no: str, new_status: str, *, reason: str | None = None, **data: object
+    ) -> Order:
+        """Erlaubter Übergang; ``reason`` = Grund des neuen Status (z. B. „abgelaufen“)."""
         with self.tx() as db:
             order = self.order(order_no)
             allowed = TRANSITIONS if order.source == "customer" else OPERATOR_TRANSITIONS
@@ -203,9 +212,11 @@ class OrdersMixin:
                     f"{order_no}: Übergang {order.status} -> {new_status} nicht erlaubt."
                 )
             db.execute(
-                "UPDATE orders SET status = ?, updated_at = ? WHERE id = ?",
-                (new_status, now(), order.id),
+                "UPDATE orders SET status = ?, status_reason = ?, updated_at = ? WHERE id = ?",
+                (new_status, reason, now(), order.id),
             )
+            if reason:
+                data = data | {"reason": reason}
             self._event("order", order.id, "status", old=order.status, new=new_status, **data)
             self.bump("orders")
             return self.order(order_no)
@@ -226,7 +237,8 @@ class OrdersMixin:
 
     def customer_orders(self, customer_id: int) -> list[dict]:
         rows = self.db.execute(
-            "SELECT o.*, f.product, f.hd, f.price_cents, f.expires_at, f.conversation_id"
+            "SELECT o.*, f.product, f.hd, f.price_cents, f.expires_at, f.conversation_id,"
+            " f.facts, f.delivery_s, f.review_started_at"
             " FROM orders o LEFT JOIN offers f ON f.order_id = o.id"
             " WHERE o.customer_id = ? ORDER BY o.id DESC",
             (customer_id,),

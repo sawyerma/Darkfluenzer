@@ -52,14 +52,21 @@ class ProfilesMixin:
         return _product(row) | {"influencer_id": row["influencer_id"], "status": row["status"]}
 
     def set_influencer_sales(
-        self, influencer_id: int, payment_ways: list[str], offer_valid_min: int
+        self,
+        influencer_id: int,
+        payment_ways: list[str],
+        offer_valid_min: int,
+        offer_cooldown_min: int = 0,
     ) -> None:
-        """Zahlungswege und Angebotsgültigkeit der Influencerin (SP5 Schritt 1; 0 = Vorgabe)."""
+        """Zahlungswege und Angebotsgültigkeit der Influencerin (SP5 Schritt 1; 0 = Vorgabe),
+        Sperrzeit nach einer Ablehnung (SP5 Schritt 2; 0 = keine)."""
         with self.tx() as db:
             db.execute(
-                "UPDATE influencers SET payment_ways = ?, offer_valid_min = ? WHERE id = ?",
-                (json.dumps(payment_ways), int(offer_valid_min), influencer_id),
-            )
+                "UPDATE influencers SET payment_ways = ?, offer_valid_min = ?,"
+                " offer_cooldown_min = ? WHERE id = ?",
+                (json.dumps(payment_ways), int(offer_valid_min), int(offer_cooldown_min),
+                 influencer_id),
+            )  # fmt: skip
             self.bump("influencers")
 
     def save_behavior(self, influencer_id: int, data: dict) -> int:

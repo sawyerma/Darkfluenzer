@@ -178,6 +178,8 @@ def test_customer_order_chain(cfg, monkeypatch):
         cockpit.wallet.rate_ms = int(time.time() * 1000)
         # Lieferbarkeit (SP5 Schritt 1) prüft test_products; hier geht es um die Auftragskette
         monkeypatch.setattr(cockpit, "_product_problems", lambda *_a, **_k: [])
+        # Lieferzeit (SP5 Schritt 2) prüft test_offers; hier gemessen 10 Minuten
+        monkeypatch.setattr(cockpit, "_delivery_estimate", lambda *_a: (600.0, ""))
         channel = types.SimpleNamespace(  # Kanal verbunden, angemeldet als das Konto der Akte
             state="READY", wake=asyncio.Event(), platform="telegram", account=BOT, key="telegram"
         )
@@ -197,6 +199,7 @@ def test_customer_order_chain(cfg, monkeypatch):
             0, 0, "Clara", None, "", "Ich bin eine KI.",
             [{"product": "Foto", "price_cents": 2000, "hd_surcharge_cents": 500}],
         )  # fmt: skip
+        store.set_influencer_sales(figure, ["btc", "usdt", "amazon"], 0)
 
         def offer(**over):
             (i,) = store.identities(cust)
@@ -213,7 +216,7 @@ def test_customer_order_chain(cfg, monkeypatch):
         store.set_message_status(notice, "sent", platform_message_id="1")
         assert "Position" in await send(create_offer=offer(position=3))
         assert await send(create_offer=offer()) == ""
-        store.set_influencer_sales(figure, ["amazon"], 15)  # Gültigkeit an der Influencerin
+        store.set_influencer_sales(figure, ["btc", "usdt", "amazon"], 15)  # Gültigkeit
         assert await send(create_offer=offer()) == ""  # zweites Angebot: andere Beträge
         o1, o2 = [
             store.order(r[0])
@@ -233,6 +236,9 @@ def test_customer_order_chain(cfg, monkeypatch):
             if "27.7801" in r[0]
         ]
         assert text.startswith("Gern!") and EVM in text and BTC in text
+        assert "Amazon-Gutschein über 25,00 €" in text and "Lieferzeit ca. 10 Minuten" in text
+        assert store.offer(o1.id)["facts"] in text and store.offer(o1.id)["delivery_s"] == 600
+        assert [p["way"] for p in store.offer(o1.id)["payments"]] == ["btc", "usdt", "amazon"]
         assert channel.wake.is_set()
 
         # Zahlung: exakter Betrag, bestätigt -> zugeordnet, Auftrag bezahlt

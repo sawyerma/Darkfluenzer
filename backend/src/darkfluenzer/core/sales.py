@@ -1,8 +1,16 @@
-"""Wallet, Angebote, Zahlungen, Gutscheine (SP0 Schritt 2, bisher ``server.py``)."""
+"""Wallet, Angebote, Zahlungen, Gutscheine (SP0 Schritt 2, bisher ``server.py``).
+
+Angebot (SP5 Schritt 2): ein Weg für Befehl 46 und den Dialog. Möglich, sobald das Produkt
+lieferbar ist, die Lieferzeit gemessen und innerhalb der Grenze des Produkts liegt und ein
+Zahlungsweg der Influencerin eingerichtet ist. Der Faktenblock (Produkt, Preis, Zahlungswege,
+Frist, Lieferzeit) kommt wörtlich aus dem Backend; die Formulierung davor aus dem Sprachworkflow
+bzw. vom Betreiber."""
 
 from __future__ import annotations
 
+import asyncio
 import time
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_CEILING, Decimal
 
@@ -14,6 +22,7 @@ from ..v1 import (
     wallet_pb2,
 )
 from ..v1 import stream_pb2 as spb
+from . import dialog, eta
 from .base import _Call, _unix_ms
 
 # Kundenauftrag (V0 §8.4/§8.5): Zahlungswege mit eindeutigem Betrag, entschiedene Gutscheine im
@@ -29,6 +38,24 @@ UNIQUE_STEPS = 9999
 
 def _eur(cents: int) -> str:
     return f"{cents / 100:.2f} €".replace(".", ",")
+
+
+@dataclass(frozen=True)
+class OfferPlan:
+    """Geprüftes Angebot vor der Anlage: Produkt, Preis, Zahlungswege, Frist, Lieferzeit."""
+
+    item: dict
+    hd: bool
+    price: int
+    expires: datetime
+    delivery_s: float
+    payments: list[dict]
+    amounts: dict = field(default_factory=dict)  # Krypto: eindeutige Beträge für die Zuordnung
+    dropped: str = ""  # gewählte, gerade nicht nutzbare Wege (z. B. kein aktueller Kurs)
+
+    @property
+    def label(self) -> str:
+        return f"{self.item['product']}{' + HD' if self.hd else ''}"
 
 
 class SalesMixin:
@@ -95,7 +122,8 @@ class SalesMixin:
                 product=o["product"] + (" + HD" if o["hd"] else ""),
                 price_cents=o["price_cents"],
                 expires_ms=_unix_ms(o["expires_at"]),
-                amounts=[f"{m.upper()} {a}" for m, a in o["amounts"].items()],
+                amounts=[f"{p['way'].upper()} {p['amount']}" for p in o["payments"]],
+                status=o["status"],
             )
         if self.wallet is None:
             for key, title, network in (("btc", "Bitcoin", "bitcoin"), ("bsc", "BSC", "bsc")):
@@ -123,7 +151,9 @@ class SalesMixin:
         self._orders_changed()
         self._message_changed(0)
 
-    def _offer_amounts(self, price_cents: int) -> dict[str, tuple[str, str, float, int]]:
+    def _offer_amounts(
+        self, price_cents: int, chosen: tuple[str, ...] = OFFER_METHODS
+    ) -> dict[str, tuple[str, str, float, int]]:
         """Je eingerichtetem Zahlungsweg ein noch nie vergebener, exakter Betrag zum aktuellen Kurs
         (V0 §8.5 Punkte 2–3): BTC in Satoshi aufgerundet plus eindeutige Endung, Stablecoins auf
         Cent aufgerundet plus eindeutige vierte Nachkommastelle."""
@@ -137,12 +167,12 @@ class SalesMixin:
         ways: list[
             tuple[str, str, float, Decimal, Decimal]
         ] = []  # Weg, Adresse, Kurs, Basis, Schritt
-        if w.w.btc_address and (rate := w.rates.get(w.w.btc_price_id)):
+        if "btc" in chosen and w.w.btc_address and (rate := w.rates.get(w.w.btc_price_id)):
             sats = (eur / Decimal(str(rate)) * SATOSHI).to_integral_value(ROUND_CEILING)
             ways.append(("btc", w.w.btc_address, rate, sats / SATOSHI, 1 / SATOSHI))
         for token in w.w.tokens if w.w.bsc_address else []:
             method = token.symbol.lower()
-            if method in OFFER_METHODS and (rate := w.rates.get(token.price_id)):
+            if method in chosen and (rate := w.rates.get(token.price_id)):
                 cents = (eur / Decimal(str(rate)) * 100).to_integral_value(ROUND_CEILING)
                 ways.append((method, w.w.bsc_address, rate, cents / 100, Decimal("0.0001")))
         if not ways:
@@ -158,24 +188,144 @@ class SalesMixin:
                 raise StoreError(f"{method.upper()}: kein freier eindeutiger Betrag.")
         return out
 
-    def _offer_text(self, order, product: str, hd: bool, price_cents: int, amounts, expires,
-                    note: str) -> str:  # fmt: skip
-        """Nachricht an den Kunden: Betrag und Zahlungswege (Tatsachen, kein Persona-Text)."""
-        until = expires.astimezone().strftime("%d.%m.%Y, %H:%M Uhr")
-        lines = [note.strip(), ""] if note.strip() else []
-        lines.append(
-            f"Angebot {order.order_no}: {product}{' + HD' if hd else ''} · {_eur(price_cents)}"
+    # ------------------------------------------------------------------ Angebot (SP5 Schritt 2)
+
+    def _delivery_estimate(self, item: dict) -> tuple[float | None, str]:
+        """Lieferzeit eines jetzt bezahlten Auftrags aus Messwerten (``core.eta``)."""
+        runs = self.cfg.production.estimate_runs
+        now_ts = datetime.now(UTC).timestamp()
+        pending = []
+        for j in self.store.pending_jobs():
+            wf = self.manifest.workflows.get(j["workflow"])
+            started = datetime.fromisoformat(j["updated_at"]).timestamp()
+            pending.append(
+                eta.Pending(
+                    j["workflow"], j["status"], j["priority"] or "",
+                    elapsed_s=max(0.0, now_ts - started) if j["status"] == "running" else 0.0,
+                    steps=int(j["steps"] or 0), training=bool(wf and wf.training),
+                )
+            )  # fmt: skip
+        return eta.delivery_s(
+            item,
+            pending,
+            lambda key: self.store.run_seconds(key, runs),
+            lambda key: self.store.seconds_per_step(key, runs),
         )
-        lines.append(f"Bitte genau diesen Betrag senden, gültig bis {until}:")
-        for method, (amount, address, _rate, _ms) in amounts.items():
-            if method == "btc":
-                lines.append(f"• Bitcoin: {amount} BTC an {address}")
+
+    def _offer_valid_min(self, figure: dict) -> int:
+        """Gültigkeit an der Influencerin, sonst Vorgabe aus [wallet] bzw. [dialog]."""
+        default = (
+            self.cfg.wallet.offer_valid_min if self.cfg.wallet else self.cfg.dialog.offer_valid_min
+        )
+        return figure.get("offer_valid_min") or default
+
+    def _offer_plan(
+        self, figure: dict, item: dict, hd: bool, *, test: bool = False
+    ) -> OfferPlan | str:
+        """Angebot prüfen: lieferbar, Lieferzeit gemessen und innerhalb der Grenze, mindestens
+        ein eingerichteter Zahlungsweg der Influencerin. Text = Grund, warum keins entsteht."""
+        if problems := self._product_problems(figure, item, test=test):
+            return f"{item['product']} ist nicht lieferbar: {'; '.join(problems)}."
+        delivery, why = self._delivery_estimate(item)
+        if delivery is None:
+            return f"Lieferzeit für {item['product']} unbekannt: {why}."
+        limit = item.get("max_delivery_s") or 0
+        if limit and delivery > limit:
+            return (
+                f"Lieferzeit für {item['product']} ca. {eta.minutes(delivery)} min über der "
+                f"Grenze {eta.minutes(limit)} min (Auslastung)."
+            )
+        price = item["price_cents"] + (item["hd_surcharge_cents"] if hd else 0)
+        ways = dialog.facts_for(self.cfg, figure).payment_ways
+        crypto = tuple(w for w in ways if w in OFFER_METHODS)
+        amounts: dict = {}
+        dropped = ""
+        if crypto:
+            try:
+                amounts = self._offer_amounts(price, crypto)
+            except StoreError as exc:
+                dropped = str(exc)
+        payments = []
+        for way in ways:
+            if way == "amazon":
+                payments.append({
+                    "way": "amazon", "amount": f"{price / 100:.2f}", "currency": "EUR",
+                    "note": "Code des Amazon-Gutscheins hier im Chat senden",
+                })  # fmt: skip
+            elif way in amounts:
+                amount, address, _rate, _ms = amounts[way]
+                payments.append(
+                    {"way": way, "amount": amount, "currency": way.upper(), "target": address}
+                )
+        if not payments:
+            return "Kein Zahlungsweg der Influencerin eingerichtet" + (
+                f" ({dropped})." if dropped else "."
+            )
+        expires = datetime.now(UTC) + timedelta(minutes=self._offer_valid_min(figure))
+        return OfferPlan(item, hd, price, expires, delivery, payments, amounts, dropped)
+
+    def _fact_block(self, order_no: str, plan: OfferPlan) -> str:
+        """Faktenblock wörtlich an den Kunden (Daten, keine Formulierung)."""
+        until = plan.expires.astimezone().strftime("%d.%m.%Y, %H:%M Uhr")
+        labels = {k: t[0] for k, t in self.cfg.dialog.payment_terms.items() if t}
+        lines = [f"Angebot {order_no}: {plan.label} · {_eur(plan.price)}",
+                 "Bitte genau diesen Betrag senden:"]  # fmt: skip
+        for p in plan.payments:
+            if p["way"] == "amazon":
+                lines.append(f"• {labels.get('amazon', 'Amazon')} über {_eur(plan.price)}")
+            elif p["way"] == "btc":
+                lines.append(
+                    f"• {labels.get('btc', 'Bitcoin')}: {p['amount']} BTC an {p['target']}"
+                )
             else:
-                lines.append(f"• {method.upper()} (BNB Smart Chain, BEP-20): {amount} an {address}")
+                lines.append(
+                    f"• {p['currency']} (BNB Smart Chain, BEP-20): {p['amount']} an {p['target']}"
+                )
+        lines.append(f"Gültig bis {until}")
+        lines.append(f"Lieferzeit ca. {eta.minutes(plan.delivery_s)} Minuten nach Zahlungseingang")
         return "\n".join(lines)
 
+    def _place_offer(self, plan: OfferPlan, customer_id: int, conversation_id: int):
+        """Auftrag mit Angebot, Zahlungswegen und Faktenblock anlegen, Karte ANGEBOT; liefert
+        (Auftrag, Faktenblock). Aufrufer hält die Transaktion und reiht die Nachricht ein."""
+        order = self.store.create_offer(
+            customer_id, conversation_id, plan.item["product"], plan.hd, plan.price,
+            plan.expires.isoformat(timespec="milliseconds"), plan.amounts,
+            product_id=plan.item["id"], kind=plan.item["kind"], delivery_s=plan.delivery_s,
+            payments=plan.payments,
+        )  # fmt: skip
+        facts = self._fact_block(order.order_no, plan)
+        self.store.set_offer_facts(order.id, facts)
+        ways = " · ".join(f"{p['way'].upper()} {p['amount']}" for p in plan.payments)
+        dropped = f" · nicht angeboten: {plan.dropped}" if plan.dropped else ""
+        self.store.add_system_card(
+            conversation_id,
+            f"ANGEBOT · {plan.label} · {_eur(plan.price)} · Lieferzeit ca. "
+            f"{eta.minutes(plan.delivery_s)} min · {ways}{dropped}",
+            order_id=order.id,
+        )
+        return order, facts
+
+    def _product_status(self, figure: dict, item: dict) -> str:
+        """Lieferstand für den Faktenblock des Sprachlaufs: Lieferzeit oder nicht lieferbar."""
+        plan = self._offer_plan(figure, item, False)
+        if isinstance(plan, str):
+            return "derzeit nicht lieferbar"
+        return f"Lieferzeit ca. {eta.minutes(plan.delivery_s)} Minuten"
+
+    async def offer_expiry(self) -> None:
+        """Zeitaufgabe: abgelaufene Angebote schließen (cancelled, Grund „abgelaufen“)."""
+        while True:
+            at = datetime.now(UTC).isoformat(timespec="milliseconds")
+            if self.store.expire_offers(at):
+                self._orders_changed()
+                self._message_changed(0)
+                self._wallet_changed()
+            await asyncio.sleep(self.cfg.dialog.offer_check_s)
+
     async def _create_offer(self, msg: commands_pb2.CreateOffer, call: _Call) -> str:
-        """Angebot aus der Preisliste (Befehl 46, V0 §8.4 Punkt 3)."""
+        """Angebot aus der Produktliste (Befehl 46): persönlicher Satz des Betreibers plus
+        Faktenblock (SP5 Schritt 2)."""
         call.entity = f"customer:{msg.customer_id}"
         summary = self.store.customers_overview(msg.customer_id)
         if not summary or summary[0]["kind"] == "internal":
@@ -204,46 +354,24 @@ class SalesMixin:
             item = figure["prices"][msg.position]
         else:
             return "Position der Preisliste unbekannt."
-        if problems := self._product_problems(figure, item):
-            return f"{item['product']} ist nicht lieferbar: {'; '.join(problems)}."
-        price = item["price_cents"] + (item["hd_surcharge_cents"] if msg.hd else 0)
-        assert self.cfg.wallet is not None  # sonst lehnt _offer_amounts ab
-        amounts = self._offer_amounts(price)
-        # Gültigkeit an der Influencerin (SP5 Schritt 1), sonst Vorgabe der Konfiguration
-        valid_min = figure.get("offer_valid_min") or self.cfg.wallet.offer_valid_min
-        expires = datetime.now(UTC) + timedelta(minutes=valid_min)
+        plan = self._offer_plan(figure, item, msg.hd)
+        if isinstance(plan, str):
+            return plan
         with self.store.tx():
-            order = self.store.create_offer(
-                msg.customer_id,
-                msg.conversation_id,
-                item["product"],
-                msg.hd,
-                price,
-                expires.isoformat(timespec="milliseconds"),
-                amounts,
-                product_id=item["id"],
-                kind=item["kind"],
-            )
-            text = self._offer_text(
-                order, item["product"], msg.hd, price, amounts, expires, msg.note
-            )
+            order, facts = self._place_offer(plan, msg.customer_id, msg.conversation_id)
+            note = msg.note.strip()
             self.store.queue_outbound(
                 msg.customer_id,
                 msg.conversation_id,
-                text,
+                f"{note}\n\n{facts}" if note else facts,
                 revision=msg.revision,
                 request_id=call.request_id,
-            )
-            ways = " · ".join(f"{m.upper()} {a[0]}" for m, a in amounts.items())
-            self.store.add_system_card(
-                msg.conversation_id,
-                f"ANGEBOT · {item['product']}{' + HD' if msg.hd else ''} · {_eur(price)} · {ways}",
-                order_id=order.id,
             )
         call.entity = f"order:{order.order_no}"
         adapter.wake.set()
         self._message_changed(0)
         self._wallet_changed()
+        self._orders_changed()
         return ""
 
     async def _payment_assign(self, msg: commands_pb2.PaymentAssign, call: _Call) -> str:

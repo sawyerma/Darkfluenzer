@@ -262,6 +262,8 @@ message InfluencerUpdate {
   // Verkauf (SP5 Schritt 1): Zahlungswege und Angebotsgültigkeit (min, 0 = Vorgabe)
   repeated string payment_ways = 11;
   uint32 offer_valid_min = 12;
+  // Sperrzeit nach einer Ablehnung (min, 0 = keine; SP5 Schritt 2)
+  uint32 offer_cooldown_min = 13;
 }
 
 message ProfileDraft {

@@ -200,6 +200,24 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP5 Schritt 2 (Angebot mit Faktenblock und Lieferzeit)
+Commit: siehe git log „SP5 step 2“ / Migration 39 (orders-Neubau payment_review/awaiting_contact/
+  status_reason, offer_payments, offers.facts/delivery_s/review_started_at, offer_cooldown_min),
+  core/eta.py, core/sales (_offer_plan, _fact_block, _place_offer, offer_expiry), core/chat
+  (_dialog_offer, Ziffernprüfung, offer_rejected), core/assessment (offer_response), store/payments
+  (Prüfung, Ablauf, Ablehnung, Eingang nach Ablauf), order/wallet/influencer/commands.proto, Stream,
+  Wallet, InfluencerBlock
+Nachweis: test_offers (Lieferzeit, Median, Ablauf/Prüfung/Eingang nach Ablauf, Einstufung, Dialog
+  mit Faktenblock/Ablehnung/Sperrzeit/Ziffern/kein Produkt), volle Suite 304 grün; Chrome-E2E isoliert
+  26/26 (neu offers.spec.ts), lesend echt 10/10; echte Migration 38→39 mit Sicherung, Aufträge
+  identisch, Telegram angemeldet
+Vertragsänderung: Gutscheincode setzt das offene Angebot auf payment_review; ein nicht deckender
+  Gutschein beendet die Prüfung (offered mit Restfrist) – test_bug005 bleibt grün
+NOT_RUN: Angebot an echten Kunden, Melody-Angebotstext ohne Ziffern im echten Lauf (Profilblock
+  Angebot fehlt, pflegt der Betreiber)
+Ergebnis: CODE (Integration isoliert belegt), Kundenlauf NOT_RUN
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP5 Schritt 1 (Produkte)
 Commit: siehe git log „SP5 step 1“ / Migration 38 (products, influencers.payment_ways/offer_valid_min),
   store/profiles (_save_products, set_influencer_sales), core/sales (_product_problems, product_id),

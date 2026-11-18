@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/order.proto.
  */
 export const file_darkfluenzer_v1_order: GenFile = /*@__PURE__*/
-  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvb3JkZXIucHJvdG8SD2RhcmtmbHVlbnplci52MSJ9CghTdGFnZUpvYhIOCgZqb2JfaWQYASABKAQSDAoEc2VlZBgCIAEoAxIOCgZzdGF0dXMYAyABKAkSEAoIbWVkaWFfaWQYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVlcnJvchgGIAEoCRIUCgxjb250ZW50X3RpZXIYByABKAki5AEKCk9yZGVyU3RhZ2USCwoDc2VxGAEgASgNEgwKBGtpbmQYAiABKAkSDgoGc3RhdHVzGAMgASgJEhAKCHdvcmtmbG93GAQgASgJEg0KBWNvdW50GAUgASgNEhkKEXNlbGVjdGVkX21lZGlhX2lkGAYgASgEEicKBGpvYnMYByADKAsyGS5kYXJrZmx1ZW56ZXIudjEuU3RhZ2VKb2ISDQoFZXJyb3IYCCABKAkSFwoPZmluaXNoX3dvcmtmbG93GAkgASgJEhAKCGF0dGVtcHRzGAogASgNEgwKBGxvcmEYCyABKAkifQoLT2ZmZXJBbW91bnQSDgoGbWV0aG9kGAEgASgJEg0KBWFzc2V0GAIgASgJEg4KBmFtb3VudBgDIAEoCRIPCgdhZGRyZXNzGAQgASgJEg8KB25ldHdvcmsYBSABKAkSDAoEcmF0ZRgGIAEoARIPCgdyYXRlX21zGAcgASgDIp0BCg1DdXN0b21lck9mZmVyEg8KB3Byb2R1Y3QYASABKAkSCgoCaGQYAiABKAgSEwoLcHJpY2VfY2VudHMYAyABKA0SEgoKZXhwaXJlc19tcxgEIAEoAxItCgdhbW91bnRzGAUgAygLMhwuZGFya2ZsdWVuemVyLnYxLk9mZmVyQW1vdW50EhcKD2NvbnZlcnNhdGlvbl9pZBgGIAEoBCJ0Cg1PcmRlckRlbGl2ZXJ5EhMKC2RlbGl2ZXJ5X2lkGAEgASgEEg4KBnN0YXR1cxgCIAEoCRISCgptZXNzYWdlX2lkGAMgASgEEg0KBWVycm9yGAQgASgJEg0KBWF0X21zGAUgASgDEgwKBHBhdGgYBiABKAki7wIKC0FjdGl2ZU9yZGVyEhAKCG9yZGVyX25vGAEgASgJEg4KBnNvdXJjZRgCIAEoCRIMCgRraW5kGAMgASgJEg8KB3JlcXVlc3QYBCABKAkSDgoGc3RhdHVzGAUgASgJEisKBnN0YWdlcxgGIAMoCzIbLmRhcmtmbHVlbnplci52MS5PcmRlclN0YWdlEhIKCmNyZWF0ZWRfYXQYByABKAkSLQoFb2ZmZXIYCCABKAsyHi5kYXJrZmx1ZW56ZXIudjEuQ3VzdG9tZXJPZmZlchIyCgpkZWxpdmVyaWVzGAkgAygLMh4uZGFya2ZsdWVuemVyLnYxLk9yZGVyRGVsaXZlcnkSEwoLY3VzdG9tZXJfaWQYCiABKAQSEwoLY3VzdG9tZXJfbm8YCyABKAkSFwoPcmVzdWx0X21lZGlhX2lkGAwgASgEEhMKC3Jlc3VsdF9wYXRoGA0gASgJEhMKC3Jlc3VsdF90aWVyGA4gASgJIvMBCgxPcmRlcnNBY3RpdmUSLAoGb3JkZXJzGAEgAygLMhwuZGFya2ZsdWVuemVyLnYxLkFjdGl2ZU9yZGVyEg8KB3ZlcnNpb24YAiABKAQSGgoSY2FuZGlkYXRlc19kZWZhdWx0GAMgASgNEhYKDmNhbmRpZGF0ZXNfbWF4GAQgASgNEjkKE2F3YWl0aW5nX3Byb2R1Y3Rpb24YBSADKAsyHC5kYXJrZmx1ZW56ZXIudjEuQWN0aXZlT3JkZXISNQoPYXdhaXRpbmdfcmV2aWV3GAYgAygLMhwuZGFya2ZsdWVuemVyLnYxLkFjdGl2ZU9yZGVyImoKDE9yZGVyVXBkYXRlZBIQCghvcmRlcl9ubxgBIAEoCRINCgVldmVudBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSCwoDc2VxGAQgASgNEgwKBGtpbmQYBSABKAkSDgoGZGV0YWlsGAYgASgJYgZwcm90bzM");
+  fileDesc("ChtkYXJrZmx1ZW56ZXIvdjEvb3JkZXIucHJvdG8SD2RhcmtmbHVlbnplci52MSJ9CghTdGFnZUpvYhIOCgZqb2JfaWQYASABKAQSDAoEc2VlZBgCIAEoAxIOCgZzdGF0dXMYAyABKAkSEAoIbWVkaWFfaWQYBCABKAQSDAoEcGF0aBgFIAEoCRINCgVlcnJvchgGIAEoCRIUCgxjb250ZW50X3RpZXIYByABKAki5AEKCk9yZGVyU3RhZ2USCwoDc2VxGAEgASgNEgwKBGtpbmQYAiABKAkSDgoGc3RhdHVzGAMgASgJEhAKCHdvcmtmbG93GAQgASgJEg0KBWNvdW50GAUgASgNEhkKEXNlbGVjdGVkX21lZGlhX2lkGAYgASgEEicKBGpvYnMYByADKAsyGS5kYXJrZmx1ZW56ZXIudjEuU3RhZ2VKb2ISDQoFZXJyb3IYCCABKAkSFwoPZmluaXNoX3dvcmtmbG93GAkgASgJEhAKCGF0dGVtcHRzGAogASgNEgwKBGxvcmEYCyABKAkifQoLT2ZmZXJBbW91bnQSDgoGbWV0aG9kGAEgASgJEg0KBWFzc2V0GAIgASgJEg4KBmFtb3VudBgDIAEoCRIPCgdhZGRyZXNzGAQgASgJEg8KB25ldHdvcmsYBSABKAkSDAoEcmF0ZRgGIAEoARIPCgdyYXRlX21zGAcgASgDIowCCg1DdXN0b21lck9mZmVyEg8KB3Byb2R1Y3QYASABKAkSCgoCaGQYAiABKAgSEwoLcHJpY2VfY2VudHMYAyABKA0SEgoKZXhwaXJlc19tcxgEIAEoAxItCgdhbW91bnRzGAUgAygLMhwuZGFya2ZsdWVuemVyLnYxLk9mZmVyQW1vdW50EhcKD2NvbnZlcnNhdGlvbl9pZBgGIAEoBBINCgVmYWN0cxgHIAEoCRISCgpkZWxpdmVyeV9zGAggASgBEi8KCHBheW1lbnRzGAkgAygLMh0uZGFya2ZsdWVuemVyLnYxLk9mZmVyUGF5bWVudBIZChFyZXZpZXdfc3RhcnRlZF9tcxgKIAEoAyJbCgxPZmZlclBheW1lbnQSCwoDd2F5GAEgASgJEg4KBmFtb3VudBgCIAEoCRIQCghjdXJyZW5jeRgDIAEoCRIOCgZ0YXJnZXQYBCABKAkSDAoEbm90ZRgFIAEoCSJ0Cg1PcmRlckRlbGl2ZXJ5EhMKC2RlbGl2ZXJ5X2lkGAEgASgEEg4KBnN0YXR1cxgCIAEoCRISCgptZXNzYWdlX2lkGAMgASgEEg0KBWVycm9yGAQgASgJEg0KBWF0X21zGAUgASgDEgwKBHBhdGgYBiABKAkihgMKC0FjdGl2ZU9yZGVyEhAKCG9yZGVyX25vGAEgASgJEg4KBnNvdXJjZRgCIAEoCRIMCgRraW5kGAMgASgJEg8KB3JlcXVlc3QYBCABKAkSDgoGc3RhdHVzGAUgASgJEisKBnN0YWdlcxgGIAMoCzIbLmRhcmtmbHVlbnplci52MS5PcmRlclN0YWdlEhIKCmNyZWF0ZWRfYXQYByABKAkSLQoFb2ZmZXIYCCABKAsyHi5kYXJrZmx1ZW56ZXIudjEuQ3VzdG9tZXJPZmZlchIyCgpkZWxpdmVyaWVzGAkgAygLMh4uZGFya2ZsdWVuemVyLnYxLk9yZGVyRGVsaXZlcnkSEwoLY3VzdG9tZXJfaWQYCiABKAQSEwoLY3VzdG9tZXJfbm8YCyABKAkSFwoPcmVzdWx0X21lZGlhX2lkGAwgASgEEhMKC3Jlc3VsdF9wYXRoGA0gASgJEhMKC3Jlc3VsdF90aWVyGA4gASgJEhUKDXN0YXR1c19yZWFzb24YDyABKAki8wEKDE9yZGVyc0FjdGl2ZRIsCgZvcmRlcnMYASADKAsyHC5kYXJrZmx1ZW56ZXIudjEuQWN0aXZlT3JkZXISDwoHdmVyc2lvbhgCIAEoBBIaChJjYW5kaWRhdGVzX2RlZmF1bHQYAyABKA0SFgoOY2FuZGlkYXRlc19tYXgYBCABKA0SOQoTYXdhaXRpbmdfcHJvZHVjdGlvbhgFIAMoCzIcLmRhcmtmbHVlbnplci52MS5BY3RpdmVPcmRlchI1Cg9hd2FpdGluZ19yZXZpZXcYBiADKAsyHC5kYXJrZmx1ZW56ZXIudjEuQWN0aXZlT3JkZXIiagoMT3JkZXJVcGRhdGVkEhAKCG9yZGVyX25vGAEgASgJEg0KBWV2ZW50GAIgASgJEg4KBnN0YXR1cxgDIAEoCRILCgNzZXEYBCABKA0SDAoEa2luZBgFIAEoCRIOCgZkZXRhaWwYBiABKAliBnByb3RvMw");
 
 /**
  * Ein Job einer Stufe und sein Ergebnis.
@@ -236,6 +236,29 @@ export type CustomerOffer = Message<"darkfluenzer.v1.CustomerOffer"> & {
    * @generated from field: uint64 conversation_id = 6;
    */
   conversationId: bigint;
+
+  /**
+   * SP5 Schritt 2: Faktenblock wörtlich wie gesendet, Lieferzeit bei Angebot (s, 0 = unbekannt),
+   * angebotene Zahlungswege, Beginn der Zahlungsprüfung (Frist ruht; 0 = keine)
+   *
+   * @generated from field: string facts = 7;
+   */
+  facts: string;
+
+  /**
+   * @generated from field: double delivery_s = 8;
+   */
+  deliveryS: number;
+
+  /**
+   * @generated from field: repeated darkfluenzer.v1.OfferPayment payments = 9;
+   */
+  payments: OfferPayment[];
+
+  /**
+   * @generated from field: int64 review_started_ms = 10;
+   */
+  reviewStartedMs: bigint;
 };
 
 /**
@@ -244,6 +267,46 @@ export type CustomerOffer = Message<"darkfluenzer.v1.CustomerOffer"> & {
  */
 export const CustomerOfferSchema: GenMessage<CustomerOffer> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_order, 3);
+
+/**
+ * Ein angebotener Zahlungsweg (SP5 Schritt 2): amazon | btc | usdt | usdc | paypal, Betrag als
+ * Dezimaltext in der Währung, Ziel (Adresse oder Link) und Hinweis
+ *
+ * @generated from message darkfluenzer.v1.OfferPayment
+ */
+export type OfferPayment = Message<"darkfluenzer.v1.OfferPayment"> & {
+  /**
+   * @generated from field: string way = 1;
+   */
+  way: string;
+
+  /**
+   * @generated from field: string amount = 2;
+   */
+  amount: string;
+
+  /**
+   * @generated from field: string currency = 3;
+   */
+  currency: string;
+
+  /**
+   * @generated from field: string target = 4;
+   */
+  target: string;
+
+  /**
+   * @generated from field: string note = 5;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.OfferPayment.
+ * Use `create(OfferPaymentSchema)` to create a new message.
+ */
+export const OfferPaymentSchema: GenMessage<OfferPayment> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_order, 4);
 
 /**
  * Eine Zustellung (V0 §8.4 Punkt 9): pending (im Postausgang) | sent | failed; „unknown“ =
@@ -288,7 +351,7 @@ export type OrderDelivery = Message<"darkfluenzer.v1.OrderDelivery"> & {
  * Use `create(OrderDeliverySchema)` to create a new message.
  */
 export const OrderDeliverySchema: GenMessage<OrderDelivery> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_order, 4);
+  messageDesc(file_darkfluenzer_v1_order, 5);
 
 /**
  * @generated from message darkfluenzer.v1.ActiveOrder
@@ -371,6 +434,13 @@ export type ActiveOrder = Message<"darkfluenzer.v1.ActiveOrder"> & {
    * @generated from field: string result_tier = 14;
    */
   resultTier: string;
+
+  /**
+   * Grund des Status, z. B. „abgelaufen“ oder „abgelehnt“ (SP5 Schritt 2)
+   *
+   * @generated from field: string status_reason = 15;
+   */
+  statusReason: string;
 };
 
 /**
@@ -378,7 +448,7 @@ export type ActiveOrder = Message<"darkfluenzer.v1.ActiveOrder"> & {
  * Use `create(ActiveOrderSchema)` to create a new message.
  */
 export const ActiveOrderSchema: GenMessage<ActiveOrder> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_order, 5);
+  messageDesc(file_darkfluenzer_v1_order, 6);
 
 /**
  * STATE orders.active: Aufträge in Produktion (Stufen laufen oder warten auf den Betreiber)
@@ -431,7 +501,7 @@ export type OrdersActive = Message<"darkfluenzer.v1.OrdersActive"> & {
  * Use `create(OrdersActiveSchema)` to create a new message.
  */
 export const OrdersActiveSchema: GenMessage<OrdersActive> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_order, 6);
+  messageDesc(file_darkfluenzer_v1_order, 7);
 
 /**
  * EVENT orders.updated: Auftrag angelegt, Statuswechsel, Stufenwechsel (Journal)
@@ -477,5 +547,5 @@ export type OrderUpdated = Message<"darkfluenzer.v1.OrderUpdated"> & {
  * Use `create(OrderUpdatedSchema)` to create a new message.
  */
 export const OrderUpdatedSchema: GenMessage<OrderUpdated> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_order, 7);
+  messageDesc(file_darkfluenzer_v1_order, 8);
 
