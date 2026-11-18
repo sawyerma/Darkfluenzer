@@ -20,7 +20,7 @@ test("Cockpit am echten Backend: verbunden, sechs Reiter, ComfyUI nach F7.5, Ein
   }
   // Einstellungen (§3.7): Kanalverwaltung dort, in der Kundenliste nur der kompakte Status
   await nav.getByRole("link", { name: "Einstellungen" }).click();
-  await expect(page.locator(".g-card", { hasText: "Kanäle" }).locator(".g-ptag", { hasText: "Telegram" })).toBeVisible();
+  await expect(page.locator(".g-card", { hasText: "Kanäle" }).locator(".g-ptag", { hasText: "Telegram" }).first()).toBeVisible(); // je Konto eine Karte
   await expect(page.getByText("NICHT UMGESETZT").first()).toBeVisible();
   await nav.getByRole("link", { name: "Nachrichten" }).click();
   await expect(page.getByRole("link", { name: /Kanäle verwalten|Anmeldung nötig/ })).toHaveAttribute("href", "#einstellungen");

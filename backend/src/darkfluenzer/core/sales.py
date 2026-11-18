@@ -152,7 +152,7 @@ class SalesMixin:
             return "Kanal passt nicht zu dieser Kundenakte."
         if ident["ai_notice_status"] != "sent":
             return "Erst den KI-Hinweis über diesen Kanal senden (Regel 12 b)."
-        adapter = self._adapter(ident["platform"])
+        adapter = self._adapter(ident["platform"], ident["account"])
         if adapter is None or adapter.state != "READY":
             return f"{ident['platform']} ist nicht verbunden."
         figure = next((f for f in self.store.influencers() if f["id"] == msg.influencer_id), None)

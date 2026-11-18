@@ -202,6 +202,8 @@ message ChannelAccountLogin {
   string platform = 1;
   string step = 2;
   string value = 3;
+  // Kanalkonto (Kürzel aus STATE 8, SP2 Schritt 4); leer = das einzige Konto der Plattform
+  string key = 4;
 }
 
 // Kanalkonto steuern: Automatik freigeben/sperren oder abmelden (Abmelden beendet die Sitzung).

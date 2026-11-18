@@ -120,6 +120,11 @@ class TelegramAccount(Channel):
         self.key = account["key"] if account else PLATFORM
         self.test_mode = account["test_mode"] if account else self.tg.test_mode
         self.test_chat_ids = tuple(account["test_chat_ids"]) if account else self.tg.test_chat_ids
+        # je Konto eigene TDLib-Daten und eigener Datenbankschlüssel (SP2 Schritt 4); das aus der
+        # Konfiguration übernommene Konto behält Verzeichnis und Schlüssel von bisher
+        own = self.key == PLATFORM
+        self.data_dir = self.tg.data_dir if own else self.tg.data_dir / "accounts" / self.key
+        self.db_key_service = self.tg.db_key_service + ("" if own else f".{self.key}")
         self.store = store
         self.on_inbound = on_inbound
         self.on_change = on_change
@@ -202,11 +207,11 @@ class TelegramAccount(Channel):
         return api_id, api_hash
 
     def _db_key(self) -> str | None:
-        key = secret(self.tg.db_key_service)
+        key = secret(self.db_key_service)
         if key:
             return key
         key = base64.b64encode(os.urandom(32)).decode()
-        return key if store_secret(self.tg.db_key_service, key) else None
+        return key if store_secret(self.db_key_service, key) else None
 
     async def run(self) -> None:
         """Voraussetzungen prüfen (Schlüsselbund wird regelmäßig neu gelesen), dann TDLib starten;
@@ -225,13 +230,22 @@ class TelegramAccount(Channel):
                 continue
             self._key = key
             break
-        self.tg.data_dir.mkdir(parents=True, exist_ok=True)
-        os.chmod(self.tg.data_dir, 0o700)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        os.chmod(self.data_dir, 0o700)
+        # Neustart unter Aufsicht: die vorige Instanz gibt ihre Datenbank erst nach ``closed`` frei
+        if self._td is not None and not self._td.closed:
+            self._td.close()
+            await self._td.wait_closed(self._timeout)
         self._set("CONNECTING", missing="")
         self._start_client()
-        await asyncio.Event().wait()  # läuft bis zum Beenden des Servers
+        try:
+            await asyncio.Event().wait()  # läuft bis zum Beenden des Servers
+        finally:
+            if self._td is not None:
+                self._td.close()  # TDLib schreibt seine Datenbank sauber zu
 
     def _start_client(self) -> None:
+        """Neue TDLib-Instanz am gemeinsamen Empfangsthread (kein eigener Thread je Instanz)."""
         self._td = TdJson(self.tg.tdjson, asyncio.get_running_loop())
         self._td.on_update = self._on_update
         self._td.start()
@@ -241,8 +255,8 @@ class TelegramAccount(Channel):
         return {
             "@type": "setTdlibParameters",
             "use_test_dc": False,
-            "database_directory": str(self.tg.data_dir / "db"),
-            "files_directory": str(self.tg.data_dir / "files"),
+            "database_directory": str(self.data_dir / "db"),
+            "files_directory": str(self.data_dir / "files"),
             "database_encryption_key": self._key,
             # SQLite ist die einzige Autorität für Nachrichten und Anhänge (V0 §6.1 Punkt 1)
             "use_file_database": False,

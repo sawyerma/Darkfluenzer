@@ -40,7 +40,7 @@ class ClonerMixin:
     async def _reply_internal(self, conversation_id: int, text: str, files: list[str] = ()) -> None:
         """Rückfrage bzw. Ergebnis an den Default-Nutzer in denselben Chat (Postausgang)."""
         default = self.store.default_contact()
-        platform = self.store.conversation_platform(conversation_id)
+        platform, account = self.store.conversation_account(conversation_id)
         attachments, blocked = [], []
         for rel in files:
             src = self.cfg.local / rel
@@ -69,7 +69,7 @@ class ClonerMixin:
             revision=self.store.conversation_revision(conversation_id),
             attachments=attachments,
         )
-        adapter = self._adapter(platform)
+        adapter = self._adapter(platform, account)
         if adapter is not None:
             adapter.wake.set()
         self._message_changed(message_id)

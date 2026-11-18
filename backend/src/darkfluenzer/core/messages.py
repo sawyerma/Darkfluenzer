@@ -27,7 +27,8 @@ class MessagesMixin:
             status = adapter.status() if adapter else {
                 "platform": acc["platform"], "state": "OFF",
                 "missing": missing.get(acc["platform"], "") if acc["platform"] not in
-                {a.platform for a in self.adapters.values()} else "weiteres Konto: SP2 Schritt 4",
+                {a.platform for a in self.adapters.values()}
+                else "weiteres Instagram-Konto: Webhook-Verteilung nach Konto-ID folgt",
             }  # fmt: skip
             msg.channels.add(
                 **status, key=acc["key"], influencer_id=acc["influencer_id"] or 0,
@@ -102,10 +103,12 @@ class MessagesMixin:
             return "Dem Kanalkonto ist keine Influencerin zugeordnet (Einstellungen → Kanäle)."
         if not figure["ai_notice"].strip():
             return "KI-Hinweistext im Influencerin-Profil fehlt."
-        adapter = self._adapter(ident["platform"])
+        adapter = self._adapter(ident["platform"], ident["account"])
         if adapter is None or adapter.state != "READY":
             return f"{ident['platform']} ist nicht verbunden."
-        if reason := self._send_check(ident["platform"], ident["platform_conversation_id"]):
+        if reason := self._send_check(
+            ident["platform"], ident["platform_conversation_id"], account=ident["account"]
+        ):
             return reason
         message_id = self.store.queue_ai_notice(
             msg.customer_id, msg.identity_id, figure["ai_notice"].strip()
@@ -115,9 +118,11 @@ class MessagesMixin:
         self._message_changed(message_id)
         return ""
 
-    def _send_check(self, platform: str, partner: str, *, human_agent: bool = False) -> str:
+    def _send_check(
+        self, platform: str, partner: str, *, human_agent: bool = False, account: str = ""
+    ) -> str:
         """Kanalgrenzen vor dem Einreihen (Instagram: 24-h-Fenster); leer = erlaubt."""
-        adapter = self._adapter(platform)
+        adapter = self._adapter(platform, account)
         if adapter is None:
             return "Human-Agent gibt es nur bei Instagram." if human_agent else ""
         return adapter.send_check(partner, human_agent=human_agent)
@@ -136,11 +141,13 @@ class MessagesMixin:
             return "Kanal passt nicht zu dieser Kundenakte."
         if ident["conversation_id"] != msg.conversation_id:
             return "Konversation passt nicht zu diesem Kanal."
-        adapter = self._adapter(msg.platform)
+        adapter = self._adapter(msg.platform, ident["account"])
         if adapter is None or adapter.state != "READY":
             return f"{msg.platform} ist nicht verbunden."
         partner = ident["platform_conversation_id"]
-        if reason := self._send_check(msg.platform, partner, human_agent=msg.human_agent):
+        if reason := self._send_check(
+            msg.platform, partner, human_agent=msg.human_agent, account=ident["account"]
+        ):
             return reason
         message_id = self.store.queue_outbound(
             msg.customer_id,
@@ -249,16 +256,17 @@ class MessagesMixin:
 
     async def _channel_login(self, msg: commands_pb2.ChannelAccountLogin, call: _Call) -> str:
         """Anmeldeschritt (Befehl 39); der Wert geht nur an TDLib (V0 §6.1 Punkt 2)."""
-        call.entity = f"channel:{msg.platform}"
+        call.entity = f"channel:{msg.key or msg.platform}"
         if msg.platform == "instagram":
             return "Instagram meldet sich über den Link „Mit Instagram anmelden“ an."
-        if msg.platform != "telegram" or self.telegram is None:
+        adapter = self._adapter("telegram", msg.key) if msg.platform == "telegram" else None
+        if adapter is None:
             return f"{msg.platform or 'Kanal'}: Kontoanmeldung nicht eingerichtet."
-        return await self.telegram.login_step(msg.step, msg.value)
+        return await adapter.login_step(msg.step, msg.value)
 
     async def _channel_update(self, msg: commands_pb2.ChannelAccountUpdate, call: _Call) -> str:
         """Automatik freigeben/sperren oder abmelden (Befehl 40)."""
-        call.entity = f"channel:{msg.platform}"
+        call.entity = f"channel:{msg.key or msg.platform}"
         adapter = self._adapter(msg.platform, msg.key)
         if adapter is None and msg.action == "assign_influencer" and msg.key:
             self.store.assign_account_influencer(msg.key, msg.influencer_id or None)

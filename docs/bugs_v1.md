@@ -21,7 +21,7 @@
 |---|---|---|---|---|
 | BUG-047 | **Inhaltsstufe umgehbar.** Die Stufe erbt nur über `parent_media_id`; Upload von Platte, Vorlagen-Eingang und Befehl ohne Eltern-Medium laufen durch `standard`-Workflows (Hochskalieren, Instagram-Export, Bild zu Video) und kommen als `standard` heraus. | CODE | Stufe = höchste Stufe aus Workflow und allen Eingabebildern; Uploads per SHA-256 gegen `media`; unbekanntes Eingabebild in einem abgeleiteten Workflow = `explizit`. Abnahme: explizites Bild über alle Wege → Ergebnis `explizit`, Liefer-Gate sperrt, auch bei manipuliertem Befehl. | B SP2 |
 | BUG-048 | **[18.11.] CODE** (EVENT 26 bei jeder neuen Nachricht, Test rot→grün; Mac-Lauf offen) – **Kundenliste, Ungelesen und Übersicht** aktualisieren sich bei bekannten Kunden nicht; EVENT 26 entsteht nur bei neuer Akte. | CODE: `store.record_inbound` schreibt nur ein Nachrichtenereignis, `customer_events` liest nur Kundenereignisse | EVENT 26 bei jedem Eingang, Versand und Gelesen-Wechsel. Abnahme: zweite Nachricht eines bekannten Kunden erhöht Ungelesen, ohne die Akte zu öffnen. | B SP2, F SP2 |
-| BUG-049 | **Telegram-Kontowechsel** ohne Neustart: zwei Empfangsthreads lesen dieselbe TDLib-Instanz. | CODE: `tdjson._receive` verwirft Ereignisse anderer Clients; nach dem Abmelden laufen zwei Empfangsthreads | Genau ein Empfänger je Prozess; alter Client wird geschlossen und abgewartet. Abnahme: abmelden, anmelden, zehn Eingänge genau einmal. | B SP2 |
+| BUG-049 | **[18.11.] CODE** (ein Empfangsthread je Prozess, Test mit Ersatz-Bibliothek; echtes Ab-/Anmelden offen) – **Telegram-Kontowechsel** ohne Neustart: zwei Empfangsthreads lesen dieselbe TDLib-Instanz. | CODE: `tdjson._receive` verwirft Ereignisse anderer Clients; nach dem Abmelden laufen zwei Empfangsthreads | Genau ein Empfänger je Prozess; alter Client wird geschlossen und abgewartet. Abnahme: abmelden, anmelden, zehn Eingänge genau einmal. | B SP2 |
 | BUG-050 | **Gutschein-Erkennung** (`payments/vouchers.py`, `extract`) hält normalen Text mit Buchstaben und Ziffern („habe morgen 1830 Zeit“) für einen Code und maskiert ihn; das Original ist verloren. | CODE | Nur eindeutige Muster; Originaltext am Gutschein geschützt speichern (nur im Wallet sichtbar). Abnahme: 20 normale Sätze mit Zahlen bleiben unverändert, echte Codes werden erkannt. | B SP2, SP5 |
 | BUG-051 | **Bezahlter Auftrag kann stecken bleiben:** kein „Neu erzeugen“ bei unbrauchbaren erfolgreichen Kandidaten (`pipeline.retry_stage` nur für Fehlstufen), keine Erstattung per Befehl, nach `delivered` kein Übergang. | CODE | Befehle `order_regenerate`, `order_aftercare`; Zustände `complaint`, `closed`; Erstattung mit Beleg. | B SP5 (geht in BUG-100 auf; „Neu erzeugen“ vor der Freigabe über `pipeline.regenerate_order`) |
 | BUG-052 | **Default-Auftrag ohne Charakterbindung:** weder Influencerin noch Charakter-LoRA am Auftrag; kein Workflow hat einen LoRA-Parameter. (Korrektur 17.11.: trainierte LoRAs trägt der Code bereits über `pipeline._adopt_lora` → `models.register_lora` in die Registry ein; es fehlen LoRA-Parameter in den Workflows und die Bindung am Auftrag.) Live 17.11.: Influencerin nicht gesetzt, Charakter 01 mit 0 Bildern. | CODE, LIVE | Auftrag trägt Influencerin, Charakterprofil, LoRA-Version; Workflow lädt die LoRA; der Trigger wird dem Prompt vorangestellt; die LoRA trägt das Kürzel der Figur; bis SP3 Karte „ohne Charakter-LoRA“. | B SP1 (Bindung), SP3 (LoRA) |
@@ -200,6 +200,25 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP2 Schritt 4 (ein TDLib-Empfänger) / BUG-049
+Commit: siehe git log „SP2 step 4“ / channels/tdjson.py (Receiver je Bibliothek, TdJson.close/wait_closed),
+  channels/telegram.py (Datenverzeichnis und DB-Schlüssel je Konto, Schließen beim Beenden/Neustart),
+  core/base (beliebig viele Telegram-Adapter, `_adapter` über gebundene Konto-ID), Konto der Konversation in
+  Versand/Zustellung/Rückversand/Fenster, Befehl 39 additiv `key` (Feld 4), Befehle 39/40 aus der Kanalkarte mit
+  Kürzel
+Nachweis Unit/Integration: tests/test_tdjson.py – zwei Instanzen erhalten je ihre Ereignisse über genau einen
+  Thread (td_receive nur aus einem Thread), Abmelden → neue Instanz am selben Thread, 20 Ereignisse je Konto ohne
+  Verlust in Reihenfolge, close meldet ab und lässt offene Anfragen sichtbar scheitern; tests/test_accounts.py –
+  zweites Konto mit eigenem TDLib-Verzeichnis und Schlüssel, Befehl 39/40 erreichen das genannte Konto über HTTP,
+  Adapter eines nicht angemeldeten Kontos über die gebundene Konto-ID
+Nachweis echt: echtes Cockpit neu gestartet, Telegram über den gemeinsamen Empfänger wieder angemeldet
+  (493976404); Chrome-E2E isoliert: zwei Telegram-Konten mit je eigener Karte und eigenem Zustand
+  (tests/settings.spec.ts), lesend echt
+NOT_RUN: echtes Abmelden und Anmelden mit Bestätigungscode (braucht den Betreiber), zweites echtes Telegram-Konto
+  (Abnahme SP2 Punkt 1, Konto anlegen erst mit 9b)
+Ergebnis: TEIL
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP2 Schritt 1 (Daueraufgaben unter Aufsicht) / BUG-015
 Commit: siehe git log „SP2 step 1“ / core/supervise.py, web/http.lifecycle, channels (task_error), payments/chain
 Nachweis: tests/test_supervise.py – Neustart mit wachsender Pause und Meldung, Abbruch; Fehler im Versand →

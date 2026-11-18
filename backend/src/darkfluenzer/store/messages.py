@@ -414,11 +414,15 @@ class MessagesMixin:
             return message_id
 
     def conversation_platform(self, conversation_id: int) -> str:
+        return self.conversation_account(conversation_id)[0]
+
+    def conversation_account(self, conversation_id: int) -> tuple[str, str]:
+        """Plattform und eigenes Konto (Plattform-Konto-ID) einer Konversation."""
         row = self.db.execute(
-            "SELECT i.platform FROM channel_conversations c JOIN channel_identities i"
+            "SELECT i.platform, i.account FROM channel_conversations c JOIN channel_identities i"
             " ON i.id = c.identity_id WHERE c.id = ?",
             (conversation_id,),
         ).fetchone()
         if row is None:
             raise StoreError(f"Konversation {conversation_id} unbekannt.")
-        return row[0]
+        return row[0], row[1] or ""

@@ -71,8 +71,8 @@ class DeliveryMixin:
         offer = self.store.offer(order.id)
         if offer is None:
             return "Auftrag ohne Angebot – kein Zustellkanal."
-        conv = self.store.conversation_platform(offer["conversation_id"])
-        adapter = self._adapter(conv)
+        conv, account = self.store.conversation_account(offer["conversation_id"])
+        adapter = self._adapter(conv, account)
         if adapter is None or adapter.state != "READY":
             return f"{conv} ist nicht verbunden."
         return ""

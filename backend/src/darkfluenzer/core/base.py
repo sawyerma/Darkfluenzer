@@ -129,8 +129,8 @@ class CockpitBase:
             else None
         )
         # Kanalkonten (SP2 Schritt 9a): bisherige Abschnitte beim ersten Start als Konto übernehmen,
-        # dann je Konto ein Adapter. Ein weiteres Konto derselben Plattform braucht den einen
-        # TDLib-Empfänger (SP2 Schritt 4) bzw. die Webhook-Verteilung; bis dahin je Plattform eines.
+        # dann je Konto ein Adapter. Telegram: beliebig viele Konten am einen TDLib-Empfänger
+        # (SP2 Schritt 4); Instagram: eines, bis der Webhook nach Konto-ID verteilt.
         self._import_channel_accounts()
         self.adapters: dict[str, object] = {}
         kinds = {
@@ -139,8 +139,9 @@ class CockpitBase:
         }
         for acc in store.channel_accounts():
             section, cls = kinds.get(acc["platform"], (None, None))
-            if section is None or any(
-                a.platform == acc["platform"] for a in self.adapters.values()
+            if section is None or (
+                acc["platform"] == "instagram"
+                and any(a.platform == "instagram" for a in self.adapters.values())
             ):
                 continue
             self.adapters[acc["key"]] = cls(
@@ -157,13 +158,15 @@ class CockpitBase:
         self._migrate_character_folders()  # SP3 Schritt 1: ein Ordnerschema je Charakter
 
     def _adapter(self, platform: str, account: str = ""):
-        """Adapter eines Kontos (Plattform-Konto-ID oder Kürzel); ohne Angabe der der Plattform."""
-        for adapter in self.adapters.values():
-            if adapter.platform == platform and (
-                not account or account in (adapter.account, adapter.key)
-            ):
-                return adapter
-        return None
+        """Adapter eines Kontos (Plattform-Konto-ID oder Kürzel); ohne Angabe der erste der
+        Plattform. Ein nicht angemeldeter Adapter wird über die gebundene Konto-ID gefunden."""
+        mine = [a for a in self.adapters.values() if a.platform == platform]
+        if not account:
+            return mine[0] if mine else None
+        hit = next((a for a in mine if account in (a.account, a.key)), None)
+        if hit is None and (acc := self.store.account_for(platform, account)) is not None:
+            hit = self.adapters.get(acc["key"])
+        return hit
 
     def _import_channel_accounts(self) -> None:
         """Bisherige Konfiguration als Kanalkonto übernehmen (einmal je Kürzel): Testbetrieb,
@@ -193,7 +196,7 @@ class CockpitBase:
 
     def _wake(self, order) -> None:
         offer = self.store.offer(order.id)
-        adapter = self._adapter(self.store.conversation_platform(offer["conversation_id"]))
+        adapter = self._adapter(*self.store.conversation_account(offer["conversation_id"]))
         if adapter is not None:
             adapter.wake.set()
 

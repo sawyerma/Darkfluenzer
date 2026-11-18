@@ -33,3 +33,24 @@ test("Einstellungen: Influencerin einem Kanalkonto zuordnen, nach Neuladen erhal
   await page.getByLabel(/^Influencerin des Kontos /).first().selectOption({ value: "0" });
   await expect(page.getByLabel(/^Influencerin des Kontos /).first()).toHaveValue("0");
 });
+
+test("Einstellungen: zwei Telegram-Konten mit je eigenem Zustand (SP2 Schritt 4)", async ({ page }) => {
+  test.skip(!process.env.DF_E2E_WRITE, "zweites Telegram-Konto nur im isolierten Testserver (DF_BASE_URL)");
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/#einstellungen");
+  await expect(page.locator(".g-nav-end")).toHaveText("VERBUNDEN");
+  const card = page.locator(".g-card", { hasText: "Kanäle" });
+  const telegram = card.locator(".g-stack").filter({ has: page.locator('.g-ptag[data-platform="telegram"]') });
+  await expect(telegram).toHaveCount(2);
+  // je Konto ein eigener Adapter: eigener Zustand statt „weiteres Konto“
+  for (const i of [0, 1]) {
+    await expect(telegram.nth(i).locator(".g-account-line small")).toHaveText(/^Konto \S+ · /);
+    await expect(telegram.nth(i)).toContainText("TDLib fehlt");
+  }
+  await expect(card).not.toContainText("weiteres Konto");
+  const keys = await telegram.locator(".g-account-line small").allTextContents();
+  expect(new Set(keys.map((k) => k.split(" · ")[0])).size).toBe(2);
+  await card.screenshot({ path: "test-results/sp2s4-zwei-telegram-konten.png" });
+  expect(errors).toEqual([]);
+});

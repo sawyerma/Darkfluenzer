@@ -27,12 +27,13 @@ function AccountControls({ ch }: { ch: ChannelStatus }) {
     const entered = value.trim();
     setValue(""); // nie stehen lassen
     if (!entered) return;
-    await cmd.run({ case: "channelAccountLogin", value: { platform: ch.platform, step: ch.loginState, value: entered } });
+    // je Konto (SP2 Schritt 4): das Kürzel wählt das Telegram-Konto, nie „das erste“
+    await cmd.run({ case: "channelAccountLogin", value: { platform: ch.platform, key: ch.key, step: ch.loginState, value: entered } });
   }
 
   function update(action: string) {
     setConfirmLogout(false);
-    void cmd.run({ case: "channelAccountUpdate", value: { platform: ch.platform, action } });
+    void cmd.run({ case: "channelAccountUpdate", value: { platform: ch.platform, key: ch.key, action } });
   }
 
   return (

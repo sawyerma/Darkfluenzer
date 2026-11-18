@@ -93,3 +93,85 @@ def test_channels_state_per_account_and_assign_command(cfg):
         assert [c.platform for c in state.channels] == ["telegram", "instagram", "whatsapp"]
 
     _run(cfg, scenario)
+
+
+def test_second_telegram_account_has_its_own_tdlib_data(cfg, tmp_path):
+    """SP2 Schritt 4: je Konto eigenes TDLib-Verzeichnis und eigener Datenbankschlüssel; das aus
+    der Konfiguration übernommene Konto behält beides."""
+    from test_telegram import _account
+
+    from darkfluenzer.channels import telegram
+
+    store = Store(cfg.local)
+    first, _, _ = _account(cfg, tmp_path, store)
+    second = telegram.TelegramAccount(
+        first.cfg, store, first.on_inbound, lambda: None,
+        {"key": "clara2", "test_mode": False, "test_chat_ids": []},
+    )  # fmt: skip
+    assert (first.data_dir, first.db_key_service) == (tmp_path / "telegram", "z")
+    assert second.data_dir == tmp_path / "telegram" / "accounts" / "clara2"
+    assert second.db_key_service == "z.clara2" and second.test_mode is False
+    second._api, second._key = ("1", "h"), "k"
+    params = second._parameters()
+    assert params["database_directory"] == str(second.data_dir / "db")
+    assert params["files_directory"] == str(second.data_dir / "files")
+    store.close()
+
+
+class _Tg:
+    """Telegram-Konto ohne TDLib: merkt sich, welches Konto einen Befehl bekam."""
+
+    platform = "telegram"
+
+    def __init__(self, key: str, calls: list) -> None:
+        self.key, self.account, self.state, self.calls = key, "", "LOGIN", calls
+
+    async def login_step(self, step: str, value: str) -> str:
+        self.calls.append((self.key, step))
+        return ""
+
+    async def logout(self) -> str:
+        self.calls.append((self.key, "logout"))
+        return ""
+
+    def status(self) -> dict:
+        return {"platform": "telegram", "account": "", "state": self.state, "error": "",
+                "last_event_ms": 0, "missing": "", "login_state": "code", "login_hint": "",
+                "test_mode": False, "automation": False, "flood_until_ms": 0,
+                "rejected_chats": []}  # fmt: skip
+
+
+def test_login_and_logout_reach_the_named_telegram_account(cfg):
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+        store.import_channel_account({"key": "telegram", "platform": "telegram"})
+        store.import_channel_account({"key": "clara2", "platform": "telegram"})
+        store.set_account_platform_id("clara2", "777")
+        calls: list = []
+        cockpit.adapters = {"telegram": _Tg("telegram", calls), "clara2": _Tg("clara2", calls)}
+        csrf = await _csrf(client)
+
+        async def send(**kw):
+            req = commands_pb2.CommandRequest(request_id=str(uuid.uuid4()), **kw)
+            status, body = await _post(client, origin, csrf, req)
+            assert status == 200
+            return commands_pb2.CommandResponse.FromString(body).detail
+
+        login = commands_pb2.ChannelAccountLogin(
+            platform="telegram", key="clara2", step="code", value="12345"
+        )
+        assert await send(channel_account_login=login) == ""
+        update = commands_pb2.ChannelAccountUpdate(
+            platform="telegram", key="clara2", action="logout"
+        )
+        assert await send(channel_account_update=update) == ""
+        assert calls == [("clara2", "code"), ("clara2", "logout")]
+        login.key = ""  # ohne Kürzel: das erste Konto der Plattform (bisheriges Verhalten)
+        assert await send(channel_account_login=login) == ""
+        assert calls[-1] == ("telegram", "code")
+        # Konversation eines noch nicht angemeldeten Kontos: über die gebundene Konto-ID
+        assert cockpit._adapter("telegram", "777").key == "clara2"
+        assert cockpit._adapter("telegram", "888") is None
+
+    _run(cfg, scenario)

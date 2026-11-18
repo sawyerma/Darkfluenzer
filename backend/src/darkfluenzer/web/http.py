@@ -495,7 +495,8 @@ async def _conversation_page(request: web.Request) -> web.Response:
         limit = min(max(int(request.query.get("limit", "60")), 1), 200)
     except (KeyError, ValueError):
         return web.Response(status=400, text="customer/before/limit müssen Zahlen sein")
-    store = request.app[COCKPIT_KEY].store
+    cockpit = request.app[COCKPIT_KEY]
+    store = cockpit.store
     summary = store.customers_overview(customer_id)
     if not summary:
         raise web.HTTPNotFound()
@@ -517,7 +518,7 @@ async def _conversation_page(request: web.Request) -> web.Response:
             conversation_id=ident["conversation_id"] or 0,
             revision=ident["revision"] or 0,
             ai_notice=ident["ai_notice_status"] or "",
-            **_window(request.app[COCKPIT_KEY]._adapter(ident["platform"]), ident),
+            **_window(cockpit._adapter(ident["platform"], ident["account"]), ident),
         )
     if summary[0]["kind"] == "internal":
         d = store.default_contact()

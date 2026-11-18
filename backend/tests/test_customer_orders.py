@@ -14,7 +14,7 @@ import uuid
 
 import pytest
 from PIL import Image
-from test_channels import _inbound
+from test_channels import BOT, _inbound
 from test_server import _csrf, _post, _run
 
 from darkfluenzer.config import TokenConfig, WalletConfig
@@ -175,8 +175,8 @@ def test_customer_order_chain(cfg, monkeypatch):
 
         cockpit.wallet.rates = {"bitcoin": 80000.0, "tether": 0.9}
         cockpit.wallet.rate_ms = int(time.time() * 1000)
-        channel = types.SimpleNamespace(  # Kanal verbunden, ein Kanalkonto (SP2 Schritt 9a)
-            state="READY", wake=asyncio.Event(), platform="telegram", account="", key="telegram"
+        channel = types.SimpleNamespace(  # Kanal verbunden, angemeldet als das Konto der Akte
+            state="READY", wake=asyncio.Event(), platform="telegram", account=BOT, key="telegram"
         )
         cockpit.telegram = channel
         cockpit.adapters = {"telegram": channel}
