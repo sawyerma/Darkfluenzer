@@ -520,6 +520,7 @@ Ersetzt H0, H4, H5, H6a sowie aus H2 BUG-008/013/014 und aus H3 Zeitlimit, Auftr
 **Umsetzung in dieser Reihenfolge**
 
 1. **Rückverfolgung (`app.py`).** CLI `darkfluenzer trace --message <id>` und `--order <nr>`, nur lesend: Nachricht, Identität, Default-Zuordnung, Schalter, Befehl, Referenzen, Workflow, Vorprüfung, Auftrag, Stufen, Jobs mit `prompt_id` und Fehler, Medien, Rückversand. Die erste Unterbrechung wird benannt.
+   - **Umgesetzt 18.11.2026:** `core/trace.py` über eine schreibgeschützte SQLite-Verbindung (`mode=ro`, keine Migration, läuft neben dem Server); `darkfluenzer trace --message <id> | --order <nr> [--json]` listet jede Station mit ✓/✗/· und nennt die erste Unterbrechung; `--order` geht über die Ursprungsnachricht der ersten Stufe. Nachweis: `tests/test_trace.py` (Kette mit Auftrag und Jobs, Rückfrage ohne Referenz, fremder Absender, CLI, Schreibschutz); echt: Nachricht 39 „Clone“ (Live-Befund BUG-057) → „Erste Unterbrechung: Workflow: kein registrierter Workflow für clone (leer)“, Karte ohne Chat-Antwort. Der Rückversand wird mit Schritt 8 aus `cloner_returns` gelesen.
 2. **Render-Worker absichern (`server.render_worker`).**
    - Heute: `advance_order`, `_cloner_delivery`, die Pushes und `_admit` laufen ungeschützt. Ein Fehler beendet die Schleife der Instanz.
    - Neu: ganzer Schleifenkörper in `try/except Exception` mit Log; Nachbearbeitung in eigener Funktion `_after_job`.

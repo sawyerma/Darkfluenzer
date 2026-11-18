@@ -200,6 +200,13 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP1 Schritt 1 (Rückverfolgung)
+Commit: siehe git log „SP1 step 1“ / core/trace.py, app `trace`
+Nachweis: tests/test_trace.py; echt lesend am laufenden System: Nachricht 39 zeigt die Unterbrechung „Workflow
+  leer“ (BUG-057), DF-O-000007 mit drei Jobs samt prompt_id und Medien
+Ergebnis: PASS (CLI, nur lesend)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP2 Schritte 6 und 7 (ungeklärter Versand, KI-Hinweis erneut) / SPEC-009, BUG-016, BUG-021
 Commit: siehe git log „SP2 steps 6+7“ / store/messages (match_unknown, unknown_outgoing, known_platform_ids,
   Karte bei unknown, queue_ai_notice), channels/telegram (_late_result, _resolved, _settle_unknown,

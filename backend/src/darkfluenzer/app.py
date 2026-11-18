@@ -358,6 +358,25 @@ def _secret(args: argparse.Namespace) -> tuple[dict, int]:
     return {"ok": True, "stored": service, "verified": keychain.secret(service) == value}, 0
 
 
+def _trace(args: argparse.Namespace) -> tuple[dict, int]:
+    """Rückverfolgung der Default-Kette (SP1 Schritt 1), nur lesend."""
+    from .core import trace
+    from .store.db import DB_NAME
+
+    cfg = load()
+    db_path = cfg.local / DB_NAME
+    if not db_path.is_file():
+        return {"ok": False, "error": "no_db", "message": f"{db_path} fehlt"}, 2
+    man = models.load_manifest(cfg.root)
+    db = trace.connect(db_path)
+    try:
+        if args.message:
+            return trace.trace_message(db, man, args.message), 0
+        return trace.trace_order(db, man, args.order), 0
+    finally:
+        db.close()
+
+
 def _serve() -> tuple[dict, int]:
     from .web import http as server  # aiohttp nur für den Server laden
 
@@ -409,6 +428,11 @@ def main(argv: list[str] | None = None) -> int:
     sec.add_argument("name", nargs="?", default="", help=f"bei set: {', '.join(SECRET_RULES)}")
     sec.add_argument("--replace", action="store_true", help="vorhandenen Eintrag ersetzen")
     sec.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
+    trp = sub.add_parser("trace", help="Default-Kette einer Nachricht/eines Auftrags (nur lesend)")
+    which = trp.add_mutually_exclusive_group(required=True)
+    which.add_argument("--message", type=int, help="Nachrichten-ID (Verlauf)")
+    which.add_argument("--order", help="Auftragsnummer (DF-O-…)")
+    trp.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     srv = sub.add_parser("serve", help="Cockpit-Server (React-Build + Protobuf-API)")
     srv.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     for name, text in (
@@ -435,6 +459,8 @@ def main(argv: list[str] | None = None) -> int:
             payload, code = _serve()
         elif args.area == "secret":
             payload, code = _secret(args)
+        elif args.area == "trace":
+            payload, code = _trace(args)
         elif args.area in ("up", "restart", "down"):
             cfg = load()
             setup_logging(cfg)
@@ -464,5 +490,10 @@ def main(argv: list[str] | None = None) -> int:
         log.exception("Unerwarteter Fehler bei %s", getattr(args, "action", args.area))
         payload, code = {"ok": False, "error": "internal", "message": repr(exc)}, 1
     cockpit = args.area in ("up", "restart", "down")
+    if args.area == "trace" and not args.json and payload.get("steps") is not None:
+        from .core import trace
+
+        print(trace.human(payload))
+        return code
     _emit(payload, args.json, _HUMAN_COCKPIT if cockpit else _HUMAN)
     return code
