@@ -200,6 +200,20 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP5 Schritt 6 (Produktion nach Zahlung)
+Commit: siehe git log „SP5 step 6“ / Migration 41 (image_auto, offers.wish/wish_source/
+  production_started_at/delay_notice_at), core/autoprod.py (neu), core/sales (Start nach Zahlung,
+  Testfreigabe, Zeitaufgabe), core/chat (Wunsch ins Angebot), pipeline (Klasse Default für Tests),
+  influencer/commands/order.proto, InfluencerBlock, CustomerPanel, Stream
+Nachweis: test_autoprod (Start aus Produkt, ohne Automatik/Wunsch, Video-Fertigstellen, Dank mit
+  Lieferzeit, genau eine Verzugsnachricht, Testauftrag Klasse Default), volle Suite 311 grün;
+  Chrome-E2E isoliert 27/27, lesend echt 10/10; echte Migration 40→41, Telegram angemeldet;
+  isolierter Server ohne Bildmodelle/ComfyUI 18188 → keine echten Renderläufe ausgelöst
+NOT_RUN: echter Produktionslauf nach Zahlung (Engines nur evaluation, keine Qualifikation),
+  Dank-Text mit echtem Profilblock „Lieferung“ (pflegt der Betreiber)
+Ergebnis: CODE (Integration isoliert belegt), Lauf NOT_RUN
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP5 Schritt 12 (Kundentest mit Bild, Testweg)
 Commit: siehe git log „SP5 step 12“ / Migration 40 (orders.test + Trigger, test_pay_word/auto_pay,
   deliveries_gate/deliveries_send_gate/media_order_no_delete neu), approval.check_gate, store

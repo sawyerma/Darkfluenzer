@@ -88,6 +88,8 @@ function CustomerOrder({ order }: { order: ActiveOrder }) {
               ca. {Math.max(5, Math.ceil(offer.deliveryS / 300) * 5)} min nach {order.test ? "Testfreigabe" : "Zahlung"}
             </Row> : null}
           {order.statusReason ? <Row label="Grund">{order.statusReason}</Row> : null}
+          {offer.wish ? <Row label="Wunsch">{offer.wish}</Row> : null}
+          {offer.productionStartedMs ? <Row label="Produktion seit">{shortTime(offer.productionStartedMs)}</Row> : null}
           {payments.map((p) => (
             <Row key={p.way} label={METHOD_LABEL[p.way] ?? p.way}>
               <span className="g-mono">

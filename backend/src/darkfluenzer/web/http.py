@@ -26,6 +26,7 @@ from ..channels.instagram import InstagramAccount, InstagramError
 from ..config import Config
 from ..core import memory
 from ..core.ai import AiStudioMixin, memory_entry
+from ..core.autoprod import AutoProductionMixin
 from ..core.base import CockpitBase, log
 from ..core.characters import CharactersMixin
 from ..core.chat import ChatMixin
@@ -93,6 +94,7 @@ class Cockpit(
     ClonerMixin,
     MessagesMixin,
     ChatMixin,
+    AutoProductionMixin,
     SalesMixin,
     DeliveryMixin,
     CharactersMixin,

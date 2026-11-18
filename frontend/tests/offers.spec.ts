@@ -19,6 +19,7 @@ test("Angebot: Faktenblock, Lieferzeit, Zahlungswege, Zahlung in Prüfung", asyn
   await expect(card).toContainText("ca. 15 min nach Zahlung");
   await expect(card).toContainText("Amazon-Gutschein");
   await expect(card).toContainText("20.00 EUR");
+  await expect(card).toContainText("Strandfoto bei Sonnenuntergang"); // Wunsch = Prompt (SP5 Schritt 6)
   await card.getByText("Faktenblock").click();
   const facts = card.getByLabel("Faktenblock");
   await expect(facts).toContainText(/Angebot DF-O-\d+: Foto · 20,00 €/);

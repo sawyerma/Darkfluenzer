@@ -146,11 +146,13 @@ class SalesMixin:
         self.hub.set_state(spb.TOPIC_WALLET, self._wallet_state())
 
     def _payments_changed(self) -> None:
-        """Eingang neu/geändert; eine automatische Zuordnung ändert auch Auftrag und Verlauf."""
+        """Eingang neu/geändert; eine automatische Zuordnung ändert auch Auftrag und Verlauf;
+        bezahlte Aufträge starten mit der Bildautomatik (SP5 Schritt 6)."""
         self.hub.push_events(spb.TOPIC_PAYMENT_UPDATED)
         self._wallet_changed()
         self._orders_changed()
         self._message_changed(0)
+        self._start_paid_orders()
 
     def _offer_amounts(
         self, price_cents: int, chosen: tuple[str, ...] = OFFER_METHODS
@@ -296,14 +298,17 @@ class SalesMixin:
         lines.append(f"Lieferzeit ca. {eta.minutes(plan.delivery_s)} Minuten nach Zahlungseingang")
         return "\n".join(lines)
 
-    def _place_offer(self, plan: OfferPlan, customer_id: int, conversation_id: int):
+    def _place_offer(
+        self, plan: OfferPlan, customer_id: int, conversation_id: int, wish: str = "",
+        wish_source: str = "",
+    ):  # fmt: skip
         """Auftrag mit Angebot, Zahlungswegen und Faktenblock anlegen, Karte ANGEBOT; liefert
         (Auftrag, Faktenblock). Aufrufer hält die Transaktion und reiht die Nachricht ein."""
         order = self.store.create_offer(
             customer_id, conversation_id, plan.item["product"], plan.hd, plan.price,
             plan.expires.isoformat(timespec="milliseconds"), plan.amounts,
             product_id=plan.item["id"], kind=plan.item["kind"], delivery_s=plan.delivery_s,
-            payments=plan.payments, test=plan.test,
+            payments=plan.payments, test=plan.test, wish=wish, wish_source=wish_source,
         )  # fmt: skip
         facts = self._fact_block(order.order_no, plan)
         self.store.set_offer_facts(order.id, facts)
@@ -330,6 +335,7 @@ class SalesMixin:
                 order_id=order.id,
             )
         self._orders_changed()
+        self._start_paid_orders()  # Produktion nach Testfreigabe (SP5 Schritt 6)
 
     async def _end_test_orders(self, platform: str, account: str) -> None:
         """Betriebsart verlässt test (SP5 Schritt 12): offene Testaufträge dieses Kontos werden
@@ -358,13 +364,16 @@ class SalesMixin:
         return f"Lieferzeit ca. {eta.minutes(plan.delivery_s)} Minuten"
 
     async def offer_expiry(self) -> None:
-        """Zeitaufgabe: abgelaufene Angebote schließen (cancelled, Grund „abgelaufen“)."""
+        """Zeitaufgabe: abgelaufene Angebote schließen (cancelled, Grund „abgelaufen“), bezahlte
+        Aufträge starten, Verzug melden."""
         while True:
             at = datetime.now(UTC).isoformat(timespec="milliseconds")
             if self.store.expire_offers(at):
                 self._orders_changed()
                 self._message_changed(0)
                 self._wallet_changed()
+            self._start_paid_orders()  # auch nach Neustart oder Einschalten der Bildautomatik
+            self._delay_notices()  # zugesagte Lieferzeit überschritten (SP5 Schritt 6)
             await asyncio.sleep(self.cfg.dialog.offer_check_s)
 
     async def _create_offer(self, msg: commands_pb2.CreateOffer, call: _Call) -> str:
@@ -402,7 +411,9 @@ class SalesMixin:
         if isinstance(plan, str):
             return plan
         with self.store.tx():
-            order, facts = self._place_offer(plan, msg.customer_id, msg.conversation_id)
+            order, facts = self._place_offer(
+                plan, msg.customer_id, msg.conversation_id, wish=msg.wish
+            )
             note = msg.note.strip()
             self.store.queue_outbound(
                 msg.customer_id,

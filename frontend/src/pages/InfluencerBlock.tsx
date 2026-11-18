@@ -145,6 +145,8 @@ function InfluencerForm({ influencer, mediaTitle, videoTitle, cmd }: Props & { c
   // Schalter (C5.1): Text-KI und automatische Antworten
   const [textAi, setTextAi] = useState(influencer?.textAi ?? false);
   const [autoReplies, setAutoReplies] = useState(influencer?.autoReplies ?? false);
+  // Bildautomatik: Produktion startet nach Zahlung bzw. Testfreigabe (SP5 Schritt 6)
+  const [imageAuto, setImageAuto] = useState(influencer?.imageAuto ?? false);
   const [rows, setRows] = useState<Row[]>(() =>
     (influencer?.prices ?? []).map((p) => ({
       id: p.id,
@@ -197,6 +199,7 @@ function InfluencerForm({ influencer, mediaTitle, videoTitle, cmd }: Props & { c
           aiNotice: notice,
           textAi,
           autoReplies,
+          imageAuto,
           prices: rows.map((r) => ({
             id: r.id,
             product: r.product.trim(),
@@ -243,6 +246,10 @@ function InfluencerForm({ influencer, mediaTitle, videoTitle, cmd }: Props & { c
         <label className="g-switch">
           <input type="checkbox" checked={autoReplies} disabled={!textAi} onChange={(e) => setAutoReplies(e.target.checked)} />
           Automatische Antworten
+        </label>
+        <label className="g-switch">
+          <input type="checkbox" checked={imageAuto} onChange={(e) => setImageAuto(e.target.checked)} />
+          Bildautomatik (Produktion nach Zahlung)
         </label>
         <div className="g-field">
           <span>Ehrlichkeitsregel (fest)</span>

@@ -68,6 +68,9 @@ message CustomerOffer {
   double delivery_s = 8;
   repeated OfferPayment payments = 9;
   int64 review_started_ms = 10;
+  // Wunsch (Prompt der Produktion) und Beginn der Produktion (SP5 Schritt 6; 0 = noch nicht)
+  string wish = 11;
+  int64 production_started_ms = 12;
 }
 
 // Ein angebotener Zahlungsweg (SP5 Schritt 2): amazon | btc | usdt | usdc | paypal, Betrag als

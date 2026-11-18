@@ -975,6 +975,16 @@ CREATE TRIGGER media_order_no_delete BEFORE DELETE ON media WHEN OLD.order_id IS
                     WHERE o.id = OLD.order_id AND o.test = 1 AND c.kind = 'internal')
 BEGIN SELECT RAISE(ABORT, 'media: Kundenmedien unveränderlich'); END;
 """,
+    41: """
+-- Produktion nach Zahlung (SP5 Schritt 6): Bildautomatik der Influencerin; der Wunsch (Prompt) und
+-- seine Quelle am Angebot; Start der Produktion und genau eine Verzugsnachricht je Auftrag.
+ALTER TABLE influencers ADD COLUMN image_auto INTEGER NOT NULL DEFAULT 0
+    CHECK (image_auto IN (0, 1));
+ALTER TABLE offers ADD COLUMN wish TEXT NOT NULL DEFAULT '';
+ALTER TABLE offers ADD COLUMN wish_source TEXT NOT NULL DEFAULT '';
+ALTER TABLE offers ADD COLUMN production_started_at TEXT;
+ALTER TABLE offers ADD COLUMN delay_notice_at TEXT;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

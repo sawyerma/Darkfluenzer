@@ -288,6 +288,7 @@ class CharactersMixin:
                 studio_session=self.store.studio_session(row["id"]),
                 text_ai=bool(row["text_ai"]),
                 auto_replies=bool(row["auto_replies"]),
+                image_auto=bool(row["image_auto"]),
                 behavior=self._behavior(row).values(),
                 behavior_version=self.store.behavior_of(row["id"])[0],
                 payment_ways=row["payment_ways"],
@@ -382,7 +383,9 @@ class CharactersMixin:
             ],
         )
         call.entity = f"influencer:{influencer_id}"
-        self.store.set_influencer_switches(influencer_id, msg.text_ai, msg.auto_replies)  # C5.1
+        self.store.set_influencer_switches(  # C5.1, Bildautomatik SP5 Schritt 6
+            influencer_id, msg.text_ai, msg.auto_replies, msg.image_auto
+        )
         self.store.set_influencer_sales(  # SP5 Schritt 1
             influencer_id,
             list(msg.payment_ways) or ["amazon"],

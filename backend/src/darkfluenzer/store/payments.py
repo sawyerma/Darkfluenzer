@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from .db import (
     Order,
@@ -31,6 +31,8 @@ class PaymentsMixin:
         delivery_s: float | None = None,
         payments: list[dict] | None = None,
         test: bool = False,
+        wish: str = "",
+        wish_source: str = "",
     ) -> Order:
         """Kundenauftrag mit Angebot (Status offered) und eindeutigen Beträgen je Krypto-Weg
         (method -> (Dezimaltext, genannte Adresse, Kurs, Kurszeit)); ``payments`` = je
@@ -42,10 +44,10 @@ class PaymentsMixin:
             self.set_offer(order.order_no, label, price_cents, "EUR")
             db.execute(
                 "INSERT INTO offers (order_id, conversation_id, product, hd, price_cents,"
-                " expires_at, created_at, product_id, facts, delivery_s)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?)",
+                " expires_at, created_at, product_id, facts, delivery_s, wish, wish_source)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 (order.id, conversation_id, product, int(hd), price_cents, expires_at, now(),
-                 product_id, facts, delivery_s),
+                 product_id, facts, delivery_s, wish.strip(), wish_source.strip()),
             )  # fmt: skip
             for p in payments or []:
                 db.execute(
@@ -120,6 +122,37 @@ class PaymentsMixin:
             (order_id,),
         ).fetchone()
         return row is not None
+
+    def mark_production_started(self, order_id: int) -> None:
+        with self.tx() as db:
+            db.execute(
+                "UPDATE offers SET production_started_at = ? WHERE order_id = ?", (now(), order_id)
+            )
+
+    def delayed_orders(self, at: str) -> list[dict]:
+        """Aufträge in Produktion, deren zugesagte Lieferzeit (Start + Lieferzeit) vorbei ist und
+        die noch keine Verzugsnachricht haben (SP5 Schritt 6: genau eine)."""
+        rows = self.db.execute(
+            "SELECT o.order_no, o.id, o.customer_id, o.test, f.conversation_id,"
+            " f.production_started_at, f.delivery_s FROM orders o JOIN offers f"
+            " ON f.order_id = o.id WHERE o.status IN ('producing', 'review')"
+            " AND f.production_started_at IS NOT NULL AND f.delivery_s > 0"
+            " AND f.delay_notice_at IS NULL"
+        ).fetchall()
+        out = []
+        for r in rows:
+            due = datetime.fromisoformat(r["production_started_at"]) + timedelta(
+                seconds=r["delivery_s"]
+            )
+            if due.isoformat(timespec="milliseconds") < at:
+                out.append(dict(r))
+        return out
+
+    def mark_delay_notice(self, order_id: int) -> None:
+        with self.tx() as db:
+            db.execute(
+                "UPDATE offers SET delay_notice_at = ? WHERE order_id = ?", (now(), order_id)
+            )
 
     def set_offer_facts(self, order_id: int, facts: str) -> None:
         with self.tx() as db:

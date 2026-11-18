@@ -201,7 +201,8 @@ class JobsMixin:
 
     def order_source_of_stage(self, stage_id: int) -> str | None:
         row = self.db.execute(
-            "SELECT o.source FROM order_stages s JOIN orders o ON o.id = s.order_id WHERE s.id = ?",
+            "SELECT CASE WHEN o.test = 1 THEN 'test' ELSE o.source END"
+            " FROM order_stages s JOIN orders o ON o.id = s.order_id WHERE s.id = ?",
             (stage_id,),
         ).fetchone()
         return row[0] if row else None

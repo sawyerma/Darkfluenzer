@@ -319,6 +319,9 @@ def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
         item.offer.conversation_id = offer["conversation_id"]
         item.offer.facts = offer.get("facts") or ""
         item.offer.delivery_s = offer.get("delivery_s") or 0.0
+        item.offer.wish = offer.get("wish") or ""
+        if offer.get("production_started_at"):
+            item.offer.production_started_ms = _unix_ms(offer["production_started_at"])
         if offer.get("review_started_at"):
             item.offer.review_started_ms = _unix_ms(offer["review_started_at"])
         for p in offer["payments"]:

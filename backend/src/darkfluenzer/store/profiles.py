@@ -185,19 +185,31 @@ class ProfilesMixin:
             )
 
     def set_influencer_switches(
-        self, influencer_id: int, text_ai: bool, auto_replies: bool
+        self, influencer_id: int, text_ai: bool, auto_replies: bool, image_auto: bool | None = None
     ) -> None:
-        """Schalter der Influencerin (C5.1): Text-KI und automatische Antworten."""
+        """Schalter der Influencerin (C5.1): Text-KI und automatische Antworten; Bildautomatik
+        (SP5 Schritt 6: Produktion nach Zahlung), ``None`` = unverändert."""
         with self.tx() as db:
-            n = db.execute(
-                "UPDATE influencers SET text_ai = ?, auto_replies = ? WHERE id = ?"
-                " AND (text_ai != ? OR auto_replies != ?)",
-                (int(text_ai), int(auto_replies), influencer_id, int(text_ai), int(auto_replies)),
-            ).rowcount
-            if n:
-                self._event("influencer", influencer_id, "switches", text_ai=text_ai,
-                            auto_replies=auto_replies)  # fmt: skip
-                self.bump("influencers")
+            row = db.execute(
+                "SELECT text_ai, auto_replies, image_auto FROM influencers WHERE id = ?",
+                (influencer_id,),
+            ).fetchone()
+            if row is None:
+                return
+            image = row["image_auto"] if image_auto is None else int(image_auto)
+            if (row["text_ai"], row["auto_replies"], row["image_auto"]) == (
+                int(text_ai),
+                int(auto_replies),
+                image,
+            ):
+                return
+            db.execute(
+                "UPDATE influencers SET text_ai = ?, auto_replies = ?, image_auto = ? WHERE id = ?",
+                (int(text_ai), int(auto_replies), image, influencer_id),
+            )
+            self._event("influencer", influencer_id, "switches", text_ai=text_ai,
+                        auto_replies=auto_replies, image_auto=bool(image))  # fmt: skip
+            self.bump("influencers")
 
     def save_influencer(
         self,

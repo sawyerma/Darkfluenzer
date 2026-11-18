@@ -381,7 +381,10 @@ class ChatMixin:
         text = row["answer"]
         with self.store.tx():
             if offer is not None:  # Faktenblock wörtlich angehängt (SP5 Schritt 2)
-                _order, facts = self._place_offer(offer, customer_id, conv)
+                _order, facts = self._place_offer(
+                    offer, customer_id, conv, wish=typed.wish.description,
+                    wish_source=typed.wish.source,
+                )  # fmt: skip
                 text = f"{text.strip()}\n\n{facts}"
             if not why:
                 when = self._reply_time(conv, figure, row["answer"])

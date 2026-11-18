@@ -94,6 +94,8 @@ function OfferForm({
   const [position, setPosition] = useState(0);
   const [hd, setHd] = useState(false);
   const [note, setNote] = useState("");
+  // Wunsch als Bildbeschreibung: Prompt der Produktion nach Zahlung (SP5 Schritt 6)
+  const [wish, setWish] = useState("");
   const ident = channels.find((i) => i.identityId === identityId) ?? channels[0];
   const item = figure?.prices[position];
   const deliverable = item?.deliverable ?? false;
@@ -127,12 +129,14 @@ function OfferForm({
           productId: item?.id ?? 0n,
           hd,
           note: note.trim(),
+          wish: wish.trim(),
         },
       },
       { done: "Angebot gesendet." },
     );
     if (done) {
       setNote("");
+      setWish("");
       setHd(false);
     }
   }
@@ -189,6 +193,16 @@ function OfferForm({
               onChange={(e) => setNote(e.target.value)}
             />
           </div>
+          <div className="g-field">
+            <label htmlFor={`offer-wish-${customer.customerId}`}>Wunsch (Bildbeschreibung für die Produktion)</label>
+            <textarea
+              id={`offer-wish-${customer.customerId}`}
+              className="g-input"
+              rows={2}
+              value={wish}
+              onChange={(e) => setWish(e.target.value)}
+            />
+          </div>
         </>
       ) : null}
       <span className="g-between">
@@ -197,7 +211,7 @@ function OfferForm({
           Angebot senden
         </button>
       </span>
-      <small>{reason || "Beträge je Zahlungsweg eindeutig, Gültigkeit laut Konfiguration."}</small>
+      <small>{reason || "Faktenblock mit Lieferzeit vom Backend; ohne Wunsch startet die Produktion nicht automatisch."}</small>
       {cmd.notice ? (
         <p className="g-note" role="alert">
           {cmd.notice}

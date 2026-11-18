@@ -264,6 +264,8 @@ message InfluencerUpdate {
   uint32 offer_valid_min = 12;
   // Sperrzeit nach einer Ablehnung (min, 0 = keine; SP5 Schritt 2)
   uint32 offer_cooldown_min = 13;
+  // Bildautomatik (SP5 Schritt 6)
+  bool image_auto = 14;
 }
 
 message ProfileDraft {
@@ -346,6 +348,8 @@ message CreateOffer {
   string note = 8;
   // Produkt mit fester ID (SP5 Schritt 1); 0 = über position
   uint64 product_id = 9;
+  // Wunsch als Bildbeschreibung (Prompt der Produktion nach Zahlung, SP5 Schritt 6)
+  string wish = 10;
 }
 
 // „Freigeben & senden“ (Befehl 34): Ergebnis eines Kundenauftrags in Prüfung freigeben und hinter

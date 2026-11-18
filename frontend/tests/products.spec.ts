@@ -26,6 +26,9 @@ test("Influencerin: Video-Produkt anlegen, Lieferbarkeit und Zahlungswege nach N
   await block.getByLabel(`Kandidaten ${name}`).fill("2");
   await block.getByLabel(`Lieferzeit max. min ${name}`).fill("30");
   await block.getByLabel("Sperrzeit nach Ablehnung (Minuten, leer = keine)").fill("20");
+  const auto = block.getByLabel("Bildautomatik (Produktion nach Zahlung)");
+  const wasAuto = await auto.isChecked();
+  await auto.setChecked(!wasAuto);
   const btc = block.getByLabel(/^Bitcoin/);
   await btc.setChecked(true);
   await block.getByLabel("Angebot gültig (Minuten, leer = Vorgabe)").fill("45");
@@ -43,6 +46,7 @@ test("Influencerin: Video-Produkt anlegen, Lieferbarkeit und Zahlungswege nach N
   await expect(block.getByLabel("Angebot gültig (Minuten, leer = Vorgabe)")).toHaveValue("45");
   await expect(row.getByLabel(`Lieferzeit max. min ${name}`)).toHaveValue("30");
   await expect(block.getByLabel("Sperrzeit nach Ablehnung (Minuten, leer = keine)")).toHaveValue("20");
+  await expect(block.getByLabel("Bildautomatik (Produktion nach Zahlung)")).toBeChecked({ checked: !wasAuto });
   await row.screenshot({ path: "test-results/sp5-produkt.png" });
   expect(errors).toEqual([]);
 });

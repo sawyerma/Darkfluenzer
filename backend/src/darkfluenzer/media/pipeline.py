@@ -36,8 +36,10 @@ log = logging.getLogger("darkfluenzer.pipeline")
 # den die Galerie nicht aufnimmt; Länge und Abschnittslänge in Sekunden (keine Graph-Eingänge)
 WORK_PREFIX = "darkfluenzer_work"
 VIDEO_KEYS = ("duration_s", "segment_s")
-# Vorrangklasse aus der Auftragsquelle (Kundentest-Aufträge folgen mit SP5 als "default")
-PRIORITY_OF_SOURCE = {"customer": "customer", "cloner": "default", "operator": "cockpit"}
+# Vorrangklasse aus der Auftragsquelle; Kundentest-Aufträge laufen als Default (SP5 Schritt 6)
+PRIORITY_OF_SOURCE = {
+    "customer": "customer", "test": "default", "cloner": "default", "operator": "cockpit",
+}  # fmt: skip
 VIDEO_SUFFIXES = {".mp4", ".webm", ".mov", ".mkv"}
 LAST_FRAME, LAST_SAVE = "df_last_frame", "df_last_save"  # zusätzliche Nodes je Abschnitt
 
