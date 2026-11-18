@@ -295,7 +295,7 @@ class InstagramAccount(Channel):
             "platform": PLATFORM,
             "account": f"@{self.username}" if self.username else self.account,
             "state": self.state,
-            "error": self.error,
+            "error": self.error or self.task_error,
             "last_event_ms": self.last_event_ms,
             "missing": self.missing,
             # oauth: nur die Anmeldung fehlt -> Cockpit zeigt „Mit Instagram anmelden“
@@ -309,6 +309,9 @@ class InstagramAccount(Channel):
 
     def _set(self, state: str, *, error: str = "", missing: str = "", login: bool = False) -> None:
         new = (state, error, missing, login)
+        if state == "READY" and self.task_error:  # wieder bereit: Meldung der Aufsicht erledigt
+            self.task_error = ""
+            self.on_change()
         if new != (self.state, self.error, self.missing, self.login_needed):
             self.state, self.error, self.missing, self.login_needed = new
             self.on_change()
@@ -894,6 +897,9 @@ class InstagramAccount(Channel):
                 if self.state != "READY":
                     break
                 await self._send(item)
+                if self.task_error:  # Postausgang läuft wieder: Meldung der Aufsicht erledigt
+                    self.task_error = ""
+                    self.on_change()
 
     async def _send(self, item: dict) -> None:
         message_id = int(item["id"])

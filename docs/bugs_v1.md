@@ -200,6 +200,14 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP2 Schritt 1 (Daueraufgaben unter Aufsicht) / BUG-015
+Commit: siehe git log „SP2 step 1“ / core/supervise.py, web/http.lifecycle, channels (task_error), payments/chain
+Nachweis: tests/test_supervise.py – Neustart mit wachsender Pause und Meldung, Abbruch; Fehler im Versand →
+  nächste Nachricht geht raus, Meldung im Kanal-STATE, nach Erholung gelöscht; echter Cockpit-Neustart mit
+  Telegram unter Aufsicht
+Ergebnis: TEIL (Mac-Lauf mit echtem Versandfehler NICHT GELAUFEN)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP2 Schritt 9a (Kanalkonten als Liste, Datenmodell)
 Commit: siehe git log „SP2 step 9a“ / store/accounts.py (Migration 30), core/base (Übernahme, Adapter je Konto),
   core/messages (STATE 8, Befehl 40 assign_influencer, KI-Hinweis über Konto), store/customers (Sperre je Identität)

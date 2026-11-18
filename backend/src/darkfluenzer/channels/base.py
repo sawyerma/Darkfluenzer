@@ -38,6 +38,8 @@ class Channel(ABC):
     wake: asyncio.Event  # Postausgang hat Arbeit
     on_change_message: Callable[[int], None] | None
     gate: Callable[[dict], Awaitable[str]] | None  # Liefer-Gate vor dem Versand einer Zustellkopie
+    # letzter Fehler einer Daueraufgabe des Kontos, von der Aufsicht gemeldet (SP2 Schritt 1)
+    task_error: str = ""
 
     @property
     @abstractmethod

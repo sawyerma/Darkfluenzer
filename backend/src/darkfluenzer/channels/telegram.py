@@ -164,7 +164,7 @@ class TelegramAccount(Channel):
             "platform": PLATFORM,
             "account": label,
             "state": self.state,
-            "error": self.error,
+            "error": self.error or self.task_error,
             "last_event_ms": self.last_event_ms,
             "missing": self.missing,
             "login_state": self.login,
@@ -181,6 +181,9 @@ class TelegramAccount(Channel):
         self, state: str, *, login: str | None = None, error: str = "", missing: str = ""
     ) -> None:
         new = (state, self.login if login is None else login, error, missing)
+        if state == "READY" and self.task_error:  # wieder verbunden: Meldung der Aufsicht erledigt
+            self.task_error = ""
+            self.on_change()
         if new != (self.state, self.login, self.error, self.missing):
             self.state, self.login, self.error, self.missing = new
             self.on_change()
@@ -590,6 +593,9 @@ class TelegramAccount(Channel):
                 if self.state != "READY":
                     break
                 await self._send(item)
+                if self.task_error:  # Postausgang läuft wieder: Meldung der Aufsicht erledigt
+                    self.task_error = ""
+                    self.on_change()
 
     async def _pace(self, item: dict) -> None:
         """Telegram-Bremse, Höchstzahl je Minute, Antwortverzögerung und Schreibanzeige."""

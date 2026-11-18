@@ -35,6 +35,7 @@ from ..core.orders import OrdersMixin
 from ..core.registry import RegistryMixin
 from ..core.render import RenderMixin
 from ..core.sales import SalesMixin
+from ..core.supervise import supervise
 from ..nodes import llm
 from ..store import Store, StoreError
 from ..v1 import (
@@ -657,21 +658,31 @@ def create_app(cfg: Config) -> web.Application:
         if cfg.comfyui_ai is not None:  # SPEC-018: verwaiste Sitzungsordner der Sprach-KI
             await asyncio.to_thread(llm.sweep, cfg)
         cockpit.enqueue_existing()
+        server = cfg.server
+
+        def watched(name, start, report=None):  # SP2 Schritt 1: jede Daueraufgabe unter Aufsicht
+            return asyncio.create_task(
+                supervise(name, start, report=report, base_s=server.task_restart_s,
+                          max_s=server.task_restart_max_s)
+            )  # fmt: skip
+
         tasks = [
-            asyncio.create_task(cockpit.observe()),
-            asyncio.create_task(cockpit.watch_loop()),
-            *(asyncio.create_task(cockpit.render_worker(lane)) for lane in cockpit.lanes.values()),
-            *(
-                asyncio.create_task(cockpit.progress_listener(lane))
-                for lane in cockpit.lanes.values()
-            ),
+            watched("Beobachter", cockpit.observe),
+            watched("Hauptstrang-Messung", cockpit.watch_loop),
         ]
+        for lane in cockpit.lanes.values():
+            tasks.append(
+                watched(f"Render {lane.inst.name}", lambda lane=lane: cockpit.render_worker(lane))
+            )
+            tasks.append(watched(f"Fortschritt {lane.inst.name}",
+                                 lambda lane=lane: cockpit.progress_listener(lane)))  # fmt: skip
         if cockpit.wallet:
-            tasks.append(asyncio.create_task(cockpit.wallet.run()))
-        for adapter in filter(None, (cockpit.telegram, cockpit.instagram)):
+            tasks.append(watched("Wallet", cockpit.wallet.run, cockpit.wallet_task_failed))
+        for adapter in cockpit.adapters.values():
+            report = cockpit.channel_task_reporter(adapter)
             tasks += [
-                asyncio.create_task(adapter.run()),
-                asyncio.create_task(adapter.outbox_worker()),
+                watched(f"{adapter.key}: Empfang", adapter.run, report),
+                watched(f"{adapter.key}: Postausgang", adapter.outbox_worker, report),
             ]
         yield
         for task in tasks:

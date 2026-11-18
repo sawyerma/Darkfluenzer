@@ -96,6 +96,9 @@ class ServerConfig:
     memory_reserve_gb: float
     # Öffentlicher Eingang (nur Webhook/OAuth/signierte Medien) auf 127.0.0.1 – einziges Tunnel-Ziel
     public_port: int
+    # Aufsicht der Daueraufgaben (SP2 Schritt 1): erste Pause nach einem Fehler, höchste Pause
+    task_restart_s: float = 2.0
+    task_restart_max_s: float = 300.0
 
     @property
     def url(self) -> str:
@@ -653,6 +656,8 @@ def _parse_server(t: dict) -> ServerConfig:
         loop_probe_s=_positive(t, "loop_probe_s", 0.25, w),
         loop_lag_window_s=_positive(t, "loop_lag_window_s", 60, w),
         folder_scan_s=_positive(t, "folder_scan_s", 30, w),
+        task_restart_s=_positive(t, "task_restart_s", 2, w),
+        task_restart_max_s=_positive(t, "task_restart_max_s", 300, w),
         command_wait_s=_positive(t, "command_wait_s", 30, w),
         catchup_limit=int(_positive(t, "catchup_limit", 200, w)),
         timeout_s=_positive(t, "timeout_s", 20, w),

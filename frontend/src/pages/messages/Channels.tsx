@@ -114,7 +114,8 @@ export function ChannelAccounts({ channels, stale }: { channels: readonly Channe
         .filter((ch) => SUPPORTED.includes(ch.platform))
         .map((ch) => {
           const [label, tone] = channelBadge(ch);
-          const detail = ch.state === "READY" || ch.state === "LOGIN" ? "" : ch.error || ch.missing;
+          // Fehler einer Daueraufgabe (Aufsicht, SP2 Schritt 1) auch bei verbundenem Kanal zeigen
+          const detail = ch.state === "LOGIN" ? "" : ch.state === "READY" ? ch.error : ch.error || ch.missing;
           const flood = Number(ch.floodUntilMs) > Date.now() ? `Telegram bremst bis ${shortTime(ch.floodUntilMs)}` : "";
           return (
             <div key={ch.key || ch.platform} className="g-stack">
@@ -129,7 +130,7 @@ export function ChannelAccounts({ channels, stale }: { channels: readonly Channe
                   {label}
                 </span>
               </span>
-              {detail ? ch.state === "ERROR" ? <span className="g-error">{detail}</span> : <small>{detail}</small> : null}
+              {detail ? ch.state === "ERROR" || ch.error ? <span className="g-error">{detail}</span> : <small>{detail}</small> : null}
               {ch.testMode && ch.state !== "OFF" ? <small>Testbetrieb · nur freigegebene Test-Chats</small> : null}
               {ch.testMode && ch.rejectedChats.length ? (
                 <small className="g-mono">

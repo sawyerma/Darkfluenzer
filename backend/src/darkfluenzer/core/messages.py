@@ -41,6 +41,21 @@ class MessagesMixin:
         msg.channels.add(platform="whatsapp", state="OFF", missing="WhatsApp folgt später (C7)")
         return msg.SerializeToString()
 
+    def channel_task_reporter(self, adapter):
+        """Meldeweg der Aufsicht (SP2 Schritt 1): Fehler einer Kanalaufgabe im Kanal-STATE."""
+
+        def report(message: str) -> None:
+            adapter.task_error = message
+            self._channels_changed()
+
+        return report
+
+    def wallet_task_failed(self, message: str) -> None:
+        """Meldeweg der Aufsicht für den Wallet-Beobachter (Quelle „Beobachter“ im STATE 10)."""
+        if self.wallet is not None:
+            self.wallet.errors["watcher"] = message
+            self._wallet_changed()
+
     def _channels_changed(self) -> None:
         for adapter in self.adapters.values():  # Konto-ID nach der Anmeldung festhalten
             if adapter.account:

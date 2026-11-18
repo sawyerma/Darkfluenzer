@@ -87,6 +87,7 @@ class WalletWatcher:
                     except (aiohttp.ClientError, TimeoutError, KeyError, ValueError) as exc:
                         self.errors[name] = f"{type(exc).__name__}: {str(exc)[:160]}"
                         log.warning("Wallet %s: %s", name, self.errors[name])
+                self.errors.pop("watcher", None)  # Runde gelungen: Meldung der Aufsicht erledigt
                 self.on_state()
                 await asyncio.sleep(self.w.poll_s)
 
@@ -353,4 +354,8 @@ class WalletWatcher:
             }
             for key, name, url, active in used
             if active
-        ]
+        ] + (
+            [{"name": "Beobachter", "url": "", "ok_ms": 0, "error": self.errors["watcher"]}]
+            if self.errors.get("watcher")
+            else []
+        )
