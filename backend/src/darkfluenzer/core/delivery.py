@@ -7,13 +7,35 @@ import os
 import shutil
 from pathlib import Path
 
+from PIL import Image
+
 from .. import approval
-from ..media import aimeta
+from ..media import aimeta, models
 from ..store import StoreError, sha256_file
 from ..v1 import (
     commands_pb2,
 )
+from . import dialog
 from .base import _Call, _document_attachment, log
+
+MB = 1024 * 1024
+
+
+def _media_attachment(
+    local: Path, path: Path, kind: str, *, self_destruct_s: int = 0, limit_mb: float | None = None
+) -> dict:
+    """Anhang der Zustellkopie nach Anhangart (SP5 Schritt 9: photo, video, document) mit
+    Kanalgrenze; Arbeiter-Thread (liest die Datei)."""
+    att = _document_attachment(local, path) | {"kind": kind}
+    if kind == "photo":
+        with Image.open(path) as im:
+            att["width"], att["height"] = im.size
+    if self_destruct_s:
+        att["self_destruct_s"] = self_destruct_s
+    size_mb = att["size"] / MB
+    if limit_mb is not None and size_mb > limit_mb:
+        raise StoreError(f"Zu groß für den Kanal ({size_mb:.1f} MB, Grenze {limit_mb:g} MB).")
+    return att
 
 
 def _place_copy(src: Path, dst: Path, sha256: str) -> None:
@@ -47,25 +69,144 @@ class DeliveryMixin:
 
     def _delivery_copy(self, order, master: Path, attempt: int) -> Path:
         """Gekennzeichnete Zustellkopie (Regel 12 d) im Ordner sent/<Versuch> des Auftrags: eine
-        gesendete Kopie wird nie überschrieben (FABLE-006), der Dateiname bleibt die Nummer."""
-        name = f"{order.order_no}{master.suffix.lower()}"
-        copy = self.store.order_dir(order) / "sent" / str(attempt) / name
+        gesendete Kopie wird nie überschrieben (FABLE-006), der Dateiname bleibt die Nummer.
+        Kanalformat (SP5 Schritt 9): WebP wird vor der Kennzeichnung zu PNG, WebM abgewiesen."""
+        suffix = master.suffix.lower()
+        if suffix == ".webm":
+            raise StoreError("WebM wird nicht zugestellt – Video als MP4 erzeugen.")
+        work = self.store.order_dir(order) / "sent" / str(attempt)
+        if suffix == ".webp":
+            converted = work / f"{order.order_no}_umgewandelt.png"
+            converted.parent.mkdir(parents=True, exist_ok=True)
+            with Image.open(master) as im:
+                im.save(converted, "PNG")
+            master, suffix = converted, ".png"
+        copy = work / f"{order.order_no}{suffix}"
         aimeta.mark(master, copy)
         return copy
 
-    def _queue_delivery(self, order, delivery_id: int, attachment: dict) -> int:
-        """Zustellnachricht mit vorher (im Arbeiter-Thread) berechnetem Anhang einreihen."""
+    def _queue_delivery(self, order, delivery_id: int, attachment: dict, text: str = "") -> int:
+        """Zustellnachricht mit vorher (im Arbeiter-Thread) berechnetem Anhang und Begleittext
+        einreihen; Testaufträge im Testverlauf."""
         offer = self.store.offer(order.id)
         assert offer is not None
         conv = offer["conversation_id"]
         return self.store.queue_outbound(
             order.customer_id,
             conv,
-            "",
+            text,
             revision=self.store.conversation_revision(conv),
             attachments=[attachment],
             delivery_id=delivery_id,
+            test=order.test,
         )
+
+    def _delivery_kind(self, order, product: dict | None, caps) -> tuple[str, int]:
+        """Anhangart aus dem Produkt (SP5 Schritt 9): Foto bzw. Video, Dokument nur mit der
+        Zusatzleistung Originaldatei und nur, wo der Kanal Dateien kennt; selbstlöschend, wo der
+        Kanal es kann (Zeit aus [telegram] self_destruct_s)."""
+        kind = "video" if order.kind == "video" else "photo"
+        if product and product.get("original_file") and caps.document:
+            kind = "document"
+        destruct = 0
+        if product and product.get("self_destruct") and caps.self_destruct and self.cfg.telegram:
+            destruct = self.cfg.telegram.self_destruct_s
+        return kind, destruct
+
+    async def _delivery_caption(self, order, offer: dict) -> str:
+        """Begleittext: Formulierung aus dem Profilblock „delivery“ (E19), danach der KI-Hinweis
+        der Influencerin wörtlich (Pflichtangabe, weil der Medienversand Metadaten entfernen
+        kann). Ohne Block, bei Fehler oder verletztem Betrags-/Zahlungsweg-Gate nur der Hinweis."""
+        _product, figure = self._order_figure(offer)
+        if figure is None:
+            return ""
+        notice = (figure.get("ai_notice") or "").strip()
+        persona = self.store.active_persona(figure["id"])
+        block = (persona["blocks"].get("delivery", "") if persona else "").strip()
+        answer = ""
+        if persona is not None and block:
+            wf = self._text_workflow("")
+            values = {k: persona["blocks"].get(k, "") for k in models.PROFILE_INPUTS}
+            values |= {
+                "context": "",
+                "memory": "",
+                "facts": f"{offer['product']} wird jetzt zugestellt",
+                "message": block,
+            }
+            values |= {k: v for k, v in persona["params"].items() if k in wf.params}
+            run = {"influencer_id": figure["id"], "persona_version": persona["id"],
+                   "customer_id": order.customer_id, "message": "(Begleittext der Zustellung)",
+                   "context": {"order": order.order_no, "caption": True}}  # fmt: skip
+            facts = dialog.facts_for(self.cfg, figure)
+            error, run_id, _typed = await self._llm_run(
+                "test" if order.test else "chat", wf.key, values, run, facts
+            )
+            row = self.store.ai_run(run_id) or {}
+            bad = [g["reason"] for g in self._gates_of(row)
+                   if g["name"] in ("amounts", "payment_ways") and not g["ok"]]  # fmt: skip
+            if error or bad:
+                self._card(order, f"BEGLEITTEXT VERWORFEN · {order.order_no} · {error or bad[0]}")
+            else:
+                answer = (row.get("answer") or "").strip()
+        return "\n\n".join(p for p in (answer, notice) if p)
+
+    def _window_closed(self, order) -> bool:
+        """Antwortfenster der Plattform zu (Instagram 24 h)?"""
+        offer = self.store.offer(order.id)
+        if offer is None:
+            return False
+        ident, _figure = self._dialog_parts(offer["conversation_id"])
+        adapter = self._adapter(ident["platform"], ident["account"])
+        if adapter is None or not adapter.capabilities().reply_window:
+            return False
+        return not adapter.window_open(ident["platform_conversation_id"])
+
+    async def _deliver(self, order, art) -> str:
+        """Zustellung eines freigegebenen Artefakts: Kopie im Kanalformat, Anhangart aus dem
+        Produkt, Begleittext, Gate (approval.py), Postausgang. Leer = eingereiht."""
+        offer = self.store.offer(order.id)
+        product, _figure = self._order_figure(offer or {})
+        platform, account = self.store.conversation_account(offer["conversation_id"])
+        adapter = self._adapter(platform, account)
+        if adapter is None:
+            return f"{platform} ist nicht verbunden."
+        caps = adapter.capabilities()
+        kind, destruct = self._delivery_kind(order, product, caps)
+        attempt = len(self.store.deliveries(order.id))
+        master = self.cfg.local / art.path
+        try:
+            disk_sha = await asyncio.to_thread(approval.file_sha, master)
+            copy = await asyncio.to_thread(self._delivery_copy, order, master, attempt + 1)
+            attachment = await asyncio.to_thread(
+                _media_attachment, self.cfg.local, copy, kind, self_destruct_s=destruct,
+                limit_mb=caps.max_attachment_mb.get(kind),
+            )  # fmt: skip
+        except (StoreError, OSError) as exc:
+            self._card(order, f"ZUSTELLUNG GESPERRT · {order.order_no} · {exc}")
+            self._message_changed(0)
+            return str(exc)
+        caption = await self._delivery_caption(order, offer)
+        with self.store.tx():
+            delivery = approval.prepare_delivery(
+                self.store, order.order_no, art.id, order.customer_no, attempt=attempt,
+                disk_sha=disk_sha,
+            )  # fmt: skip
+            message_id = self._queue_delivery(order, delivery, attachment, caption)
+        self._wake(order)
+        self._orders_changed()
+        self._message_changed(message_id)
+        return ""
+
+    async def _resume_parked(self, conversation_id: int) -> None:
+        """Kunde schreibt wieder (Instagram-Fenster offen): geparkte Zustellungen dieser
+        Konversation gehen jetzt raus (awaiting_contact -> approved -> Postausgang)."""
+        for order_no in self.store.parked_orders(conversation_id):
+            order = self.store.transition(order_no, "approved", by="Kontakt")
+            art = self.store.last_approved_artifact(order.id)
+            if art is None:
+                continue
+            self._card(order, f"ZUSTELLUNG NACH KONTAKT · {order_no}")
+            await self._deliver(order, art)
 
     def _send_ready(self, order) -> str:
         offer = self.store.offer(order.id)
@@ -97,24 +238,26 @@ class DeliveryMixin:
         # Name nach Inhalt: ein neues Ergebnis nach „Neu“ überschreibt nie den alten Master
         name = f"{order.order_no}_ergebnis_{result['sha256'][:12]}{src.suffix.lower()}"
         master = self.store.order_dir(order) / "work" / name
-        attempt = len(self.store.deliveries(order.id)) + 1
         await asyncio.to_thread(_place_copy, src, master, result["sha256"])
-        copy = await asyncio.to_thread(self._delivery_copy, order, master, attempt)
-        attachment = await asyncio.to_thread(_document_attachment, self.cfg.local, copy)
         with self.store.tx():
             art = self.store.artifact_at(master) or self.store.add_artifact(
                 order.order_no, "master", master, job_id=result["job_id"], sha256=result["sha256"]
             )  # Hash eben in _place_copy geprüft (FABLE-003); gleicher Inhalt: derselbe Master
             self.store.record_approval(order.order_no, art.id, "approved", "Betreiber")
-            delivery = approval.prepare_delivery(
-                self.store, order.order_no, art.id, order.customer_no, disk_sha=result["sha256"]
-            )
-            message_id = self._queue_delivery(order, delivery, attachment)
-            self._card(order, f"FREIGEGEBEN · {order.order_no} · Zustellung im Postausgang")
-        call.entity = f"message:{message_id}"
-        self._wake(order)
-        self._orders_changed()
-        self._message_changed(message_id)
+        order = self.store.order(order.order_no)
+        if self._window_closed(order):  # Instagram-Fenster zu: Zustellung parkt (SP5 Schritt 9)
+            self.store.transition(order.order_no, "awaiting_contact", by="Antwortfenster")
+            text = f"ZUSTELLUNG WARTET AUF KONTAKT · {order.order_no} · Antwortfenster zu"
+            self._card(order, text)
+            self.store.notify_default(text)
+            self._orders_changed()
+            self._message_changed(0)
+            return ""
+        if reason := await self._deliver(order, art):
+            return reason
+        self._card(order, f"FREIGEGEBEN · {order.order_no} · Zustellung im Postausgang")
+        call.entity = f"order:{order.order_no}"
+        self._message_changed(0)
         return ""
 
     async def _retry_delivery(self, msg: commands_pb2.RetryDelivery, call: _Call) -> str:
@@ -127,21 +270,10 @@ class DeliveryMixin:
         if reason := self._send_ready(order):
             return reason
         last = deliveries[-1]
-        master = self.cfg.local / self.store.artifact(last["artifact_id"]).path
-        disk_sha = await asyncio.to_thread(approval.file_sha, master)
-        copy = await asyncio.to_thread(self._delivery_copy, order, master, len(deliveries) + 1)
-        attachment = await asyncio.to_thread(_document_attachment, self.cfg.local, copy)
-        with self.store.tx():
-            delivery = approval.prepare_delivery(
-                self.store, order.order_no, last["artifact_id"], order.customer_no,
-                attempt=len(deliveries), disk_sha=disk_sha,
-            )  # fmt: skip
-            message_id = self._queue_delivery(order, delivery, attachment)
-            self._card(order, f"ERNEUT GESENDET · {order.order_no} · Zustellung im Postausgang")
-        call.entity = f"message:{message_id}"
-        self._wake(order)
-        self._orders_changed()
-        self._message_changed(message_id)
+        if reason := await self._deliver(order, self.store.artifact(last["artifact_id"])):
+            return reason
+        self._card(order, f"ERNEUT GESENDET · {order.order_no} · Zustellung im Postausgang")
+        self._message_changed(0)
         return ""
 
     async def _delivery_gate(self, item: dict) -> str:

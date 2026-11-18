@@ -61,15 +61,18 @@ test("Übersicht: Kundenfreigabe und bezahlter Auftrag sichtbar, Akte öffnet; P
   const rows = orderRows(page);
   const review = rows.filter({ has: page.locator(".g-badge", { hasText: "FREIGABE" }) });
   const paid = rows.filter({ has: page.locator(".g-badge", { hasText: "BEZAHLT" }) });
-  await expect(review).toHaveCount(1);
-  // bezahlte Aufträge: der Seed dieses Tests plus Testaufträge anderer Seeds (SP5 Schritt 12)
-  await expect(paid.first()).toBeVisible();
-  await expect(review).toContainText(/DF-C-\d{6} · Foto · Ergebnis prüfen/);
-  await expect(paid.first()).toContainText("wartet auf Produktion");
-  const waiting = await paid.count();
-  await expect(card(page, "Freigaben ausstehend").locator("small").nth(1)).toHaveText(new RegExp(`^Freigabe 1 · wartet auf Produktion ${waiting} · `));
-  const customer = (await review.innerText()).match(/DF-C-\d{6}/)?.[0] ?? "";
-  await review.click();
+  // Freigaben und bezahlte Aufträge: der Seed dieses Tests plus Aufträge anderer Seeds (SP5)
+  await expect(review.first()).toBeVisible();
+  await expect(review.first()).toContainText(/DF-C-\d{6} · \S+ · Ergebnis prüfen/);
+  if (await paid.count()) await expect(paid.first()).toContainText("wartet auf Produktion");
+  // Kennzahl zählt alle, die Liste zeigt eine begrenzte Auswahl: Kennzahl ≥ sichtbare Zeilen
+  const kpi = card(page, "Freigaben ausstehend").locator("small").nth(1);
+  await expect(kpi).toHaveText(/^Freigabe \d+ · wartet auf Produktion \d+ · /);
+  const [, shownReview, shownPaid] = ((await kpi.textContent()) ?? "").match(/^Freigabe (\d+) · wartet auf Produktion (\d+)/) ?? [];
+  expect(Number(shownReview)).toBeGreaterThanOrEqual(await review.count());
+  expect(Number(shownPaid)).toBeGreaterThanOrEqual(Math.max(1, await paid.count()));
+  const customer = (await review.first().innerText()).match(/DF-C-\d{6}/)?.[0] ?? "";
+  await review.first().click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Nachrichten");
   await expect(page.locator(`[role="tab"][title="${customer}"]`)).toHaveAttribute("aria-selected", "true");
 

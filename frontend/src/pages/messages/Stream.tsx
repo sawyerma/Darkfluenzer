@@ -126,6 +126,23 @@ function CustomerOrder({ order }: { order: ActiveOrder }) {
             </a>
           ) : null}
           <small>Inhaltsstufe: {order.resultTier || "unbekannt (gilt als explizit)"}</small>
+          {order.kind === "video" && order.stages.at(-1)?.kind === "finish" ? (
+            <div className="g-actions">
+              <button
+                type="button"
+                className="g-button"
+                disabled={cmd.pending}
+                onClick={() =>
+                  void cmd.run(
+                    { case: "retryStage", value: { orderNo: order.orderNo, seq: order.stages.at(-1)?.seq ?? 0 } },
+                    { done: "Animation wird mit neuem Seed neu erzeugt." },
+                  )
+                }
+              >
+                Animation neu (neuer Seed)
+              </button>
+            </div>
+          ) : null}
           {standard ? (
             <>
               <label className="g-switch">

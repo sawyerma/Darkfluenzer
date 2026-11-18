@@ -17,10 +17,10 @@ TRANSITIONS: dict[str, set[str]] = {
     "paid": {"producing", "refunded"},
     "producing": {"review", "refunded"},
     "review": {"producing", "approved", "refunded"},
-    "approved": {"delivered", "producing", "refunded"},
+    # awaiting_contact (SP5 Schritt 9): Antwortfenster zu, Zustellung parkt bis zum Kontakt
+    "approved": {"delivered", "producing", "refunded", "awaiting_contact"},
     "delivered": set(),
-    # awaiting_contact: Zustellung geparkt, bis der Kunde wieder schreibt (Übergänge SP5 Schritt 9)
-    "awaiting_contact": set(),
+    "awaiting_contact": {"approved", "refunded"},
     "cancelled": set(),
     "refunded": set(),
 }

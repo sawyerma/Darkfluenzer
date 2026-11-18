@@ -117,6 +117,8 @@
 | BUG-109 | Wiederholen und „Wiederholen“ (repeat_job_id) eines Sekunden-Videos (LTX) scheitern: der Job speichert `segment_s = 0`, `video_plan` lehnt jedes `segment_s` ab („Abschnitte gibt es bei diesem Workflow nicht“). Gefunden mit dem Regressionstest zu FABLE-008. | CODE | `segment_s = 0` heißt keine Abschnitte; andere Werte bleiben abgelehnt. | A |
 | BUG-126 | Langvideo: das Zusammensetzen meldet die Vorschau jedes `LoadVideo` (Typ `input`) als Ausgabe; `comfy` übernahm sie als Ergebnis – die Abschnittsvideos landeten als Medien in der Galerie, das Job-Ergebnis zeigte auf das erste Abschnittsvideo statt auf das fertige Video (echter Lauf 18.11., Job 103: Medien 106/107 Abschnitte, 108 fertig). Nummer 126, weil 110–125 als vorläufige Nummern des Auditblatts im Text stehen. | CODE | Ausgaben vom Typ `input` sind nie Ergebnisse. | A |
 | BUG-127 | Testprozess-Leck: Tests, die über Cockpit oder Pipeline rendern, starten die Fake-ComfyUI per `runtime.start` mit eigener Prozessgruppe (`start_new_session`, im Betrieb gewollt); kein Test stoppte sie. 18.11.: 451 verwaiste Prozesse aus elf Testarten. | CODE | Bereinigung je Testprojekt und am Sitzungsende (Prozessgruppe, nur Test-Interpreter + `main.py` + Arbeitsverzeichnis unter pytest). | Test |
+| BUG-128 | Telegram-Versand von Dateien: `inputMessageDocument.document` ist in TDLib 1.8.70 ein `inputDocument`; der Code gab `inputFileLocal` direkt hinein – TDLib parst das ohne Fehler, ohne Datei (bloßes Feld `path` auf falscher Ebene), der echte Versand (Zustellung, Kloner-Rückgabe) schlägt fehl. Gefunden beim Abgleich mit `td_api.tl` (SP5 Schritt 9). | CODE | Datei in `inputDocument`/`inputPhoto`/`inputVideo`; Parser-Prüfung mit frischem, nicht angemeldetem TDLib-Client. | D (SP5 9) |
+| BUG-129 | Videoauftrag (Bild-Kandidaten + Animation) bekommt die Art `image`: `create_order` setzt die Art aus der Engine des Kandidaten-Workflows und überschreibt `video`; Folge: Zustellung als Foto, „Animation neu“ fehlt. Gefunden mit dem Browser-Test zu SP5 Schritt 9. | CODE | Art aus dem Endergebnis (Fertigstellen-Workflow Video → `video`). | D (SP5 9) |
 
 ## 4. P3
 
@@ -200,6 +202,22 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP5 Schritt 9 (Zustellung) mit BUG-128 und BUG-129
+Commit: siehe git log „SP5 step 9“ / channels/telegram (_content: Foto, Video, Dokument, Timer),
+  config ([telegram] max_photo_mb/max_file_mb/self_destruct_s), core/delivery (_delivery_kind,
+  _delivery_copy WebP/WebM, _media_attachment, _delivery_caption, _window_closed, _deliver,
+  _resume_parked), core/orders (Art aus Endergebnis, Fertigstellen neu mit Seed), core/messages,
+  store (TRANSITIONS awaiting_contact, parked_orders, last_approved_artifact, queue_outbound test),
+  Stream („Animation neu“)
+Nachweis: test_delivery (4: TDLib-Eingaben je Art, Grenze/Bildmaße, Art/Format/Begleittext/
+  Fenster/Wiederaufnahme, Video-Fertigstellen neu mit Seed und Art video – vorher rot), Parser-
+  Prüfung TDLib 1.8.70 (frischer Client ohne Anmeldung: neue Formen geparst, alte Form ohne Datei),
+  volle Suite 315 grün; Chrome-E2E isoliert 28/28 (neu delivery.spec.ts), lesend echt 10/10
+NOT_RUN: echter Versand an Telegram/Instagram (Foto, Video, selbstlöschend, Dokument), Begleittext
+  mit echtem Profilblock, Instagram-Fenster am echten Konto
+Ergebnis: CODE (Integration isoliert belegt), Versand NOT_RUN
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP5 Schritt 6 (Produktion nach Zahlung)
 Commit: siehe git log „SP5 step 6“ / Migration 41 (image_auto, offers.wish/wish_source/
   production_started_at/delay_notice_at), core/autoprod.py (neu), core/sales (Start nach Zahlung,

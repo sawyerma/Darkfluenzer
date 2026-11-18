@@ -106,20 +106,61 @@ def _size(f: dict) -> int:
     return int(f.get("size") or f.get("expected_size") or 0)
 
 
+def _content(local: Path, att: dict, caption: dict) -> dict:
+    """Eingabe für ``sendMessage`` nach Anhangart (TDLib 1.8.70): ``photo`` und ``video`` als
+    Medium (optional selbstlöschend nach ``self_destruct_s``), sonst verlustfrei als Dokument.
+    Die Datei steckt in ``inputPhoto``/``inputVideo``/``inputDocument`` – ein ``inputFileLocal``
+    direkt im Feld würde ohne Fehler ohne Datei geparst."""
+    file = {"@type": "inputFileLocal", "path": str(local / att["path"])}
+    timer = (
+        {"@type": "messageSelfDestructTypeTimer", "self_destruct_time": int(att["self_destruct_s"])}
+        if att.get("self_destruct_s")
+        else None
+    )
+    kind = att.get("kind")
+    if kind == "photo":
+        return {
+            "@type": "inputMessagePhoto",
+            "photo": {"@type": "inputPhoto", "photo": file, "width": int(att.get("width") or 0),
+                      "height": int(att.get("height") or 0)},
+            "caption": caption, "self_destruct_type": timer,
+        }  # fmt: skip
+    if kind == "video":
+        return {
+            "@type": "inputMessageVideo",
+            "video": {"@type": "inputVideo", "video": file,
+                      "duration": int(att.get("duration_s") or 0),
+                      "width": int(att.get("width") or 0), "height": int(att.get("height") or 0),
+                      "supports_streaming": True},
+            "caption": caption, "self_destruct_type": timer,
+        }  # fmt: skip
+    return {
+        "@type": "inputMessageDocument",
+        "document": {"@type": "inputDocument", "document": file},
+        "caption": caption,
+    }
+
+
 class TelegramAccount(Channel):
     """Ein Telegram-Nutzerkonto (Claras Konto; im Testbetrieb das des Betreibers)."""
 
     platform = PLATFORM
 
     def capabilities(self) -> Capabilities:
-        """Dateien gehen heute als Dokument; selbstlöschend, Gelesen, Tippen folgen (SP4/SP5)."""
+        """Foto, Video oder Dokument (Originaldatei); selbstlöschend über TDLib im Privatchat;
+        Größen aus der Konfiguration (SP5 Schritt 9)."""
+        tg = self.cfg.telegram
+        assert tg is not None
         return Capabilities(
             document=True,
-            self_destruct=False,
+            self_destruct=True,
             reply_window=False,
             read_receipts=False,
             typing=False,
-        )
+            max_attachment_mb={
+                "photo": tg.max_photo_mb, "video": tg.max_file_mb, "document": tg.max_file_mb,
+            },
+        )  # fmt: skip
 
     def __init__(
         self,
@@ -796,15 +837,10 @@ class TelegramAccount(Channel):
         files = [a for a in item["attachments"] if a.get("path")]
         contents = (
             [
-                {  # verlustfrei als Dokument (Telegram komprimiert Fotos neu)
-                    "@type": "inputMessageDocument",
-                    "document": {
-                        "@type": "inputFileLocal",
-                        "path": str(self.cfg.local / a["path"]),
-                    },
-                    # Beschriftung nur am ersten Anhang (SP2 Schritt 5), nicht an jedem Teil
-                    "caption": text if i == 0 else {"@type": "formattedText", "text": ""},
-                }
+                # Beschriftung nur am ersten Anhang (SP2 Schritt 5), nicht an jedem Teil
+                _content(
+                    self.cfg.local, a, text if i == 0 else {"@type": "formattedText", "text": ""}
+                )
                 for i, a in enumerate(files)
             ]
             if files

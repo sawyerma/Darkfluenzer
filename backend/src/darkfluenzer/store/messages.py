@@ -279,10 +279,11 @@ class MessagesMixin:
         attachments: list[dict] | None = None,
         reply_to: str | None = None,
         delivery_id: int | None = None,
+        test: bool = False,
     ) -> int:
         """Ausgehende Nachricht in den Postausgang (Status queued). Nur an eine Konversation
         dieses Kunden und nur auf der gesehenen Gesprächsrevision (CAS gegen überholte
-        Antworten)."""
+        Antworten); ``test`` = Testverlauf (Zustellung eines Testauftrags, SP5 Schritt 9)."""
         with self.tx() as db:
             conv = db.execute(
                 "SELECT c.revision, i.customer_id FROM channel_conversations c"
@@ -298,7 +299,7 @@ class MessagesMixin:
             cur = db.execute(
                 "INSERT INTO channel_messages (customer_id, conversation_id, direction, text,"
                 " attachments, status, reply_to_platform_id, request_id, delivery_id, sent_at,"
-                " created_at) VALUES (?,?,'out',?,?,'queued',?,?,?,?,?)",
+                " created_at, test) VALUES (?,?,'out',?,?,'queued',?,?,?,?,?,?)",
                 (
                     customer_id,
                     conversation_id,
@@ -309,6 +310,7 @@ class MessagesMixin:
                     delivery_id,
                     now(),
                     now(),
+                    int(test),
                 ),
             )
             for att in attachments or []:  # gesendete Dateien: im Cockpit wie Eingänge abrufbar

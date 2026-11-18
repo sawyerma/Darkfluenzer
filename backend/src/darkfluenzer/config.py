@@ -123,6 +123,11 @@ class TelegramConfig:
     max_messages_per_minute: int  # Schutz; Antworttempo kommt aus dem Verhaltensprofil (SP4 7)
     # nie gespeichert (SP2 Schritt 5): Telegram-Dienstkonto 777000 (Anmeldecodes)
     ignored_chat_ids: tuple[int, ...] = (777000,)
+    # Zustellung (SP5 Schritt 9): Grenze für Fotos (Telegram komprimiert, sonst Dokument), für
+    # Videos und Dateien, Zeit selbstlöschender Medien im Privatchat (1 bis 60 s)
+    max_photo_mb: float = 10.0
+    max_file_mb: float = 2000.0
+    self_destruct_s: int = 30
 
 
 @dataclass(frozen=True)
@@ -510,7 +515,17 @@ def _parse_telegram(tg: object, root: Path, path: Path) -> TelegramConfig | None
         max_download_mb=_positive(tg, "max_download_mb", 2000, w),
         max_messages_per_minute=int(_positive(tg, "max_messages_per_minute", 6, w)),
         ignored_chat_ids=tuple(ignored),
+        max_photo_mb=_positive(tg, "max_photo_mb", 10, w),
+        max_file_mb=_positive(tg, "max_file_mb", 2000, w),
+        self_destruct_s=_self_destruct(tg, w),
     )
+
+
+def _self_destruct(tg: dict, w: str) -> int:
+    value = tg.get("self_destruct_s", 30)
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 60:
+        raise ConfigError(f"Konfiguration: {w}.self_destruct_s muss 1 bis 60 Sekunden sein.")
+    return value
 
 
 # Erste Pfadsegmente des lokalen Cockpits; öffentliche Instagram-Pfade dürfen sie nie überdecken

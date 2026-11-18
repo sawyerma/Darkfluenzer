@@ -82,6 +82,9 @@ class MessagesMixin:
         if inbound.customer.kind == "internal" and inbound.message_id:
             await self._cloner_entry(inbound)  # jeder Ausgang mit Karte und Antwort (SP1 5)
         elif inbound.message_id:
+            # Kunde schreibt wieder: geparkte Zustellungen gehen raus (SP5 Schritt 9)
+            if self.store.parked_orders(inbound.conversation_id):
+                await self._resume_parked(inbound.conversation_id)
             # Kundenzweig: Dialogbetrieb (SP4 Schritt 6); True = gelesen zur geplanten Zeit
             return await self._dialog_entry(inbound)
         return False

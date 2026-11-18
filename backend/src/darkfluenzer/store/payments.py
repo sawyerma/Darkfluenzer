@@ -123,6 +123,26 @@ class PaymentsMixin:
         ).fetchone()
         return row is not None
 
+    def parked_orders(self, conversation_id: int) -> list[str]:
+        """Aufträge dieser Konversation, deren Zustellung auf Kontakt wartet (awaiting_contact)."""
+        rows = self.db.execute(
+            "SELECT o.order_no FROM orders o JOIN offers f ON f.order_id = o.id"
+            " WHERE f.conversation_id = ? AND o.status = 'awaiting_contact' ORDER BY o.id",
+            (conversation_id,),
+        )
+        return [r[0] for r in rows]
+
+    def last_approved_artifact(self, order_id: int):
+        """Artefakt der letzten Freigabe eines Auftrags (oder None)."""
+        row = self.db.execute(
+            "SELECT artifact_id, decision FROM approvals WHERE order_id = ? ORDER BY id DESC"
+            " LIMIT 1",
+            (order_id,),
+        ).fetchone()
+        if row is None or row["decision"] != "approved":
+            return None
+        return self.artifact(row["artifact_id"])
+
     def mark_production_started(self, order_id: int) -> None:
         with self.tx() as db:
             db.execute(

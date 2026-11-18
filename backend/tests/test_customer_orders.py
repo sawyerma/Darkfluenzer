@@ -180,8 +180,18 @@ def test_customer_order_chain(cfg, monkeypatch):
         monkeypatch.setattr(cockpit, "_product_problems", lambda *_a, **_k: [])
         # Lieferzeit (SP5 Schritt 2) prüft test_offers; hier gemessen 10 Minuten
         monkeypatch.setattr(cockpit, "_delivery_estimate", lambda *_a: (600.0, ""))
+        from darkfluenzer.channels.base import Capabilities
+
+        caps = Capabilities(document=True, self_destruct=True, reply_window=False,
+                            read_receipts=False, typing=False)  # fmt: skip
         channel = types.SimpleNamespace(  # Kanal verbunden, angemeldet als das Konto der Akte
-            state="READY", wake=asyncio.Event(), platform="telegram", account=BOT, key="telegram"
+            state="READY",
+            wake=asyncio.Event(),
+            platform="telegram",
+            account=BOT,
+            key="telegram",
+            capabilities=lambda: caps,
+            window_open=lambda _p: True,
         )
         cockpit.telegram = channel
         cockpit.adapters = {"telegram": channel}

@@ -113,6 +113,8 @@ def create_order(
         **(extra or {}),  # z. B. Influencerin/Charakter/Befehl der Default-Kette (SP1 Schritt 7)
     }
     kind = man.engines[wf.engine].kind
+    if finish_workflow and man.engines[man.workflows[finish_workflow].engine].kind == "video":
+        kind = "video"  # Endergebnis zählt: Bild-Kandidaten mit Animation sind ein Videoauftrag
     with store.tx():
         if customer_order_no:
             order = store.transition(customer_order_no, "producing", workflow=workflow_key)
@@ -228,12 +230,23 @@ def retry_stage(
     command: dict,
     video_max_s: float | None = None,
 ) -> list[int]:
-    """Fehlgeschlagene Jobs einer Stufe mit denselben Parametern erneut anlegen."""
+    """Fehlgeschlagene Jobs einer Stufe mit denselben Parametern erneut anlegen. Fertige
+    Fertigstellen-Stufe eines Auftrags in Prüfung (E23, Video): mit neuem Seed noch einmal aus
+    demselben ausgewählten Bild – das Bild wird nicht neu erzeugt."""
     order = store.order(order_no)
     stage = next((st for st in store.stages(order.id) if st.seq == seq), None)
-    if stage is None or stage.status not in ("failed", "waiting"):
+    redo = (
+        stage is not None and stage.kind == "finish" and stage.status == "done"
+        and order.status == "review"
+    )  # fmt: skip
+    if stage is None or (stage.status not in ("failed", "waiting") and not redo):
         raise PipelineError(f"{order_no}: Stufe {seq} ist nicht wiederholbar.")
-    failed = [j for j in store.stage_jobs(stage.id) if j["status"] == "failed"]
+    jobs_of = store.stage_jobs(stage.id)
+    failed = (
+        [j for j in jobs_of if j["status"] == "done"][-1:]
+        if redo
+        else [j for j in jobs_of if j["status"] == "failed"]
+    )
     if not failed:
         raise PipelineError(f"{order_no}: Stufe {seq} hat keine fehlgeschlagenen Jobs.")
     if stage.attempts >= max_attempts:
@@ -242,21 +255,30 @@ def retry_stage(
     if wf is None:
         raise PipelineError(f"Workflow '{stage.workflow}' ist nicht mehr registriert.")
     with store.tx():
+        if redo:
+            store.transition(order_no, "producing", by="Fertigstellen neu")
         store.set_stage(stage.id, "running", retry=True)
         jobs = []
         for j in failed:
             old = store.job(j["id"])
             uploads = {n for n, p in wf.params.items() if p.upload}
+            values = {
+                n: v
+                for n, v in old["params"].items()
+                if (n in wf.params or n in VIDEO_KEYS) and n not in uploads
+            }
+            if redo and (seed := wf.params.get("seed")) is not None:  # neuer Seed, gleiche Eingabe
+                base = values.get("seed")
+                if base is None:  # ohne eigenen Seed lief die Vorgabe des Graphen
+                    base = comfy.load_graph(man, wf)[seed.node]["inputs"][seed.input]
+                top = int(seed.max) if seed.max is not None else 2**32 - 1
+                values["seed"] = (int(base) + 1 + stage.attempts) % (top + 1)
             jobs.append(
                 create_render(
                     store,
                     man,
                     stage.workflow,
-                    {
-                        n: v
-                        for n, v in old["params"].items()
-                        if (n in wf.params or n in VIDEO_KEYS) and n not in uploads
-                    },
+                    values,
                     {n: v for n, v in old["params"].items() if n in uploads},
                     parent_media_id=old["parent_media_id"],
                     stage_id=stage.id,
@@ -267,7 +289,8 @@ def retry_stage(
                     keyframes_max=len(old["params"].get(KEYFRAMES_KEY) or []),
                 )
             )
-            store.copy_segments(j["id"], jobs[-1])  # Langvideo: fertige Abschnitte behalten
+            if not redo:  # Langvideo: fertige Abschnitte behalten (neu mit Seed: alles neu)
+                store.copy_segments(j["id"], jobs[-1])
         _journal(store, command, f"order:{order_no}")
     return jobs
 
