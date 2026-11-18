@@ -239,6 +239,18 @@ class ProductionConfig:
 
 
 @dataclass(frozen=True)
+class ClonerConfig:
+    """Default-Kette (SP1 Schritte 4, 5): Referenzen und Hinweise des Kloners."""
+
+    # ohne eigene/beantwortete Anhänge: Medien desselben Absenders aus diesem Zeitraum
+    reference_window_s: float = 300.0
+    # ein Album wird erst ausgewertet, wenn so lange kein weiteres Bild kam
+    album_settle_s: float = 3.0
+    # Hinweis „Befehle sind aus“ höchstens einmal je Zeitraum und Chat
+    notice_interval_s: float = 3600.0
+
+
+@dataclass(frozen=True)
 class AiConfig:
     """Sprach-KI auf ComfyUI 2 (SP4 Schritt 1): Verlauf und Zeitgrenze eines Studio-Laufs."""
 
@@ -309,6 +321,7 @@ class Config:
     wallet: WalletConfig | None  # None: Abschnitt fehlt (Zahlungseingang nicht eingerichtet)
     ai: AiConfig = AiConfig()
     dialog: DialogConfig = DialogConfig()
+    cloner: ClonerConfig = ClonerConfig()
 
     @property
     def instances(self) -> tuple[ComfyConfig, ...]:
@@ -779,6 +792,14 @@ def load(root: Path | None = None) -> Config:
     dialog_cfg = DialogConfig(
         payment_terms=terms, schema_retries=retries, repeat_similarity=similar
     )
+    cl = data.get("cloner", {})
+    if not isinstance(cl, dict):
+        raise ConfigError(f"Konfiguration {path}: [cloner] muss ein Abschnitt sein.")
+    cloner_cfg = ClonerConfig(
+        reference_window_s=float(_positive(cl, "reference_window_s", 300, "cloner")),
+        album_settle_s=float(_positive(cl, "album_settle_s", 3, "cloner")),
+        notice_interval_s=float(_positive(cl, "notice_interval_s", 3600, "cloner")),
+    )
     telegram = _parse_telegram(data.get("telegram_account"), root, path)
     instagram = _parse_instagram(data.get("instagram"), path)
     wallet = _parse_wallet(data.get("wallet"), path)
@@ -797,6 +818,7 @@ def load(root: Path | None = None) -> Config:
         training=_parse_training(data.get("training") or {}),
         ai=ai_cfg,
         dialog=dialog_cfg,
+        cloner=cloner_cfg,
     )
 
 

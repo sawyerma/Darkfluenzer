@@ -200,6 +200,14 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP1 Schritte 4 und 5 (Referenzen, Vorprüfung und Antwort) / BUG-057, BUG-075 (Teil)
+Commit: siehe git log „SP1 steps 4+5“ / core/cloner.py (_cloner_entry, _cloner_refs, _album_quiet, _cloner_state),
+  cloner_text (Zustände, Antworten), config [cloner], store (recent_unassigned_media), Stream.tsx (Zustandsmarke)
+Nachweis: tests/test_cloner_chain.py, test_channels.py; Chrome-E2E isoliert tests/cloner-cards.spec.ts
+NOT_RUN: Handy-Abnahme SP1 1–5 (Workflow im Default-Kontakt fehlt am echten System, Nachricht 39)
+Ergebnis: TEIL
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP1 Schritt 1 (Rückverfolgung)
 Commit: siehe git log „SP1 step 1“ / core/trace.py, app `trace`
 Nachweis: tests/test_trace.py; echt lesend am laufenden System: Nachricht 39 zeigt die Unterbrechung „Workflow

@@ -118,6 +118,12 @@ stall_notice_s = 900   # Hinweis im Cockpit und beim Default, wenn ein Lauf so l
 estimate_runs = 5   # bisherige Läufe je Workflow für die geschätzte Dauer (Median)
 priority = ["customer", "default", "cockpit", "training"]   # Vorrang auf der Renderbahn: bezahlter Kundenauftrag, Default/Kundentest, Cockpit, Training; je Klasse FIFO
 
+# Default-Kette (SP1): Referenzen und Hinweise des Kloners
+[cloner]
+reference_window_s = 300   # ohne eigene/beantwortete Bilder: Medien desselben Absenders aus diesem Zeitraum
+album_settle_s = 3         # Album erst auswerten, wenn so lange kein weiteres Bild kam
+notice_interval_s = 3600   # „Befehle sind aus“ höchstens einmal je Zeitraum und Chat
+
 # Trainingsfotos je Charakter (SP3 Schritt 1): Ordner local/characters/<kürzel>/photos
 [training]
 min_side = 768          # kurze Seite mindestens (px)

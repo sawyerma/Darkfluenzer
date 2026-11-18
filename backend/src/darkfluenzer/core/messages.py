@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from ..core import cloner_text as cloner
 from ..media import pipeline
-from ..nodes import comfy
 from ..store import StoreError
 from ..v1 import (
     channel_pb2,
@@ -81,11 +80,7 @@ class MessagesMixin:
         self._message_changed(inbound.message_id or 0)
         self._wallet_changed()  # erkannter Gutscheincode erscheint im Reiter Wallet
         if inbound.customer.kind == "internal" and inbound.message_id:
-            try:
-                await self._cloner(inbound)
-            except (pipeline.PipelineError, comfy.ComfyError, StoreError) as exc:
-                self.store.add_system_card(inbound.conversation_id, f"Auftrag nicht möglich: {exc}")
-                self._message_changed(0)
+            await self._cloner_entry(inbound)  # jeder Ausgang mit Karte und Antwort (SP1 5)
 
     async def _send_ai_notice(self, msg: commands_pb2.SendAiNotice, call: _Call) -> str:
         """KI-Hinweis der Influencerin einmal je Kanalidentität (Befehl 45, Regel 12 b)."""

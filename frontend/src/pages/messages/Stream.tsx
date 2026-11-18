@@ -1,4 +1,4 @@
-import { ATTACHMENT_KIND, ATTACHMENT_STATUS, ATTACHMENT_TYPE, DELIVERY_STATUS, ITEM_STATUS, METHOD_LABEL, ORDER_STATUS, STICK_PX, Tone, View } from "./common";
+import { ATTACHMENT_KIND, ATTACHMENT_STATUS, ATTACHMENT_TYPE, DELIVERY_STATUS, ITEM_STATUS, METHOD_LABEL, ORDER_STATUS, STICK_PX, Tone, View, clonerHead } from "./common";
 import type { ActiveOrder } from "../../core/generated/darkfluenzer/v1/order_pb";
 import { Candidates } from "../comfyui/Candidates";
 import type { ConversationItem, MessageAttachment } from "../../core/generated/darkfluenzer/v1/channel_pb";
@@ -169,11 +169,21 @@ function OrderCard({ item }: { item: ConversationItem }) {
   const cmd = useCommand();
   const active = useStateTopic(Topic.ORDERS_ACTIVE)?.value.orders ?? [];
   const workflows = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
-  const [head, ...detail] = item.text.split("\n");
+  const [head = "", ...detail] = item.text.split("\n");
   const order = item.order && (active.find((o) => o.orderNo === item.order?.orderNo) ?? item.order);
+  const state = clonerHead(head);
   return (
     <div className="g-event">
-      <strong>{head}</strong>
+      {state ? (
+        <span className="g-between">
+          <strong>{state[0]}</strong>
+          <span className="g-badge" data-tone={state[2]}>
+            {state[1]}
+          </span>
+        </span>
+      ) : (
+        <strong>{head}</strong>
+      )}
       {detail.length ? <p>{detail.join(" ")}</p> : null}
       {order ? (
         <>
@@ -250,7 +260,8 @@ function UnknownActions({ item }: { item: ConversationItem }) {
  *  neutrale Systemkarte. */
 function Entry({ item }: { item: ConversationItem }) {
   const attachments = item.attachments.map((a, n) => <Attachment key={n} a={a} />);
-  if (item.order?.orderNo || item.awaitingStart) return <OrderCard item={item} />;
+  // Kloner-Karten mit Zustand (SP1 Schritt 5) auch ohne Auftrag: Abgelehnt, Fehlgeschlagen
+  if (item.order?.orderNo || item.awaitingStart || item.text.startsWith("INTERNER AUFTRAG")) return <OrderCard item={item} />;
   if (item.platform === "system" || item.direction === "system") {
     return (
       <div className="g-event">

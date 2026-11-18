@@ -28,6 +28,17 @@ TEMPLATES = {
     "details.",
 }
 ASK_REFERENCE = "Bitte schick das Referenzbild mit dem Befehl oder antworte mit dem Befehl darauf."
+COMMANDS_OFF = "Befehle sind aus (Cockpit → Nachrichten → Default → Befehle verarbeiten)."
+# Ausgänge eines Kloner-Auftrags (SP1 Schritt 5): jeder schreibt Karte und Chat-Antwort
+STATES = {
+    "started": "GESTARTET",
+    "waiting_start": "WARTET AUF START",
+    "rejected": "ABGELEHNT",
+    "returned": "ZURÜCKGESENDET",
+    "return_blocked": "RÜCKVERSAND GESPERRT",
+    "failed": "FEHLGESCHLAGEN",
+    "cancelled": "ABGEBROCHEN",
+}
 
 
 def parse(text: str) -> tuple[str, str] | None:
@@ -41,9 +52,26 @@ def parse(text: str) -> tuple[str, str] | None:
     return head, words[1].strip() if len(words) > 1 else ""
 
 
-def card(command: str, platform: str, detail: str) -> str:
-    """Text der Systemkarte im Default-Verlauf (FRONT F4: INTERNER AUFTRAG · BEFEHL · KANAL)."""
-    return f"INTERNER AUFTRAG · {command.upper()} · {platform.upper()}\n{detail}"
+def card(command: str, platform: str, detail: str, state: str = "") -> str:
+    """Text der Systemkarte im Default-Verlauf (FRONT F4: INTERNER AUFTRAG · BEFEHL · KANAL ·
+    ZUSTAND)."""
+    head = f"INTERNER AUFTRAG · {command.upper()} · {platform.upper()}"
+    return f"{head} · {STATES[state]}\n{detail}" if state else f"{head}\n{detail}"
+
+
+def reply(state: str, detail: str, order_no: str = "") -> str:
+    """Chat-Antwort an den Default zu einem Ausgang (kurz, mit Grund bzw. Auftragsnummer)."""
+    prefix = f"{order_no}: " if order_no else ""
+    texts = {
+        "started": f"{prefix}gestartet · {detail}",
+        "waiting_start": f"Erkannt · {detail} · wartet auf Start im Cockpit.",
+        "rejected": detail,
+        "return_blocked": f"{prefix}Rückversand gesperrt · {detail}",
+        "failed": f"{prefix}fehlgeschlagen · {detail}",
+        "cancelled": f"{prefix}abgebrochen{' · ' + detail if detail else ''}",
+        "returned": f"{prefix}{detail}",
+    }
+    return texts[state]
 
 
 def prompt(command: str, wish: str, templated: bool) -> str:

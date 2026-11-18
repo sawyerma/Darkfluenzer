@@ -197,8 +197,9 @@ def test_cloner_switch_creates_one_internal_order(cloner_cfg):
         orders = store.db.execute("SELECT order_no, source FROM orders").fetchall()
         assert [tuple(o) for o in orders] == [("DF-O-000001", "cloner")]
         items, _ = store.conversation_items(first.customer.id, 0, 20)
-        assert [i["direction"] for i in items] == ["in", "system"]
-        assert items[1]["text"].startswith("INTERNER AUFTRAG · REMIX · TELEGRAM")
+        assert [i["direction"] for i in items] == ["in", "system", "out"]  # Karte und Antwort
+        assert items[1]["text"].startswith("INTERNER AUFTRAG · REMIX · TELEGRAM · GESTARTET")
+        assert items[2]["text"].startswith("DF-O-000001: gestartet")
         await _csrf(client)  # Sitzung für die Verlaufsseite
         conv = channel_pb2.ConversationPage.FromString(
             await (
@@ -242,8 +243,9 @@ def test_cloner_waits_for_operator_start(cloner_cfg):
                 await client.get(f"/api/v1/conversation-page?customer={first.customer.id}")
             ).read()
         )
-        card = conv.items[-1]
+        card, answer = conv.items[-2], conv.items[-1]  # Karte und Chat-Antwort (SP1 Schritt 5)
         assert card.direction == "system" and card.awaiting_start and not card.order.order_no
+        assert "WARTET AUF START" in card.text and "wartet auf Start" in answer.text
 
         async def start(item_id):
             req = commands_pb2.CommandRequest(
@@ -260,7 +262,9 @@ def test_cloner_waits_for_operator_start(cloner_cfg):
         orders = store.db.execute("SELECT order_no, source FROM orders").fetchall()
         assert [tuple(o) for o in orders] == [("DF-O-000001", "cloner")]
         row = store.message(card.item_id)
-        assert row["order_id"] and "DF-O-000001" in row["text"]
+        assert row["order_id"] and "DF-O-000001" in row["text"] and "GESTARTET" in row["text"]
+        last = store.conversation_items(first.customer.id, 0, 20)[0][-1]
+        assert last["direction"] == "out" and last["text"].startswith("DF-O-000001: gestartet")
 
     _run(cfg, scenario)
 

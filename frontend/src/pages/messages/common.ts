@@ -37,6 +37,25 @@ export const LOGIN_STEP: Record<string, [string, string, string]> = {
   password: ["PASSWORT ERWARTET", "Zwei-Faktor-Passwort", "password"],
 };
 
+/** Ausgänge der Default-Kette (SP1 Schritt 5) im Kopf der Karte „INTERNER AUFTRAG“ → Ton. */
+export const CLONER_STATE: Record<string, Tone> = {
+  GESTARTET: "ok",
+  "WARTET AUF START": "warn",
+  ABGELEHNT: "bad",
+  ZURÜCKGESENDET: "ok",
+  "RÜCKVERSAND GESPERRT": "warn",
+  FEHLGESCHLAGEN: "bad",
+  ABGEBROCHEN: "neutral",
+};
+
+/** Kopf einer Kloner-Karte in Text und Zustand zerlegen (ohne Zustand: wie bisher). */
+export function clonerHead(head: string): [string, string, Tone] | null {
+  const parts = head.split(" · ");
+  const state = parts.at(-1) ?? "";
+  if (!head.startsWith("INTERNER AUFTRAG") || !(state in CLONER_STATE)) return null;
+  return [parts.slice(0, -1).join(" · "), state, CLONER_STATE[state] ?? "neutral"];
+}
+
 export const ITEM_STATUS: Record<string, string> = {
   queued: "wartet",
   sending: "wird gesendet",

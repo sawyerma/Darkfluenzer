@@ -402,6 +402,19 @@ class MessagesMixin:
         customer = self.customer_by_id(row["customer_id"])
         return Inbound(customer, row["identity_id"], row["conversation_id"], message_id, False)
 
+    def recent_unassigned_media(
+        self, conversation_id: int, before_id: int, since: str
+    ) -> list[dict]:
+        """Eingänge dieser Konversation (desselben Absenders) vor ``before_id`` seit ``since`` mit
+        gesicherten Anhängen, die noch keinem Auftrag gehören (SP1 Schritt 4), älteste zuerst."""
+        rows = self.db.execute(
+            "SELECT id FROM channel_messages WHERE conversation_id = ? AND direction = 'in'"
+            " AND id < ? AND created_at >= ? AND order_id IS NULL AND attachments LIKE '%saved%'"
+            " ORDER BY id",
+            (conversation_id, before_id, since),
+        )
+        return [self.message(r[0]) for r in rows]
+
     def album_messages(self, conversation_id: int, album_id: str) -> list[dict]:
         """Alle eingehenden Nachrichten eines Albums in Reihenfolge."""
         rows = self.db.execute(
