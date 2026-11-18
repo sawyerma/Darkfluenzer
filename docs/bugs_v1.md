@@ -184,7 +184,7 @@ Widersprüche zur Sprach-KI über ComfyUI 2 (E19, Betreiberentscheidung 17.11.; 
 |---|---|---|---|
 | SPEC-016 | Regel 12 c, SP4 Schritt 2; Code `server.HONESTY_RULE` | Die Ehrlichkeitsregel steht als Text im Python-Code und sollte laut Plan vom Backend angehängt werden. | Fester Textknoten im registrierten Sprachworkflow; die Registrierung prüft Vorhandensein und Bindung; der STATE zeigt den Text aus dem Graphen. |
 | SPEC-017 | SP4 Schritt 3, FRONTEND F7.9 (Schalter „Antworten gegen Regeln prüfen“, „Hard-Fails serverseitig“) | Geplant war eine sprachliche Regelprüfung in `dialog.py` (verbotene Wörter, Mensch-Behauptung, Deutung von Preisaussagen). | Gesprächsregeln als positive und negative Regeln im Promptprofil; eine Entwurfsprüfung nur im Workflow; im Backend nur Gates (KI-Hinweis, `under_18`, Zahlenabgleich mit den Fakten, Schalter, Kanalgrenzen). |
-| SPEC-018 | SP4 Schritte 1, 5; Knoten `LLMSessionChatNode` | Der Knoten speichert je `session_id` einen eigenen Verlauf als JSON unter `output/llm_session_sessions/`: zweite Gesprächsquelle neben SQLite, Kundendaten außerhalb der Datenbank. | Kontext nur aus SQLite als Eingang; je Lauf neue Sitzung mit `reset_session`; Probelauf belegt, dass keine Verlaufsdatei bleibt, sonst löscht `llm.py` sie. **[18.11.] Probelauf: Datei bleibt** (JSON + `.bak` je Sitzung, auch mit `reset_session`, `max_turns` 0, persistentem Cache aus); `history_dir` lenkt alle Schreibzugriffe um (belegt) → `llm.py`: je Lauf eigener Ordner im ComfyUI-2-temp, nach dem Lauf löschen, Reste beim Start entfernen; vor Kundengesprächen umsetzen und testen (SP4 Schritt 1). |
+| SPEC-018 | SP4 Schritte 1, 5; Knoten `LLMSessionChatNode` | Der Knoten speichert je `session_id` einen eigenen Verlauf als JSON unter `output/llm_session_sessions/`: zweite Gesprächsquelle neben SQLite, Kundendaten außerhalb der Datenbank. | Kontext nur aus SQLite als Eingang; je Lauf neue Sitzung mit `reset_session`; Probelauf belegt, dass keine Verlaufsdatei bleibt, sonst löscht `llm.py` sie. **[18.11.] Probelauf: Datei bleibt** (JSON + `.bak` je Sitzung, auch mit `reset_session`, `max_turns` 0, persistentem Cache aus); `history_dir` lenkt alle Schreibzugriffe um (belegt) → `llm.py`: je Lauf eigener Ordner im ComfyUI-2-temp, nach dem Lauf löschen, Reste beim Start entfernen; vor Kundengesprächen umsetzen und testen (SP4 Schritt 1). **[18.11.] Behoben, am Mac belegt** (`nodes/llm.py`, §7). |
 | SPEC-019 | SP4 Schritt 2, FRONTEND §3.4, F7.9 | Persona als ein Textfeld mit Vorlagen; Profilfelder ohne nachgewiesene Bindung an Graph-Eingänge; Top-K, Min-P, DRY und Seed als mögliche Parameter genannt. | Getrennte Promptblöcke je Influencerin in `persona_versions`, jeder an einen eigenen Eingang von `clara_chat_melody` gebunden; nur die Parameter, die der Knoten hat; Registrierung weist ungebundene Felder ab. |
 | SPEC-020 | Regel 13, §3.2 (ComfyUI 2: „Inhaltsprüfung“) | Die Inhaltsprüfung lag laut Plan in KI-ComfyUI 2, E16 und E17 legen sie in die Medien-Workflows. | Inhalts- und Qualitätsprüfung als Knoten in den Medien-Workflows auf ComfyUI 1. |
 | SPEC-021 | SP5 Schritte 2, 9; BUG-060, BUG-099 | Angebots- und Begleittext als Vorlage im Profil, vom Backend eingesetzt. | Formulierung durch den Sprachworkflow aus Profilblock und Geschäftsfakten; Betrag und Zahlungsweg setzt das Backend aus SQLite; die KI-Kennzeichnung bleibt ein fester Profiltext. |
@@ -200,6 +200,29 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SPEC-018 (Sitzungsdateien des Sprachknotens) – behoben
+Commit: siehe git log „SPEC-018“ / backend/src/darkfluenzer/nodes/llm.py, web/http.py (Start-Sweep)
+Korrektur: je Lauf eigener Sitzungsordner <KI-Instanz>/temp/df_llm_sessions/<id> (0700); jeder
+  LLMSessionChatNode des Graphen bekommt history_dir = dieser Ordner, eigene session_id, reset_session,
+  max_turns 0, persistent_cache off, summarize aus; der Lauf hält flock auf .active (prozessübergreifend, bei
+  Absturz frei) und löscht den Ordner im finally; sweep entfernt Ordner ohne gehaltene Sperre und den
+  Standardordner output/llm_session_sessions – beim Cockpit-Start, nach jedem Lauf und nach einem Abbruch,
+  sobald ComfyUI den Auftrag nicht mehr ausführt (llama.cpp generiert nach dem Interrupt zu Ende und der Knoten
+  legt den Ordner neu an – im echten Lauf gefunden)
+Nachweis Unit/Integration (Ersatz-ComfyUI über HTTP, schreibt wie der Knoten): tests/test_llm.py, 7 Tests –
+  Bindung aller Sitzungsknoten; Erfolg, Ausführungsfehler, Zeitüberschreitung mit Abbruch und spätem Schreiben
+  (ohne den verzögerten Sweep rot); Abbruch des Wartenden (KeyboardInterrupt) mit Abbruch in ComfyUI; Neustart
+  und spätes Schreiben per Sweep; aktiver Lauf eines anderen Prozesses (flock) bleibt; 8 parallele Kunden mit
+  je eigener Antwort und eigenem Ordner; Cockpit-Start entfernt verwaiste Ordner
+Nachweis echter Mac-Lauf (ComfyUI 2, Melody Q6_K): Erfolg 0,49 s ohne Reste; abgewiesener Graph ohne Reste;
+  Zeitüberschreitung nach 1 s ohne Reste, späte Verlaufsdatei nach 31 s, 1 s später ohne weiteren Lauf entfernt;
+  3 parallele Kunden in 0,9 s, jede Antwort nennt die eigene Nummer, keine Reste; echter Cockpit-Neustart mit
+  verwaistem Ordner → beim Start entfernt (Log „1 verwaiste Sitzungsordner entfernt“)
+Regression: volle Backend-Suite 218 grün; Browser-Smoke (Chrome) gegen das laufende Cockpit grün
+Frontend: keine Oberfläche betroffen (Datenhaltung); Kundengespräche bleiben gesperrt bis SP4 Schritte 6–8
+Ergebnis: PASS (SPEC-018 am Mac belegt)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: BUG-036 / SP4 Schritt 1 Vorbereitung (ComfyUI-LLM-Session, Melody auf ComfyUI 2) / SPEC-018 Probe
 Commit: 1396dd1 (launcher/setup_llm_session.sh, setup_comfyui.sh, comfyui.lock.txt)
 Wartungsfenster: 0 laufende/wartende Jobs, beide ComfyUI-Warteschlangen leer

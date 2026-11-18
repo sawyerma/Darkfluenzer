@@ -33,6 +33,7 @@ from ..core.orders import OrdersMixin
 from ..core.registry import RegistryMixin
 from ..core.render import RenderMixin
 from ..core.sales import SalesMixin
+from ..nodes import llm
 from ..store import Store, StoreError
 from ..v1 import (
     channel_pb2,
@@ -616,6 +617,8 @@ def create_app(cfg: Config) -> web.Application:
     app.router.add_get("/api/v1/conversation-page", _conversation_page)
 
     async def lifecycle(_: web.Application):
+        if cfg.comfyui_ai is not None:  # SPEC-018: verwaiste Sitzungsordner der Sprach-KI
+            await asyncio.to_thread(llm.sweep, cfg)
         cockpit.enqueue_existing()
         tasks = [
             asyncio.create_task(cockpit.observe()),
