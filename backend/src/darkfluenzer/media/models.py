@@ -216,6 +216,16 @@ class TextSpec:
 
 
 @dataclass(frozen=True)
+class InstructionSpec:
+    """Freie Default-Anweisungen (SP4 Schritt 4): ein Sprachknoten, Anweisung (Systemprompt) und
+    Fakten/Nachricht (Nutzertext); Ausgabeknoten für Ergebnis-JSON, Systemprompt und Nutzertext."""
+
+    answer: str
+    system: str
+    user: str
+
+
+@dataclass(frozen=True)
 class Workflow:
     key: str
     title: str
@@ -249,6 +259,7 @@ class Workflow:
     # Vorschlag als Kloner-Methode für diese Befehle (SP3 Schritt 8; Entscheidung des Betreibers
     # nach dem Vergleich mit echten Vorlagen, übernommen im Default-Kontakt)
     cloner: tuple[str, ...] = ()
+    instruction: InstructionSpec | None = None  # freie Default-Anweisungen (Engine-Art text)
 
     @property
     def training(self) -> bool:
@@ -508,6 +519,21 @@ def _text_spec(t: object, params: dict[str, Param], w: str) -> TextSpec | None:
     return spec
 
 
+def _instruction_spec(t: object, params: dict[str, Param], w: str) -> InstructionSpec | None:
+    if t is None:
+        return None
+    if not isinstance(t, dict):
+        raise ManifestError(f"Manifest: {w}.instruction muss eine Tabelle sein.")
+    try:
+        spec = InstructionSpec(**{k: str(v) for k, v in t.items()})
+    except TypeError as exc:
+        raise ManifestError(f"Manifest: {w}.instruction: {exc}") from exc
+    for name in ("instruction", "facts", "message"):
+        if name not in params or params[name].type != "str":
+            raise ManifestError(f"Manifest: {w}: Texteingang {name} fehlt.")
+    return spec
+
+
 def _lora_slot(t: object, params: dict[str, Param], w: str) -> LoraSlot | None:
     if t is None:
         return None
@@ -721,6 +747,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             keyframes=_keyframe_slot(t.get("keyframes"), w),
             text=_text_spec(t.get("text"), params, w),
             cloner=_cloner_commands(t.get("cloner"), w),
+            instruction=_instruction_spec(t.get("instruction"), params, w),
         )
         for name, prm in params.items():
             if prm.below and prm.below not in params:
@@ -735,8 +762,13 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             raise ManifestError(f"Manifest: {w}.mask_output braucht den Parameter 'image'.")
         if wf.engine not in engines:
             raise ManifestError(f"Manifest: {w}.engine '{wf.engine}' unbekannt.")
-        if (engines[wf.engine].kind == "text") != (wf.text is not None):
-            raise ManifestError(f"Manifest: {w}.text genau dann, wenn die Engine-Art text ist.")
+        speaking = wf.text is not None or wf.instruction is not None
+        if (engines[wf.engine].kind == "text") != speaking:
+            raise ManifestError(
+                f"Manifest: {w}.text bzw. .instruction genau dann, wenn die Engine-Art text ist."
+            )
+        if wf.text is not None and wf.instruction is not None:
+            raise ManifestError(f"Manifest: {w}: text und instruction schließen sich aus.")
         if wf.status not in GATE_VALUES:
             raise ManifestError(f"Manifest: {w}.status muss {GATE_VALUES} sein.")
         for rel in (wf.ui, wf.api) if require_ui else (wf.api,):
@@ -873,6 +905,8 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
                 problems.append(f"lora.through -> {wf.lora.node}.{name} ist keine Verbindung.")
     if wf.text:
         problems += _text_problems(wf, graph)
+    if wf.instruction:
+        problems += _instruction_problems(wf, graph)
     for node_id, node in graph.items():
         for name, value in node.get("inputs", {}).items():
             is_model = isinstance(value, str) and value.endswith((".safetensors", ".gguf"))
@@ -954,6 +988,30 @@ def _text_problems(wf: Workflow, graph: dict) -> list[str]:
         problems.append("text.system zeigt nicht den Systemprompt der Antwort.")
     if _source(graph, t.user, "source") != _source(graph, persona, "user_text"):
         problems.append("text.user zeigt nicht den Nutzertext der Antwort.")
+    return problems
+
+
+def _instruction_problems(wf: Workflow, graph: dict) -> list[str]:
+    """Freie Anweisungen: genau ein Sprachknoten; Anweisung = Systemprompt, Fakten und Nachricht
+    im Nutzertext; Ausgaben zeigen Ergebnis, Systemprompt und Nutzertext dieses Knotens."""
+    t = wf.instruction
+    assert t is not None
+    sessions = list(wf.session_nodes(graph))
+    if len(sessions) != 1:
+        return ["instruction: genau ein Sprachknoten erwartet."]
+    node = sessions[0]
+    problems = []
+    if (node, "system_prompt") not in _reaches(graph, wf.params["instruction"].node):
+        problems.append("instruction: Anweisung ist nicht der Systemprompt.")
+    for name in ("facts", "message"):
+        if (node, "user_text") not in _reaches(graph, wf.params[name].node):
+            problems.append(f"instruction: {name} fließt nicht in den Nutzertext.")
+    if _source(graph, t.answer, "source") != node:
+        problems.append("instruction.answer zeigt nicht das Ergebnis des Sprachknotens.")
+    if _source(graph, t.system, "source") != _source(graph, node, "system_prompt"):
+        problems.append("instruction.system zeigt nicht den Systemprompt.")
+    if _source(graph, t.user, "source") != _source(graph, node, "user_text"):
+        problems.append("instruction.user zeigt nicht den Nutzertext.")
     return problems
 
 

@@ -1438,3 +1438,26 @@ answer = "61"
 classification = "32"
 system = "62"
 user = "63"
+
+[workflows.default_instruction_melody]
+engine = "melody_chat"
+ui = "ai/default_instruction_melody.ui.json"
+api = "ai/default_instruction_melody.api.json"
+status = "OFFEN"
+title = "Default · freie Anweisungen (Melody)"
+content = "standard"
+# Freie Anweisungen des Default-Nutzers (SP4 Schritt 4, bisher B5.4a): derselbe Knoten und dasselbe
+# Modell wie der Chat; das Schema steht in der Anweisung im Graphen, das Backend prüft Befehl und
+# Workflow gegen die Registry und führt nur Erlaubtes aus
+
+[workflows.default_instruction_melody.params]
+instruction = { node = "1", input = "value", type = "str", label = "Anweisung und Schema" }
+facts = { node = "2", input = "value", type = "str", label = "Fakten" }
+message = { node = "3", input = "value", type = "str", required = true, label = "Anweisung des Betreibers" }
+max_tokens = { node = "5", input = "max_tokens", type = "int", min = 32, max = 2048, label = "Max. Antwort-Tokens" }
+temperature = { node = "5", input = "temperature", type = "float", min = 0.0, max = 2.0, label = "Temperature" }
+
+[workflows.default_instruction_melody.instruction]
+answer = "6"
+system = "7"
+user = "8"

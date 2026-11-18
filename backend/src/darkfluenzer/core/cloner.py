@@ -8,13 +8,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from ..core import cloner_text as cloner
-from ..core import orders
+from ..core import instruction, orders
 from ..media import aimeta, models, pipeline
-from ..nodes import comfy
+from ..nodes import comfy, llm
 from ..store import sha256_file
-from ..v1 import (
-    commands_pb2,
-)
+from ..v1 import commands_pb2
+from ..v1 import stream_pb2 as spb
 from .base import _Call, _document_attachment, log
 
 
@@ -176,8 +175,10 @@ class ClonerMixin:
                 await self._reply_internal(conv, cloner.COMMANDS_OFF)
             return  # nur anzeigen
         if parsed is None:
-            if msg["text"].strip():  # freie Anweisung: KI-Deutung folgt mit B5
-                await self._reply_internal(conv, cloner.ASK_COMMAND)
+            if msg["text"].strip():  # freie Anweisung: Deutung im Hintergrund (SP4 Schritt 4)
+                task = asyncio.create_task(self._cloner_instruction(inbound))
+                self._tasks.add(task)
+                task.add_done_callback(self._tasks.discard)
             return
         command, wish = parsed
         plan = self._cloner_plan(msg, default, command)
@@ -348,13 +349,23 @@ class ClonerMixin:
                     refs.append(a)
         return refs, replied
 
-    def _cloner_plan(self, msg: dict, default: dict, command: str) -> tuple[str, list[dict]] | str:
+    def _cloner_plan(
+        self,
+        msg: dict,
+        default: dict,
+        command: str,
+        *,
+        key: str = "",
+        refs: list[dict] | None = None,
+    ) -> tuple[str, list[dict]] | str:
         """Workflow des Default-Kontakts für den Befehl (``animate``: Video-Workflow, sonst
         Medien-Workflow), Referenzen und Vorprüfung (Instanz eingerichtet, Workflow startbar);
-        bei fehlenden Voraussetzungen der Grund."""
-        refs, replied = self._cloner_refs(msg)
+        bei fehlenden Voraussetzungen der Grund. ``key``/``refs``: aus einer freien Anweisung
+        (SP4 Schritt 4), sonst wie beim Kurzbefehl."""
+        found, replied = self._cloner_refs(msg)
+        refs = found if refs is None else refs
         video = command == "animate"
-        key = (
+        key = key or (
             default["command_workflows"].get(command)
             or default["video_workflow" if video else "media_workflow"]
         )
@@ -600,6 +611,126 @@ class ClonerMixin:
                 conv, "returned", command, platform, f"{sent} Datei(en) im Chat",
                 order_no=order.order_no, reply="",
             )  # fmt: skip
+
+    def _instruction_workflow(self) -> models.Workflow | None:
+        wf = next((w for w in self.manifest.workflows.values() if w.instruction), None)
+        if wf is None or not wf.enabled or wf.status == "GESPERRT" or self.cfg.comfyui_ai is None:
+            return None
+        return wf
+
+    def _instruction_facts(self, conv: int, default: dict) -> tuple[str, list[dict]]:
+        """Fakten für die Deutung (Daten, keine Formulierung): Befehle mit Workflow und Formaten,
+        weitere Medien-Workflows, frühere Ergebnisse dieses Chats (neueste zuerst)."""
+        lines = ["Befehle:"]
+        for command in cloner.COMMANDS:
+            video = command == "animate"
+            key = (
+                default["command_workflows"].get(command)
+                or default["video_workflow" if video else "media_workflow"]
+            )
+            wf = self.manifest.workflows.get(key or "")
+            if wf is not None:
+                formats = ", ".join(self.manifest.engines[wf.engine].formats) or "Größe der Vorlage"
+                lines.append(f"- {command}: {wf.title} ({wf.key}); Formate: {formats}")
+            else:
+                lines.append(f"- {command}: kein Workflow")
+        media_kinds = ("image", "video")
+        usable = [
+            w
+            for w in self.manifest.workflows.values()
+            if not w.training and w.enabled and self.manifest.engines[w.engine].kind in media_kinds
+        ]
+        lines.append("Workflows: " + "; ".join(f"{w.key} ({w.title})" for w in usable))
+        recent = self.store.recent_returns(conv, 5)
+        lines.append("Frühere Medien (neueste zuerst):")
+        lines += [f"- media:{r['media_id']} · {r['order_no']} · {r['name']}" for r in recent]
+        return "\n".join(lines), recent
+
+    async def _cloner_instruction(self, inbound) -> None:
+        """Freie Anweisung deuten (registrierter Workflow ``default_instruction_melody``) und nur
+        Erlaubtes ausführen; ohne Workflow die bisherige Rückfrage."""
+        conv = inbound.conversation_id
+        msg = self.store.message(inbound.message_id)
+        wf = self._instruction_workflow()
+        if wf is None:
+            await self._reply_internal(conv, cloner.ASK_COMMAND)
+            return
+        default = self.store.default_contact()
+        facts, recent = self._instruction_facts(conv, default)
+        values = {"facts": facts, "message": msg["text"]}
+        started = time.monotonic()
+        fields: dict = {}
+        error = ""
+        try:
+            result = await asyncio.to_thread(
+                llm.instruct, self.cfg, self.manifest, wf.key, values,
+                timeout_s=self.cfg.ai.run_timeout_s,
+            )  # fmt: skip
+            fields = {
+                "workflow_sha": result.workflow_sha, "model_sha": result.model_sha,
+                "system_prompt": result.system, "user_text": result.user,
+                "answer": result.answer, "prompt_id": result.prompt_id,
+                "wait_ms": round(result.wait_s * 1000),
+                "duration_ms": round(result.duration_s * 1000),
+            }  # fmt: skip
+            ins, why = instruction.parse(llm.parse_classification(result.answer))
+        except (llm.LlmError, comfy.ComfyError, ValueError, OSError) as exc:
+            ins, why, error = None, "", str(exc) or type(exc).__name__
+        run_id = self.store.add_ai_run(
+            "instruction", wf.key, customer_id=default["customer_id"], message=msg["text"],
+            context={"conversation": conv, "media": len(recent)}, error=error or why,
+            total_ms=round((time.monotonic() - started) * 1000), **fields,
+        )  # fmt: skip
+        self.hub.push_events(spb.TOPIC_AI_RESULT)
+        platform = msg["platform"]
+        if ins is None:
+            await self._cloner_state(
+                conv, "failed", "anweisung", platform, error or why or "keine Deutung",
+                reply=f"Anweisung nicht verstanden ({error or why}). {cloner.ASK_COMMAND}",
+            )  # fmt: skip
+            return
+        if ins.command == "none":
+            await self._reply_internal(conv, ins.question or cloner.ASK_COMMAND)
+            return
+        refs = None
+        if ins.reference:
+            chosen = recent[0] if ins.reference == "letztes" and recent else next(
+                (r for r in recent if f"media:{r['media_id']}" == ins.reference), None
+            )  # fmt: skip
+            if chosen is None:
+                reason = f"Bezug {ins.reference} gehört zu keinem Medium dieses Chats."
+                await self._cloner_state(conv, "rejected", ins.command, platform, reason)
+                return
+            refs = [{"path": chosen["path"], "sha256": chosen["sha256"], "status": "saved",
+                     "kind": "photo"}]  # fmt: skip
+        if ins.workflow and ins.workflow not in self.manifest.workflows:
+            reason = f"Workflow {ins.workflow} ist nicht registriert."
+            await self._cloner_state(conv, "rejected", ins.command, platform, reason)
+            return
+        kind = "video" if ins.command == "animate" else "image"
+        if ins.workflow and (reason := self._cloner_workflow_reason(ins.workflow, kind)):
+            await self._cloner_state(conv, "rejected", ins.command, platform, reason)
+            return
+        plan = self._cloner_plan(msg, default, ins.command, key=ins.workflow, refs=refs)
+        wished = instruction.wish(ins)
+        opts = (
+            self._cloner_options(plan[0], ins.command, wished, default)
+            if isinstance(plan, tuple)
+            else plan
+        )
+        if isinstance(plan, str) or isinstance(opts, str):
+            reason = plan if isinstance(plan, str) else opts
+            await self._cloner_state(conv, "rejected", ins.command, platform, reason)
+            return
+        if not default["auto_orders"]:
+            await self._cloner_state(
+                conv, "rejected", ins.command, platform,
+                f"gedeutet als {ins.command} ({wished or '–'}) – automatische Aufträge sind aus",
+            )  # fmt: skip
+            return
+        log.info("Freie Anweisung (Lauf #%s) gedeutet als %s", run_id, ins.command)
+        numbers = await self._cloner_orders(msg, ins.command, plan[0], plan[1], opts)
+        await self._cloner_started(conv, ins.command, platform, plan[0], numbers, opts)
 
     async def _cloner_mode_word(self, conv: int, msg: dict, mode: str) -> None:
         """Betriebsart des Kontos per festem Wort im Default-Chat."""

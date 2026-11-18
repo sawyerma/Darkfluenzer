@@ -200,6 +200,16 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP4 Schritt 4 Rest (freie Default-Anweisungen, B5.4a)
+Commit: siehe git log „free default instructions“ / workflows/ai/default_instruction_melody.*, models
+  (InstructionSpec), llm.instruct, core/instruction.py, core/cloner (_cloner_instruction), Migration 37,
+  WorkflowInfo 24, Instructions.tsx
+Nachweis: tests/test_instruction.py, Backend 295; Chrome-E2E isoliert 23/23, lesend echt 10/10; echter Lauf
+  ComfyUI 2 (Deutung korrekt, 1,1 s)
+NOT_RUN: Trefferquote mit Testsatz (Qualifikation)
+Ergebnis: TEIL
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP4 Schritt 8 (Kundentest Chat)
 Commit: siehe git log „SP4 step 8“ / core/chat.py (_dialog_test, Rahmen, _test_reset), core/cloner (feste Wörter
   vor der Betriebsart, mode_words), Migration 36, Befehle 63 und 37 (test_delay), DefaultPanel (Kundentest)

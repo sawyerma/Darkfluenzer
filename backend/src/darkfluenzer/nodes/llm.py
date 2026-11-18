@@ -282,3 +282,38 @@ def generate(
         workflow_sha=hashlib.sha256(raw).hexdigest(),
         model_sha=",".join(man.files[f].sha256 for f in model),
     )
+
+
+def instruct(
+    cfg: Config,
+    man: Manifest,
+    workflow: str,
+    values: dict,
+    *,
+    timeout_s: float,
+    on_submit: Callable[[str], None] | None = None,
+) -> TextResult:
+    """Freie Default-Anweisung deuten (SP4 Schritt 4): registrierter Anweisungs-Workflow auf
+    ComfyUI 2; ``answer`` ist das Ergebnis-JSON (Prüfung und Ausführung im Backend)."""
+    wf = man.workflows.get(workflow)
+    if wf is None or wf.instruction is None:
+        raise LlmError(f"'{workflow}' ist kein registrierter Anweisungs-Workflow.")
+    if not wf.enabled or wf.status == "GESPERRT":
+        raise LlmError(f"{wf.title} ist deaktiviert oder gesperrt.")
+    raw = (man.root / "workflows" / wf.api).read_bytes()
+    given = {k: v for k, v in values.items() if not (isinstance(v, str) and not v.strip())}
+    graph = comfy.apply_params(json.loads(raw), wf, given)
+    result = run_graph(cfg, graph, timeout_s=timeout_s, on_submit=on_submit)
+    t = wf.instruction
+    model = man.engines[wf.engine].files
+    return TextResult(
+        answer=result.texts.get(t.answer, ""),
+        classification="",
+        system=result.texts.get(t.system, ""),
+        user=result.texts.get(t.user, ""),
+        prompt_id=result.prompt_id,
+        wait_s=result.wait_s,
+        duration_s=result.duration_s,
+        workflow_sha=hashlib.sha256(raw).hexdigest(),
+        model_sha=",".join(man.files[f].sha256 for f in model),
+    )

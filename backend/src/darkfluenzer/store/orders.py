@@ -306,6 +306,18 @@ class OrdersMixin:
         )
         return [dict(r) for r in rows]
 
+    def recent_returns(self, conversation_id: int, limit: int) -> list[dict]:
+        """Zuletzt an den Default gesendete Ergebnisse dieses Chats (freie Anweisungen,
+        Bezug „letztes“ bzw. media:<ID>), neueste zuerst."""
+        rows = self.db.execute(
+            "SELECT r.media_id, o.order_no, md.path, md.sha256 FROM cloner_returns r"
+            " JOIN orders o ON o.id = r.order_id JOIN media md ON md.id = r.media_id"
+            " JOIN channel_messages m ON m.id = r.message_id WHERE m.conversation_id = ?"
+            " ORDER BY r.rowid DESC LIMIT ?",
+            (conversation_id, limit),
+        )
+        return [dict(r) | {"name": r["path"].rsplit("/", 1)[-1]} for r in rows]
+
     def cloner_orders_running(self, conversation_id: int) -> list[str]:
         """Kloner-Aufträge aus diesem Chat mit wartenden oder laufenden Jobs (Chat-Wort)."""
         rows = self.db.execute(

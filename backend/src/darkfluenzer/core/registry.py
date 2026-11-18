@@ -108,6 +108,7 @@ class RegistryMixin:
                 step_s=step_s.get(key, 0.0),
                 keyframes=wf.keyframes is not None,
                 cloner=list(wf.cloner),
+                instruction=wf.instruction is not None,
             )
             if wf.lora is not None:  # ladbare Charakter-LoRAs (SP3 Schritt 4/5)
                 names = models.engine_model_names(

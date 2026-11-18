@@ -1,0 +1,114 @@
+{
+ "1": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": "Du deutest freie Anweisungen des Betreibers an die Medienproduktion. Antworte ausschließlich mit einem JSON-Objekt, ohne weiteren Text:\n{\"command\": \"clone|pose|style|remix|animate|edit|none\", \"workflow\": \"\", \"prompt\": \"\", \"options\": {\"format\": \"\", \"duration_s\": 0}, \"reference\": \"letztes|media:<ID>|none\", \"question\": \"\"}\nRegeln: command nur aus der Liste; workflow nur ein Schlüssel aus den Fakten oder leer (dann gilt der Workflow des Befehls); prompt ist der Bildwunsch in kurzen Worten; format nur ein Format aus den Fakten; duration_s nur bei animate; reference bezieht sich auf ein früheres Medium aus den Fakten (\"letztes\" = das zuletzt gesendete). Ist die Anweisung unklar, setze command auf none und stelle in question genau eine kurze Rückfrage auf Deutsch."
+  },
+  "_meta": {
+   "title": "Anweisung und Schema"
+  }
+ },
+ "2": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  },
+  "_meta": {
+   "title": "Fakten (Befehle, Workflows, frühere Medien)"
+  }
+ },
+ "3": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  },
+  "_meta": {
+   "title": "Anweisung des Betreibers"
+  }
+ },
+ "4": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "2",
+    0
+   ],
+   "string_b": [
+    "3",
+    0
+   ],
+   "delimiter": "\n\nAnweisung des Betreibers:\n"
+  },
+  "_meta": {
+   "title": "Nutzertext"
+  }
+ },
+ "5": {
+  "class_type": "LLMSessionChatNode",
+  "inputs": {
+   "user_text": [
+    "4",
+    0
+   ],
+   "session_id": "darkfluenzer",
+   "model": "melody1437-26b-a4b-v2.0/Melody1437-26B-A4B-v2.0-Q6_K.gguf",
+   "mmproj": "(Not required)",
+   "system_prompt": [
+    "1",
+    0
+   ],
+   "max_tokens": 300,
+   "temperature": 0.1,
+   "top_p": 0.9,
+   "n_gpu_layers": -1,
+   "n_ctx": 8192,
+   "persistent_cache": "off",
+   "repeat_penalty": 1.12,
+   "repeat_last_n": 256,
+   "max_turns": 0,
+   "summarize_old_history": false,
+   "history_dir": "",
+   "reset_session": true,
+   "enable_thinking": false
+  },
+  "_meta": {
+   "title": "Deutung (Melody)"
+  }
+ },
+ "6": {
+  "class_type": "PreviewAny",
+  "inputs": {
+   "source": [
+    "5",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Ergebnis (JSON)"
+  }
+ },
+ "7": {
+  "class_type": "PreviewAny",
+  "inputs": {
+   "source": [
+    "1",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Systemprompt"
+  }
+ },
+ "8": {
+  "class_type": "PreviewAny",
+  "inputs": {
+   "source": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Nutzertext"
+  }
+ }
+}

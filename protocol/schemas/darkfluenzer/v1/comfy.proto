@@ -176,6 +176,8 @@ message WorkflowInfo {
   bool keyframes = 22;
   // Vorschlag als Kloner-Methode für diese Befehle (Manifest `cloner`, SP3 Schritt 8)
   repeated string cloner = 23;
+  // freie Default-Anweisungen (SP4 Schritt 4): Sprachworkflow ohne Personaprofil
+  bool instruction = 24;
 }
 
 message OutputFormat {

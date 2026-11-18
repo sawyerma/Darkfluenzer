@@ -122,3 +122,14 @@ test("KI-Studio: Profil anlegen, Testnachrichten an Melody, Verlauf und neue Sit
   await expect(page.getByText("Noch keine Testnachricht in dieser Sitzung.")).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test("Freie Default-Anweisungen: eigener Sprachworkflow mit letzten Deutungen (nur lesend)", async ({ page }) => {
+  const errors = await open(page);
+  const item = page.locator(".g-wfitem", { hasText: "Default · freie Anweisungen (Melody)" });
+  await expect(item).toBeVisible();
+  await item.click();
+  await expect(page.locator(".g-workmain > .g-head h2")).toHaveText("Default · freie Anweisungen (Melody)");
+  await expect(page.getByRole("table", { name: "Letzte Deutungen" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Chat-Test" })).toHaveCount(0); // kein Chat-Studio
+  expect(errors).toEqual([]);
+});

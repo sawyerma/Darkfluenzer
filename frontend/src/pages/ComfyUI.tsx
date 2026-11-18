@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Instances, readyUrl } from "./comfyui/Instances";
 import { KiStatus } from "./comfyui/KiStatus";
+import { Instructions } from "./comfyui/Instructions";
 import { KiStudio } from "./comfyui/KiStudio";
 import { WORKFLOW_GATE, gate } from "./comfyui/common";
 import { Queue } from "./comfyui/Queue";
@@ -179,8 +180,9 @@ export function ComfyUI() {
         </div>
         {current?.kind === "text" ? (
           <>
-            {/* Sprachworkflow (SP4 Schritt 1): KI-Studio statt Bild-Arbeitsfläche, kein Render */}
-            <KiStudio workflow={current} live={live} />
+            {/* Sprachworkflow (SP4 Schritt 1): KI-Studio statt Bild-Arbeitsfläche, kein Render;
+                freie Default-Anweisungen (SP4 Schritt 4): letzte Deutungen */}
+            {current.instruction ? <Instructions workflow={current} /> : <KiStudio workflow={current} live={live} />}
             <aside className="g-control" aria-label="Steuerung">
               <h2>Steuerung</h2>
               <KiStatus />

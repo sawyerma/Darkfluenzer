@@ -34,8 +34,8 @@ def model_params(man: Manifest) -> dict:
     out = {}
     for wf in man.workflows.values():
         eng = man.engines.get(wf.engine)
-        if eng is None or eng.kind != "text":
-            continue
+        if eng is None or eng.kind != "text" or wf.text is None:
+            continue  # nur Chat-Workflows; der Anweisungs-Workflow hat kein Personaprofil
         for name, param in wf.params.items():
             if param.type in ("int", "float") and not param.upload:
                 out[name] = param

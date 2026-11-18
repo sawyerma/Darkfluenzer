@@ -3,6 +3,7 @@ Default-Kontakt, Postausgang nach Neustart."""
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import uuid
 
@@ -218,6 +219,11 @@ def test_cloner_switch_creates_one_internal_order(cloner_cfg):
         assert [e["message_id"] for e in events].count(card.item_id) == before + 1
         free = send("2", "mach mir schöne Fotos", "2")
         await cockpit._on_inbound(free)
+        for _ in range(50):  # freie Anweisung: im Hintergrund (SP4 Schritt 4)
+            items, _ = store.conversation_items(first.customer.id, 0, 20)
+            if items[-1]["direction"] == "out":
+                break
+            await asyncio.sleep(0.01)
         items, _ = store.conversation_items(first.customer.id, 0, 20)
         assert items[-1]["direction"] == "out" and items[-1]["status"] == "queued"
         assert "Befehl" in items[-1]["text"]

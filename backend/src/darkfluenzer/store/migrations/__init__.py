@@ -774,7 +774,46 @@ ALTER TABLE default_contact ADD COLUMN test_notice_message_id INTEGER
 ALTER TABLE default_contact ADD COLUMN test_delay INTEGER NOT NULL DEFAULT 0
     CHECK (test_delay IN (0, 1));
 """,
+    37: """
+-- Freie Default-Anweisungen (SP4 Schritt 4): eigene Laufart instruction in ai_runs (Umbau wegen
+-- der CHECK-Bedingung, Spalten und IDs unverändert)
+CREATE TABLE ai_runs_v37 (
+    id              INTEGER PRIMARY KEY,
+    kind            TEXT    NOT NULL
+                    CHECK (kind IN ('studio', 'chat', 'test', 'warmup', 'instruction')),
+    workflow        TEXT    NOT NULL,
+    workflow_sha    TEXT    NOT NULL DEFAULT '',
+    model_sha       TEXT    NOT NULL DEFAULT '',
+    influencer_id   INTEGER REFERENCES influencers(id),
+    persona_version INTEGER REFERENCES persona_versions(id),
+    customer_id     INTEGER REFERENCES customers(id),
+    session         INTEGER NOT NULL DEFAULT 0,
+    request_id      TEXT    NOT NULL DEFAULT '',
+    message         TEXT    NOT NULL DEFAULT '',
+    context         TEXT    NOT NULL DEFAULT '{}',
+    system_prompt   TEXT    NOT NULL DEFAULT '',
+    user_text       TEXT    NOT NULL DEFAULT '',
+    answer          TEXT    NOT NULL DEFAULT '',
+    classification  TEXT    NOT NULL DEFAULT '',
+    prompt_id       TEXT    NOT NULL DEFAULT '',
+    wait_ms         INTEGER,
+    duration_ms     INTEGER,
+    total_ms        INTEGER,
+    error           TEXT    NOT NULL DEFAULT '',
+    created_at      TEXT    NOT NULL,
+    gates           TEXT    NOT NULL DEFAULT '[]',
+    sendable        INTEGER,
+    attempts        INTEGER NOT NULL DEFAULT 1
+);
+INSERT INTO ai_runs_v37 SELECT id, kind, workflow, workflow_sha, model_sha, influencer_id,
+    persona_version, customer_id, session, request_id, message, context, system_prompt, user_text,
+    answer, classification, prompt_id, wait_ms, duration_ms, total_ms, error, created_at, gates,
+    sendable, attempts FROM ai_runs;
+DROP TABLE ai_runs;
+ALTER TABLE ai_runs_v37 RENAME TO ai_runs;
+CREATE INDEX ai_runs_studio ON ai_runs(influencer_id, session) WHERE kind = 'studio';
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
-REBUILDS = {5, 6, 7, 34}
+REBUILDS = {5, 6, 7, 34, 37}
