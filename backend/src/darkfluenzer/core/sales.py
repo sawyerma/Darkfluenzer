@@ -52,6 +52,7 @@ class OfferPlan:
     payments: list[dict]
     amounts: dict = field(default_factory=dict)  # Krypto: eindeutige Beträge für die Zuordnung
     dropped: str = ""  # gewählte, gerade nicht nutzbare Wege (z. B. kein aktueller Kurs)
+    test: bool = False  # Testangebot im Kundentest: Testfreigabe statt Zahlung (SP5 Schritt 12)
 
     @property
     def label(self) -> str:
@@ -236,6 +237,9 @@ class SalesMixin:
                 f"Grenze {eta.minutes(limit)} min (Auslastung)."
             )
         price = item["price_cents"] + (item["hd_surcharge_cents"] if hd else 0)
+        expires = datetime.now(UTC) + timedelta(minutes=self._offer_valid_min(figure))
+        if test:  # Kundentest: keine Zahlungswege, die Testfreigabe ersetzt die Zahlung
+            return OfferPlan(item, hd, price, expires, delivery, [], test=True)
         ways = dialog.facts_for(self.cfg, figure).payment_ways
         crypto = tuple(w for w in ways if w in OFFER_METHODS)
         amounts: dict = {}
@@ -261,12 +265,19 @@ class SalesMixin:
             return "Kein Zahlungsweg der Influencerin eingerichtet" + (
                 f" ({dropped})." if dropped else "."
             )
-        expires = datetime.now(UTC) + timedelta(minutes=self._offer_valid_min(figure))
         return OfferPlan(item, hd, price, expires, delivery, payments, amounts, dropped)
 
     def _fact_block(self, order_no: str, plan: OfferPlan) -> str:
         """Faktenblock wörtlich an den Kunden (Daten, keine Formulierung)."""
         until = plan.expires.astimezone().strftime("%d.%m.%Y, %H:%M Uhr")
+        if plan.test:
+            word = self.store.default_contact()["test_pay_word"] or "Cash"
+            return "\n".join([
+                f"Testangebot {order_no}: {plan.label} · {_eur(plan.price)} (TEST, keine Zahlung)",
+                f"Testfreigabe: „{word}“ senden",
+                f"Gültig bis {until}",
+                f"Lieferzeit ca. {eta.minutes(plan.delivery_s)} Minuten nach der Testfreigabe",
+            ])  # fmt: skip
         labels = {k: t[0] for k, t in self.cfg.dialog.payment_terms.items() if t}
         lines = [f"Angebot {order_no}: {plan.label} · {_eur(plan.price)}",
                  "Bitte genau diesen Betrag senden:"]  # fmt: skip
@@ -292,23 +303,56 @@ class SalesMixin:
             customer_id, conversation_id, plan.item["product"], plan.hd, plan.price,
             plan.expires.isoformat(timespec="milliseconds"), plan.amounts,
             product_id=plan.item["id"], kind=plan.item["kind"], delivery_s=plan.delivery_s,
-            payments=plan.payments,
+            payments=plan.payments, test=plan.test,
         )  # fmt: skip
         facts = self._fact_block(order.order_no, plan)
         self.store.set_offer_facts(order.id, facts)
         ways = " · ".join(f"{p['way'].upper()} {p['amount']}" for p in plan.payments)
         dropped = f" · nicht angeboten: {plan.dropped}" if plan.dropped else ""
+        head = "TEST · ANGEBOT" if plan.test else "ANGEBOT"
         self.store.add_system_card(
             conversation_id,
-            f"ANGEBOT · {plan.label} · {_eur(plan.price)} · Lieferzeit ca. "
-            f"{eta.minutes(plan.delivery_s)} min · {ways}{dropped}",
+            f"{head} · {plan.label} · {_eur(plan.price)} · Lieferzeit ca. "
+            f"{eta.minutes(plan.delivery_s)} min · {ways or 'Testfreigabe statt Zahlung'}{dropped}",
             order_id=order.id,
         )
         return order, facts
 
-    def _product_status(self, figure: dict, item: dict) -> str:
+    def _test_release(self, order_no: str, by: str) -> None:
+        """Testfreigabe (SP5 Schritt 12): Testauftrag bezahlt ohne Zahlung, Karte."""
+        self.store.release_test_order(order_no, by)
+        order = self.store.order(order_no)
+        offer = self.store.offer(order.id)
+        if offer is not None:
+            self.store.add_system_card(
+                offer["conversation_id"],
+                f"TESTFREIGABE · {order_no} · ohne Zahlung ({by})",
+                order_id=order.id,
+            )
+        self._orders_changed()
+
+    async def _end_test_orders(self, platform: str, account: str) -> None:
+        """Betriebsart verlässt test (SP5 Schritt 12): offene Testaufträge dieses Kontos werden
+        abgebrochen (Jobs gestoppt, Grund „Testbetrieb beendet“); keiner bleibt hängen."""
+        for order_no in self.store.open_test_orders(platform, account):
+            order = self.store.order(order_no)
+            for stage in self.store.stages(order.id):
+                for j in self.store.stage_jobs(stage.id):
+                    if j["status"] in ("queued", "running"):
+                        await self._cancel_job(j["id"])
+            self.store.transition(order_no, "cancelled", reason="Testbetrieb beendet")
+            offer = self.store.offer(order.id)
+            if offer is not None:
+                self.store.add_system_card(
+                    offer["conversation_id"],
+                    f"TESTAUFTRAG ABGEBROCHEN · {order_no} · Testbetrieb beendet",
+                    order_id=order.id,
+                )
+        self._orders_changed()
+
+    def _product_status(self, figure: dict, item: dict, *, test: bool = False) -> str:
         """Lieferstand für den Faktenblock des Sprachlaufs: Lieferzeit oder nicht lieferbar."""
-        plan = self._offer_plan(figure, item, False)
+        plan = self._offer_plan(figure, item, False, test=test)
         if isinstance(plan, str):
             return "derzeit nicht lieferbar"
         return f"Lieferzeit ca. {eta.minutes(plan.delivery_s)} Minuten"

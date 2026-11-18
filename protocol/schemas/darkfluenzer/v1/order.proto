@@ -112,6 +112,8 @@ message ActiveOrder {
   string result_tier = 14;
   // Grund des Status, z. B. „abgelaufen“ oder „abgelehnt“ (SP5 Schritt 2)
   string status_reason = 15;
+  // Testauftrag der internen Akte (SP5 Schritt 12): Testfreigabe statt Zahlung
+  bool test = 16;
 }
 
 // STATE orders.active: Aufträge in Produktion (Stufen laufen oder warten auf den Betreiber)

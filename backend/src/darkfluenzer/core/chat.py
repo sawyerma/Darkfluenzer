@@ -309,9 +309,7 @@ class ChatMixin:
             for t in turns[: len(turns) - tail]
         )
         message = "\n".join(newest)
-        status = (
-            {} if test else {p["id"]: self._product_status(figure, p) for p in figure["prices"]}
-        )
+        status = {p["id"]: self._product_status(figure, p, test=test) for p in figure["prices"]}
         facts = dialog.facts_for(self.cfg, figure, status)  # mit Lieferstand (SP5 Schritt 2)
         chosen = memory.select(self.store, self.cfg, *frame["memory"], message)
         values = {k: persona["blocks"].get(k, "") for k in models.PROFILE_INPUTS}
@@ -364,8 +362,8 @@ class ChatMixin:
         row = self.store.ai_run(run_id)
         customer_id = frame["customer_id"]
         offer = None
-        if typed is not None and "offer_ready" in typed.consequences and not test:
-            offer = self._dialog_offer(conv, typed, figure)
+        if typed is not None and "offer_ready" in typed.consequences:
+            offer = self._dialog_offer(conv, typed, figure, test=test)
         if state.get("dirty"):  # neue Nachricht während der Erzeugung: verworfen, neu erzeugt
             message_id = self.store.queue_reply(
                 customer_id, conv, row["answer"], status="draft", ai_run_id=run_id, test=test
@@ -400,6 +398,8 @@ class ChatMixin:
                 )  # fmt: skip
         if not why and adapter is not None:
             adapter.wake.set()
+        if offer is not None and offer.test and self.store.default_contact()["test_auto_pay"]:
+            self._test_release(_order.order_no, "automatisch")  # Testfreigabe ohne Wort
         if offer is not None:
             self._orders_changed()
             self._wallet_changed()
@@ -543,31 +543,27 @@ class ChatMixin:
             self._message_changed(0)
             return True
         if "offer_rejected" in typed.consequences:
-            open_offer = None if frame["test"] else self.store.open_offer_of(conv)
+            open_offer = self.store.open_offer_of(conv)
             if open_offer is not None and open_offer["status"] == "offered":
                 self.store.reject_offer(open_offer["order_no"], "Einstufung")
                 self._orders_changed()
                 self._wallet_changed()
-            elif frame["test"]:
-                self.store.add_system_card(conv, f"{prefix}ANGEBOT ABGELEHNT")
         if typed.explicit_wish:
             self.store.add_system_card(
                 conv, f"{prefix}EXPLIZITER WUNSCH · kein Auftrag – Antwort nach der Strategie"
             )
-        elif "offer_ready" in typed.consequences and frame["test"]:
-            wish = typed.wish.description or "–"
-            self.store.add_system_card(
-                conv, f"{prefix}KAUFBEREIT · {wish} · Testangebot folgt mit dem Testweg (SP5 12)"
-            )
         self._message_changed(0)
         return False
 
-    def _dialog_offer(self, conv: int, typed: assessment.Assessment, figure: dict):
+    def _dialog_offer(
+        self, conv: int, typed: assessment.Assessment, figure: dict, *, test: bool = False
+    ):
         """Angebot aus dem Dialog (SP5 Schritt 2): Wunsch bestätigt und Kaufbereitschaft ab Stufe
         2. Genau ein lieferbares Produkt der gewünschten Art innerhalb der Lieferzeitgrenze und
         mit Zahlungsweg → Angebotsplan; sonst Karte mit Grund und keine Anlage. Ein offenes
         Angebot genügt; nach einer Ablehnung gilt die Sperrzeit der Influencerin."""
         wish = typed.wish.description or "–"
+        prefix = "TEST · " if test else ""
         if self.store.open_offer_of(conv) is not None:
             return None
         cooldown = figure.get("offer_cooldown_min") or 0
@@ -577,12 +573,12 @@ class ChatMixin:
             if until > datetime.now(UTC):
                 local = until.astimezone().strftime("%H:%M")
                 self.store.add_system_card(
-                    conv, f"KAUFBEREIT · {wish} · Sperrzeit nach Ablehnung bis {local} Uhr"
+                    conv, f"{prefix}KAUFBEREIT · {wish} · Sperrzeit nach Ablehnung bis {local} Uhr"
                 )
                 return None
         kind = typed.wish.kind
         items = [p for p in figure["prices"] if not kind or p["kind"] == kind]
-        plans = [self._offer_plan(figure, p, False) for p in items]
+        plans = [self._offer_plan(figure, p, False, test=test) for p in items]
         ready = [p for p in plans if not isinstance(p, str)]
         if len(ready) == 1:
             return ready[0]
@@ -591,7 +587,7 @@ class ChatMixin:
             text = f"mehrere Produkte passen ({names}) – Angebot im Cockpit wählen"
         else:
             text = "kein Angebot: " + (" ".join(plans) if plans else "kein Produkt dieser Art")
-        self.store.add_system_card(conv, f"KAUFBEREIT · {wish} · {text}")
+        self.store.add_system_card(conv, f"{prefix}KAUFBEREIT · {wish} · {text}")
         return None
 
     # ------------------------------------------------------------------ Versand-Gate

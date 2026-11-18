@@ -192,6 +192,9 @@ message DefaultContact {
   // Kundentest (SP4 Schritt 8): Verzögerung wie Kunde, laufende Testsitzung
   bool test_delay = 16;
   uint32 test_session = 17;
+  // Testfreigabe statt Zahlung (SP5 Schritt 12)
+  string test_pay_word = 18;
+  bool test_auto_pay = 19;
 }
 
 message CommandWorkflow {

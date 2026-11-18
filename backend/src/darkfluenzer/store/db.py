@@ -65,6 +65,7 @@ class Order:
     currency: str | None
     status: str
     source: str = "customer"
+    test: bool = False  # Testauftrag der internen Akte (SP5 Schritt 12)
 
 
 @dataclass(frozen=True)
@@ -330,6 +331,7 @@ def _order(row: sqlite3.Row) -> Order:
         currency=row["currency"],
         status=row["status"],
         source=row["source"],
+        test=bool(row["test"]),
     )
 
 

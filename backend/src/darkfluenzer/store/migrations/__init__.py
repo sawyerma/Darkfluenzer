@@ -899,6 +899,82 @@ CREATE TABLE offer_payments (
 ALTER TABLE influencers ADD COLUMN offer_cooldown_min INTEGER NOT NULL DEFAULT 0
     CHECK (offer_cooldown_min >= 0);
 """,
+    40: """
+-- Kundentest mit Bild (SP5 Schritt 12, SPEC-008): Testauftrag der internen Akte (orders.test,
+-- unveränderlich, nur an der internen Default-Akte). Statt der Zahlung gilt die Testfreigabe
+-- (Wort, Startwert „Cash“, oder automatisch). Ausnahme „ohne Zahlung“ in beiden Liefer-Triggern
+-- nur, wenn alle Bedingungen gelten: test = 1, interne Default-Akte, Lieferziel = Konversation des
+-- Angebots, Identität verifiziert und gehört zur Akte, Betriebsart des Kontos test; beim Versand
+-- zusätzlich: die Zustellnachricht geht genau an diese Konversation. Testmedien dürfen gelöscht
+-- werden.
+ALTER TABLE orders ADD COLUMN test INTEGER NOT NULL DEFAULT 0 CHECK (test IN (0, 1));
+CREATE TRIGGER orders_test_immutable BEFORE UPDATE OF test ON orders WHEN NEW.test != OLD.test
+BEGIN SELECT RAISE(ABORT, 'orders: Testkennzeichen unveränderlich'); END;
+CREATE TRIGGER orders_test_internal BEFORE INSERT ON orders WHEN NEW.test = 1
+    AND NOT EXISTS (SELECT 1 FROM customers c JOIN default_contact d ON d.customer_id = c.id
+                    WHERE c.id = NEW.customer_id AND c.kind = 'internal')
+BEGIN SELECT RAISE(ABORT, 'orders: Testauftrag nur an der internen Default-Akte'); END;
+ALTER TABLE default_contact ADD COLUMN test_pay_word TEXT NOT NULL DEFAULT 'Cash';
+ALTER TABLE default_contact ADD COLUMN test_auto_pay INTEGER NOT NULL DEFAULT 0
+    CHECK (test_auto_pay IN (0, 1));
+DROP TRIGGER deliveries_gate;
+CREATE TRIGGER deliveries_gate BEFORE INSERT ON deliveries
+BEGIN
+    SELECT RAISE(ABORT, 'delivery: Kunde/Auftrag ungültig oder storniert')
+    WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.id = NEW.order_id
+                      AND o.customer_id = NEW.customer_id AND o.status = 'approved');
+    SELECT RAISE(ABORT, 'delivery: keine bestätigte, passende Zahlung')
+    WHERE NOT EXISTS (SELECT 1 FROM payments p JOIN orders o ON o.id = p.order_id
+                      WHERE p.order_id = NEW.order_id AND p.status = 'confirmed'
+                      AND p.amount = o.price_amount AND p.currency = o.currency)
+      AND NOT EXISTS (SELECT 1 FROM orders o
+                  JOIN customers cu ON cu.id = o.customer_id AND cu.kind = 'internal'
+                  JOIN default_contact d ON d.customer_id = o.customer_id
+                  JOIN offers f ON f.order_id = o.id
+                  JOIN channel_conversations c ON c.id = f.conversation_id
+                  JOIN channel_identities i ON i.id = c.identity_id
+                       AND i.customer_id = o.customer_id AND i.verified = 1
+                  JOIN channel_accounts a ON a.platform = i.platform
+                       AND a.platform_account_id = i.account AND a.operating_mode = 'test'
+                  WHERE o.id = NEW.order_id AND o.test = 1);
+    SELECT RAISE(ABORT, 'delivery: keine gültige Betreiberfreigabe für dieses Artefakt')
+    WHERE NOT EXISTS (SELECT 1 FROM approvals ap WHERE ap.id =
+                        (SELECT max(id) FROM approvals WHERE order_id = NEW.order_id)
+                      AND ap.decision = 'approved' AND ap.artifact_id = NEW.artifact_id
+                      AND ap.artifact_sha256 = NEW.artifact_sha256);
+END;
+DROP TRIGGER deliveries_send_gate;
+CREATE TRIGGER deliveries_send_gate BEFORE UPDATE OF status ON deliveries
+WHEN NEW.status = 'sent' AND (
+    OLD.status != 'pending'
+    OR (NEW.gate_violation IS NULL AND (
+        (NOT EXISTS (SELECT 1 FROM payments p WHERE p.order_id = NEW.order_id
+                     AND p.status = 'confirmed')
+         AND NOT (EXISTS (SELECT 1 FROM orders o
+                  JOIN customers cu ON cu.id = o.customer_id AND cu.kind = 'internal'
+                  JOIN default_contact d ON d.customer_id = o.customer_id
+                  JOIN offers f ON f.order_id = o.id
+                  JOIN channel_conversations c ON c.id = f.conversation_id
+                  JOIN channel_identities i ON i.id = c.identity_id
+                       AND i.customer_id = o.customer_id AND i.verified = 1
+                  JOIN channel_accounts a ON a.platform = i.platform
+                       AND a.platform_account_id = i.account AND a.operating_mode = 'test'
+                  WHERE o.id = NEW.order_id AND o.test = 1)
+                  AND EXISTS (SELECT 1 FROM channel_messages m JOIN offers f
+                              ON f.order_id = NEW.order_id WHERE m.delivery_id = NEW.id
+                              AND m.conversation_id = f.conversation_id)))
+        OR NOT EXISTS (SELECT 1 FROM approvals ap WHERE ap.id =
+                         (SELECT max(id) FROM approvals WHERE order_id = NEW.order_id)
+                       AND ap.decision = 'approved' AND ap.artifact_id = NEW.artifact_id)
+        OR NOT EXISTS (SELECT 1 FROM orders o WHERE o.id = NEW.order_id
+                       AND o.status = 'approved'))))
+BEGIN SELECT RAISE(ABORT, 'delivery: Gate beim Versand nicht erfüllt'); END;
+DROP TRIGGER media_order_no_delete;
+CREATE TRIGGER media_order_no_delete BEFORE DELETE ON media WHEN OLD.order_id IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM orders o JOIN customers c ON c.id = o.customer_id
+                    WHERE o.id = OLD.order_id AND o.test = 1 AND c.kind = 'internal')
+BEGIN SELECT RAISE(ABORT, 'media: Kundenmedien unveränderlich'); END;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

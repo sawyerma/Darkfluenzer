@@ -508,6 +508,8 @@ class ProfilesMixin:
             "candidates",
             "cancel_word",
             "test_delay",
+            "test_pay_word",
+            "test_auto_pay",
         }
         unknown = set(fields) - allowed
         if unknown:

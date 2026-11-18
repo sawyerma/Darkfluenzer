@@ -106,6 +106,10 @@ function DefaultForm({
   const savedModes = Object.fromEntries(contact.accountModes.map((m) => [m.key, m.mode]));
   const [modes, setModes] = useState<Record<string, string>>(savedModes);
   const [testDelay, setTestDelay] = useState(contact.testDelay);
+  // Testfreigabe statt Zahlung (SP5 Schritt 12): Wort und automatisch
+  const [payWord, setPayWord] = useState(contact.testPayWord);
+  const [autoPay, setAutoPay] = useState(contact.testAutoPay);
+  const changedTest = testDelay !== contact.testDelay || payWord.trim() !== contact.testPayWord || autoPay !== contact.testAutoPay;
   const reset = useCommand();
   const results = useEventTopic(Topic.AI_RESULT);
   // Messwerte je Testantwort (SP4 Schritt 8) aus ai_runs: laufende Sitzung, neueste zuerst
@@ -135,7 +139,7 @@ function DefaultForm({
     workflow !== contact.mediaWorkflow ||
     video !== contact.videoWorkflow ||
     (Number(candidates) || 0) !== contact.clonerCandidates ||
-    testDelay !== contact.testDelay;
+    changedTest;
   const same = (a: Profile | undefined, b: Profile | undefined) => JSON.stringify(a ?? EMPTY) === JSON.stringify(b ?? EMPTY);
   const changedCommands = COMMANDS.some((c) => !same(profiles[c], saved[c]));
   const changed = changedIdentity || changedMedia || changedCommands;
@@ -181,6 +185,8 @@ function DefaultForm({
           }),
           clonerCandidates: Number(candidates) || 0,
           testDelay,
+          testPayWord: payWord.trim(),
+          testAutoPay: autoPay,
           cancelWord: cancelWord.trim(),
           accountModes: Object.entries(modes)
             .filter(([k, m]) => m !== savedModes[k])
@@ -405,13 +411,21 @@ function DefaultForm({
         title="Kundentest"
         hint={`Sitzung ${contact.testSession}${Object.values(modes).includes("test") ? " · aktiv" : ""}`}
         warn={false}
-        changed={testDelay !== contact.testDelay}
+        changed={changedTest}
         folds={folds}
         toggle={toggle}
       >
         <label className="g-switch">
           <input type="checkbox" checked={testDelay} onChange={(e) => setTestDelay(e.target.checked)} />
           Verzögerung wie Kunde
+        </label>
+        <div className="g-field">
+          <label htmlFor="df-pay-word">Testfreigabe-Wort (statt Zahlung)</label>
+          <input id="df-pay-word" value={payWord} onChange={(e) => setPayWord(e.target.value)} />
+        </div>
+        <label className="g-switch">
+          <input type="checkbox" checked={autoPay} onChange={(e) => setAutoPay(e.target.checked)} />
+          Testfreigabe automatisch
         </label>
         <button
           type="button"

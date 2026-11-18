@@ -30,6 +30,7 @@ class PaymentsMixin:
         facts: str = "",
         delivery_s: float | None = None,
         payments: list[dict] | None = None,
+        test: bool = False,
     ) -> Order:
         """Kundenauftrag mit Angebot (Status offered) und eindeutigen Beträgen je Krypto-Weg
         (method -> (Dezimaltext, genannte Adresse, Kurs, Kurszeit)); ``payments`` = je
@@ -37,7 +38,7 @@ class PaymentsMixin:
         Faktenblock wie gesendet. Alles in einer Transaktion."""
         with self.tx() as db:
             label = f"{product} + HD" if hd else product
-            order = self.create_order(customer_id, kind, label)  # Art vom Produkt (SP5 1)
+            order = self.create_order(customer_id, kind, label, test=test)  # Art vom Produkt
             self.set_offer(order.order_no, label, price_cents, "EUR")
             db.execute(
                 "INSERT INTO offers (order_id, conversation_id, product, hd, price_cents,"
@@ -80,6 +81,45 @@ class PaymentsMixin:
             "amounts": {r["method"]: r["amount"] for r in amounts},
             "payments": self.offer_payments(order_id),
         }
+
+    def release_test_order(self, order_no: str, by: str) -> None:
+        """Testfreigabe statt Zahlung (SP5 Schritt 12): nur Testaufträge der internen Akte;
+        offered -> accepted -> paid ohne Eingang und ohne Zahlung (Wallet bleibt leer)."""
+        with self.tx():
+            order = self.order(order_no)
+            if not order.test:
+                raise StoreError(f"{order_no} ist kein Testauftrag – Freigabe nur mit Zahlung.")
+            self.transition(order_no, "accepted", by=by)
+            self.transition(order_no, "paid", by=by, test=True)
+            self.bump("payments")
+
+    def open_test_orders(self, platform: str, account: str) -> list[str]:
+        """Offene Testaufträge der internen Akte, deren Konversation zu diesem Konto gehört."""
+        rows = self.db.execute(
+            "SELECT o.order_no FROM orders o JOIN offers f ON f.order_id = o.id"
+            " JOIN channel_conversations c ON c.id = f.conversation_id"
+            " JOIN channel_identities i ON i.id = c.identity_id WHERE o.test = 1"
+            " AND i.platform = ? AND i.account = ?"
+            " AND o.status NOT IN ('delivered', 'cancelled', 'refunded') ORDER BY o.id",
+            (platform, account),
+        )
+        return [r[0] for r in rows]
+
+    def test_delivery_allowed(self, order_id: int) -> bool:
+        """Gleiche Bedingungen wie die Liefer-Trigger (SP5 Schritt 12): Testauftrag der internen
+        Default-Akte, Ziel = Konversation des Angebots, Identität verifiziert, Betriebsart test."""
+        row = self.db.execute(
+            "SELECT 1 FROM orders o JOIN customers cu ON cu.id = o.customer_id"
+            " AND cu.kind = 'internal' JOIN default_contact d ON d.customer_id = o.customer_id"
+            " JOIN offers f ON f.order_id = o.id"
+            " JOIN channel_conversations c ON c.id = f.conversation_id"
+            " JOIN channel_identities i ON i.id = c.identity_id AND i.customer_id = o.customer_id"
+            " AND i.verified = 1 JOIN channel_accounts a ON a.platform = i.platform"
+            " AND a.platform_account_id = i.account AND a.operating_mode = 'test'"
+            " WHERE o.id = ? AND o.test = 1",
+            (order_id,),
+        ).fetchone()
+        return row is not None
 
     def set_offer_facts(self, order_id: int, facts: str) -> None:
         with self.tx() as db:
@@ -289,7 +329,7 @@ class PaymentsMixin:
             " f.product, f.hd, f.price_cents, f.expires_at FROM orders o"
             " JOIN offers f ON f.order_id = o.id"
             " JOIN customers c ON c.id = o.customer_id"
-            " WHERE o.status IN ('offered', 'payment_review', 'accepted')"
+            " WHERE o.status IN ('offered', 'payment_review', 'accepted') AND o.test = 0"
             " ORDER BY o.id DESC"
         ).fetchall()
         return [dict(r) | {"payments": self.offer_payments(r["id"])} for r in rows]

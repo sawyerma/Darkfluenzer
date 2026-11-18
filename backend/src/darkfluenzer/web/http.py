@@ -561,6 +561,8 @@ async def _conversation_page(request: web.Request) -> web.Response:
                 cancel_word=d["cancel_word"],
                 test_delay=bool(d["test_delay"]),
                 test_session=d["test_session"],
+                test_pay_word=d["test_pay_word"],
+                test_auto_pay=bool(d["test_auto_pay"]),
                 account_modes=[
                     channel_pb2.AccountMode(key=a["key"], mode=a["operating_mode"])
                     for a in store.channel_accounts()

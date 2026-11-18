@@ -167,6 +167,10 @@ class ClonerMixin:
         if mode == "off":
             return  # Betriebsart aus: nur anzeigen (SP1 Schritt 12)
         if mode == "test":
+            pay = (default.get("test_pay_word") or "").strip().lower()
+            if pay and said == pay:  # Testfreigabe statt Zahlung (SP5 Schritt 12), nie an Melody
+                await self._test_pay_word(conv, msg)
+                return
             await self._dialog_test(inbound)  # Kundentest (SP4 Schritt 8)
             return
         parsed = cloner.parse(msg["text"])
@@ -732,6 +736,26 @@ class ClonerMixin:
         numbers = await self._cloner_orders(msg, ins.command, plan[0], plan[1], opts)
         await self._cloner_started(conv, ins.command, platform, plan[0], numbers, opts)
 
+    async def _test_pay_word(self, conv: int, msg: dict) -> None:
+        """Wort der Testfreigabe im Kundentest: offenes Testangebot dieses Chats bezahlt ohne
+        Zahlung; Antwort im Testverlauf."""
+        self.store.mark_test(msg["id"])
+        default = self.store.default_contact()
+        offer = self.store.open_offer_of(conv)
+        order = self.store.order(offer["order_no"]) if offer else None
+        if order is None or not order.test or order.status != "offered":
+            text = "Kein offenes Testangebot."
+        else:
+            self._test_release(order.order_no, f"Wort „{default['test_pay_word']}“")
+            text = f"Testfreigabe für {order.order_no} erhalten – Produktion folgt."
+        self.store.queue_reply(
+            default["customer_id"], conv, text, status="queued", ai_run_id=None, test=True
+        )
+        adapter = self._adapter(msg["platform"], msg["account"])
+        if adapter is not None:
+            adapter.wake.set()
+        self._message_changed(0)
+
     async def _cloner_mode_word(self, conv: int, msg: dict, mode: str) -> None:
         """Betriebsart des Kontos per festem Wort im Default-Chat."""
         acc = self.store.account_for(msg["platform"], msg["account"])
@@ -739,6 +763,8 @@ class ClonerMixin:
             await self._reply_internal(conv, "Betriebsart: Kanalkonto unbekannt.")
             return
         self.store.set_account_mode(acc["key"], mode)
+        if acc["operating_mode"] == "test" and mode != "test":  # SP5 Schritt 12
+            await self._end_test_orders(msg["platform"], msg["account"])
         self._channels_changed()
         labels = {"production": "Produktion", "test": "Kundentest", "off": "Aus"}
         await self._reply_internal(conv, f"Betriebsart: {labels[mode]}.")

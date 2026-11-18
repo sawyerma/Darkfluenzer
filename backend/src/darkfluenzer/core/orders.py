@@ -277,6 +277,7 @@ def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
     item.order_no, item.source, item.kind = order.order_no, order.source, order.kind
     item.request, item.status = order.request, order.status
     item.status_reason = store.order_reason(order.id) or ""
+    item.test = order.test
     for st in store.stages(order.id):
         stage = item.stages.add(
             seq=st.seq,

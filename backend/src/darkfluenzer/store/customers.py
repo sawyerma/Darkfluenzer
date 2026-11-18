@@ -33,6 +33,12 @@ class CustomersMixin:
                 (platform, account, platform_user_id),
             ).fetchone()
             if row is not None:
+                # eine zugestellte Nachricht dieser Absender-ID belegt die Identität (z. B. die
+                # vom Betreiber eingetragene Default-Identität; Testweg SP5 Schritt 12)
+                db.execute(
+                    "UPDATE channel_identities SET verified = 1 WHERE id = ? AND verified = 0",
+                    (row["identity_id"],),
+                )
                 if handle:
                     db.execute(
                         "UPDATE channel_identities SET handle = ? WHERE id = ?",

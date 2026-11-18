@@ -213,6 +213,13 @@ class MessagesMixin:
         word = msg.cancel_word.strip()
         if word and (len(word) > 30 or " " in word or word.lower() in cloner.COMMANDS):
             return "Chat-Wort: ein Wort (höchstens 30 Zeichen), kein Befehl."
+        # Testfreigabe-Wort (SP5 Schritt 12): ein Wort, nicht leer, kein Befehl, kein anderes Wort
+        pay_word = msg.test_pay_word.strip() or current["test_pay_word"]
+        reserved = {word.lower(), *cloner.COMMANDS, *self.cfg.cloner.mode_words}
+        if len(pay_word) > 30 or " " in pay_word or pay_word.lower() in reserved:
+            return (
+                "Testfreigabe-Wort: ein Wort (höchstens 30 Zeichen), kein Befehl oder festes Wort."
+            )
         known = {a["key"] for a in self.store.channel_accounts()}
         for am in msg.account_modes:
             if am.key not in known:
@@ -240,12 +247,17 @@ class MessagesMixin:
                 "candidates": msg.cloner_candidates or None,
                 "cancel_word": word,
                 "test_delay": int(msg.test_delay),
+                "test_pay_word": pay_word,
+                "test_auto_pay": int(msg.test_auto_pay),
             },
             senders,
             commands,
         )
         for am in msg.account_modes:  # Betriebsart je Konto (SP1 Schritt 12)
+            before = self.store.channel_account(am.key)
             self.store.set_account_mode(am.key, am.mode)
+            if before["operating_mode"] == "test" and am.mode != "test":  # SP5 Schritt 12
+                await self._end_test_orders(before["platform"], before["platform_account_id"] or "")
         if msg.account_modes:
             self._channels_changed()
         self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)

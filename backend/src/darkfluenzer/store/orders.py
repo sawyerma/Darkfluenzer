@@ -56,15 +56,18 @@ class OrdersMixin:
     def order_dir(self, order: Order) -> Path:
         return self.local / "customers" / order.customer_no / "orders" / order.order_no
 
-    def create_order(self, customer_id: int, kind: str, request: str) -> Order:
+    def create_order(
+        self, customer_id: int, kind: str, request: str, *, test: bool = False
+    ) -> Order:
+        """Kundenauftrag; ``test`` nur an der internen Default-Akte (Trigger, SP5 Schritt 12)."""
         if kind not in ORDER_KINDS:
             raise StoreError(f"Auftragstyp {kind!r} unbekannt (erlaubt: {ORDER_KINDS}).")
         with self.tx() as db:
             ts = now()
             cur = db.execute(
-                "INSERT INTO orders (customer_id, kind, request, created_at, updated_at) "
-                "VALUES (?,?,?,?,?)",
-                (customer_id, kind, request, ts, ts),
+                "INSERT INTO orders (customer_id, kind, request, test, created_at, updated_at) "
+                "VALUES (?,?,?,?,?,?)",
+                (customer_id, kind, request, int(test), ts, ts),
             )
             no = db.execute("SELECT order_no FROM orders WHERE id = ?", (cur.lastrowid,))
             order = self.order(no.fetchone()[0])
@@ -207,7 +210,11 @@ class OrdersMixin:
         with self.tx() as db:
             order = self.order(order_no)
             allowed = TRANSITIONS if order.source == "customer" else OPERATOR_TRANSITIONS
-            if new_status not in allowed.get(order.status, set()):
+            # Testaufträge lassen sich aus jedem offenen Zustand abbrechen (Betriebsartwechsel)
+            test_cancel = (
+                order.test and new_status == "cancelled" and bool(allowed.get(order.status))
+            )
+            if new_status not in allowed.get(order.status, set()) and not test_cancel:
                 raise StoreError(
                     f"{order_no}: Übergang {order.status} -> {new_status} nicht erlaubt."
                 )

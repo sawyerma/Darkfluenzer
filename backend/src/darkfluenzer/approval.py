@@ -61,7 +61,7 @@ def check_gate(
         "AND amount = ? AND currency = ?",
         (order.id, order.price_amount, order.currency),
     ).fetchone()
-    if not paid:
+    if not paid and not store.test_delivery_allowed(order.id):  # Testweg (SP5 Schritt 12)
         reasons.append("PAYMENT_NOT_CONFIRMED")
 
     last = store.db.execute(

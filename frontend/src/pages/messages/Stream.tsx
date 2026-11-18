@@ -84,7 +84,9 @@ function CustomerOrder({ order }: { order: ActiveOrder }) {
                 ? `abgelaufen (${shortTime(offer.expiresMs)})`
                 : shortTime(offer.expiresMs)}
           </Row>
-          {offer.deliveryS ? <Row label="Lieferzeit">ca. {Math.max(5, Math.ceil(offer.deliveryS / 300) * 5)} min nach Zahlung</Row> : null}
+          {offer.deliveryS ? <Row label="Lieferzeit">
+              ca. {Math.max(5, Math.ceil(offer.deliveryS / 300) * 5)} min nach {order.test ? "Testfreigabe" : "Zahlung"}
+            </Row> : null}
           {order.statusReason ? <Row label="Grund">{order.statusReason}</Row> : null}
           {payments.map((p) => (
             <Row key={p.way} label={METHOD_LABEL[p.way] ?? p.way}>
@@ -212,6 +214,7 @@ function OrderCard({ item }: { item: ConversationItem }) {
         <>
           <small>
             {order.orderNo} · {ORDER_STATUS[order.status] ?? order.status}
+            {order.test ? " · TEST (Testfreigabe statt Zahlung)" : ""}
           </small>
           {order.source === "customer" ? <CustomerOrder order={order} /> : null}
           {order.stages.length ? (

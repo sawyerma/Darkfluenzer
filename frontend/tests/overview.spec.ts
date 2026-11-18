@@ -62,10 +62,12 @@ test("Übersicht: Kundenfreigabe und bezahlter Auftrag sichtbar, Akte öffnet; P
   const review = rows.filter({ has: page.locator(".g-badge", { hasText: "FREIGABE" }) });
   const paid = rows.filter({ has: page.locator(".g-badge", { hasText: "BEZAHLT" }) });
   await expect(review).toHaveCount(1);
-  await expect(paid).toHaveCount(1);
+  // bezahlte Aufträge: der Seed dieses Tests plus Testaufträge anderer Seeds (SP5 Schritt 12)
+  await expect(paid.first()).toBeVisible();
   await expect(review).toContainText(/DF-C-\d{6} · Foto · Ergebnis prüfen/);
-  await expect(paid).toContainText("wartet auf Produktion");
-  await expect(card(page, "Freigaben ausstehend").locator("small").nth(1)).toHaveText(/^Freigabe 1 · wartet auf Produktion 1 · /);
+  await expect(paid.first()).toContainText("wartet auf Produktion");
+  const waiting = await paid.count();
+  await expect(card(page, "Freigaben ausstehend").locator("small").nth(1)).toHaveText(new RegExp(`^Freigabe 1 · wartet auf Produktion ${waiting} · `));
   const customer = (await review.innerText()).match(/DF-C-\d{6}/)?.[0] ?? "";
   await review.click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Nachrichten");

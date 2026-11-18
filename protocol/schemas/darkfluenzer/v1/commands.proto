@@ -427,6 +427,9 @@ message DefaultContactUpdate {
   repeated AccountMode account_modes = 13;
   // Kundentest (SP4 Schritt 8): Antwortzeiten wie bei Kunden (Verhaltensprofil)
   bool test_delay = 14;
+  // Testfreigabe statt Zahlung (SP5 Schritt 12): Wort (leer = bisheriges) und automatisch
+  string test_pay_word = 15;
+  bool test_auto_pay = 16;
 }
 
 // Kundentest zurücksetzen (Befehl 63, SP4 Schritt 8): Testgedächtnis und Hinweisstatus leer.

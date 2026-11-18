@@ -200,6 +200,20 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP5 Schritt 12 (Kundentest mit Bild, Testweg)
+Commit: siehe git log „SP5 step 12“ / Migration 40 (orders.test + Trigger, test_pay_word/auto_pay,
+  deliveries_gate/deliveries_send_gate/media_order_no_delete neu), approval.check_gate, store
+  (release_test_order, open_test_orders, test_delivery_allowed, verified beim Eingang), core/sales
+  (_test_release, _end_test_orders, Testangebot), core/cloner (Wort, Moduswechsel), core/messages,
+  channel/commands/order.proto, DefaultPanel, Stream
+Nachweis: test_testpath (4), volle Suite 308 grün; Chrome-E2E isoliert 27/27 (neu testpath.spec.ts),
+  lesend echt 10/10; echte Migration 39→40 mit Sicherung, Telegram angemeldet
+Vertragsänderung: Eingang einer bekannten Identität setzt verified = 1 (Default-Identität wird erst
+  durch eine echte Nachricht verifiziert)
+NOT_RUN: Kundentest am Handy bis zum Bild (Produktion Schritt 6, Zustellung Schritt 9 folgen)
+Ergebnis: CODE (Integration isoliert belegt), Kette NOT_RUN
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP5 Schritt 2 (Angebot mit Faktenblock und Lieferzeit)
 Commit: siehe git log „SP5 step 2“ / Migration 39 (orders-Neubau payment_review/awaiting_contact/
   status_reason, offer_payments, offers.facts/delivery_s/review_started_at, offer_cooldown_min),
