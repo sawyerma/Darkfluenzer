@@ -14,7 +14,7 @@ import { OrdersActiveSchema, OrderUpdatedSchema } from "./generated/darkfluenzer
 import { CommandReceiptSchema, type CommandReceipt } from "./generated/darkfluenzer/v1/commands_pb";
 import { MediaItemSchema, MediaRemovedSchema } from "./generated/darkfluenzer/v1/media_pb";
 import { PaymentUpdatedSchema, WalletSchema } from "./generated/darkfluenzer/v1/wallet_pb";
-import { AiResultSchema } from "./generated/darkfluenzer/v1/ai_pb";
+import { AiResultSchema, AiStatusSchema } from "./generated/darkfluenzer/v1/ai_pb";
 import {
   Topic,
   TopicClass,
@@ -35,6 +35,7 @@ const TOPICS = {
   [Topic.CHANNELS]: { cls: TopicClass.STATE, schema: ChannelsSchema },
   [Topic.WALLET]: { cls: TopicClass.STATE, schema: WalletSchema },
   [Topic.INFLUENCERS]: { cls: TopicClass.STATE, schema: InfluencersSchema },
+  [Topic.AI_STATUS]: { cls: TopicClass.STATE, schema: AiStatusSchema },
   [Topic.CUSTOMER_UPDATED]: { cls: TopicClass.EVENT, schema: CustomerUpdatedSchema },
   [Topic.CONVERSATION_EVENT]: { cls: TopicClass.EVENT, schema: ConversationEventSchema },
   [Topic.ORDER_UPDATED]: { cls: TopicClass.EVENT, schema: OrderUpdatedSchema },

@@ -66,3 +66,12 @@ class AiMixin:
             (influencer_id, session, limit),
         ).fetchall()
         return [dict(r) for r in rows][::-1]
+
+    def recent_ai_runs(self, limit: int) -> list[dict]:
+        """Letzte Läufe (neueste zuerst) für den KI-Status, ohne Inhalte."""
+        rows = self.db.execute(
+            "SELECT id, kind, duration_ms, total_ms, error, created_at FROM ai_runs"
+            " ORDER BY id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]

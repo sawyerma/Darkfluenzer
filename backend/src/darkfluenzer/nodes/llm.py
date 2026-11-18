@@ -29,7 +29,7 @@ import shutil
 import threading
 import time
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -188,7 +188,12 @@ def _timing(entry: dict, submitted: float) -> tuple[float, float]:
 
 
 def run_graph(
-    cfg: Config, graph: dict, *, timeout_s: float, client_id: str = "darkfluenzer-llm"
+    cfg: Config,
+    graph: dict,
+    *,
+    timeout_s: float,
+    client_id: str = "darkfluenzer-llm",
+    on_submit: Callable[[str], None] | None = None,
 ) -> RunResult:
     """Graph auf ComfyUI 2 ausführen und die Textausgaben lesen – mit isoliertem Sitzungsordner.
     Kein Job, keine Herkunftsdatei, kein Start der Instanz je Nachricht (BUG-095, 098)."""
@@ -199,6 +204,8 @@ def run_graph(
     with session_dir(cfg) as run:
         submitted = time.time()
         prompt_id = client.submit(isolate_sessions(graph, run))
+        if on_submit is not None:  # Warteschlange und KI-Status ordnen den Lauf zu
+            on_submit(prompt_id)
         try:
             entry = client.wait(prompt_id, timeout_s=timeout_s, poll_s=0.2)
         except BaseException:  # Fehler, Zeitüberschreitung, Abbruch des Wartenden
@@ -241,7 +248,13 @@ def parse_classification(text: str) -> dict | None:
 
 
 def generate(
-    cfg: Config, man: Manifest, workflow: str, values: dict, *, timeout_s: float
+    cfg: Config,
+    man: Manifest,
+    workflow: str,
+    values: dict,
+    *,
+    timeout_s: float,
+    on_submit: Callable[[str], None] | None = None,
 ) -> TextResult:
     """``llm.generate(workflow, werte)`` (SP4 Schritt 1): registrierten Sprachworkflow mit den
     Werten füllen (Typen und Grenzen prüft die Registry), auf ComfyUI 2 ausführen und die
@@ -255,7 +268,7 @@ def generate(
     # leerer Block = nicht gesetzt: der Textknoten behält den (leeren) Wert des Graphen
     given = {k: v for k, v in values.items() if not (isinstance(v, str) and not v.strip())}
     graph = comfy.apply_params(json.loads(raw), wf, given)
-    result = run_graph(cfg, graph, timeout_s=timeout_s)
+    result = run_graph(cfg, graph, timeout_s=timeout_s, on_submit=on_submit)
     t = wf.text
     model = man.engines[wf.engine].files
     return TextResult(

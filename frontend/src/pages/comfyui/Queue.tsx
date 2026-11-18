@@ -88,7 +88,7 @@ export function Queue({ instance, onLoad, canLoad }: { instance: string; onLoad:
                 onClick={() => setOpen(isOpen ? null : job.jobId)}
               >
                 <span className="g-ellipsis">
-                  {i + 1}. {job.jobId ? job.workflow : "Auftrag aus der ComfyUI-Oberfläche"}
+                  {i + 1}. {jobLabel(job)}
                   {job.priority ? <small> · {PRIORITY_LABEL[job.priority] ?? job.priority}</small> : null}
                 </span>
                 {job.running ? (
@@ -152,4 +152,11 @@ export function Queue({ instance, onLoad, canLoad }: { instance: string; onLoad:
       ) : null}
     </div>
   );
+}
+
+/** Bezeichnung eines Auftrags in der Warteschlange: Darkfluenzer-Job, Sprachlauf des Backends (SP4)
+ *  oder ein in der ComfyUI-Oberfläche gestarteter Auftrag. */
+export function jobLabel(job: { jobId: bigint; workflow: string; origin: string }): string {
+  if (job.jobId) return job.workflow;
+  return job.origin === "llm" ? `Sprach-KI · ${job.workflow}` : "Auftrag aus der ComfyUI-Oberfläche";
 }

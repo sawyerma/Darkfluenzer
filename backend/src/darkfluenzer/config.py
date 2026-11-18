@@ -45,6 +45,8 @@ class ComfyConfig:
     startup_timeout_s: float
     stop_timeout_s: float
     data_dir: Path | None  # eigene user/input/output/temp-Ordner; None = ComfyUI-Standard
+    # Zulassung entlädt diese Instanz nie; ihr Speicher bleibt belegt (SP4 Schritt 1, BUG-085, E15)
+    keep_loaded: bool = False
 
     def folder(self, sub: str) -> Path:
         """Eigener Ordner der Instanz (user, input, output, temp)."""
@@ -239,6 +241,11 @@ class AiConfig:
     studio_turns: int = 12
     # Abbruch eines Sprachlaufs, wenn ComfyUI 2 so lange kein Ergebnis liefert (inkl. Laden)
     run_timeout_s: float = 180.0
+    # Aufwärmlauf nach dem Start der KI-Instanz (BUG-061) und seine Antwortlänge
+    warmup: bool = True
+    warmup_tokens: int = 32
+    # so viele letzte Läufe zeigt der KI-Status (STATE 11)
+    status_runs: int = 5
 
 
 @dataclass(frozen=True)
@@ -363,6 +370,9 @@ def _parse_comfy(root: Path, t: dict, name: str) -> ComfyConfig:
         if isinstance(val, bool) or not isinstance(val, int | float) or val <= 0:
             raise ConfigError(f"Konfiguration: {w}.{key} muss eine positive Zahl sein.")
 
+    keep = t.get("keep_loaded", False)
+    if not isinstance(keep, bool):
+        raise ConfigError(f"Konfiguration: {w}.keep_loaded muss true oder false sein.")
     return ComfyConfig(
         name=name,
         path=_resolve(root, _require(t, "path", str, w)),
@@ -375,7 +385,15 @@ def _parse_comfy(root: Path, t: dict, name: str) -> ComfyConfig:
         startup_timeout_s=float(startup),
         stop_timeout_s=float(stop),
         data_dir=_resolve(root, data_dir) if data_dir else None,
+        keep_loaded=keep,
     )
+
+
+def _flag(t: dict, key: str, default: bool, where: str) -> bool:
+    val = t.get(key, default)
+    if not isinstance(val, bool):
+        raise ConfigError(f"Konfiguration: {where}.{key} muss true oder false sein.")
+    return val
 
 
 def _positive(t: dict, key: str, default: float, where: str) -> float:
@@ -682,6 +700,9 @@ def load(root: Path | None = None) -> Config:
     ai_cfg = AiConfig(
         studio_turns=int(_positive(ai_section, "studio_turns", 12, "ai")),
         run_timeout_s=float(_positive(ai_section, "run_timeout_s", 180, "ai")),
+        warmup=_flag(ai_section, "warmup", True, "ai"),
+        warmup_tokens=int(_positive(ai_section, "warmup_tokens", 32, "ai")),
+        status_runs=int(_positive(ai_section, "status_runs", 5, "ai")),
     )
     telegram = _parse_telegram(data.get("telegram_account"), root, path)
     instagram = _parse_instagram(data.get("instagram"), path)

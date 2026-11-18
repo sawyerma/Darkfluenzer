@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/ai.proto.
  */
 export const file_darkfluenzer_v1_ai: GenFile = /*@__PURE__*/
-  fileDesc("ChhkYXJrZmx1ZW56ZXIvdjEvYWkucHJvdG8SD2RhcmtmbHVlbnplci52MSKJAwoFQWlSdW4SDgoGcnVuX2lkGAEgASgEEgwKBGtpbmQYAiABKAkSEgoKcmVxdWVzdF9pZBgDIAEoCRIVCg1pbmZsdWVuY2VyX2lkGAQgASgEEhcKD3BlcnNvbmFfdmVyc2lvbhgFIAEoDRIPCgdzZXNzaW9uGAYgASgNEg8KB21lc3NhZ2UYByABKAkSDgoGYW5zd2VyGAggASgJEhYKDmNsYXNzaWZpY2F0aW9uGAkgASgJEhwKFGNsYXNzaWZpY2F0aW9uX3ZhbGlkGAogASgIEhUKDXN5c3RlbV9wcm9tcHQYCyABKAkSEQoJdXNlcl90ZXh0GAwgASgJEg4KBndhaXRfcxgNIAEoARISCgpkdXJhdGlvbl9zGA4gASgBEg8KB3RvdGFsX3MYDyABKAESDQoFZXJyb3IYECABKAkSEAoId29ya2Zsb3cYESABKAkSFAoMd29ya2Zsb3dfc2hhGBIgASgJEhEKCW1vZGVsX3NoYRgTIAEoCRINCgVhdF9tcxgUIAEoAyIvCghBaVJlc3VsdBIjCgNydW4YASABKAsyFi5kYXJrZmx1ZW56ZXIudjEuQWlSdW5iBnByb3RvMw");
+  fileDesc("ChhkYXJrZmx1ZW56ZXIvdjEvYWkucHJvdG8SD2RhcmtmbHVlbnplci52MSKJAwoFQWlSdW4SDgoGcnVuX2lkGAEgASgEEgwKBGtpbmQYAiABKAkSEgoKcmVxdWVzdF9pZBgDIAEoCRIVCg1pbmZsdWVuY2VyX2lkGAQgASgEEhcKD3BlcnNvbmFfdmVyc2lvbhgFIAEoDRIPCgdzZXNzaW9uGAYgASgNEg8KB21lc3NhZ2UYByABKAkSDgoGYW5zd2VyGAggASgJEhYKDmNsYXNzaWZpY2F0aW9uGAkgASgJEhwKFGNsYXNzaWZpY2F0aW9uX3ZhbGlkGAogASgIEhUKDXN5c3RlbV9wcm9tcHQYCyABKAkSEQoJdXNlcl90ZXh0GAwgASgJEg4KBndhaXRfcxgNIAEoARISCgpkdXJhdGlvbl9zGA4gASgBEg8KB3RvdGFsX3MYDyABKAESDQoFZXJyb3IYECABKAkSEAoId29ya2Zsb3cYESABKAkSFAoMd29ya2Zsb3dfc2hhGBIgASgJEhEKCW1vZGVsX3NoYRgTIAEoCRINCgVhdF9tcxgUIAEoAyIvCghBaVJlc3VsdBIjCgNydW4YASABKAsyFi5kYXJrZmx1ZW56ZXIudjEuQWlSdW4ivAEKCEFpU3RhdHVzEhIKCmNvbmZpZ3VyZWQYASABKAgSDgoGZW5naW5lGAIgASgJEhMKC2tlZXBfbG9hZGVkGAMgASgIEg8KB3J1bm5pbmcYBCABKA0SEQoJd2FybXVwX21zGAUgASgDEhAKCHdhcm11cF9zGAYgASgBEhQKDHdhcm11cF9lcnJvchgHIAEoCRIrCgZyZWNlbnQYCCADKAsyGy5kYXJrZmx1ZW56ZXIudjEuQWlSdW5CcmllZiJuCgpBaVJ1bkJyaWVmEg4KBnJ1bl9pZBgBIAEoBBIMCgRraW5kGAIgASgJEhIKCmR1cmF0aW9uX3MYAyABKAESDwoHdG90YWxfcxgEIAEoARIOCgZmYWlsZWQYBSABKAgSDQoFYXRfbXMYBiABKANiBnByb3RvMw");
 
 /**
  * Sprach-KI auf ComfyUI 2 (SP4 Schritt 1, E19, E26): ein Lauf des registrierten Sprachworkflows mit
@@ -161,4 +161,113 @@ export type AiResult = Message<"darkfluenzer.v1.AiResult"> & {
  */
 export const AiResultSchema: GenMessage<AiResult> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_ai, 1);
+
+/**
+ * STATE ai.status (SP4 Schritt 1): Sprach-KI auf ComfyUI 2 – geladene Engine, ob die Instanz
+ * geladen bleibt, laufende Sprachläufe, Aufwärmlauf und die letzten Messwerte.
+ *
+ * @generated from message darkfluenzer.v1.AiStatus
+ */
+export type AiStatus = Message<"darkfluenzer.v1.AiStatus"> & {
+  /**
+   * Instanz ist eingerichtet ([comfyui_ai])
+   *
+   * @generated from field: bool configured = 1;
+   */
+  configured: boolean;
+
+  /**
+   * zuletzt geladene Engine (Titel aus der Registry); leer = nichts geladen bzw. entladen
+   *
+   * @generated from field: string engine = 2;
+   */
+  engine: string;
+
+  /**
+   * [comfyui_ai] keep_loaded: die Zulassung entlädt diese Instanz nie
+   *
+   * @generated from field: bool keep_loaded = 3;
+   */
+  keepLoaded: boolean;
+
+  /**
+   * Sprachläufe des Backends, die gerade in ComfyUI 2 laufen oder warten
+   *
+   * @generated from field: uint32 running = 4;
+   */
+  running: number;
+
+  /**
+   * letzter Aufwärmlauf nach dem Start der Instanz (0 = noch keiner)
+   *
+   * @generated from field: int64 warmup_ms = 5;
+   */
+  warmupMs: bigint;
+
+  /**
+   * @generated from field: double warmup_s = 6;
+   */
+  warmupS: number;
+
+  /**
+   * @generated from field: string warmup_error = 7;
+   */
+  warmupError: string;
+
+  /**
+   * letzte Läufe (Art, Zeiten, Fehler) – ohne Inhalte
+   *
+   * @generated from field: repeated darkfluenzer.v1.AiRunBrief recent = 8;
+   */
+  recent: AiRunBrief[];
+};
+
+/**
+ * Describes the message darkfluenzer.v1.AiStatus.
+ * Use `create(AiStatusSchema)` to create a new message.
+ */
+export const AiStatusSchema: GenMessage<AiStatus> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_ai, 2);
+
+/**
+ * @generated from message darkfluenzer.v1.AiRunBrief
+ */
+export type AiRunBrief = Message<"darkfluenzer.v1.AiRunBrief"> & {
+  /**
+   * @generated from field: uint64 run_id = 1;
+   */
+  runId: bigint;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: double duration_s = 3;
+   */
+  durationS: number;
+
+  /**
+   * @generated from field: double total_s = 4;
+   */
+  totalS: number;
+
+  /**
+   * @generated from field: bool failed = 5;
+   */
+  failed: boolean;
+
+  /**
+   * @generated from field: int64 at_ms = 6;
+   */
+  atMs: bigint;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.AiRunBrief.
+ * Use `create(AiRunBriefSchema)` to create a new message.
+ */
+export const AiRunBriefSchema: GenMessage<AiRunBrief> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_ai, 3);
 

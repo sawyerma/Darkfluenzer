@@ -253,6 +253,7 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
             (pb.TOPIC_REFERENCE_ADDED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_PAYMENT_UPDATED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_AI_RESULT, pb.TOPIC_CLASS_EVENT),
+            (pb.TOPIC_AI_STATUS, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_WALLET, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_INFLUENCERS, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_CUSTOMER_UPDATED, pb.TOPIC_CLASS_EVENT),
@@ -952,7 +953,7 @@ def test_queue_survives_a_failing_free_of_the_other_instance(cfg, monkeypatch):
     async def scenario(client, app, origin):
         cockpit = app[server.COCKPIT_KEY]
         lane = cockpit.lanes["media"]
-        inst = types.SimpleNamespace(name="ai", url="http://127.0.0.1:9")  # nicht erreichbar
+        inst = types.SimpleNamespace(name="ai", url="http://127.0.0.1:9", keep_loaded=False)
         other = types.SimpleNamespace(engine="wan", running_job=0, inst=inst)
         monkeypatch.setitem(cockpit.lanes, "ai", other)
         monkeypatch.setattr(cockpit, "_need_gb", lambda engine: 100.0)

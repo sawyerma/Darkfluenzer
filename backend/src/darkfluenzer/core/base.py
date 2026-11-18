@@ -112,6 +112,10 @@ class CockpitBase:
         self._registry = asyncio.Lock()
         self._manifest_mtime = self._registry_mtime()
         self._tasks: set[asyncio.Task] = set()
+        # Sprach-KI (SP4 Schritt 1): laufende Sprachläufe (prompt_id -> Workflowtitel), Aufwärmlauf
+        self._llm_runs: dict[str, str] = {}
+        self._warm_key: str | None = None
+        self._warmup: dict = {}
         self._inflight: dict[str, asyncio.Future] = {}  # request_id -> laufende Ausführung
         self._resuming: set[int] = set()  # vor dem Neustart eingereichte Jobs (nur abholen)
         self._install_editor_copies()

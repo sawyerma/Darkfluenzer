@@ -66,6 +66,9 @@ python = "local/ComfyUI/.venv/bin/python"
 host = "127.0.0.1"
 port = 8189
 data_dir = "local/comfyui_ai"
+# Sprach-KI bleibt geladen: die Zulassung entlädt diese Instanz nie und rechnet ihren Speicher mit
+# (BUG-085). Ob Melody immer geladen bleibt, entscheidet E15 nach der Messung (SP4 Schritt 1).
+keep_loaded = false
 extra_args = []
 path_prepend = ["/opt/homebrew/bin"]
 startup_timeout_s = 240

@@ -93,6 +93,8 @@ message ActiveJob {
   uint32 remaining_s = 12;
   // Vorrangklasse (SP5 Schritt 5): customer | default | cockpit | training
   string priority = 13;
+  // Herkunft eines Auftrags ohne Darkfluenzer-Job: "llm" = Sprachlauf des Backends (SP4), leer = ComfyUI-Oberfläche
+  string origin = 14;
 }
 
 // STATE jobs.active

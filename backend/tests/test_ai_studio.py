@@ -24,7 +24,7 @@ from darkfluenzer.core import persona
 from darkfluenzer.media import models, pipeline
 from darkfluenzer.nodes import comfy, llm
 from darkfluenzer.store import Store
-from darkfluenzer.v1 import ai_pb2, commands_pb2, influencer_pb2
+from darkfluenzer.v1 import ai_pb2, comfy_pb2, commands_pb2, influencer_pb2
 from darkfluenzer.v1 import stream_pb2 as pb
 from darkfluenzer.web import http as server
 
@@ -263,3 +263,106 @@ def test_studio_chat_over_http_records_runs_events_receipts_and_session(ai):
         assert fake.written and not any(p.exists() for p in fake.written)  # SPEC-018
 
     _run(cfg, scenario)
+
+
+def test_keep_loaded_ai_instance_is_never_freed_by_admission(ai, monkeypatch):
+    """BUG-085: eine mit keep_loaded markierte KI-Instanz entlädt die Zulassung nie; ohne die
+    Markierung wird sie wie bisher für einen Medienjob entladen."""
+    base, _ = ai
+    for keep, freed in ((True, False), (False, True)):
+        inst = dataclasses.replace(base.comfyui_ai, keep_loaded=keep)
+        cfg = dataclasses.replace(base, comfyui_ai=inst)
+        calls: list[str] = []
+
+        async def scenario(client, app, origin, calls=calls, freed=freed):
+            cockpit = app[server.COCKPIT_KEY]
+            lane, other = cockpit.lanes["media"], cockpit.lanes["ai"]
+            other.engine = "melody_chat"
+            monkeypatch.setattr(cockpit, "_need_gb", lambda engine: 100.0)
+            monkeypatch.setattr(cockpit, "_measure", lambda: {"ram_free": 1 * 2**30})
+            monkeypatch.setattr(cockpit.store, "job", lambda job_id: {"status": "queued"})
+            monkeypatch.setattr(comfy.ComfyClient, "free", lambda self: calls.append("free"))
+            assert await cockpit._admit(lane, 5, "lustify_sdxl") is True
+            assert bool(calls) is freed and (other.engine == "") is freed
+
+        _run(cfg, scenario)
+
+
+def test_warmup_once_per_instance_start_marks_engine_and_status(ai):
+    """BUG-061: nach dem Start der KI-Instanz ein Aufwärmlauf (ai_runs „warmup“), danach gilt Melody
+    als geladen; derselbe Start wärmt nicht erneut, ein neuer Start schon. STATE 11 nennt Engine,
+    Aufwärmzeit und die letzten Läufe; die Warteschlange ordnet einen laufenden Sprachlauf zu."""
+    cfg, fake = ai
+    cfg = dataclasses.replace(cfg, server=dataclasses.replace(cfg.server, observe_s=60))
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        lane = cockpit.lanes["ai"]
+
+        async def settle() -> None:
+            for task in list(cockpit._tasks):
+                await task
+
+        healthy = {"state": "running", "health": {"device": "mps"}, "instance_id": "a"}
+        lane.status = healthy | {"started_at": "t1"}
+        await cockpit.maybe_warmup()
+        await settle()
+        await cockpit.maybe_warmup()  # gleicher Start: kein zweiter Lauf
+        await settle()
+        rows = cockpit.store.db.execute("SELECT kind, error FROM ai_runs").fetchall()
+        assert [(r["kind"], r["error"]) for r in rows] == [("warmup", "")]
+        assert lane.engine == "melody_chat"
+        status = ai_pb2.AiStatus.FromString(cockpit._ai_status())
+        assert status.configured and status.engine.startswith("Melody1437")
+        assert status.warmup_s > 0 and status.warmup_error == "" and not status.keep_loaded
+        assert [r.kind for r in status.recent] == ["warmup"] and status.running == 0
+        lane.status = {"state": "stopped"}
+        await cockpit.maybe_warmup()  # gestoppt: Merker zurück
+        lane.status = healthy | {"started_at": "t2"}
+        await cockpit.maybe_warmup()
+        await settle()
+        assert cockpit.store.db.execute("SELECT count(*) FROM ai_runs").fetchone()[0] == 2
+
+        cockpit._llm_runs["p1"] = "Clara · Chat (Melody)"
+        lane.queue = [(0, True, "p1"), (0, False, "fremd")]
+        jobs = comfy_pb2.JobsActive.FromString(cockpit._jobs_active()).jobs
+        assert [(j.origin, j.workflow) for j in jobs] == [
+            ("llm", "Clara · Chat (Melody)"),
+            ("", ""),
+        ]
+        cockpit._llm_runs.clear()
+
+    _run(cfg, scenario)
+
+
+def test_comfy_start_without_instance_starts_both(monkeypatch, cfg):
+    """BUG-061: ``comfy start`` (Starter) startet jede konfigurierte Instanz; scheitert eine, wird
+    die andere trotzdem gestartet und der Fehler danach gemeldet."""
+    from darkfluenzer import app as cli
+    from darkfluenzer.nodes import local
+
+    started: list[str] = []
+
+    class Node:
+        def __init__(self, inst):
+            self.inst = inst
+
+        def start(self):
+            started.append(self.inst.name)
+            if self.inst.name == fail:
+                raise local.StartFailed("kaputt")
+            return {"result": "started", "url": self.inst.url}
+
+    ai_inst = dataclasses.replace(cfg.comfyui, name="ai", port=free_port())
+    both = dataclasses.replace(cfg, comfyui_ai=ai_inst)
+    monkeypatch.setattr(cli, "node_for", lambda c, inst: Node(inst))
+    fail = ""
+    payload, code = cli._comfy_start_all(both)
+    assert code == 0 and started == ["media", "ai"] and set(payload["instances"]) == {"media", "ai"}
+    started.clear()
+    fail = "media"
+    with pytest.raises(local.StartFailed) as err:
+        cli._comfy_start_all(both)
+    assert (
+        started == ["media", "ai"] and err.value.details["instances"]["ai"]["result"] == "started"
+    )

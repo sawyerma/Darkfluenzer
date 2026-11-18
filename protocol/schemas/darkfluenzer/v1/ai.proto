@@ -39,3 +39,31 @@ message AiRun {
 message AiResult {
   AiRun run = 1;
 }
+
+// STATE ai.status (SP4 Schritt 1): Sprach-KI auf ComfyUI 2 – geladene Engine, ob die Instanz
+// geladen bleibt, laufende Sprachläufe, Aufwärmlauf und die letzten Messwerte.
+message AiStatus {
+  // Instanz ist eingerichtet ([comfyui_ai])
+  bool configured = 1;
+  // zuletzt geladene Engine (Titel aus der Registry); leer = nichts geladen bzw. entladen
+  string engine = 2;
+  // [comfyui_ai] keep_loaded: die Zulassung entlädt diese Instanz nie
+  bool keep_loaded = 3;
+  // Sprachläufe des Backends, die gerade in ComfyUI 2 laufen oder warten
+  uint32 running = 4;
+  // letzter Aufwärmlauf nach dem Start der Instanz (0 = noch keiner)
+  int64 warmup_ms = 5;
+  double warmup_s = 6;
+  string warmup_error = 7;
+  // letzte Läufe (Art, Zeiten, Fehler) – ohne Inhalte
+  repeated AiRunBrief recent = 8;
+}
+
+message AiRunBrief {
+  uint64 run_id = 1;
+  string kind = 2;
+  double duration_s = 3;
+  double total_s = 4;
+  bool failed = 5;
+  int64 at_ms = 6;
+}

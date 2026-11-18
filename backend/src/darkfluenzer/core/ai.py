@@ -17,6 +17,9 @@ from ..v1 import ai_pb2, commands_pb2
 from ..v1 import stream_pb2 as spb
 from .base import _Call, _unix_ms, log
 
+# technische Eingabe des Aufwärmlaufs (kein Kundentext); die Antwort wird nur gemessen
+WARMUP_MESSAGE = "Hallo"
+
 
 def _euro(cents: int) -> str:
     return f"{cents / 100:.2f}".replace(".", ",") + " €"
@@ -91,11 +94,21 @@ class AiStudioMixin:
         task.add_done_callback(self._tasks.discard)
         return ""
 
-    async def _studio_run(self, workflow: str, values: dict, run: dict) -> None:
-        """Lauf im Hintergrund; danach ``ai_runs``, EVENT und Receipt (auch bei Fehler)."""
+    async def _llm_run(self, kind: str, workflow: str, values: dict, run: dict) -> str:
+        """Ein Sprachlauf auf ComfyUI 2 mit Nachweis in ``ai_runs``; liefert den Fehler (leer =
+        ok). Während des Laufs ist er in Warteschlange und KI-Status zugeordnet; danach gilt die
+        Engine der KI-Instanz als geladen."""
+        wf = self.manifest.workflows[workflow]
         started = time.monotonic()
         fields: dict = {}
         error = ""
+        prompt = ""
+
+        def submitted(prompt_id: str) -> None:  # im Worker-Thread
+            nonlocal prompt
+            prompt = prompt_id
+            self._llm_runs[prompt_id] = wf.title
+
         try:
             result = await asyncio.to_thread(
                 llm.generate,
@@ -104,6 +117,7 @@ class AiStudioMixin:
                 workflow,
                 values,
                 timeout_s=self.cfg.ai.run_timeout_s,
+                on_submit=submitted,
             )
             fields = {
                 "workflow_sha": result.workflow_sha,
@@ -116,20 +130,97 @@ class AiStudioMixin:
                 "wait_ms": round(result.wait_s * 1000),
                 "duration_ms": round(result.duration_s * 1000),
             }
+            if (lane := self.lanes.get("ai")) is not None:
+                lane.engine = wf.engine  # Modell geladen (Zulassung, STATE resources/ai.status)
             if not result.answer.strip():
                 error = "Leere Antwort aus dem Sprachworkflow."
         except (llm.LlmError, ComfyError, models.ManifestError, ValueError, OSError) as exc:
             error = str(exc) or type(exc).__name__
         except Exception as exc:  # Ergebnis muss immer festgehalten werden
-            log.exception("KI-Studio-Lauf %s fehlgeschlagen", run["request_id"])
+            log.exception("Sprachlauf (%s) fehlgeschlagen", kind)
             error = f"Interner Fehler ({type(exc).__name__})"
+        finally:
+            self._llm_runs.pop(prompt, None)
         total_ms = round((time.monotonic() - started) * 1000)
-        self.store.add_ai_run("studio", workflow, **run, **fields, total_ms=total_ms, error=error)
+        self.store.add_ai_run(kind, workflow, **run, **fields, total_ms=total_ms, error=error)
+        self.hub.push_events(spb.TOPIC_AI_RESULT)
+        self._ai_changed()
+        return error
+
+    def _ai_changed(self) -> None:
+        self.hub.set_state(spb.TOPIC_AI_STATUS, self._ai_status())
+        self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
+        self.hub.set_state(spb.TOPIC_RESOURCES, self._resources())
+
+    async def _studio_run(self, workflow: str, values: dict, run: dict) -> None:
+        """Lauf im Hintergrund; danach ``ai_runs``, EVENT und Receipt (auch bei Fehler)."""
+        error = await self._llm_run("studio", workflow, values, run)
         self.store.finish_command(
             run["request_id"], "failed" if error else "completed", detail=error
         )
-        self.hub.push_events(spb.TOPIC_AI_RESULT)
         self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
+
+    async def maybe_warmup(self) -> None:
+        """Aufwärmlauf (BUG-061): einmal je Start der KI-Instanz, sobald sie antwortet und ein
+        Sprachworkflow registriert ist; lädt Melody vor der ersten echten Nachricht."""
+        lane = self.lanes.get("ai")
+        if lane is None or not self.cfg.ai.warmup:
+            return
+        st = lane.status
+        if not (st.get("health") and st.get("state") in ("running", "foreign")):
+            self._warm_key = None  # nach dem nächsten Start erneut aufwärmen
+            return
+        key = f"{st.get('instance_id') or st.get('pid') or ''}:{st.get('started_at') or ''}"
+        if key == self._warm_key:
+            return
+        usable = (w for w in self.manifest.workflows.values() if w.text and w.enabled)
+        wf = next((w for w in usable if w.status != "GESPERRT"), None)
+        if wf is None:
+            return
+        self._warm_key = key
+        task = asyncio.create_task(self._warmup_run(wf.key))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
+    async def _warmup_run(self, workflow: str) -> None:
+        values = {"message": WARMUP_MESSAGE, "max_tokens": self.cfg.ai.warmup_tokens}
+        started = time.monotonic()
+        error = await self._llm_run("warmup", workflow, values, {"message": WARMUP_MESSAGE})
+        self._warmup = {
+            "ms": int(time.time() * 1000),
+            "s": time.monotonic() - started,
+            "error": error,
+        }
+        if error:
+            log.warning("Aufwärmlauf der KI-Instanz fehlgeschlagen: %s", error)
+        else:
+            log.info("KI-Instanz aufgewärmt in %.1f s", self._warmup["s"])
+        self._ai_changed()
+
+    def _ai_status(self) -> bytes:
+        """STATE ai.status: geladene Engine, bleibt geladen, laufende Sprachläufe, Aufwärmen,
+        letzte Messwerte (ohne Inhalte)."""
+        lane = self.lanes.get("ai")
+        msg = ai_pb2.AiStatus(configured=lane is not None)
+        if lane is not None:
+            eng = self.manifest.engines.get(lane.engine)
+            msg.engine = eng.title if eng else lane.engine
+            msg.keep_loaded = lane.inst.keep_loaded
+            msg.running = len(self._llm_runs)
+        if self._warmup:
+            msg.warmup_ms = self._warmup["ms"]
+            msg.warmup_s = round(self._warmup["s"], 2)
+            msg.warmup_error = self._warmup["error"]
+        for r in self.store.recent_ai_runs(self.cfg.ai.status_runs):
+            msg.recent.add(
+                run_id=r["id"],
+                kind=r["kind"],
+                duration_s=(r["duration_ms"] or 0) / 1000,
+                total_s=(r["total_ms"] or 0) / 1000,
+                failed=bool(r["error"]),
+                at_ms=_unix_ms(r["created_at"]),
+            )
+        return msg.SerializeToString()
 
     async def _studio_session_reset(self, msg: commands_pb2.StudioSessionReset, call: _Call) -> str:
         if not any(i["id"] == msg.influencer_id for i in self.store.influencers()):

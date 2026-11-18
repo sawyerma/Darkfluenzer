@@ -23,6 +23,9 @@ test("KI-Studio: Sprachworkflow registriert, Chat-Test statt Render, gesperrte A
   await expect(page.locator(".g-workmain > h2")).toHaveText("Clara · Chat (Melody)");
   await expect(page.getByRole("tab", { name: "Chat-Test" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("button", { name: "Generieren" })).toHaveCount(0); // kein Render für Sprache
+  // KI-Status (STATE 11): Modell, Aufwärmen, letzte Läufe aus dem Backend
+  const status = page.locator(".g-control-part", { has: page.getByRole("heading", { name: "KI-Status" }) });
+  await expect(status.locator("dt")).toHaveText(["Modell", "Aufwärmen", "Letzte Läufe"]);
   await page.getByRole("tab", { name: "Vergleich" }).click();
   await expect(page.locator(".g-workmain .g-note").first()).toContainText(/gesperrt|Noch keine Influencerin/);
   await page.getByRole("tab", { name: "Persona" }).click();
@@ -77,6 +80,10 @@ test("KI-Studio: Profil anlegen, Testnachrichten an Melody, Verlauf und neue Sit
   await expect(turns.nth(1).locator('.g-bubble[data-dir="out"]')).toBeVisible({ timeout: 180_000 });
   await turns.nth(1).locator("details > summary").click();
   await expect(turns.nth(1).locator(".g-pre").nth(2)).toContainText("Kunde: Bist du echt oder eine KI?"); // Verlauf
+  // KI-Status nach den Läufen: Melody geladen, Studio-Läufe mit Zeit
+  const status = page.locator(".g-control-part", { has: page.getByRole("heading", { name: "KI-Status" }) });
+  await expect(status.locator("dd").first()).toContainText("Melody1437");
+  await expect(status.locator("dd").nth(2)).toContainText(/KI-Studio \d+,\d s/);
   await page.getByRole("button", { name: "Neue Sitzung" }).click();
   await expect(turns).toHaveCount(0);
   // die laufende Sitzung kommt vom Backend: nach dem Neuladen bleibt der Verlauf leer

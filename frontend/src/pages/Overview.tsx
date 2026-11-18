@@ -5,6 +5,7 @@ import type { ActiveOrder } from "../core/generated/darkfluenzer/v1/order_pb";
 import { ComfyState } from "../core/generated/darkfluenzer/v1/comfy_pb";
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
 import type { Tone } from "./messages/common";
+import { jobLabel } from "./comfyui/Queue";
 import { useStateTopic } from "../core/state";
 
 const RECENT_CUSTOMERS = 8;
@@ -53,7 +54,7 @@ export function Overview() {
     const run = own.find((j) => j.running);
     const waiting = own.length - (run ? 1 : 0);
     const parts = [
-      run ? `läuft: ${run.jobId ? run.workflow : "Auftrag aus der ComfyUI-Oberfläche"}` : "",
+      run ? `läuft: ${jobLabel(run)}` : "",
       waiting ? `${waiting} wartend` : "",
       active?.value.paused.includes(name) ? "angehalten" : "",
     ].filter(Boolean);

@@ -196,6 +196,7 @@ class RenderMixin:
                 if other is not lane
                 and other.engine
                 and not other.running_job
+                and not other.inst.keep_loaded  # bleibt geladen (BUG-085, E15)
                 and other.inst.name not in unreachable
             ]
             if idle:
@@ -268,6 +269,8 @@ class RenderMixin:
                 self.hub.set_state(spb.TOPIC_CHANNELS, self._channels())
                 self.hub.set_state(spb.TOPIC_WALLET, self._wallet_state())
                 self.hub.set_state(spb.TOPIC_INFLUENCERS, self._influencers())
+                await self.maybe_warmup()
+                self.hub.set_state(spb.TOPIC_AI_STATUS, self._ai_status())
                 self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
                 self.hub.push_events(spb.TOPIC_COMMAND_RECEIPT)
                 # Ordner nur in großem Abstand, Job-Ausgaben jede Runde (SP0 Schritt 6)
@@ -340,6 +343,9 @@ class RenderMixin:
 
         def add(lane: _Lane, job_id: int, running: bool, prompt_id: str = "") -> None:
             workflow, params = brief.get(job_id, ("", {}))
+            llm_run = not job_id and prompt_id in self._llm_runs  # Sprachlauf des Backends (SP4)
+            if llm_run:
+                workflow = self._llm_runs[prompt_id]
             value, maximum = lane.progress.get(prompt_id, (0, 0)) if running else (0, 0)
             estimate = self._estimates.get(job_id, 0.0)
             elapsed = remaining = stalled = 0.0
@@ -365,6 +371,7 @@ class RenderMixin:
                 elapsed_s=int(elapsed),
                 remaining_s=int(remaining),
                 priority=priorities.get(job_id, ""),
+                origin="llm" if llm_run else "",
             )
             job.params.update({k: _param_text(k, v) for k, v in params.items()})
 

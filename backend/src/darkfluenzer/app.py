@@ -113,10 +113,12 @@ def _emit(payload: dict, as_json: bool, labels: dict[str, str] = _HUMAN) -> None
         )
 
 
-def _comfy(action: str, instance: str) -> tuple[dict, int]:
+def _comfy(action: str, instance: str | None) -> tuple[dict, int]:
     cfg = load()
     setup_logging(cfg)
-    node = node_for(cfg, cfg.instance(instance))
+    if action == "start" and instance is None:  # Starter: beide Instanzen (BUG-061)
+        return _comfy_start_all(cfg)
+    node = node_for(cfg, cfg.instance(instance or "media"))
     if action == "start":
         return {"ok": True, **node.start()}, 0
     if action == "stop":
@@ -128,6 +130,25 @@ def _comfy(action: str, instance: str) -> tuple[dict, int]:
         return {"ok": True, **st}, 0
     message = f"Verwaltete ComfyUI nicht gesund (Zustand: {st['state']})."
     return {"ok": False, **st, "error": "unhealthy", "message": message}, 7
+
+
+def _comfy_start_all(cfg) -> tuple[dict, int]:
+    """Startet jede konfigurierte Instanz (Medien zuerst); eine scheiternde hält die andere nicht
+    auf. Ergebnis der Medien-Instanz oben (wie bisher), alle unter ``instances``; der erste Fehler
+    wird danach gemeldet."""
+    results: dict[str, dict] = {}
+    first: Exception | None = None
+    for inst in cfg.instances:
+        try:
+            results[inst.name] = node_for(cfg, inst).start()
+        except runtime.RuntimeFailure as exc:
+            log.error("ComfyUI %s: Start fehlgeschlagen: %s", inst.name, exc)
+            results[inst.name] = {"result": "failed", "error": exc.code, "message": str(exc)}
+            first = first or exc
+    if first is not None:
+        first.details = {**getattr(first, "details", {}), "instances": results}
+        raise first
+    return {"ok": True, **results["media"], "instances": results}, 0
 
 
 def _models(args: argparse.Namespace) -> tuple[dict, int]:
@@ -319,7 +340,8 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="area", required=True)
     cmd = sub.add_parser("comfy", help="verwaltete ComfyUI-Instanzen")
     cmd.add_argument("action", choices=["start", "stop", "status", "health"])
-    cmd.add_argument("--instance", choices=list(INSTANCE_SECTIONS), default="media")
+    # ohne --instance: start = alle konfigurierten Instanzen, sonst die Medien-Instanz
+    cmd.add_argument("--instance", choices=list(INSTANCE_SECTIONS), default=None)
     cmd.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     mod = sub.add_parser("models", help="Modell-Registry workflows/manifest.toml")
     mod.add_argument("action", choices=["status", "download", "verify", "orphans"])

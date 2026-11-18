@@ -61,7 +61,7 @@
 | BUG-058 | **Video-Parameter uneinheitlich:** LTX `duration` („Länge (s)“) aus dem Manifest, Wan/Remix `duration_s` („Gesamtlänge“) aus dem Backend; das Feld steht je Workflow an anderer Stelle. Betreiber beanstandet 17.11. | TEST, LIVE | Ein Parametervertrag und eine Bedienkomponente für alle Video-Workflows. | B SP1, F SP1 |
 | BUG-059 | KI-Kennzeichnung nur in Metadaten; Plattform-Neukodierung entfernt sie vermutlich; WebP/WebM nicht kennzeichenbar. | CODE, HYPOTHESE | Kennzeichnung muss beim Empfänger ankommen (Begleittext oder Marke); je Kanal real prüfen. | B SP5 |
 | BUG-060 | Angebot setzt ein Krypto-Wallet voraus; Angebotstext fest im Code; `offer_amounts.method` erlaubt nur Krypto; die Gültigkeit steht in `wallet.offer_valid_min`; `store.create_offer` legt jeden Auftrag als `image` an. | CODE | Zahlungswege als Liste je Influencerin; die Formulierung kommt aus dem Sprachworkflow (Profilblock Angebot, E19), Betrag und Zahlungsweg aus SQLite. | B SP5 |
-| BUG-061 | Starter startet nur die Medien-Instanz; kein Autostart, kein Schutz vor Ruhezustand; `cockpit_up` startet den Server losgelöst, stirbt er, startet ihn niemand neu. | CODE | Beide Instanzen, Autostart, kein Ruhezustand im Betrieb. | B SP4 (KI-Instanz), SP6 (Dienst) |
+| BUG-061 | **[18.11.] TEIL** (beide Instanzen über `comfy start`, Aufwärmlauf; Autostart und Ruhezustand SP6, §7) – Starter startet nur die Medien-Instanz; kein Autostart, kein Schutz vor Ruhezustand; `cockpit_up` startet den Server losgelöst, stirbt er, startet ihn niemand neu. | CODE | Beide Instanzen, Autostart, kein Ruhezustand im Betrieb. | B SP4 (KI-Instanz), SP6 (Dienst) |
 | BUG-090 | Die Fertigstellen-Stufe trägt keine Parameter (`pipeline.select_candidate` ruft `create_render` mit leeren Werten). Die Höhe für das Story-Format lässt sich so nicht setzen; ein Video-Kundenauftrag scheitert, weil `ltx25_i2v` als Fertigstellen den Pflichtwert `prompt` braucht. | CODE | Werte für die Fertigstellen-Stufe am Auftrag. | B SP1 (Story), SP5 (Video) |
 | BUG-094 | LoRA nur in Workflows mit demselben Engine-Eintrag ladbar (`models.engine_model_names` vergleicht `base_engine`). `lustify_sam31_edit` nutzt dasselbe Modell unter anderem Eintrag und dürfte die Charakter-LoRA nicht laden. (In Fables SP3-Blatt als „BUG-089“ geführt; 089 ist bereits vergeben.) | CODE | Bindung an die Architektur (`arch`). | B SP3 |
 | BUG-095 | Jeder Workflow-Lauf prüft die Instanz über `runtime.start`, ruft zweimal `git` auf (`comfy.provenance`), fragt im Sekundentakt ab und schreibt eine Herkunftsdatei. Für Chat-Antworten ist das zu schwer. **[18.11.] PASS** (§7, `llm.generate`) | CODE | Leichter Weg ohne diese Schritte (`llm.generate`). | B SP4 |
@@ -75,7 +75,7 @@
 | BUG-080 | Kloner im Modus „Direkt“: nach dem Rückversand wartet die Stufe weiter auf Auswahl, der Auftrag bleibt offen; „Stufe wiederholen“ sendet alle Dateien erneut. | CODE | Auftrag schließt nach dem Rückversand; Rückversand je Medium genau einmal (`cloner_returns`). | B SP1 |
 | BUG-081 | Kloner verlangt immer `candidates_default` Kandidaten; Workflows ohne Seed lehnt `create_order` dann ab (z. B. Export). | CODE | Ein Kandidat bei Workflows ohne Seed; Default-Produktion `production.cloner_candidates` (Vorgabe 1). | B SP1 |
 | BUG-082 | Rückversand an den Default wartet Antwortverzögerung und Tippzeit ab (`telegram._pace`) und steht hinter Kundensendungen. | CODE | Interne Sendungen sofort und zuerst. | B SP1 |
-| BUG-085 | Die Zulassung (`_admit`) entlädt für jeden Medienjob die ruhende andere Instanz, also auch Melody. | CODE | Instanz als „bleibt geladen“ markierbar; Regel für Chat neben Video (E15). | B SP4 |
+| BUG-085 | Die Zulassung (`_admit`) entlädt für jeden Medienjob die ruhende andere Instanz, also auch Melody. **[18.11.] TEIL** (`keep_loaded` umgesetzt und getestet; Einschalten nach E15, §7) | CODE | Instanz als „bleibt geladen“ markierbar; Regel für Chat neben Video (E15). | B SP4 |
 | BUG-077 | Angebot verlangt die Altersangabe: `server._create_offer` weist ohne `self_declared_adult` ab. Laut E2 entfällt die Altersfrage. (Im Änderungsblatt vom 17.11. als „BUG-075“ geführt; 075 ist bereits vergeben.) | TEST | Bedingung entfernen; die Sperre bei Hinweisen auf Minderjährigkeit bleibt: `customers.age_mark` kennt bereits `under_18`, dieser Wert trägt die Sperre, `_create_offer` prüft künftig nur noch darauf. Test `test_customer_orders` anpassen. | B SP4 |
 
 ## 3. P2
@@ -200,6 +200,21 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP4 Schritt 1 Teil b (keep_loaded, beide Instanzen, Aufwärmlauf, STATE 11) / BUG-061 / BUG-085
+Commit: siehe git log „SP4 step 1b“ / config.ComfyConfig.keep_loaded, core/render._admit + _jobs_active,
+  core/ai (_llm_run, maybe_warmup, _ai_status), nodes/llm (on_submit), app._comfy_start_all, KiStatus.tsx
+Behauptung: BESTÄTIGT (Starter startete nur Instanz 1; Zulassung hätte Melody entladen)
+Nachweis Integration: tests/test_ai_studio.py – keep_loaded: Zulassung startet ohne Entladen, ohne Markierung wird
+  entladen (Regel entfernt: rot); Aufwärmen einmal je Instanzstart, gestoppt setzt zurück, neuer Start wärmt
+  erneut, STATE 11 mit Engine, Zeit, letzten Läufen; Warteschlange ordnet laufenden Sprachlauf zu; comfy start
+  startet beide, eine scheiternde hält die andere nicht auf
+Nachweis echt: `comfy start --json` → media und ai already_running; Cockpit-Neustart → Aufwärmlauf 0,4 s
+  (ai_runs warmup), KI-Status im echten Cockpit (Chrome); kalter Aufwärmlauf nach Neustart von ComfyUI 2: NICHT
+  GELAUFEN (produktive Instanz nicht neu gestartet)
+Regression: Backend 226 grün, Frontend Build, 14 Unit-Tests, 10 Browser-Tests isoliert, 6 lesend echt
+Ergebnis: BUG-061 TEIL (Autostart/Ruhezustand SP6), BUG-085 TEIL (Einschalten nach E15-Messung)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP4 Schritt 1 Teil a (Sprachworkflow clara_chat_melody, llm.generate, ai_runs, KI-Studio) / BUG-095 / BUG-098
 Commit: siehe git log „SP4 step 1a“ / media/models.py (Engine-Art text, TextSpec, _text_problems), nodes/llm.py
   (generate, parse_classification), core/ai.py (Befehle 49/50, EVENT 31), store/ai.py, Migration 27,

@@ -557,6 +557,7 @@ def create_app(cfg: Config) -> web.Application:
     hub.offer_state(spb.TOPIC_CHANNELS, channel_pb2.Channels.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_WALLET, wallet_pb2.Wallet.DESCRIPTOR.full_name)
     hub.offer_state(spb.TOPIC_INFLUENCERS, influencer_pb2.Influencers.DESCRIPTOR.full_name)
+    hub.offer_state(spb.TOPIC_AI_STATUS, ai_pb2.AiStatus.DESCRIPTOR.full_name)
     hub.offer_events(
         spb.TOPIC_CUSTOMER_UPDATED,
         channel_pb2.CustomerUpdated.DESCRIPTOR.full_name,
