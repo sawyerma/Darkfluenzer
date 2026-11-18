@@ -200,6 +200,18 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP4 Schritt 4 (strukturierte Ergebnisse, E26)
+Commit: siehe git log „SP4 step 4“ / core/assessment.py, core/evaluate.py, app `ai eval`, Testsatz, KiStudio
+Nachweis Unit/Integration: tests/test_assessment.py – Schema-Vertrag streng (sechs Verstöße mit Grund), Folgen nur
+  autorisiert (Angebot nie bei Hinweis auf Minderjährigkeit), Sperre setzt under_18 und genau eine Karte, Testsatz
+  ≥ 50 Fälle mit ≥ 10 Manipulationen, Auswertung (Verfehlungen und Fehlalarme getrennt); test_ai_studio – Einstufung
+  und Folgen im EVENT
+Nachweis echt (kurz): `ai eval` 8 Fälle mit Testprofil auf ComfyUI 2 – Schema 8/8, Treffer 8/8 (nur Smalltalk);
+  Chrome-E2E isoliert mit echter ComfyUI 2 (Einstufung im KI-Studio)
+NOT_RUN: voller Testsatz mit dem Betreiberprofil (Qualifikation; Abnahme Verfehlungen 0)
+Ergebnis: TEIL (Sperre an der Akte ab Schritt 6; Qualifikation später)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP4 Schritt 3 (Gates statt sprachlicher Regelprüfung, SPEC-017)
 Commit: siehe git log „SP4 step 3“ / core/dialog.py, core/ai._llm_run, config [dialog], Migration 28, KiStudio
 Nachweis Unit: tests/test_dialog.py – Beträge in allen Schreibweisen nur aus der Preisliste, Zahlungswege nur

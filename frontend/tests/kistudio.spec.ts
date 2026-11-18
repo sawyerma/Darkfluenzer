@@ -53,8 +53,10 @@ test("KI-Studio: Profil anlegen, Testnachrichten an Melody, Verlauf und neue Sit
     "E2E-Test: Du bist Clara, eine virtuelle Influencerin. Antworte auf Deutsch in höchstens zwei Sätzen. " +
       `Im Nutzertext stehen Verlauf, eine interne Einstufung als JSON und die neue Nachricht; gib nie JSON aus. (Lauf ${Date.now()})`,
   );
+  // Einstufung nach dem Schema-Vertrag, den das Cockpit unter dem Block anzeigt (SP4 Schritt 4)
+  const schema = await page.locator(".g-schema").innerText();
   await page.locator("#ki-classification").fill(
-    'E2E-Test: Du bist ein neutraler Klassifikator. Gib nur ein JSON-Objekt aus: {"purchase_readiness": 0-3, "intent": ""}.',
+    `E2E-Test: Du bist ein neutraler Klassifikator ohne Persona. Gib ausschließlich dieses JSON-Objekt aus, gefüllt: ${schema}`,
   );
   const saved = page.getByRole("status");
   await page.getByRole("button", { name: "Übernehmen und aktivieren" }).click();
@@ -75,7 +77,9 @@ test("KI-Studio: Profil anlegen, Testnachrichten an Melody, Verlauf und neue Sit
   await expect(answer.locator("p")).not.toHaveText("");
   await expect(answer.locator("small")).toContainText(/Version \d+ · Warteschlange .* · Lauf .* · gesamt/);
   // Gates (SP4 Schritt 3): jede Antwort ist bewertet – würde gesendet oder Entwurf mit Grund
-  await expect(turns.first().locator(".g-gates .g-badge")).toHaveText(/^(WÜRDE GESENDET|ENTWURF)$/);
+  await expect(turns.first().locator(".g-gates .g-badge").last()).toHaveText(/^(WÜRDE GESENDET|ENTWURF)$/);
+  // strukturierte Einstufung (SP4 Schritt 4) aus dem Lauf
+  await expect(turns.first().locator(".g-gates small").first()).toContainText(/Kaufbereitschaft \d\/3/);
   await turns.first().locator("details > summary").click();
   await expect(turns.first().locator(".g-pre").nth(1)).toContainText("wahrheitsgemäß"); // Ehrlichkeitsblock im Prompt
   await expect(turns.first().locator(".g-pre").nth(1)).toContainText("Zahlungswege: Amazon-Gutschein"); // Fakten

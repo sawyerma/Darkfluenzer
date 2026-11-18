@@ -4,8 +4,8 @@ Keine sprachliche Regelprüfung in Python: Verhalten, Verbote und Formulierungen
 Promptprofil (E19). Hier bleiben nur technische und fachliche Gates, die Zahlen und Zustände
 abgleichen:
 
-- Schema: die Einstufung des neutralen Laufs (E26) ist ein gültiges JSON-Objekt; sonst ein neuer
-  Lauf, danach Entwurf an den Betreiber.
+- Schema: die Einstufung des neutralen Laufs (E26) erfüllt den Schema-Vertrag (``assessment``);
+  sonst ein neuer Lauf, danach Entwurf an den Betreiber.
 - Minderjährigkeit: meldet die Einstufung einen Hinweis, wird nichts gesendet (Folgen Schritt 4).
 - Beträge: jeder Euro-Betrag im Antworttext steht in den Geschäftsfakten (Preis, HD-Aufschlag,
   Summe) – Zahlenabgleich.
@@ -22,6 +22,7 @@ import re
 from dataclasses import dataclass, field
 
 from ..config import Config
+from . import assessment
 
 # Betrag mit Währung: „20,00 €“, „20 €“, „€ 20,50“, „20 Euro“, „20.50 EUR“
 _AMOUNT = re.compile(
@@ -133,13 +134,14 @@ def check(
 ) -> list[Gate]:
     """Alle anwendbaren Gates; ohne Kundenkontext (KI-Studio) nur Schema, Minderjährigkeit, Beträge
     und Zahlungswege."""
-    schema = classification or {}
+    typed, why = assessment.parse(classification)  # Schema-Vertrag (SP4 Schritt 4)
+    minor = typed.minor_hint if typed else bool((classification or {}).get("minor_hint"))
     allowed = facts.amounts()
     wrong = [a for a in mentioned_amounts(answer) if a not in allowed]
     foreign = [w for w in mentioned_ways(answer, terms) if w not in facts.payment_ways]
     gates = [
-        _gate("schema", "" if classification is not None else "Einstufung ist kein JSON-Objekt."),
-        _gate("minor", "Einstufung meldet Minderjährigkeit." if schema.get("minor_hint") else ""),
+        _gate("schema", why),
+        _gate("minor", "Einstufung meldet Minderjährigkeit." if minor else ""),
         _gate("amounts", ", ".join(f"{euro(a)} steht nicht in den Fakten" for a in wrong)),
         _gate(
             "payment_ways",

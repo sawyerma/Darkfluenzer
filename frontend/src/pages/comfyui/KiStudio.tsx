@@ -23,6 +23,13 @@ const VIEWS: readonly [View, string, string][] = [
 
 const seconds = (s: number) => `${s.toFixed(1).replace(".", ",")} s`;
 
+// Folgen der Einstufung (SP4 Schritt 4); im Studio nur angezeigt, ausgeführt ab der Kundenkette
+const CONSEQUENCE: Record<string, [string, "ok" | "warn" | "bad"]> = {
+  lock_minor: ["SPERRE", "bad"],
+  no_order_explicit: ["KEIN AUFTRAG (EXPLIZIT)", "warn"],
+  offer_ready: ["ANGEBOT BEREIT", "ok"],
+};
+
 const GATE_LABEL: Record<string, string> = {
   schema: "Einstufung",
   minor: "Alter",
@@ -89,6 +96,7 @@ export function KiStudio({ workflow, live }: { workflow?: WorkflowInfo; live: bo
               influencer={current}
               blocks={state.profileBlocks}
               honesty={state.honestyRule}
+              schema={state.assessmentSchema}
               cmd={profileCmd}
               onTest={
                 workflow
@@ -190,6 +198,23 @@ function ChatTest({
                 </small>
               </div>
             )}
+            {r.assessment ? (
+              // strukturierte Einstufung (SP4 Schritt 4) und autorisierte Folgen
+              <p className="g-gates">
+                {r.consequences.map((c) => (
+                  <span key={c} className="g-badge" data-tone={CONSEQUENCE[c]?.[1] ?? "neutral"}>
+                    {CONSEQUENCE[c]?.[0] ?? c}
+                  </span>
+                ))}
+                <small>
+                  Kaufbereitschaft {r.assessment.purchaseReadiness}/3
+                  {r.assessment.wishDescription ? ` · Wunsch: ${r.assessment.wishDescription}` : ""}
+                  {r.assessment.explicitWish ? " · expliziter Wunsch" : ""}
+                  {r.assessment.minorHint ? ` · Hinweis minderjährig${r.assessment.minorEvidence ? `: ${r.assessment.minorEvidence}` : ""}` : ""}
+                  {r.assessment.intent ? ` · ${r.assessment.intent}` : ""}
+                </small>
+              </p>
+            ) : null}
             {r.gates.length ? (
               // Gates vor dem Versand (SP4 Schritt 3): im Studio wird nie gesendet, nur bewertet
               <p className="g-gates">
@@ -261,12 +286,14 @@ function ProfileEditor({
   influencer,
   blocks,
   honesty,
+  schema,
   cmd,
   onTest,
 }: {
   influencer: Influencer;
   blocks: readonly { key: string; label: string }[];
   honesty: string;
+  schema: string;
   cmd: ReturnType<typeof useCommand>;
   onTest?: (version: number) => void;
 }) {
@@ -321,6 +348,11 @@ function ProfileEditor({
         <div key={b.key} className="g-field g-wide">
           <label htmlFor={`ki-${b.key}`}>{b.label}</label>
           <textarea id={`ki-${b.key}`} rows={b.key === "persona" || b.key === "system_prompt" ? 5 : 3} value={text[b.key] ?? ""} onChange={(e) => setText({ ...text, [b.key]: e.target.value })} />
+          {b.key === "classification" && schema ? (
+            <small>
+              Schema-Vertrag: <code className="g-schema">{schema}</code>
+            </small>
+          ) : null}
         </div>
       ))}
       <div className="g-field g-wide">

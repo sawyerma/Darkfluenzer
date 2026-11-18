@@ -11,7 +11,7 @@ from darkfluenzer.core import dialog
 PRICES = ({"product": "Foto", "price_cents": 2000, "hd_surcharge_cents": 500},)
 FACTS = dialog.Facts(PRICES, ("amazon",), {"amazon": "Amazon-Gutschein", "bank": "Überweisung"})
 TERMS = DEFAULT_PAYMENT_TERMS
-OK_SCHEMA = {"minor_hint": False, "purchase_readiness": 1}
+OK_SCHEMA = {"minor_hint": False, "explicit_wish": False, "purchase_readiness": 1}
 
 
 def failed(gates: list[dialog.Gate]) -> dict[str, str]:
@@ -52,8 +52,14 @@ def test_payment_ways_only_when_released_and_schema_minor():
     assert failed(dialog.check("Hi", None, FACTS, TERMS)) == {
         "schema": "Einstufung ist kein JSON-Objekt."
     }
-    minor = failed(dialog.check("Hi", {"minor_hint": True}, FACTS, TERMS))
+    minor = failed(dialog.check("Hi", OK_SCHEMA | {"minor_hint": True}, FACTS, TERMS))
     assert minor == {"minor": "Einstufung meldet Minderjährigkeit."}
+    # unvollständig: Schema-Gate; ein roher Hinweis auf Minderjährigkeit sperrt trotzdem
+    bad = failed(dialog.check("Hi", {"minor_hint": True}, FACTS, TERMS))
+    assert bad == {
+        "schema": "Einstufung unvollständig: explicit_wish, purchase_readiness fehlt.",
+        "minor": "Einstufung meldet Minderjährigkeit.",
+    }
 
 
 def test_customer_context_gates():

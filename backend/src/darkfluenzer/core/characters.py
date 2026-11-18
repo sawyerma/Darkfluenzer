@@ -14,7 +14,7 @@ from ..v1 import (
     influencer_pb2,
 )
 from ..v1 import stream_pb2 as spb
-from . import persona
+from . import assessment, persona
 from .base import _Call, _unix_ms, log
 
 # Enden asynchron mit eigener Receipt: Render mit dem Job, ComfyUI mit Start/Stopp
@@ -272,6 +272,7 @@ class CharactersMixin:
         """STATE influencers: Profile mit Preisliste und die feste Ehrlichkeitsregel."""
         msg = influencer_pb2.Influencers(
             honesty_rule=models.honesty_text(self.manifest),  # fester Knoten (Regel 12 c)
+            assessment_schema=assessment.SCHEMA_HINT,
             version=self.store.domain_version("influencers"),
         )
         for key, label in persona.PROFILE_BLOCKS:

@@ -16,8 +16,23 @@ from ..nodes import llm
 from ..nodes.comfy import ComfyError
 from ..v1 import ai_pb2, commands_pb2
 from ..v1 import stream_pb2 as spb
-from . import dialog
+from . import assessment, dialog
 from .base import _Call, _unix_ms, log
+
+
+def _assessment_msg(a: assessment.Assessment) -> ai_pb2.Assessment:
+    return ai_pb2.Assessment(
+        minor_hint=a.minor_hint,
+        minor_evidence=a.minor_evidence,
+        explicit_wish=a.explicit_wish,
+        purchase_readiness=a.purchase_readiness,
+        readiness_evidence=a.readiness_evidence,
+        wish_kind=a.wish.kind,
+        wish_description=a.wish.description,
+        wish_source=a.wish.source,
+        intent=a.intent,
+    )
+
 
 # technische Eingabe des Aufwärmlaufs (kein Kundentext); die Antwort wird nur gemessen
 WARMUP_MESSAGE = "Hallo"
@@ -120,7 +135,7 @@ class AiStudioMixin:
                 )
                 self._llm_runs.pop(prompt, None)
                 schema = llm.parse_classification(result.classification)
-                if facts is None or schema is not None:
+                if facts is None or assessment.parse(schema)[0] is not None:
                     break
                 if attempts > self.cfg.dialog.schema_retries:
                     break
@@ -283,6 +298,10 @@ class AiStudioMixin:
                 sendable=bool(r["sendable"]),
                 attempts=r["attempts"],
             )
+            typed, _ = assessment.parse(llm.parse_classification(r["classification"]))
+            if typed is not None:
+                run.assessment.CopyFrom(_assessment_msg(typed))
+                run.consequences.extend(typed.consequences)
             out.append(
                 (
                     r["cursor"],

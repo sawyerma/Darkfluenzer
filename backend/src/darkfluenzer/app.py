@@ -151,6 +151,39 @@ def _comfy_start_all(cfg) -> tuple[dict, int]:
     return {"ok": True, **results["media"], "instances": results}, 0
 
 
+def _ai(args: argparse.Namespace) -> tuple[dict, int]:
+    """``ai eval``: Testsatz der Einstufung gegen den registrierten Sprachworkflow (SP4 Schritt 4).
+    Profil aus der Datenbank (aktive Version der Influencerin) oder aus einer TOML-Datei."""
+    from .core import dialog, evaluate
+    from .store import Store
+
+    cfg = load()
+    setup_logging(cfg)
+    man = models.load_manifest(cfg.root)
+    workflow = args.workflow or next((k for k, w in man.workflows.items() if w.text), "")
+    if not workflow or man.workflows[workflow].text is None:
+        raise models.ManifestError("Kein registrierter Sprachworkflow.")
+    facts = ""
+    if args.profile:
+        blocks, params = evaluate.load_profile(Path(args.profile).expanduser())
+    else:
+        store = Store(cfg.local)
+        try:
+            persona = store.active_persona(args.influencer) if args.influencer else None
+            influencer = next((i for i in store.influencers() if i["id"] == args.influencer), None)
+        finally:
+            store.close()
+        if persona is None or influencer is None:
+            raise ValueError("--influencer ID mit aktivem Profil oder --profile DATEI angeben.")
+        blocks, params = persona["blocks"], persona["params"]
+        facts = dialog.facts_for(cfg, influencer).text()
+    cases = evaluate.load_cases(Path(args.cases).expanduser())[: args.limit or None]
+    report = evaluate.run(cfg, man, workflow, blocks, params, cases, facts=facts)
+    if args.out:
+        Path(args.out).expanduser().write_text(json.dumps(report, ensure_ascii=False, indent=1))
+    return {"ok": True, "workflow": workflow, **report["summary"]}, 0
+
+
 def _models(args: argparse.Namespace) -> tuple[dict, int]:
     root = project_root()
     man = models.load_manifest(root)
@@ -343,6 +376,15 @@ def main(argv: list[str] | None = None) -> int:
     # ohne --instance: start = alle konfigurierten Instanzen, sonst die Medien-Instanz
     cmd.add_argument("--instance", choices=list(INSTANCE_SECTIONS), default=None)
     cmd.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
+    aip = sub.add_parser("ai", help="Sprach-KI: Testsätze der Einstufung auswerten (SP4 4)")
+    aip.add_argument("action", choices=["eval"])
+    aip.add_argument("--cases", required=True, help="TOML mit [[case]] (workflows/ai/testsets)")
+    aip.add_argument("--influencer", type=int, help="aktives Profil dieser Influencerin")
+    aip.add_argument("--profile", help="Profil als TOML ([blocks], [params])")
+    aip.add_argument("--workflow", help="Sprachworkflow (Standard: der registrierte)")
+    aip.add_argument("--limit", type=int, default=0, help="nur die ersten N Fälle")
+    aip.add_argument("--out", help="vollständiger Bericht als JSON")
+    aip.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     mod = sub.add_parser("models", help="Modell-Registry workflows/manifest.toml")
     mod.add_argument("action", choices=["status", "download", "verify", "orphans"])
     mod.add_argument("--wave", type=int)
@@ -385,6 +427,8 @@ def main(argv: list[str] | None = None) -> int:
             payload, code = _models(args)
         elif args.area == "workflows":
             payload, code = _workflows(args.action)
+        elif args.area == "ai":
+            payload, code = _ai(args)
         elif args.area == "character":
             payload, code = _character(args)
         elif args.area == "serve":

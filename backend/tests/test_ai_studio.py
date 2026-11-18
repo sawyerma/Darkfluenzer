@@ -30,6 +30,7 @@ from darkfluenzer.web import http as server
 
 WF = "clara_chat_melody"
 MARK = "EINSTUFUNG"  # Systemprompt des neutralen Laufs beginnt damit (nur in diesem Test)
+VALID = '{"minor_hint": false, "explicit_wish": false, "purchase_readiness": 1}'
 
 
 class GraphAi(FakeAi):
@@ -74,11 +75,7 @@ class GraphAi(FakeAi):
                 self.written.append(path)
                 last = user.strip().splitlines()[-1]
                 if system.startswith(MARK):
-                    out = (
-                        self.classifications.pop(0)
-                        if self.classifications
-                        else '{"purchase_readiness": 1}'
-                    )
+                    out = self.classifications.pop(0) if self.classifications else VALID
                 else:
                     out = self.answers.pop(0) if self.answers else f"Antwort[{last}]"
             elif kind == models.PREVIEW_NODE:
@@ -184,9 +181,9 @@ def test_generate_fills_blocks_runs_both_passes_and_reads_outputs(ai):
     }  # fmt: skip
     r = llm.generate(cfg, man, WF, values, timeout_s=5)
     assert r.answer == "Antwort[Hallo Clara]"
-    assert json.loads(r.classification) == {"purchase_readiness": 1}
+    assert json.loads(r.classification)["purchase_readiness"] == 1
     assert r.system.startswith("SYS") and wf.text.honesty in r.system and "PERSONA" in r.system
-    assert '{"purchase_readiness": 1}' in r.user and r.user.endswith("Hallo Clara")
+    assert VALID in r.user and r.user.endswith("Hallo Clara")
     sent = fake.graphs[-1]
     assert sent["60"]["inputs"]["temperature"] == 0.5
     assert sent[wf.params["strategy"].node]["inputs"]["value"] == ""  # leer = Graph-Wert
@@ -262,11 +259,16 @@ def test_studio_chat_over_http_records_runs_events_receipts_and_session(ai):
         assert "Zahlungswege: Amazon-Gutschein" in run.system_prompt  # Fakten mit Zahlungswegen
 
         # SP4 Schritt 3: ungültige Einstufung -> neuer Lauf; Gates mit Grund, kein Versand
-        fake.classifications = ["kein JSON", '{"purchase_readiness": 2}']
+        wish = {"kind": "image", "description": "Foto", "source": "Was kostet es?"}
+        offer = {"minor_hint": False, "explicit_wish": False, "purchase_readiness": 2, "wish": wish}
+        fake.classifications = ["kein JSON", json.dumps(offer)]
         fake.answers = ["Klar, 30,00 € per Überweisung an mich."] * 2  # beide Läufe
         await chat("Was kostet es?")
         gated = await result()
         assert gated.attempts == 2 and not gated.sendable
+        assert gated.assessment.purchase_readiness == 2 and list(gated.consequences) == [
+            "offer_ready"
+        ]
         reasons = {g.name: g.reason for g in gated.gates if not g.ok}
         assert reasons == {"amounts": "30,00 € steht nicht in den Fakten",
                            "payment_ways": "Zahlungsweg Überweisung nicht freigegeben"}  # fmt: skip

@@ -38,6 +38,23 @@ message AiRun {
   bool sendable = 22;
   // Läufe für diese Antwort (> 1: Einstufung war ungültig, neuer Lauf)
   uint32 attempts = 23;
+  // typisierte Einstufung (SP4 Schritt 4); fehlt, wenn sie den Schema-Vertrag verletzt
+  Assessment assessment = 24;
+  // autorisierte Folgen: lock_minor | no_order_explicit | offer_ready
+  repeated string consequences = 25;
+}
+
+message Assessment {
+  bool minor_hint = 1;
+  string minor_evidence = 2;
+  bool explicit_wish = 3;
+  uint32 purchase_readiness = 4;
+  string readiness_evidence = 5;
+  // image | video | leer
+  string wish_kind = 6;
+  string wish_description = 7;
+  string wish_source = 8;
+  string intent = 9;
 }
 
 message GateCheck {

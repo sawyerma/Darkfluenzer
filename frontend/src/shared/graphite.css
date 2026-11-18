@@ -484,6 +484,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-turn { display: flex; flex-direction: column; gap: var(--g-gap-xs); }
 .g-gates { display: flex; align-items: center; gap: var(--g-gap-sm); margin: 0; }
 .g-gates small { color: var(--g-muted); font-size: var(--g-fs-tiny); }
+.g-schema { font: var(--g-fs-tiny) / var(--g-lh-base) var(--g-font-mono); color: var(--g-text); overflow-wrap: anywhere; }
 .g-pre { margin: 0; padding: var(--g-gap-sm); max-height: var(--g-pre-max-h); overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
   background: var(--g-input); border: 1px solid var(--g-line-input); border-radius: var(--g-r-input); font: var(--g-fs-tiny) / var(--g-lh-base) var(--g-font-mono); color: var(--g-text); }
 .g-order-thumbs img { width: var(--g-order-thumb); height: var(--g-order-thumb); object-fit: cover; border-radius: var(--g-r-thumb); }

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/ai.proto.
  */
 export const file_darkfluenzer_v1_ai: GenFile = /*@__PURE__*/
-  fileDesc("ChhkYXJrZmx1ZW56ZXIvdjEvYWkucHJvdG8SD2RhcmtmbHVlbnplci52MSLYAwoFQWlSdW4SDgoGcnVuX2lkGAEgASgEEgwKBGtpbmQYAiABKAkSEgoKcmVxdWVzdF9pZBgDIAEoCRIVCg1pbmZsdWVuY2VyX2lkGAQgASgEEhcKD3BlcnNvbmFfdmVyc2lvbhgFIAEoDRIPCgdzZXNzaW9uGAYgASgNEg8KB21lc3NhZ2UYByABKAkSDgoGYW5zd2VyGAggASgJEhYKDmNsYXNzaWZpY2F0aW9uGAkgASgJEhwKFGNsYXNzaWZpY2F0aW9uX3ZhbGlkGAogASgIEhUKDXN5c3RlbV9wcm9tcHQYCyABKAkSEQoJdXNlcl90ZXh0GAwgASgJEg4KBndhaXRfcxgNIAEoARISCgpkdXJhdGlvbl9zGA4gASgBEg8KB3RvdGFsX3MYDyABKAESDQoFZXJyb3IYECABKAkSEAoId29ya2Zsb3cYESABKAkSFAoMd29ya2Zsb3dfc2hhGBIgASgJEhEKCW1vZGVsX3NoYRgTIAEoCRINCgVhdF9tcxgUIAEoAxIpCgVnYXRlcxgVIAMoCzIaLmRhcmtmbHVlbnplci52MS5HYXRlQ2hlY2sSEAoIc2VuZGFibGUYFiABKAgSEAoIYXR0ZW1wdHMYFyABKA0iNQoJR2F0ZUNoZWNrEgwKBG5hbWUYASABKAkSCgoCb2sYAiABKAgSDgoGcmVhc29uGAMgASgJIi8KCEFpUmVzdWx0EiMKA3J1bhgBIAEoCzIWLmRhcmtmbHVlbnplci52MS5BaVJ1biK8AQoIQWlTdGF0dXMSEgoKY29uZmlndXJlZBgBIAEoCBIOCgZlbmdpbmUYAiABKAkSEwoLa2VlcF9sb2FkZWQYAyABKAgSDwoHcnVubmluZxgEIAEoDRIRCgl3YXJtdXBfbXMYBSABKAMSEAoId2FybXVwX3MYBiABKAESFAoMd2FybXVwX2Vycm9yGAcgASgJEisKBnJlY2VudBgIIAMoCzIbLmRhcmtmbHVlbnplci52MS5BaVJ1bkJyaWVmIm4KCkFpUnVuQnJpZWYSDgoGcnVuX2lkGAEgASgEEgwKBGtpbmQYAiABKAkSEgoKZHVyYXRpb25fcxgDIAEoARIPCgd0b3RhbF9zGAQgASgBEg4KBmZhaWxlZBgFIAEoCBINCgVhdF9tcxgGIAEoA2IGcHJvdG8z");
+  fileDesc("ChhkYXJrZmx1ZW56ZXIvdjEvYWkucHJvdG8SD2RhcmtmbHVlbnplci52MSKfBAoFQWlSdW4SDgoGcnVuX2lkGAEgASgEEgwKBGtpbmQYAiABKAkSEgoKcmVxdWVzdF9pZBgDIAEoCRIVCg1pbmZsdWVuY2VyX2lkGAQgASgEEhcKD3BlcnNvbmFfdmVyc2lvbhgFIAEoDRIPCgdzZXNzaW9uGAYgASgNEg8KB21lc3NhZ2UYByABKAkSDgoGYW5zd2VyGAggASgJEhYKDmNsYXNzaWZpY2F0aW9uGAkgASgJEhwKFGNsYXNzaWZpY2F0aW9uX3ZhbGlkGAogASgIEhUKDXN5c3RlbV9wcm9tcHQYCyABKAkSEQoJdXNlcl90ZXh0GAwgASgJEg4KBndhaXRfcxgNIAEoARISCgpkdXJhdGlvbl9zGA4gASgBEg8KB3RvdGFsX3MYDyABKAESDQoFZXJyb3IYECABKAkSEAoId29ya2Zsb3cYESABKAkSFAoMd29ya2Zsb3dfc2hhGBIgASgJEhEKCW1vZGVsX3NoYRgTIAEoCRINCgVhdF9tcxgUIAEoAxIpCgVnYXRlcxgVIAMoCzIaLmRhcmtmbHVlbnplci52MS5HYXRlQ2hlY2sSEAoIc2VuZGFibGUYFiABKAgSEAoIYXR0ZW1wdHMYFyABKA0SLwoKYXNzZXNzbWVudBgYIAEoCzIbLmRhcmtmbHVlbnplci52MS5Bc3Nlc3NtZW50EhQKDGNvbnNlcXVlbmNlcxgZIAMoCSLZAQoKQXNzZXNzbWVudBISCgptaW5vcl9oaW50GAEgASgIEhYKDm1pbm9yX2V2aWRlbmNlGAIgASgJEhUKDWV4cGxpY2l0X3dpc2gYAyABKAgSGgoScHVyY2hhc2VfcmVhZGluZXNzGAQgASgNEhoKEnJlYWRpbmVzc19ldmlkZW5jZRgFIAEoCRIRCgl3aXNoX2tpbmQYBiABKAkSGAoQd2lzaF9kZXNjcmlwdGlvbhgHIAEoCRITCgt3aXNoX3NvdXJjZRgIIAEoCRIOCgZpbnRlbnQYCSABKAkiNQoJR2F0ZUNoZWNrEgwKBG5hbWUYASABKAkSCgoCb2sYAiABKAgSDgoGcmVhc29uGAMgASgJIi8KCEFpUmVzdWx0EiMKA3J1bhgBIAEoCzIWLmRhcmtmbHVlbnplci52MS5BaVJ1biK8AQoIQWlTdGF0dXMSEgoKY29uZmlndXJlZBgBIAEoCBIOCgZlbmdpbmUYAiABKAkSEwoLa2VlcF9sb2FkZWQYAyABKAgSDwoHcnVubmluZxgEIAEoDRIRCgl3YXJtdXBfbXMYBSABKAMSEAoId2FybXVwX3MYBiABKAESFAoMd2FybXVwX2Vycm9yGAcgASgJEisKBnJlY2VudBgIIAMoCzIbLmRhcmtmbHVlbnplci52MS5BaVJ1bkJyaWVmIm4KCkFpUnVuQnJpZWYSDgoGcnVuX2lkGAEgASgEEgwKBGtpbmQYAiABKAkSEgoKZHVyYXRpb25fcxgDIAEoARIPCgd0b3RhbF9zGAQgASgBEg4KBmZhaWxlZBgFIAEoCBINCgVhdF9tcxgGIAEoA2IGcHJvdG8z");
 
 /**
  * Sprach-KI auf ComfyUI 2 (SP4 Schritt 1, E19, E26): ein Lauf des registrierten Sprachworkflows mit
@@ -153,6 +153,20 @@ export type AiRun = Message<"darkfluenzer.v1.AiRun"> & {
    * @generated from field: uint32 attempts = 23;
    */
   attempts: number;
+
+  /**
+   * typisierte Einstufung (SP4 Schritt 4); fehlt, wenn sie den Schema-Vertrag verletzt
+   *
+   * @generated from field: darkfluenzer.v1.Assessment assessment = 24;
+   */
+  assessment?: Assessment | undefined;
+
+  /**
+   * autorisierte Folgen: lock_minor | no_order_explicit | offer_ready
+   *
+   * @generated from field: repeated string consequences = 25;
+   */
+  consequences: string[];
 };
 
 /**
@@ -161,6 +175,65 @@ export type AiRun = Message<"darkfluenzer.v1.AiRun"> & {
  */
 export const AiRunSchema: GenMessage<AiRun> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_ai, 0);
+
+/**
+ * @generated from message darkfluenzer.v1.Assessment
+ */
+export type Assessment = Message<"darkfluenzer.v1.Assessment"> & {
+  /**
+   * @generated from field: bool minor_hint = 1;
+   */
+  minorHint: boolean;
+
+  /**
+   * @generated from field: string minor_evidence = 2;
+   */
+  minorEvidence: string;
+
+  /**
+   * @generated from field: bool explicit_wish = 3;
+   */
+  explicitWish: boolean;
+
+  /**
+   * @generated from field: uint32 purchase_readiness = 4;
+   */
+  purchaseReadiness: number;
+
+  /**
+   * @generated from field: string readiness_evidence = 5;
+   */
+  readinessEvidence: string;
+
+  /**
+   * image | video | leer
+   *
+   * @generated from field: string wish_kind = 6;
+   */
+  wishKind: string;
+
+  /**
+   * @generated from field: string wish_description = 7;
+   */
+  wishDescription: string;
+
+  /**
+   * @generated from field: string wish_source = 8;
+   */
+  wishSource: string;
+
+  /**
+   * @generated from field: string intent = 9;
+   */
+  intent: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.Assessment.
+ * Use `create(AssessmentSchema)` to create a new message.
+ */
+export const AssessmentSchema: GenMessage<Assessment> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_ai, 1);
 
 /**
  * @generated from message darkfluenzer.v1.GateCheck
@@ -189,7 +262,7 @@ export type GateCheck = Message<"darkfluenzer.v1.GateCheck"> & {
  * Use `create(GateCheckSchema)` to create a new message.
  */
 export const GateCheckSchema: GenMessage<GateCheck> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_ai, 1);
+  messageDesc(file_darkfluenzer_v1_ai, 2);
 
 /**
  * EVENT ai.result: ein KI-Lauf ist beendet (Antwort oder Fehler)
@@ -208,7 +281,7 @@ export type AiResult = Message<"darkfluenzer.v1.AiResult"> & {
  * Use `create(AiResultSchema)` to create a new message.
  */
 export const AiResultSchema: GenMessage<AiResult> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_ai, 2);
+  messageDesc(file_darkfluenzer_v1_ai, 3);
 
 /**
  * STATE ai.status (SP4 Schritt 1): Sprach-KI auf ComfyUI 2 – geladene Engine, ob die Instanz
@@ -275,7 +348,7 @@ export type AiStatus = Message<"darkfluenzer.v1.AiStatus"> & {
  * Use `create(AiStatusSchema)` to create a new message.
  */
 export const AiStatusSchema: GenMessage<AiStatus> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_ai, 3);
+  messageDesc(file_darkfluenzer_v1_ai, 4);
 
 /**
  * @generated from message darkfluenzer.v1.AiRunBrief
@@ -317,5 +390,5 @@ export type AiRunBrief = Message<"darkfluenzer.v1.AiRunBrief"> & {
  * Use `create(AiRunBriefSchema)` to create a new message.
  */
 export const AiRunBriefSchema: GenMessage<AiRunBrief> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_ai, 4);
+  messageDesc(file_darkfluenzer_v1_ai, 5);
 
