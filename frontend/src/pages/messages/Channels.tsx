@@ -94,9 +94,9 @@ function AccountControls({ ch }: { ch: ChannelStatus }) {
 }
 
 /** Kanäle, die es heute gibt (WhatsApp folgt später, C7): nur sie erscheinen in der Oberfläche. */
-const SUPPORTED = ["telegram", "instagram"];
+export const SUPPORTED = ["telegram", "instagram"];
 
-function channelBadge(ch: ChannelStatus): [string, Tone] {
+export function channelBadge(ch: ChannelStatus): [string, Tone] {
   const step = ch.state === "LOGIN" ? LOGIN_STEP[ch.loginState] : undefined;
   if (step) return [step[0], "warn"];
   if (ch.state === "READY" && ch.testMode) return ["TESTBETRIEB", "warn"];

@@ -106,6 +106,9 @@ message OrdersActive {
   uint32 candidates_max = 4;
   // bezahlte Kundenaufträge, die auf die Produktion warten (Status paid, V0 §8.4 Punkt 5)
   repeated ActiveOrder awaiting_production = 5;
+  // Kundenaufträge mit fertigem Ergebnis, die auf die Freigabe des Betreibers warten (Status
+  // review, „Freigeben & senden“; BUG-070)
+  repeated ActiveOrder awaiting_review = 6;
 }
 
 // EVENT orders.updated: Auftrag angelegt, Statuswechsel, Stufenwechsel (Journal)

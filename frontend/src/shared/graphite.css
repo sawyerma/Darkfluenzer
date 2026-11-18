@@ -346,6 +346,12 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-listrow:hover { background: var(--g-list-hover); }
 .g-listrow:last-child { border-bottom: 0; }
 .g-listpanel > .g-note { margin: 0; padding: 16px 18px; }
+/* Übersicht: zwei Listen nebeneinander (offene Aufträge, aktuelle Kunden); Kennzahl mit Einheit */
+.g-overview-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.g-kpi strong small { color: var(--g-muted); font-size: var(--g-fs-base); font-weight: normal; }
+.g-kpi small + small { margin-top: var(--g-gap-xs); }
+.g-listrow .g-value { flex: 0 1 auto; justify-content: flex-end; }
+.g-listpanel .g-listrow.g-row { padding: 16px 18px; } /* Knopfzeile: .g-row setzt sonst padding 0 */
 .g-kpi[data-stale] { opacity: var(--g-dim-stale); }
 .g-card { display: flex; flex-direction: column; gap: var(--g-gap-xs); padding: var(--g-pad-row); border: 1px solid var(--g-line); border-radius: var(--g-r-row); background: var(--g-well); }
 .g-expert summary { cursor: pointer; color: var(--g-muted); font-size: var(--g-fs-small); }
@@ -606,13 +612,13 @@ button.g-account:hover { border-color: var(--g-brand); }
   .g-control { grid-column: 1 / -1; padding-left: 0; border-left: 0; }
 }
 @media (max-width: 760px) {
-  .g-studio, .g-inbox, .g-form, .g-media-body { grid-template-columns: 1fr; }
+  .g-studio, .g-inbox, .g-form, .g-media-body, .g-cards, .g-overview-lists { grid-template-columns: 1fr; }
   .g-inbox > .g-chat { order: -1; } /* kleine Ansicht: der Chat hat Vorrang (F4) */
 }
 
 @media (max-width: 650px) {
   .g-nav { flex-wrap: wrap; }
-  .g-tabs { max-width: 100%; overflow-x: auto; } /* fünf Reiter: scrollen statt die Seite zu verbreitern */
+  .g-tabs { max-width: 100%; overflow-x: auto; } /* sechs Reiter: scrollen statt die Seite zu verbreitern */
   .g-main { padding: var(--g-gap-xs) 0; }
   .g-line { flex-wrap: wrap; }
 }

@@ -100,7 +100,7 @@
 | BUG-067 | `secret set` kennt nur Telegram. | TEST | Ein Katalog für Cockpit und CLI, Instagram und PayPal ergänzt. | B SP2 |
 | BUG-068 | Zwei Trainingswege: alter diffusers-Trainer neben dem ComfyUI-Trainingsworkflow. | CODE | Alten Weg samt CLI entfernen, wenn B1 belegt ist. | B SP3 |
 | BUG-069 | Trigger `dfchar`, Klasse `woman` und Beschriftung fest im Code; neuer Trigger erzeugt keine neue Datensatzversion. Die Klasse `woman` ist für männliche Figuren falsch. `MIN_SIDE`, `MIN_IMAGES`, `SETTLE_S` und die Trainingsformate stehen fest in `training.py`. | CODE, TEST | Trigger und Klasse im Charakterprofil, Teil der Datensatz-ID. | B SP3 |
-| BUG-070 | Übersicht zählt bezahlte Aufträge in Produktion und Freigabe nicht. | CODE | Eigene Zähler. | F SP2 |
+| BUG-070 | Übersicht zählt bezahlte Aufträge in Produktion und Freigabe nicht. **[18.11.] TEIL** (§7) | CODE | Eigene Zähler. | F SP2 |
 | BUG-071 | Ereignislisten im Browser wachsen unbegrenzt (`state.applyEvent`). | CODE | Begrenzen, älteres seitenweise. | F SP2 |
 | BUG-072 | Nachrichten, Wallet, ComfyUI ohne Browser-Test; Smoke klickt Wallet nicht. | CODE | Je Seite ein Browser-Test. | F SP2 |
 | BUG-078 | Zwei Ordnerschemata: Profil 1 liegt unter `local/character/`, weitere unter `local/characters/<nr>/`; Datensätze liegen im Unterordner `dataset`, der Plan nennt `datasets`. (Im B1-Änderungsblatt als „BUG-076“ geführt; 076 ist bereits vergeben.) | TEST | Ein Schema `local/characters/<kürzel>/` mit Migration. | B SP3 |
@@ -200,6 +200,28 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-070 (Übersicht ohne Zähler für bezahlte Aufträge in Produktion und Freigabe) / GUI-Prüfung Punkt 5
+Commit: siehe git log „BUG-070“ / order.proto OrdersActive.awaiting_review (6), core/orders._orders_active,
+  frontend pages/Overview.tsx
+Behauptung: BESTÄTIGT – STATE orders.active enthielt Kundenaufträge in review nicht; die Übersicht zählte nur
+  die Kandidatenauswahl
+Korrektur: awaiting_review = Kundenaufträge im Status review (Betreiberaufträge in review haben keine Freigabe
+  und zählen nicht); Übersicht: „Freigaben ausstehend“ = Freigabe + wartet auf Produktion + Auswahl,
+  GPU-Warteschlange je Instanz (läuft, wartend, angehalten), Karte „Betrieb“ (Instanzen, Kanäle, Speicher),
+  Liste „Offene Aufträge“ (Freigabe/bezahlt → Kundenakte, Auswahl/Lauf → ComfyUI)
+Nachweis Integration: tests/test_customer_orders.py::test_customer_order_chain liest den veröffentlichten STATE –
+  bezahlt → wartet auf Produktion, review → wartet auf Freigabe, Betreiberauftrag in review nicht, nach
+  „Freigeben & senden“ (echter HTTP-Befehl) leer; ohne die Korrektur rot
+Nachweis E2E (echter Chrome, isolierter Testserver mit Kundenauftrag in review und einem bezahlten):
+  tests/overview.spec.ts – Zeilen FREIGABE und BEZAHLT, Klick öffnet die Kundenakte; zweites Cockpit zeigt das
+  Anhalten der Medien-Warteschlange ohne Neuladen (Push)
+Mac-Lauf: echtes Cockpit nach Neustart (Schemawechsel) – 5 echte Betreiberaufträge in Auswahl, Instanzen,
+  Kanäle und Speicher aus STATE; lesender Browser-Test grün. Echter Kundenauftrag in review: NICHT GELAUFEN
+Regression: test_customer_orders, test_orders, test_server 38 grün; Frontend Build, 14 Unit-Tests, alle
+  Browser-Tests gegen das echte Cockpit grün
+Ergebnis: TEIL (Kundenfreigabe am Mac erst mit dem ersten echten Kundenauftrag)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SPEC-018 (Sitzungsdateien des Sprachknotens) – behoben
 Commit: siehe git log „SPEC-018“ / backend/src/darkfluenzer/nodes/llm.py, web/http.py (Start-Sweep)
 Korrektur: je Lauf eigener Sitzungsordner <KI-Instanz>/temp/df_llm_sessions/<id> (0700); jeder

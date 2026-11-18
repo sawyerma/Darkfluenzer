@@ -468,6 +468,9 @@ class OrdersMixin:
             _fill_order(msg.orders.add(), self.store, order)
         for order in self.store.active_orders("paid"):
             _fill_order(msg.awaiting_production.add(), self.store, order)
+        for order in self.store.active_orders("review"):
+            if order.source == "customer":  # nur Kundenaufträge haben eine Freigabe (approval.py)
+                _fill_order(msg.awaiting_review.add(), self.store, order)
         return msg.SerializeToString()
 
     def _order_result(self, order) -> dict | None:

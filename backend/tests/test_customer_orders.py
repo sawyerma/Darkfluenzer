@@ -23,7 +23,8 @@ from darkfluenzer.media import aimeta, pipeline
 from darkfluenzer.payments import vouchers
 from darkfluenzer.payments.chain import WalletWatcher
 from darkfluenzer.store import Store, StoreError
-from darkfluenzer.v1 import commands_pb2
+from darkfluenzer.v1 import commands_pb2, order_pb2
+from darkfluenzer.v1 import stream_pb2 as spb
 from darkfluenzer.web import http as server
 
 BTC = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"  # BIP-173-Testvektor
@@ -230,6 +231,16 @@ def test_customer_order_chain(cfg, monkeypatch):
         )  # fmt: skip
         assert store.order(o1.order_no).status == "paid"
 
+        def waiting() -> tuple[list[str], list[str]]:
+            """STATE orders.active wie veröffentlicht: auf Produktion / auf Freigabe (BUG-070)."""
+            frame = cockpit.hub._states[spb.TOPIC_ORDERS_ACTIVE]
+            state = order_pb2.OrdersActive.FromString(frame.payload)
+            paid = [o.order_no for o in state.awaiting_production]
+            return paid, [o.order_no for o in state.awaiting_review]
+
+        cockpit._payments_changed()
+        assert waiting() == ([o1.order_no], [])
+
         # Produktion nur mit Inhaltsstufe standard
         with pytest.raises(pipeline.PipelineError, match="standard"):
             orders.create_order(
@@ -257,6 +268,17 @@ def test_customer_order_chain(cfg, monkeypatch):
         orders.advance_order(store, job)
         orders.select_candidate(cfg, store, man, no, media, None)
         assert store.order(no).status == "review" and store.media_tier(media) == "standard"
+        # Betreiberauftrag in review hat keine Freigabe und zählt dort nicht
+        op_no, (op_job,) = orders.create_order(
+            store, man, "krea2_turbo_t2i", {"prompt": "p"}, {}, count=1
+        )
+        op_media = store.add_media("evaluation/op.png", "0" * 64, 1, job_id=op_job)
+        store.db.execute("UPDATE jobs SET status = 'done' WHERE id = ?", (op_job,))
+        orders.advance_order(store, op_job)
+        orders.select_candidate(cfg, store, man, op_no, op_media, None)
+        assert store.order(op_no).status == "review"
+        cockpit._orders_changed()
+        assert waiting() == ([], [no])
 
         # FABLE-003: Freigabe, Liefer-Gate und Wiederholung hashen nie im Hauptstrang
         import threading
@@ -281,6 +303,7 @@ def test_customer_order_chain(cfg, monkeypatch):
         approve.not_explicit = True
         assert await send(approve_artifact=approve) == ""
         assert store.order(no).status == "approved"
+        assert waiting() == ([], [])  # vom Freigabebefehl selbst veröffentlicht
         (d1,) = store.deliveries(o1.id)
         item = store.message(d1["message_id"])
         att = item["attachments"][0]
