@@ -123,7 +123,7 @@
 | ID | Befund | Soll | Paket |
 |---|---|---|---|
 | BUG-035 | `config.toml.vor-instagram` lokal mit Rechten 644. | Auf dem Mac prüfen, auf 600 setzen oder nach Rückfrage löschen. | B SP6 |
-| BUG-036 | `setup_comfyui.sh` trägt keinen Ordner für Bildinterpolation (FILM) ein; Ordner `LLM` und Knotenpaket für das Chatmodell fehlen (vorbereitet: `launcher/setup_llm_session.sh`, `LLM: llm`, noch nicht committet). | Skripte ergänzen, am Mac prüfen. | B SP4 |
+| BUG-036 | `setup_comfyui.sh` trägt keinen Ordner für Bildinterpolation (FILM) ein; Ordner `LLM` und Knotenpaket für das Chatmodell fehlen (vorbereitet: `launcher/setup_llm_session.sh`, `LLM: llm`, noch nicht committet). **[18.11.] PASS** (`1396dd1`, Mac-Lauf siehe §7). | Skripte ergänzen, am Mac prüfen. | B SP4 |
 | BUG-037 | Lokale, nicht committete Zeile `enabled = true` in `workflows/manifest.toml`. | Bewusst lokal; nie mit Fachänderungen committen. Ursache: BUG-092 (lokaler Zustand im versionierten Manifest). | B SP3 |
 | BUG-104 | Logs werden nur beim Start rotiert; `server.log` und `app.log` wachsen im Dauerbetrieb. | Rotation nach Größe. | B SP6 |
 | BUG-074 | Dokumente veraltet und widersprüchlich (schließt BUG-034 ein). | Konsolidierung am 17.11. erledigt (zwei Pläne + diese Liste, Altdokumente im Archiv); Widersprüche aus den Prüfberichten von ChatGPT und Fable am 17.11. korrigiert (SPEC-001 bis 007). Abschluss mit der Betreiberfreigabe. | B DOK-1 |
@@ -184,7 +184,7 @@ Widersprüche zur Sprach-KI über ComfyUI 2 (E19, Betreiberentscheidung 17.11.; 
 |---|---|---|---|
 | SPEC-016 | Regel 12 c, SP4 Schritt 2; Code `server.HONESTY_RULE` | Die Ehrlichkeitsregel steht als Text im Python-Code und sollte laut Plan vom Backend angehängt werden. | Fester Textknoten im registrierten Sprachworkflow; die Registrierung prüft Vorhandensein und Bindung; der STATE zeigt den Text aus dem Graphen. |
 | SPEC-017 | SP4 Schritt 3, FRONTEND F7.9 (Schalter „Antworten gegen Regeln prüfen“, „Hard-Fails serverseitig“) | Geplant war eine sprachliche Regelprüfung in `dialog.py` (verbotene Wörter, Mensch-Behauptung, Deutung von Preisaussagen). | Gesprächsregeln als positive und negative Regeln im Promptprofil; eine Entwurfsprüfung nur im Workflow; im Backend nur Gates (KI-Hinweis, `under_18`, Zahlenabgleich mit den Fakten, Schalter, Kanalgrenzen). |
-| SPEC-018 | SP4 Schritte 1, 5; Knoten `LLMSessionChatNode` | Der Knoten speichert je `session_id` einen eigenen Verlauf als JSON unter `output/llm_session_sessions/`: zweite Gesprächsquelle neben SQLite, Kundendaten außerhalb der Datenbank. | Kontext nur aus SQLite als Eingang; je Lauf neue Sitzung mit `reset_session`; Probelauf belegt, dass keine Verlaufsdatei bleibt, sonst löscht `llm.py` sie. |
+| SPEC-018 | SP4 Schritte 1, 5; Knoten `LLMSessionChatNode` | Der Knoten speichert je `session_id` einen eigenen Verlauf als JSON unter `output/llm_session_sessions/`: zweite Gesprächsquelle neben SQLite, Kundendaten außerhalb der Datenbank. | Kontext nur aus SQLite als Eingang; je Lauf neue Sitzung mit `reset_session`; Probelauf belegt, dass keine Verlaufsdatei bleibt, sonst löscht `llm.py` sie. **[18.11.] Probelauf: Datei bleibt** (JSON + `.bak` je Sitzung, auch mit `reset_session`, `max_turns` 0, persistentem Cache aus); `history_dir` lenkt alle Schreibzugriffe um (belegt) → `llm.py`: je Lauf eigener Ordner im ComfyUI-2-temp, nach dem Lauf löschen, Reste beim Start entfernen; vor Kundengesprächen umsetzen und testen (SP4 Schritt 1). |
 | SPEC-019 | SP4 Schritt 2, FRONTEND §3.4, F7.9 | Persona als ein Textfeld mit Vorlagen; Profilfelder ohne nachgewiesene Bindung an Graph-Eingänge; Top-K, Min-P, DRY und Seed als mögliche Parameter genannt. | Getrennte Promptblöcke je Influencerin in `persona_versions`, jeder an einen eigenen Eingang von `clara_chat_melody` gebunden; nur die Parameter, die der Knoten hat; Registrierung weist ungebundene Felder ab. |
 | SPEC-020 | Regel 13, §3.2 (ComfyUI 2: „Inhaltsprüfung“) | Die Inhaltsprüfung lag laut Plan in KI-ComfyUI 2, E16 und E17 legen sie in die Medien-Workflows. | Inhalts- und Qualitätsprüfung als Knoten in den Medien-Workflows auf ComfyUI 1. |
 | SPEC-021 | SP5 Schritte 2, 9; BUG-060, BUG-099 | Angebots- und Begleittext als Vorlage im Profil, vom Backend eingesetzt. | Formulierung durch den Sprachworkflow aus Profilblock und Geschäftsfakten; Betrag und Zahlungsweg setzt das Backend aus SQLite; die KI-Kennzeichnung bleibt ein fester Profiltext. |
@@ -200,6 +200,39 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-036 / SP4 Schritt 1 Vorbereitung (ComfyUI-LLM-Session, Melody auf ComfyUI 2) / SPEC-018 Probe
+Commit: 1396dd1 (launcher/setup_llm_session.sh, setup_comfyui.sh, comfyui.lock.txt)
+Wartungsfenster: 0 laufende/wartende Jobs, beide ComfyUI-Warteschlangen leer
+Prüfung: Knotenpaket kantan-kanto/ComfyUI-LLM-Session ec2b293c (v1.6.0-2-gec2b293, 08.10.2026) in Quarantäne
+  durchgesehen: kein Netz, kein subprocess, kein eval/exec, kein Pickle; schreibt Verlauf/Mitschrift/Cache je
+  Sitzung nach output/llm_session_sessions, sofern history_dir leer. llama-cpp-python 0.3.37: nur Quellpaket auf
+  PyPI, verlangt typing-extensions, numpy, jinja2 (vorhanden) und diskcache (neu)
+Vorher: uv pip freeze 100 Pakete = launcher/comfyui.lock.txt; numpy 2.5.4, torch 2.15.0, torchvision 0.29.2,
+  torchaudio 2.11.1, jinja2 3.1.6, typing-extensions 4.16.0
+Installation: setup_llm_session.sh mit Lock als Constraint, Metal-Build aus dem Quellpaket 52,8 s; Metal OK
+  (recommendedMaxWorkingSetSize 103079 MB)
+Nachher: genau + diskcache 5.6.3, + llama-cpp-python 0.3.37; numpy 2.5.4 und torch 2.15.0 unverändert; Lock 102
+  Pakete = venv; setup_comfyui.sh ausgeführt (venv unverändert), extra_model_paths.yaml mit LLM: llm und
+  frame_interpolation: frame_interpolation (FILM, Rest von BUG-036)
+Neustart über das Cockpit (Befehle comfy_stop/comfy_start, Quittung COMPLETED): Medien 6,0 s, KI 4,0 s;
+  LLMSessionChatNode auf ComfyUI 2 geladen, Modellauswahl findet Melody1437-26B-A4B-v2.0-Q6_K.gguf
+Echter Textdialog (ComfyUI 2, n_gpu_layers −1, n_ctx 4096, je Lauf neue Sitzung, reset_session, max_turns 0):
+  drei deutsche Nachrichten, Antwort 1 kalt 22,2 s (ComfyUI 21,81 s, Modell laden), Antworten 2–3 warm 1,0 s
+  (ComfyUI 0,64–0,86 s); Ehrlichkeit: auf die KI-Frage antwortet Clara wahrheitsgemäß „Ehrlich gesagt bin ich
+  eine KI“; Speicher frei 91,9 → 74,0 GB, ComfyUI-2-RSS 616 MB → 23 GB (GGUF gemappt 21 GB)
+Metal: llama.cpp mit verbose in derselben venv: GPU MTL0 (Apple M4 Max), „offloaded 31/31 layers to GPU“,
+  Gewichte als MTL0_Mapped; Modell general.name „Melody1437 26B A4B v2.0“, file type Q6_K, 25,23 B Parameter;
+  Generierung 88,9 Tokens/s, Prompt-Auswertung 240,9 Tokens/s (kurzer Prompt); Vergleich im Knoten CPU warm 1,5 s
+  gegen GPU warm 1,0 s
+SPEC-018: NICHT ERFÜLLT ohne Gegenmaßnahme – je Sitzung JSON + .bak (Gesprächsinhalt) und leerer Cache-Ordner in
+  local/comfyui_ai/output/llm_session_sessions, trotz reset_session, max_turns 0, persistent_cache off;
+  mit history_dir landen alle Dateien nur dort (belegt). Probe-Dateien (18, nur eigene probe-Sitzungen, keine
+  Kundendaten) entfernt. Gegenmaßnahme vor Kundengesprächen in SP4 Schritt 1 (llm.py)
+ComfyUI 1 danach: LUSTIFY 8 Schritte (Job 104) 43,7 s, Prüfkette Inhalt/Technik/Qualität/Prompttreue/Hände mit
+  Werten
+Ergebnis: BUG-036 PASS; Melody auf ComfyUI 2 TEIL (Laufzeit belegt, Workflow/llm.py und SPEC-018 OFFEN)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: BUG-127 (Testprozess-Leck: verwaiste Fake-ComfyUI)
 Commit: siehe git log „BUG-127“ / backend/tests/conftest.py, backend/tests/test_cleanup.py
 Befund: 453 Prozesse „python main.py --listen 127.0.0.1 --port N“, alle mit Elternprozess 1: 2 produktive

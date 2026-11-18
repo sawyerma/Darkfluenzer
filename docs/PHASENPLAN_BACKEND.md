@@ -296,7 +296,7 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 | Zahlungen | CODE | Krypto-Beobachter, Gutschein-Erkennung, Zuordnung, Monatsliste | PayPal, echte Zahlung, SP2/SP5 |
 | Kundenauftrag von Hand | CODE | Hinweis, Alter, Angebot, Produktion, Freigabe, Zustellung | kein echter Kunde |
 | Einstellungen (Reiter) | OFFEN | Geheimnisse bisher nur per CLI `darkfluenzer secret set` (Telegram) | SP2 (S1) |
-| Chat-KI | OFFEN | Melody Q6_K geladen und SHA-geprüft (17.11. 01:14); Node ComfyUI-LLM-Session geprüft, Setup-Skript vorbereitet (nicht installiert) | SP4 |
+| Chat-KI | TEIL | Melody Q6_K auf ComfyUI 2 mit ComfyUI-LLM-Session `ec2b293c` und llama-cpp-python 0.3.37 (Metal, `1396dd1`): echter Dialog 18.11., kalt 22 s, warm 0,6–0,9 s, 31/31 Schichten auf der GPU, 88,9 Tokens/s, ≈ 18 GB | Workflow `clara_chat_melody`, `llm.py`, SPEC-018 (Verlaufsdateien) |
 
 ### 5.1 Nachweise der abgenommenen Pakete (aus V0, gekürzt; Volltext im Archiv)
 
@@ -667,6 +667,7 @@ Ersetzt B5.1 bis B5.4, B5.4a, C5.2, C5.3, C5.4 und T1. Grundlage: Code-Vergleich
    - Zusammensetzen nur im Graphen (`StringFormat` bzw. `StringConcatenate`) zu `system_prompt` und `user_text`. Negative Regeln sind ein eigener Block im Systemprompt, weil ein Text-LLM keinen Negativprompt hat. Der Ehrlichkeitsblock (Regel 12 c) ist ein fester Textknoten im Graphen.
    - Nachweis je Lauf: Der Graph gibt den zusammengesetzten Prompt zusätzlich über einen Ausgabeknoten aus (`PreviewAny` oder `SaveText`; ob der Text im Verlauf lesbar ist, belegt der Probelauf). Die Registrierung (`models.graph_problems`) weist einen Graphen ab, in dem ein Profilfeld an keinen Eingang gebunden ist oder der Ehrlichkeitsblock fehlt oder abweicht. Keine dekorativen Cockpit-Felder.
    - Kein Verlauf im Knoten: Der Gesprächskontext kommt allein aus SQLite als Eingang. Je Lauf eine neue `session_id` mit `reset_session`; der Probelauf belegt, dass keine Kundendaten in einer Verlaufsdatei bleiben, sonst löscht `llm.py` die Datei des Laufs (SPEC-018, Regel 12 e).
+   - **[18.11.2026] Probelauf:** Der Knoten legt je Sitzung eine Verlaufsdatei (JSON + `.bak`) unter `output/llm_session_sessions/` an, auch mit `reset_session`, `max_turns` 0 und ausgeschaltetem persistentem Cache; `history_dir` lenkt alle Schreibzugriffe um. Deshalb setzt `llm.py` je Lauf `history_dir` auf einen eigenen Ordner im ComfyUI-2-temp, löscht ihn nach dem Lauf und entfernt Reste beim Start; erst mit bestandenem Test (keine Datei bleibt) werden Kundengespräche aktiviert.
    - Eigener Weg `llm.generate(workflow, werte)`: reicht den Graphen bei ComfyUI 2 ein und liest das Textergebnis aus dem Verlauf. Kein Eintrag in `jobs`, keine Herkunftsdatei, kein `git`-Aufruf, kein `runtime.start` je Nachricht (BUG-095, 098). Heute kennt `comfy.collect_graph` nur Datei-Ausgaben und meldet sonst „keine Ausgabedatei“.
    - Messwerte je Lauf in Tabelle `ai_runs`: Art, Workflow und Workflowversion (SHA des API-Graphen), Modell-SHA, Profilversion je Block, zusammengesetzter Prompt, gewählter Kontext und Gedächtnisauswahl, Wartezeit, Dauer, Fehler.
    - `[comfyui_ai] keep_loaded`: `_admit` entlädt eine so gekennzeichnete Instanz nie und rechnet ihren Speicher bei Medienjobs mit (BUG-085).
