@@ -208,7 +208,10 @@ Korrektur: unveränderliche Versionen je Influencerin, aktive Version, Befehl 35
 Nachweis: tests/test_persona.py (Migration 26 mit Sicherung, Unveränderlichkeit per Trigger, Zurücksetzen,
   Trennung je Influencerin, Befehle 35/68 und STATE); volle Backend-Suite 210 grün; Migration an Kopie der
   echten Datenbank (Integrität ok)
-Ergebnis: CODE (Backend); KI-Studio und Übergabe an den Sprachworkflow OFFEN
+Nachtrag 18.11.: KI-Studio · Persona im Frontend (KiStudio.tsx); Browser-Test mit Chrome gegen einen
+  getrennten Testserver (eigene Wurzel, Port 8291, ohne Kanäle): Version N aktiv → speichern ergibt N+1 aktiv,
+  Vergleich N gegen N+1, Zurücksetzen auf N, Chat-Test gesperrt, keine Konsolenfehler
+Ergebnis: TEIL (Promptprofile im Cockpit bedienbar); Übergabe an den Sprachworkflow OFFEN (SP4 Schritt 1)
 Bearbeiter/Datum: Claude, 18.11.2026
 
 ID: E17 Fingerzahl (CountHallu-Fingerzähler) – Durchsicht und Probe

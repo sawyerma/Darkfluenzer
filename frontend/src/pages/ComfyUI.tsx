@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Instances, readyUrl } from "./comfyui/Instances";
+import { KiStudio } from "./comfyui/KiStudio";
 import { Queue } from "./comfyui/Queue";
 import { type RenderIntent, takeProductionIntent, takeRenderIntent } from "../core/intent";
 import { Topic } from "../core/generated/darkfluenzer/v1/stream_pb";
@@ -137,9 +138,13 @@ export function ComfyUI() {
           />
         ) : (
           <>
-            <div className="g-workmain">
-              <p className="g-note">{connection.status === "OPEN" ? kind === "ai" ? "Keine KI-Workflows registriert (folgen in B5)." : "Keine registrierten Workflows." : "Keine Verbindung"}</p>
-            </div>
+            {kind === "ai" && connection.status === "OPEN" ? (
+              <KiStudio />
+            ) : (
+              <div className="g-workmain">
+                <p className="g-note">{connection.status === "OPEN" ? "Keine registrierten Workflows." : "Keine Verbindung"}</p>
+              </div>
+            )}
             <aside className="g-control" aria-label="Steuerung">
               <h2>Steuerung</h2>
               <Queue instance={kind === "ai" ? "ai" : "media"} onLoad={loadDraft} canLoad={canLoad} />

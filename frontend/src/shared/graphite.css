@@ -536,3 +536,8 @@ button.g-account:hover { border-color: var(--g-brand); }
 .g-timeline-mark[data-tone="bad"] { fill: var(--g-bad); }
 .g-keyframe { display: grid; gap: var(--g-gap-xs); padding-top: var(--g-gap-sm); border-top: 1px solid var(--g-line); }
 .g-keyframe-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--g-gap-xs) var(--g-gap-sm); color: var(--g-muted); }
+
+/* KI-Studio · Persona (SP4 Schritt 2): Versionen mit festen Spalten, Vergleich je Block untereinander */
+.g-version-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto auto; align-items: center; gap: var(--g-gap-sm); padding: var(--g-gap-xs) 0; border-bottom: 1px solid var(--g-line); }
+.g-diff { margin: var(--g-gap-xs) 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.g-diff small { display: block; color: var(--g-muted); }
