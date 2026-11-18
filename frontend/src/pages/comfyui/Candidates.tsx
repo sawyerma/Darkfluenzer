@@ -1,4 +1,4 @@
-import type { ActiveOrder } from "../../core/generated/darkfluenzer/v1/order_pb";
+import type { ActiveOrder, OrderStage } from "../../core/generated/darkfluenzer/v1/order_pb";
 import { IMAGE, STAGE_LABEL, VIDEO } from "./common";
 import { Progress } from "./Queue";
 import { Topic } from "../../core/generated/darkfluenzer/v1/stream_pb";
@@ -23,12 +23,51 @@ export function Candidates({
   const workflows = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
   const slotted = new Set(workflows.filter((w) => w.loraSlot).map((w) => w.key));
   const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
+  const stageText = (stage: OrderStage) =>
+    (stage.kind === "finish" ? `Fertigstellen · ${titles[stage.workflow] ?? stage.workflow}` : "Kandidaten") +
+    (stage.lora ? ` · LoRA ${stage.lora}` : slotted.has(stage.workflow) ? " · ohne Charakter-LoRA" : "");
+  // je Auftrag einklappbar (GUI-Prüfung 18.11. Punkt 6): anfangs nur der erste geöffnet
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
   if (orders.length === 0) return null;
   return (
     <div className="g-result">
-      {heading ? <h2>Kandidaten</h2> : null}
-      {orders.map((order) => (
-        <div key={order.orderNo} className="g-order">
+      {heading ? (
+        <div className="g-line g-head">
+          <h2>Kandidaten</h2>
+          <small>{orders.length === 1 ? "1 Auftrag" : `${orders.length} Aufträge`}</small>
+        </div>
+      ) : null}
+      {orders.map((order, index) => {
+        const open = opened[order.orderNo] ?? index === 0;
+        const last = order.stages[order.stages.length - 1];
+        const [label, tone] = STAGE_LABEL[last?.status ?? ""] ?? [last?.status ?? "", "neutral"];
+        const thumbs = (last?.jobs ?? []).filter((j) => j.mediaId && IMAGE.test(j.path));
+        return (
+        <details
+          key={order.orderNo}
+          className="g-order"
+          open={open}
+          onToggle={(e) => {
+            const now = e.currentTarget.open;
+            if (now !== open) setOpened((o) => ({ ...o, [order.orderNo]: now }));
+          }}
+        >
+          <summary>
+            <span className="g-ellipsis">
+              {order.orderNo} · {last ? stageText(last) : "Kandidaten"}
+            </span>
+            {last && last.attempts > 1 ? <small>Versuch {last.attempts}</small> : null}
+            {open ? null : (
+              <span className="g-order-thumbs">
+                {thumbs.map((j) => (
+                  <img key={String(j.jobId)} src={mediaUrl(j.path)} alt="" loading="lazy" />
+                ))}
+              </span>
+            )}
+            <span className="g-badge" data-tone={tone}>
+              {label}
+            </span>
+          </summary>
           {order.stages.some((st) => st.jobs.some((j) => j.status === "queued" || j.status === "running")) ? (
             <div className="g-actions">
               <button
@@ -46,18 +85,18 @@ export function Candidates({
             const failed = stage.jobs.some((j) => j.status === "failed");
             return (
               <div key={stage.seq} className="g-stage">
-                <div className="g-line">
-                  <span className="g-ellipsis">
-                    {order.orderNo} · {stage.kind === "finish" ? `Fertigstellen · ${titles[stage.workflow] ?? stage.workflow}` : "Kandidaten"}
-                    {stage.lora ? ` · LoRA ${stage.lora}` : slotted.has(stage.workflow) ? " · ohne Charakter-LoRA" : ""}
-                  </span>
-                  <span className="g-value">
-                    {stage.attempts > 1 ? <small>Versuch {stage.attempts}</small> : null}
-                    <span className="g-badge" data-tone={tone}>
-                      {label}
+                {order.stages.length > 1 ? (
+                  // mehrere Stufen: je Stufe eine Zeile; bei einer Stufe steht alles im Kopf
+                  <div className="g-line">
+                    <span className="g-ellipsis">{stageText(stage)}</span>
+                    <span className="g-value">
+                      {stage.attempts > 1 ? <small>Versuch {stage.attempts}</small> : null}
+                      <span className="g-badge" data-tone={tone}>
+                        {label}
+                      </span>
                     </span>
-                  </span>
-                </div>
+                  </div>
+                ) : null}
                 {stage.error && stage.status === "failed" ? <p className="g-note g-error">{stage.error}</p> : null}
                 <div
                   className="g-candidates"
@@ -130,8 +169,9 @@ export function Candidates({
               </div>
             );
           })}
-        </div>
-      ))}
+        </details>
+        );
+      })}
       {cmd.notice ? (
         <p className="g-note" role="alert">
           {cmd.notice}

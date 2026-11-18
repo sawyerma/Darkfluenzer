@@ -170,12 +170,20 @@ export function WorkflowResults({
                   </span>
                 </button>
                 {job.result === JobResult.FAILED && job.error ? <p className="g-note g-error">{job.error}</p> : null}
-                {checkLines(job.checks).map((c, i) => (
-                  <small key={i} className="g-line">
-                    <span>{CHECK_NAME[c.name] ?? c.name}</span>
-                    <span className="g-value">{c.text}</span>
-                  </small>
-                ))}
+                {job.checks.length > 0 ? (
+                  // Prüfwerte eingeklappt (GUI-Prüfung 18.11. Punkt 6): Kopf nennt die Prüfungen
+                  <details className="g-checks">
+                    <summary>
+                      Prüfwerte · {[...new Set(checkLines(job.checks).map((c) => CHECK_NAME[c.name] ?? c.name))].join(", ")}
+                    </summary>
+                    {checkLines(job.checks).map((c, i) => (
+                      <small key={i} className="g-line">
+                        <span>{CHECK_NAME[c.name] ?? c.name}</span>
+                        <span className="g-value">{c.text}</span>
+                      </small>
+                    ))}
+                  </details>
+                ) : null}
                 {outs
                   .filter((o) => !VIDEO.test(o.path) && !IMAGE.test(o.path))
                   .map((o) => (

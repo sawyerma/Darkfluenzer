@@ -23,6 +23,29 @@ function tabOf(w: WorkflowInfo): Kind {
   return w.instance === "ai" ? "ai" : (w.kind as Kind);
 }
 
+// Gruppen der Workflowliste (GUI-Prüfung 18.11. Punkt 6) nach Aufgabe, aus echten Registry-Feldern:
+// Training, Rolle der Engine (analysis, upscale, output), Art (Video) und Eingangsbild (Upload ohne
+// Vorlage = Bearbeiten). Zweiter Wert: anfangs geöffnet.
+const GROUPS: readonly [string, boolean][] = [
+  ["Erzeugen", true],
+  ["Bearbeiten", true],
+  ["Bild zu Video", true],
+  ["Sprache", true],
+  ["Fertigstellen", false],
+  ["Analysieren & Prüfen", false],
+  ["Training", false],
+];
+
+function groupOf(w: WorkflowInfo): string {
+  if (w.training) return "Training";
+  if (w.role === "analysis") return "Analysieren & Prüfen";
+  if (w.role === "upscale" || w.role === "output") return "Fertigstellen";
+  if (w.instance === "ai") return "Sprache";
+  if (w.kind === "video") return "Bild zu Video";
+  if (w.params.some((p) => p.upload && !p.reference)) return "Bearbeiten";
+  return "Erzeugen";
+}
+
 export function ComfyUI() {
   const instances = useStateTopic(Topic.COMFY_INSTANCES);
   const registry = useStateTopic(Topic.COMFY_WORKFLOWS)?.value;
@@ -32,6 +55,7 @@ export function ComfyUI() {
   const [kind, setKind] = useState<Kind>("image");
   const [selected, setSelected] = useState<Record<Kind, string>>({ image: "", video: "", ai: "" });
   const [draft, setDraft] = useState<{ key: string; params: Record<string, string>; n: number } | null>(null);
+  const [groupsOpen, setGroupsOpen] = useState<Record<string, boolean>>({});
   const [intent] = useState<RenderIntent | null>(takeRenderIntent);
   const [orderIntent] = useState(takeProductionIntent);
   const canLoad = (key: string) => workflows.some((w) => w.key === key);
@@ -56,6 +80,26 @@ export function ComfyUI() {
   }, [intent, workflows]);
   const list = workflows.filter((w) => tabOf(w) === kind);
   const current = list.find((w) => w.key === selected[kind]) ?? list[0];
+  const groups = GROUPS.map(([name, initial]) => {
+    const items = list.filter((w) => groupOf(w) === name);
+    return [name, items, groupsOpen[name] ?? (initial || items.includes(current as WorkflowInfo))] as const;
+  }).filter(([, items]) => items.length > 0);
+  const item = (w: WorkflowInfo) => (
+    <button
+      key={w.key}
+      type="button"
+      role="listitem"
+      className="g-wfitem"
+      aria-current={w === current ? "true" : undefined}
+      onClick={() => setSelected({ ...selected, [kind]: w.key })}
+    >
+      <strong>{w.title}</strong>
+      <small>
+        {w.enabled ? "" : "deaktiviert · "}
+        {w.modelsReady ? "bereit" : `fehlt ${w.missingGb.toFixed(1)} GB`} · {w.status}
+      </small>
+    </button>
+  );
   const comfyUrl = readyUrl(instances?.value.instances.find((i) => i.name === (current?.instance ?? "media")), live);
   const create = useCommand();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -99,27 +143,36 @@ export function ComfyUI() {
       </div>
 
       <div className="g-studio">
-        <div className="g-wflist" role="list" aria-label={`${KINDS.find(([k]) => k === kind)?.[1] ?? ""}-Workflows`}>
+        <div className="g-wflist">
           <h2>Workflows</h2>
           <button type="button" className="g-button g-new" disabled={!live || list.length === 0} onClick={openCreate}>
             Neuer Workflow
           </button>
-          {list.map((w) => (
-            <button
-              key={w.key}
-              type="button"
-              role="listitem"
-              className="g-wfitem"
-              aria-current={w === current ? "true" : undefined}
-              onClick={() => setSelected({ ...selected, [kind]: w.key })}
-            >
-              <strong>{w.title}</strong>
-              <small>
-                {w.enabled ? "" : "deaktiviert · "}
-                {w.modelsReady ? "bereit" : `fehlt ${w.missingGb.toFixed(1)} GB`} · {w.status}
-              </small>
-            </button>
-          ))}
+          {groups.length > 1
+            ? groups.map(([name, items, open]) => (
+                <details
+                  key={name}
+                  className="g-wfgroup"
+                  open={open}
+                  onToggle={(e) => {
+                    const now = e.currentTarget.open;
+                    if (now !== open) setGroupsOpen((g) => ({ ...g, [name]: now }));
+                  }}
+                >
+                  <summary>
+                    <span>{name}</span>
+                    <small>{items.length}</small>
+                  </summary>
+                  <div role="list" aria-label={name}>
+                    {items.map(item)}
+                  </div>
+                </details>
+              ))
+            : (
+                <div role="list" aria-label={`${KINDS.find(([k]) => k === kind)?.[1] ?? ""}-Workflows`}>
+                  {list.map(item)}
+                </div>
+              )}
         </div>
         {current ? (
           <Workbench

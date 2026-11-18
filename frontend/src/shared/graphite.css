@@ -111,6 +111,7 @@
   --g-progress-w: 96px;
   --g-params-label: 92px;
   --g-cmd-label: 64px;
+  --g-order-thumb: 28px;
   --g-tile-min: 180px;
   --g-tile-x: 24px;
   --g-tile-check: 18px;
@@ -296,6 +297,20 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 }
 .g-flush .g-clist .g-contact-main { overflow: hidden; }
 .g-wflist, .g-clist { display: flex; flex-direction: column; }
+/* Workflowgruppen (GUI-Prüfung Punkt 6): Kopfzeile je Aufgabe, einklappbar, über die Spaltenbreite */
+.g-wflist [role="list"] { display: flex; flex-direction: column; }
+.g-wfgroup > summary {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--g-gap-sm); cursor: pointer; list-style: none;
+  margin: 0 calc(-1 * var(--g-col-pad)); padding: 10px var(--g-col-pad); background: var(--g-list-title);
+  border-bottom: 1px solid var(--g-line); color: var(--g-muted); font-size: var(--g-fs-tiny); font-weight: var(--g-fw-bold);
+  letter-spacing: var(--g-caps-spacing); text-transform: uppercase;
+}
+.g-wfgroup > summary::-webkit-details-marker { display: none; }
+.g-wfgroup > summary::before { content: "▸"; margin-right: var(--g-gap-xs); }
+.g-wfgroup[open] > summary::before { content: "▾"; }
+.g-wfgroup > summary > span { flex: 1 1 auto; }
+.g-wfgroup[open] > summary { color: var(--g-text-strong); }
+.g-wfgroup > summary:focus-visible { outline: 2px solid var(--g-focus); outline-offset: -2px; }
 .g-wflist h2, .g-clist h2, .g-control h2, .g-workmain h2 { margin: 0 0 var(--g-gap-sm); font-size: var(--g-fs-h2); font-weight: var(--g-fw-semibold); }
 .g-wfitem, .g-contact {
   display: flex; flex-direction: column; gap: var(--g-gap-xs); text-align: left; cursor: pointer;
@@ -432,7 +447,24 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-toolbar .g-subtabs { margin: 0; border-bottom: 0; }
 .g-tile { position: relative; }
 .g-tile-outputs { display: grid; gap: var(--g-gap-xs); grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
-.g-order + .g-order { margin-top: var(--g-gap-lg); }
+.g-order { border: 1px solid var(--g-worktab-line); border-radius: var(--g-r-input); background: var(--g-worktab); }
+.g-order + .g-order { margin-top: var(--g-gap-sm); }
+.g-order > summary {
+  display: flex; align-items: center; gap: var(--g-gap-sm); padding: var(--g-pad-row); cursor: pointer; list-style: none;
+  font-size: var(--g-fs-small); font-weight: var(--g-fw-semibold); color: var(--g-text-strong);
+}
+.g-order > summary::-webkit-details-marker { display: none; }
+.g-order > summary::before { content: "▸"; color: var(--g-muted); }
+.g-order[open] > summary::before { content: "▾"; }
+.g-order > summary > .g-ellipsis { flex: 1 1 auto; }
+.g-order > summary:focus-visible { outline: 2px solid var(--g-focus); outline-offset: -2px; border-radius: var(--g-r-input); }
+.g-order[open] { padding: 0 12px 4px; }
+.g-order[open] > summary { margin: 0 -12px; }
+.g-order-thumbs { display: flex; gap: var(--g-gap-xs); }
+/* Prüfwerte eines Ergebnisses: eingeklappt, Kopf nennt die Prüfungen */
+.g-checks > summary { cursor: pointer; overflow: hidden; color: var(--g-muted); font-size: var(--g-fs-tiny); text-overflow: ellipsis; white-space: nowrap; }
+.g-checks[open] > summary { color: var(--g-text-strong); white-space: normal; }
+.g-order-thumbs img { width: var(--g-order-thumb); height: var(--g-order-thumb); object-fit: cover; border-radius: var(--g-r-thumb); }
 .g-stage { margin-bottom: var(--g-gap-md); }
 .g-candidates { display: grid; gap: var(--g-gap-md); grid-template-columns: repeat(auto-fill, minmax(var(--g-tile-min), 1fr)); margin-top: var(--g-gap-sm); }
 .g-candidate { display: flex; flex-direction: column; gap: var(--g-gap-xs); }
