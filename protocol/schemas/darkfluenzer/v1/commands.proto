@@ -206,6 +206,14 @@ message ChannelAccountLogin {
   string key = 4;
 }
 
+// Sendung mit unbekanntem Ergebnis entscheiden (SP2 Schritt 6, SPEC-009): action mark_sent
+// (angekommen) | resend (nicht angekommen: als fehlgeschlagen festhalten und neu einreihen; Zustellung
+// über den Ablauf von Befehl 47, KI-Hinweis über Befehl 45). Nie automatisch.
+message MessageResolve {
+  uint64 message_id = 1;
+  string action = 2;
+}
+
 // Kanalkonto steuern: Automatik freigeben/sperren oder abmelden (Abmelden beendet die Sitzung).
 message ChannelAccountUpdate {
   string platform = 1;
@@ -424,6 +432,7 @@ message CommandRequest {
     StartClonerOrder start_cloner_order = 38;
     ChannelAccountLogin channel_account_login = 39;
     ChannelAccountUpdate channel_account_update = 40;
+    MessageResolve message_resolve = 66;
     InfluencerUpdate influencer_update = 35;
     MediaContentTier media_content_tier = 43;
     CustomerAgeMark customer_age_mark = 44;

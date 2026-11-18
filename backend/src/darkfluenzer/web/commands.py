@@ -122,6 +122,7 @@ class CommandsMixin:
             "gift_card_confirm": self._gift_card_confirm,
             "channel_account_login": self._channel_login,
             "channel_account_update": self._channel_update,
+            "message_resolve": self._message_resolve,
             "set_workflow_enabled": self._set_enabled,
             "open_workflow": self._open,
             "adopt_workflow": self._adopt,

@@ -45,11 +45,11 @@
 | BUG-011 | Zuordnung nach Erkennungszeit statt Blockzeit (`store._match_offer`). | CODE | Verspätet gescannte, rechtzeitig bestätigte Zahlung wird zugeordnet; nach Ablauf nicht. | B SP5 |
 | BUG-013 | Telegram-Anhang bleibt nach Absturz zwischen Speichern und Download `pending`. | CODE | Fortsetzung nach Neustart oder Fehlschlag mit Grund. | B SP1 |
 | BUG-015 | **[18.11.] CODE** (`ignored_chat_ids`, Vorgabe 777000; Test rot→grün; echter Code-Eingang offen) – Telegram-Dienstkonto 777000 kann als Kunde landen. | OFFEN | Keine Akte, kein KI-Dialog, Code nie im Gedächtnis. | B SP2 |
-| BUG-016 | Versand mit Status `unknown` bleibt hängen; Instagram klärt ihn nur im Speicher, nach Neustart entsteht fälschlich „ÜBERGABE AN BETREIBER“. | CODE | Abgleich dauerhaft über Verlauf/Echo, nie blind zweimal senden, eigene Nachricht nie als Übergabe. | B SP2 |
+| BUG-016 | **[18.11.] CODE** (Abgleich über SQLite, Verlauf und Send-Updates, Befehl 66; Mac-Lauf mit echtem Zeitablauf offen) – Versand mit Status `unknown` bleibt hängen; Instagram klärt ihn nur im Speicher, nach Neustart entsteht fälschlich „ÜBERGABE AN BETREIBER“. | CODE | Abgleich dauerhaft über Verlauf/Echo, nie blind zweimal senden, eigene Nachricht nie als Übergabe. | B SP2 |
 | BUG-017 | Instagram lehnt Bilder über 8 MB ab; keine Zustellkopie; Texte über 1000 Byte nicht geteilt: `instagram._parts` lehnt Text über `max_text_bytes` ganz ab. | CODE | Zustellkopie je Kanalgrenze, nie unter 1K; Text teilen; genau einmal zugestellt. | B SP5 (Datei), SP4 (Text) |
 | BUG-019 | Angebot wählt das Produkt über den Listenindex. | CODE | Stabile ID je Preisposition, Revisionsprüfung. | B SP5 |
 | BUG-020 | Kundenakte nimmt `influencers[0]` statt der Influencerin des Kontos. | CODE | Influencerin je Kanalkonto und Akte. | B SP4 (C5.1) |
-| BUG-021 | KI-Hinweis nach fehlgeschlagenem oder ungeklärtem Versand nicht fortsetzbar. | CODE: `queue_ai_notice` sperrt, sobald eine Hinweisnachricht verknüpft ist, auch wenn sie fehlgeschlagen ist | Erneuter Versuch möglich, nie doppelt. | B SP2 |
+| BUG-021 | **[18.11.] CODE** (erneut nur nach `failed`, Test rot→grün) – KI-Hinweis nach fehlgeschlagenem oder ungeklärtem Versand nicht fortsetzbar. | CODE: `queue_ai_notice` sperrt, sobald eine Hinweisnachricht verknüpft ist, auch wenn sie fehlgeschlagen ist | Erneuter Versuch möglich, nie doppelt. | B SP2 |
 | BUG-022 | Alle Engines `evaluation`, Rollen leer; Kundenaufträge prüfen Engine-Freigabe nicht (`_not_startable` prüft nur aktiviert, gesperrt, Dateien). | CODE | Kundenproduktion nur auf freigegebenen Engines (`usage = production`, alle Gates nach Backend §9.1) mit der LoRA der Figur, auch bei manipuliertem Befehl; `_not_startable` prüft das bei Kundenaufträgen. | B SP5 |
 | BUG-023 | Krea als `standard` eingestuft ohne Nachweis. | HYPOTHESE | Graph und Testbilder prüfen; Stufe nur mit Beleg. | B SP5 |
 | BUG-024 | Cockpit-Befehle warten ohne Zeitlimit auf die Quittung (`core/commands.ts`, `terminalReceipt`). Erreicht der Befehl das Backend nie, wartet `useCommand` ewig; der Befehlsstatus lässt sich nicht abfragen. | CODE | Zeitlimit, danach Zustand über die `request_id` wiederherstellen. | B SP2 (Endpunkt), F SP2 |
@@ -200,6 +200,25 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP2 Schritte 6 und 7 (ungeklärter Versand, KI-Hinweis erneut) / SPEC-009, BUG-016, BUG-021
+Commit: siehe git log „SP2 steps 6+7“ / store/messages (match_unknown, unknown_outgoing, known_platform_ids,
+  Karte bei unknown, queue_ai_notice), channels/telegram (_late_result, _resolved, _settle_unknown,
+  _history_since, own:<Chat>), channels/instagram (offene Liste aus SQLite), core/messages (Befehl 66),
+  Stream.tsx (UnknownActions), CustomerPanel (KI-Hinweis erneut)
+Nachweis Unit/Integration: tests/test_unknown_send.py – Zeitablauf → unknown mit Karte, nie im Postausgang;
+  spätes Send-Update → sent mit Karte, Abgleich danach ohne ÜBERGABE; spätes Fehl-Update → failed mit Grund;
+  Verlauf nach Neustart: Treffer → sent, kein Treffer → failed mit Beleg, laufender Versand → unknown, schon
+  vergebene ID zählt nicht; Teil-IDs mehrteiliger Sendung nie als fremd; KI-Hinweis erneut nur nach failed;
+  Befehl 66 über HTTP (nur unknown, mark_sent, resend als Kopie und als KI-Hinweis, unbekannte Aktion, ohne
+  Verbindung abgewiesen); test_instagram – Echo nach Neustart über SQLite; test_customer_orders – Zustellung
+  unknown: Befehl 47 abgewiesen, 66 resend → alter Versuch failed, neuer pending
+Nachweis echt: Neustart mit Abgleich nach der Anmeldung (0 offene Sendungen), Wiederanmeldung 493976404;
+  Chrome-E2E isoliert tests/messages-unknown.spec.ts (Warnung, Abweisung ohne Verbindung, als gesendet
+  markieren per Push, KI-Hinweis erneut), lesend echt
+NOT_RUN: echter TDLib-/Meta-Zeitablauf mit späterem Echo, echte Zustellung an einen Kunden über 66
+Ergebnis: TEIL
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP2 Schritt 5 (Telegram-Eingang vervollständigen) / BUG-015
 Commit: siehe git log „SP2 step 5“ / config (ignored_chat_ids), channels/telegram (_edited, _deleted, Beschriftung,
   _stopping), store/messages (edit_platform_message, delete_platform_messages), Migration 31,

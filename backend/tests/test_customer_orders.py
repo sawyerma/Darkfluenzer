@@ -329,6 +329,15 @@ def test_customer_order_chain(cfg, monkeypatch):
         att2 = store.message(d2["message_id"])["attachments"][0]
         assert att2["path"] != att["path"]  # FABLE-006: eigene Zustellkopie je Versuch
         assert hashlib.sha256((cfg.local / att["path"]).read_bytes()).hexdigest() == att["sha256"]
+        # ungeklärt (SP2 Schritt 6, SPEC-009): kein Befehl 47; der Betreiber entscheidet (66)
+        store.set_message_status(d2["message_id"], "unknown")
+        cockpit._message_changed(d2["message_id"])
+        retry = commands_pb2.RetryDelivery(order_no=no)
+        assert "fehlgeschlagener" in await send(retry_delivery=retry)
+        resolve = commands_pb2.MessageResolve(message_id=d2["message_id"], action="resend")
+        assert await send(message_resolve=resolve) == ""
+        assert [d["status"] for d in store.deliveries(o1.id)] == ["failed", "failed", "pending"]
+        d2 = store.deliveries(o1.id)[-1]
         store.set_message_status(d2["message_id"], "sent", platform_message_id="77")
         cockpit._message_changed(d2["message_id"])
         assert store.order(no).status == "delivered"

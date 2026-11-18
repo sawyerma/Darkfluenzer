@@ -23,6 +23,7 @@ import os
 import random
 import re
 import shutil
+import sqlite3
 import time
 from collections import deque
 from collections.abc import Awaitable, Callable
@@ -41,6 +42,9 @@ log = logging.getLogger("darkfluenzer.telegram")
 PLATFORM = "telegram"
 HANDOFF_CARD = "ÜBERGABE AN BETREIBER"
 LAST = "last:"  # adapter_state: letzte gespeicherte Nachrichten-ID je Chat (Abgleich nach Neustart)
+OWN = "own:"  # adapter_state: Plattform-IDs eigener Teilnachrichten je Chat (SP2 Schritt 6)
+OWN_KEPT = 200  # gemerkte eigene IDs je Chat
+UNKNOWN_SLACK_S = 120  # Verlaufsprüfung beginnt so viel vor der Einreihung der Sendung
 HISTORY_PAGES = 20  # Obergrenze Seiten je Chat beim Abgleich (je bis zu 100 Nachrichten)
 REJECTED_SHOWN = 5  # Testbetrieb: zuletzt verworfene Einzelchat-IDs (nur im Speicher, ohne Inhalt)
 # TDLib-Inhaltsart -> (Anhangart, Feld mit der Datei)
@@ -67,6 +71,16 @@ def message_text(content: dict) -> str:
     if content.get("@type") == "messageText":
         return str(content["text"]["text"])
     return str((content.get("caption") or {}).get("text", ""))
+
+
+def file_names_of(content: dict) -> list[str]:
+    """Dateinamen einer Nachricht (Dokument: Name der gesendeten Zustellkopie)."""
+    kind = content.get("@type")
+    if kind in _FILE_CONTENT:
+        _, field, _ = _FILE_CONTENT[kind]
+        name = (content.get(field) or {}).get("file_name")
+        return [str(name)] if name else []
+    return []
 
 
 def files_of(content: dict) -> list[dict]:
@@ -344,11 +358,14 @@ class TelegramAccount(Channel):
         elif kind == "updateDeleteMessages":
             self._deleted(update)
         elif kind == "updateMessageSendSucceeded":
-            self._send_result(update["old_message_id"], str(update["message"]["id"]), None)
+            msg = update["message"]
+            self._send_result(update["old_message_id"], str(msg["id"]), None, msg)
         elif kind == "updateMessageSendFailed":
             err = update.get("error") or {}
             self._flood(str(err.get("message", "")), int(err.get("code", 0)))
-            self._send_result(update["old_message_id"], None, str(err.get("message", "Fehler")))
+            self._send_result(
+                update["old_message_id"], None, str(err.get("message", "Fehler")), update["message"]
+            )
         elif kind == "updateConnectionState" and self.login == "ready":
             ready = update["state"]["@type"] == "connectionStateReady"
             self._set("READY" if ready else "CONNECTING")
@@ -431,6 +448,7 @@ class TelegramAccount(Channel):
             self._set("READY", login="ready")
             log.info("Telegram angemeldet als Konto %s", self.account)
             await self._guard(self._reconcile())
+            await self._guard(self._settle_unknown())
             self.wake.set()
             return
         if kind == "authorizationStateClosed":  # nach Abmelden: neue Instanz, wieder Nummer
@@ -576,8 +594,17 @@ class TelegramAccount(Channel):
     async def _external_outgoing(
         self, chat_id: int, msg: dict, content: dict, sent_at: str
     ) -> None:
+        mid, partner = str(msg["id"]), str(chat_id)
+        if mid in self._own(chat_id):
+            return  # eigene Teilnachricht aus dem Postausgang (Abgleich nach Neustart)
+        text = message_text(content)
+        names = file_names_of(content)
+        item = self.store.match_unknown(PLATFORM, self.account, partner, text, names)
+        if item is not None:  # Sendung mit unbekanntem Ergebnis kam doch an (SPEC-009)
+            self._resolved(item, chat_id, mid, "angekommen (eigene Nachricht im Telegram-Verlauf)")
+            return
         conv, message_id = self.store.record_external_outgoing(
-            PLATFORM, self.account, str(chat_id), str(msg["id"]), message_text(content), sent_at
+            PLATFORM, self.account, partner, mid, text, sent_at
         )
         if message_id is None:
             return
@@ -731,20 +758,123 @@ class TelegramAccount(Channel):
             self._sending[int(sent["id"])] = item["id"]
             self._sent_at.append(time.time())
 
-    def _send_result(self, old_id: int, new_id: str | None, error: str | None) -> None:
+    def _send_result(
+        self, old_id: int, new_id: str | None, error: str | None, msg: dict | None = None
+    ) -> None:
         item = self._sending.pop(int(old_id), None)
+        chat = int((msg or {}).get("chat_id") or 0)
+        if item is None and msg is not None:  # Antwort auf sendMessage kam nie (unknown)
+            self._late_result(chat, msg, new_id, error)
+            return
         if item is None or item not in self._open:
             return
         if error is not None:
             self._open.pop(item)
             self.store.set_message_status(item, "failed", error=f"Telegram: {error}")
         else:
+            if chat and new_id:
+                self._remember_own(chat, new_id)  # jede Teilnachricht ist eigene (SP2 Schritt 6)
             self._open[item] -= 1
             if self._open[item] > 0:
                 return
             self._open.pop(item)
             self.store.set_message_status(item, "sent", platform_message_id=new_id)
         self.on_change_message(item)
+
+    def _late_result(self, chat: int, msg: dict, new_id: str | None, error: str | None) -> None:
+        """Versandergebnis einer Sendung, deren sendMessage-Aufruf ohne Antwort blieb: TDLib
+        meldet Erfolg oder Fehlschlag nachträglich – das ist der Beleg der Plattform."""
+        content = msg.get("content") or {}
+        item = self.store.match_unknown(
+            PLATFORM, self.account, str(chat), message_text(content), file_names_of(content)
+        )
+        if item is None:
+            return
+        if error is None and new_id:
+            self._resolved(item, chat, new_id, "angekommen (Telegram meldet den Versand)")
+        elif error is not None:
+            self.store.set_message_status(item, "failed", error=f"Telegram: {error}")
+            self.on_change_message(item)
+
+    def _resolved(self, item: int, chat: int, mid: str, how: str) -> None:
+        self._remember_own(chat, mid)
+        try:
+            self.store.set_message_status(item, "sent", platform_message_id=mid)
+        except sqlite3.IntegrityError:  # ID gehört schon einer Teilnachricht derselben Sendung
+            self.store.set_message_status(item, "sent")
+        conv = self.store.message(item)["conversation_id"]
+        self.store.add_system_card(conv, f"VERSAND GEKLÄRT · Nachricht {item} · {how}")
+        self.on_change_message(item)
+
+    def _own(self, chat: int) -> list[str]:
+        return (self.store.adapter_get(PLATFORM, self.account, f"{OWN}{chat}") or "").split()
+
+    def _remember_own(self, chat: int, mid: str) -> None:
+        kept = [*self._own(chat), mid][-OWN_KEPT:]
+        self.store.adapter_set(PLATFORM, self.account, f"{OWN}{chat}", " ".join(kept))
+
+    async def _settle_unknown(self) -> None:
+        """Nach dem (Wieder-)Verbinden: jede Sendung mit unbekanntem Ergebnis gegen den Verlauf
+        prüfen (SPEC-009). Passende eigene Nachricht → ``sent``; Verlauf ab der Einreihung ohne
+        passende Nachricht und ohne laufenden Versand → ``failed`` mit Beleg; sonst bleibt sie
+        ``unknown`` für die Entscheidung des Betreibers. Nie ein automatischer neuer Versuch."""
+        assert self._td is not None
+        for row in self.store.unknown_outgoing(PLATFORM, self.account):
+            chat = int(row["platform_conversation_id"])
+            since = datetime.fromisoformat(row["created_at"]).timestamp() - UNKNOWN_SLACK_S
+            try:
+                history = await self._history_since(chat, since)
+            except (TdError, TimeoutError) as exc:
+                log.warning("Telegram: Verlauf für Sendung %s nicht lesbar: %s", row["id"], exc)
+                continue
+            if history is None:
+                continue  # Verlauf nicht vollständig bis zur Einreihung: kein Beleg
+            taken = set(self._own(chat)) | self.store.known_platform_ids(
+                PLATFORM, self.account, str(chat)
+            )
+            files = {Path(str(a.get("path", ""))).name for a in row["attachments"]}
+            own = [m for m in history if m.get("is_outgoing") and str(m["id"]) not in taken]
+            if any(m.get("sending_state") for m in own):
+                continue  # TDLib sendet noch: Ergebnis folgt als Send-Update
+            hit = next(
+                (
+                    m for m in own
+                    if (row["text"].strip() and message_text(m["content"]) == row["text"])
+                    or files & set(file_names_of(m["content"]))
+                ),
+                None,
+            )  # fmt: skip
+            if hit is not None:
+                self._resolved(row["id"], chat, str(hit["id"]), "angekommen (Telegram-Verlauf)")
+                continue
+            when = datetime.fromtimestamp(since, UTC).astimezone().strftime("%d.%m. %H:%M")
+            self.store.set_message_status(
+                row["id"], "failed",
+                error=f"Telegram-Verlauf ab {when} enthält diese Nachricht nicht",
+            )  # fmt: skip
+            self.on_change_message(row["id"])
+
+    async def _history_since(self, chat_id: int, since: float) -> list[dict] | None:
+        """Verlauf eines Chats bis zur Zeit ``since`` (Unix-Sekunden); None, wenn die Seiten nicht
+        bis dorthin reichen (dann gibt es keinen Beleg)."""
+        assert self._td is not None
+        found: list[dict] = []
+        start = 0
+        for _ in range(HISTORY_PAGES):
+            page = await self._td.call(
+                {"@type": "getChatHistory", "chat_id": chat_id, "from_message_id": start,
+                 "offset": 0, "limit": 100, "only_local": False},
+                self._timeout,
+            )  # fmt: skip
+            batch = [m for m in page.get("messages") or [] if not start or m["id"] < start]
+            if not batch:
+                return found  # Anfang des Chats erreicht
+            found += batch
+            oldest = min(batch, key=lambda m: m["id"])
+            if oldest["date"] < since:
+                return found
+            start = oldest["id"]
+        return None
 
     def _flood(self, message: str, code: int) -> None:
         """Telegram-Bremse (429 „retry after N“) einhalten und anzeigen."""

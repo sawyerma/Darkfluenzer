@@ -284,6 +284,62 @@ class MessagesMixin:
             return ""
         return "Unbekannte Aktion."
 
+    async def _message_resolve(self, msg: commands_pb2.MessageResolve, call: _Call) -> str:
+        """Sendung mit unbekanntem Ergebnis entscheiden (Befehl 66, SPEC-009): der Betreiber
+        erklärt sie für angekommen oder reiht sie bewusst erneut ein; nie automatisch."""
+        call.entity = f"message:{msg.message_id}"
+        try:
+            row = self.store.message(msg.message_id)
+        except StoreError:
+            return "Nachricht unbekannt."
+        if row["direction"] != "out" or row["status"] != "unknown":
+            return "Nur Sendungen mit unbekanntem Ergebnis lassen sich so entscheiden."
+        conv = row["conversation_id"]
+        if msg.action == "mark_sent":
+            self.store.set_message_status(row["id"], "sent")
+            self.store.add_system_card(
+                conv, f"VERSAND GEKLÄRT · Nachricht {row['id']} · Betreiber: als gesendet markiert"
+            )
+            self._message_changed(row["id"])  # Zustellung: VERSENDET
+            return ""
+        if msg.action != "resend":
+            return "Unbekannte Aktion."
+        adapter = self._adapter(row["platform"], row["account"])
+        if adapter is None or adapter.state != "READY":
+            return f"{row['platform']} ist nicht verbunden."
+        self.store.set_message_status(
+            row["id"], "failed", error="Betreiber: nicht angekommen, erneut eingereiht"
+        )
+        self._message_changed(row["id"])  # Zustellung: fehlgeschlagen (Karte)
+        delivery = self.store.delivery_by_message(row["id"])
+        if delivery is not None:  # Zustellung an Kunden: Ablauf von Befehl 47 (neue Kopie, Gate)
+            order = self.store.order_by_id(delivery["order_id"])
+            return await self._retry_delivery(
+                commands_pb2.RetryDelivery(order_no=order.order_no), call
+            )
+        ident = next(
+            (
+                i for i in self.store.identities(row["customer_id"])
+                if i["ai_notice_message_id"] == row["id"]
+            ),
+            None,
+        )  # fmt: skip
+        if ident is not None:  # KI-Hinweis: wieder an die Identität gebunden (SP2 Schritt 7)
+            new = self.store.queue_ai_notice(row["customer_id"], ident["id"], row["text"])
+        else:
+            new = self.store.queue_outbound(
+                row["customer_id"], conv, row["text"],
+                revision=self.store.conversation_revision(conv),
+                attachments=row["attachments"], reply_to=row["reply_to_platform_id"],
+            )  # fmt: skip
+        self.store.add_system_card(
+            conv, f"ERNEUT EINGEREIHT · Nachricht {row['id']} → {new} · auf Wunsch des Betreibers"
+        )
+        call.entity = f"message:{new}"
+        adapter.wake.set()
+        self._message_changed(new)
+        return ""
+
     async def _customer_age_mark(self, msg: commands_pb2.CustomerAgeMark, call: _Call) -> str:
         """Altersangabe der Akte (Befehl 44; nur Betreiber, nie das LLM)."""
         call.entity = f"customer:{msg.customer_id}"

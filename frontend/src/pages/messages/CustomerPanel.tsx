@@ -241,7 +241,7 @@ function AiNotice({ customer, identity }: { customer: CustomerSummary; identity:
   return (
     <span className="g-between">
       <small>KI-Hinweis: {identity.aiNotice ? (NOTICE[identity.aiNotice] ?? identity.aiNotice) : "noch nicht gesendet"}</small>
-      {identity.aiNotice ? null : (
+      {identity.aiNotice && identity.aiNotice !== "failed" ? null : (
         <button
           type="button"
           className="g-button"
@@ -253,7 +253,7 @@ function AiNotice({ customer, identity }: { customer: CustomerSummary; identity:
             )
           }
         >
-          KI-Hinweis senden
+          {identity.aiNotice === "failed" ? "KI-Hinweis erneut senden" : "KI-Hinweis senden"}
         </button>
       )}
       {cmd.notice ? <small role="alert">{cmd.notice}</small> : null}

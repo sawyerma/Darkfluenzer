@@ -630,6 +630,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-bubble[data-deleted] > p { color: var(--g-muted); text-decoration: line-through; }
 .g-orig { margin-top: var(--g-gap-xs); font-size: var(--g-fs-small); color: var(--g-muted); }
 .g-orig > summary { cursor: pointer; font-size: var(--g-fs-tiny); }
+.g-bubble .g-warn { color: var(--g-warn-text); font-size: var(--g-fs-small); }
 .g-event { padding: var(--g-pad-row); border: 1px solid var(--g-line); border-radius: var(--g-r-row); background: var(--g-well); font-size: var(--g-fs-small); }
 .g-bubble p, .g-event p { margin: 0; white-space: pre-wrap; }
 .g-bubble small, .g-event small { display: block; margin-top: var(--g-gap-xs); color: var(--g-muted); font-size: var(--g-fs-tiny); }

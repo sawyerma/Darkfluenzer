@@ -300,11 +300,15 @@ def test_send_unknown_on_timeout_confirmed_by_echo_failed_on_error(cfg, vault):
         assert store.message(out)["status"] == "unknown"
         assert store.outbox("instagram", CLARA) == []  # nie blind wiederholt
         acc.http.fail = None
-        await _deliver(acc, _msg("m-late", text="noch was", echo=True))
+        # offene Liste in SQLite (SP2 Schritt 6): auch ein neuer Adapter (Neustart) erkennt das Echo
+        acc2, _, _ = _account(cfg, store)
+        acc2.account = acc.account
+        await _deliver(acc2, _msg("m-late", text="noch was", echo=True))
         row = store.message(out)
         assert (row["status"], row["platform_message_id"]) == ("sent", "m-late")
         items, _ = store.conversation_items(customer, 0, 10)
-        assert [i["direction"] for i in items] == ["in", "out"]  # keine Übergabe-Karte
+        assert [i["direction"] for i in items] == ["in", "out", "system"]  # keine Übergabe-Karte
+        assert items[-1]["text"].startswith("VERSAND UNGEKLÄRT")  # Karte bei unknown (SPEC-009)
         acc.http.fail = instagram.GraphError(400, 100, "Invalid parameter")
         bad = _queue(store, conv, customer, "kaputt")
         await acc._send(store.outbox("instagram", CLARA)[0])

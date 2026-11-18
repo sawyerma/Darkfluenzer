@@ -208,6 +208,44 @@ function OrderCard({ item }: { item: ConversationItem }) {
   );
 }
 
+/** Sendung mit unbekanntem Ergebnis (SPEC-009, Befehl 66): der Betreiber entscheidet; „Erneut
+ *  senden“ erst nach einer zweiten Bestätigung, weil die erste Sendung angekommen sein kann. */
+function UnknownActions({ item }: { item: ConversationItem }) {
+  const cmd = useCommand();
+  const [confirm, setConfirm] = useState(false);
+  const resolve = (action: string, done: string) =>
+    void cmd.run({ case: "messageResolve", value: { messageId: item.itemId, action } }, { done });
+  return (
+    <div className="g-actions">
+      {confirm ? (
+        <>
+          <small className="g-warn">Kann doppelt ankommen</small>
+          <button type="button" className="g-button g-danger" disabled={cmd.pending} onClick={() => resolve("resend", "Erneut eingereiht.")}>
+            Trotzdem erneut senden
+          </button>
+          <button type="button" className="g-button" onClick={() => setConfirm(false)}>
+            Abbrechen
+          </button>
+        </>
+      ) : (
+        <>
+          <button type="button" className="g-button" disabled={cmd.pending} onClick={() => resolve("mark_sent", "Als gesendet markiert.")}>
+            Als gesendet markieren
+          </button>
+          <button type="button" className="g-button" disabled={cmd.pending} onClick={() => setConfirm(true)}>
+            Erneut senden
+          </button>
+        </>
+      )}
+      {cmd.notice ? (
+        <p className="g-note" role="status">
+          {cmd.notice}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /** Nachricht als Blase in Kanalfarbe mit Kanalname (eingehend links, ausgehend rechts) oder
  *  neutrale Systemkarte. */
 function Entry({ item }: { item: ConversationItem }) {
@@ -248,6 +286,7 @@ function Entry({ item }: { item: ConversationItem }) {
       {attachments}
       <small>{meta.filter(Boolean).join(" · ")}</small>
       {item.error ? <p className="g-error">{item.error}</p> : null}
+      {out && item.status === "unknown" ? <UnknownActions item={item} /> : null}
     </div>
   );
 }

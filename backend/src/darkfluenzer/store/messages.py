@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from ..payments.vouchers import extract as extract_vouchers
 from .db import (
@@ -335,6 +336,9 @@ class MessagesMixin:
         error: str | None = None,
     ) -> None:
         with self.tx() as db:
+            before = db.execute(
+                "SELECT status, conversation_id FROM channel_messages WHERE id = ?", (message_id,)
+            ).fetchone()
             db.execute(
                 "UPDATE channel_messages SET status = ?, platform_message_id ="
                 " coalesce(?, platform_message_id), error = ?, sent_at = CASE WHEN ? = 'sent'"
@@ -343,6 +347,12 @@ class MessagesMixin:
             )
             self._event("message", message_id, "status", status=status, error=error)
             self.bump("conversations")
+            if status == "unknown" and before and before[0] != "unknown":  # SPEC-009: Karte
+                self.add_system_card(
+                    before[1],
+                    f"VERSAND UNGEKLÄRT · Nachricht {message_id} · ohne Beleg der Plattform kein "
+                    "neuer Versuch – als gesendet markieren oder erneut senden",
+                )
             if status == "sent":  # KI-Hinweis wirklich gesendet: Ereigniskarte (Regel 12 b)
                 notice = db.execute(
                     "SELECT c.id FROM channel_identities i JOIN channel_conversations c"
@@ -363,6 +373,44 @@ class MessagesMixin:
             (platform, account),
         )
         return [dict(r) | {"attachments": json.loads(r["attachments"])} for r in rows]
+
+    def unknown_outgoing(self, platform: str, account: str) -> list[dict]:
+        """Sendungen mit unbekanntem Ergebnis eines Kontos (SP2 Schritt 6, SPEC-009)."""
+        rows = self.db.execute(
+            "SELECT m.*, c.platform_conversation_id FROM channel_messages m"
+            " JOIN channel_conversations c ON c.id = m.conversation_id"
+            " JOIN channel_identities i ON i.id = c.identity_id"
+            " WHERE m.direction = 'out' AND m.status = 'unknown' AND i.platform = ?"
+            " AND i.account = ? ORDER BY m.id",
+            (platform, account),
+        )
+        return [dict(r) | {"attachments": json.loads(r["attachments"])} for r in rows]
+
+    def match_unknown(
+        self, platform: str, account: str, partner_id: str, text: str, file_names=()
+    ) -> int | None:
+        """Eigene Nachricht aus Echo oder Verlauf einer offenen Sendung derselben Konversation
+        zuordnen: gleicher Text oder gleiche Datei (Dateiname der Zustellkopie); älteste zuerst."""
+        names = {n for n in file_names if n}
+        for row in self.unknown_outgoing(platform, account):
+            if row["platform_conversation_id"] != partner_id:
+                continue
+            files = {Path(str(a.get("path", ""))).name for a in row["attachments"]}
+            if (text.strip() and row["text"] == text) or names & files:
+                return row["id"]
+        return None
+
+    def known_platform_ids(self, platform: str, account: str, partner_id: str) -> set[str]:
+        """Plattform-IDs, die in dieser Konversation schon einer Nachricht gehören."""
+        rows = self.db.execute(
+            "SELECT m.platform_message_id FROM channel_messages m"
+            " JOIN channel_conversations c ON c.id = m.conversation_id"
+            " JOIN channel_identities i ON i.id = c.identity_id"
+            " WHERE i.platform = ? AND i.account = ? AND c.platform_conversation_id = ?"
+            " AND m.platform_message_id IS NOT NULL",
+            (platform, account, partner_id),
+        )
+        return {r[0] for r in rows}
 
     def settle_sending(self) -> list[int]:
         """Nach einem Neustart: Nachrichten, deren Versand begonnen hatte, sind „unbekannt“
@@ -445,18 +493,24 @@ class MessagesMixin:
         return recent[::-1], len(rows) > limit
 
     def queue_ai_notice(self, customer_id: int, identity_id: int, text: str) -> int:
-        """KI-Hinweis genau einmal je Kanalidentität in den Postausgang (Regel 12 b)."""
+        """KI-Hinweis genau einmal je Kanalidentität in den Postausgang (Regel 12 b); erneut nur,
+        wenn die verknüpfte Nachricht ``failed`` ist – nie bei ``queued``, ``sending``, ``sent``
+        oder ``unknown`` (SP2 Schritt 7)."""
         with self.tx() as db:
             ident = db.execute(
-                "SELECT i.ai_notice_message_id, c.id AS conversation_id, c.revision"
+                "SELECT i.ai_notice_message_id, c.id AS conversation_id, c.revision, n.status"
                 " FROM channel_identities i JOIN channel_conversations c ON c.identity_id = i.id"
+                " LEFT JOIN channel_messages n ON n.id = i.ai_notice_message_id"
                 " WHERE i.id = ? AND i.customer_id = ?",
                 (identity_id, customer_id),
             ).fetchone()
             if ident is None:
                 raise StoreError("Kanalidentität gehört nicht zu dieser Kundenakte.")
-            if ident["ai_notice_message_id"]:
-                raise StoreError("KI-Hinweis für diese Kanalidentität bereits ausgelöst.")
+            if ident["ai_notice_message_id"] and ident["status"] != "failed":
+                raise StoreError(
+                    "KI-Hinweis für diese Kanalidentität bereits ausgelöst"
+                    f" ({ident['status'] or 'unbekannt'})."
+                )
             message_id = self.queue_outbound(
                 customer_id, ident["conversation_id"], text, revision=ident["revision"]
             )

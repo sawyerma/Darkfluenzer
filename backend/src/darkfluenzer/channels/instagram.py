@@ -276,7 +276,6 @@ class InstagramAccount(Channel):
         self._refresh_after = 0.0
         self._sent_at: deque[float] = deque()
         self._inflight: dict[str, asyncio.Event] = {}  # Konversation -> laufender Sendeaufruf
-        self._unknown: dict[str, list[tuple[int, str]]] = {}  # unbestätigte Sendungen (ID, Text)
         self._chains: dict[str, asyncio.Task] = {}  # Reihenfolge je Konversation
         self._tasks: set[asyncio.Task] = set()
         self._scheduled: set[int] = set()
@@ -929,9 +928,6 @@ class InstagramAccount(Channel):
                     partner, {"recipient": {"id": partner}, "message": message, **tag}
                 )
             except HttpError as exc:
-                if exc.maybe_sent and len(plan) == 1 and item["text"].strip():
-                    known = self._unknown.setdefault(partner, [])
-                    known[:] = [*known, (message_id, item["text"])][-OWN_KEPT:]
                 after = f" (nach {n} von {len(plan)} Teilen)" if n else ""
                 self._drop_id(HUMAN, message_id)
                 self._finish(
@@ -1038,13 +1034,10 @@ class InstagramAccount(Channel):
         self.store.adapter_set(PLATFORM, self.account, f"{OWN}{partner}", " ".join(kept))
 
     def _confirm_unknown(self, partner: str, text: str) -> int | None:
-        """Echo mit gleichem Text bestätigt eine Sendung, deren Ergebnis unbekannt war."""
-        known = self._unknown.get(partner) or []
-        for i, (item, sent_text) in enumerate(known):
-            if text and sent_text == text:
-                del known[i]
-                return item
-        return None
+        """Echo mit gleichem Text bestätigt eine Sendung, deren Ergebnis unbekannt war; die offene
+        Liste sind die Nachrichten im Status ``unknown`` in SQLite (übersteht den Neustart,
+        SP2 Schritt 6)."""
+        return self.store.match_unknown(PLATFORM, self.account, partner, text)
 
     def _ids(self, key: str) -> list[int]:
         raw = self.store.adapter_get(PLATFORM, self.account, key) or ""

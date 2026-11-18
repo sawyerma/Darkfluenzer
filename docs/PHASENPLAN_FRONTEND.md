@@ -211,6 +211,7 @@ Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`,
 - **Kleinere Punkte:** Ganzzahlprüfung (BUG-025), mitlaufende Fristen (BUG-026), Video in der Auftragskarte (BUG-027), Wallet-Maskierung und Bestätigungen (BUG-032, 033). Das Neuladen nach Schemawechsel (BUG-076) kommt mit SP6.
 - **Reiter Einstellungen** nach §3.7, zusätzlich Kanalkonten anlegen, zuordnen und entfernen; Schalter „Kundenkanal über Privatkonto oder Bot“ je Konto (der Bot-Weg kommt später).
 - **Nachrichten:** Sendung im Status `unknown` zeigt „als gesendet markieren“ und „erneut senden“ mit Warnhinweis (SPEC-009).
+  - **Umgesetzt 18.11.2026 (SP2 Schritte 6, 7):** Sendung „Ergebnis unbekannt“ zeigt „Als gesendet markieren“ und „Erneut senden“; Letzteres erst nach „Kann doppelt ankommen“ → „Trotzdem erneut senden“ (Befehl 66), Ablehnung an der Blase; KI-Hinweis nach „fehlgeschlagen“ mit „KI-Hinweis erneut senden“. Chrome-E2E isoliert `tests/messages-unknown.spec.ts`.
   - **Umgesetzt 18.11.2026 (SP2 Schritt 5):** bearbeitete Nachricht mit „bearbeitet <Zeit>“ und aufklappbarem „Erster Text“, gelöschte mit „gelöscht <Zeit>“ und durchgestrichenem Inhalt. Chrome-E2E isoliert `tests/messages-edit.spec.ts`.
 - **Abnahme:** je ein Browser-Test für Nachrichten, ComfyUI, Dateien, Wallet und Einstellungen; der Smoke-Test klickt alle sechs Reiter; ein Test trennt die Verbindung während eines Befehls und prüft, dass der Knopf wieder frei wird.
 
