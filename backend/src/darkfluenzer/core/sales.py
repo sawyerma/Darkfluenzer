@@ -142,8 +142,8 @@ class SalesMixin:
         summary = self.store.customers_overview(msg.customer_id)
         if not summary or summary[0]["kind"] == "internal":
             return "Angebote nur an Kundenakten."
-        if summary[0]["age_mark"] != "self_declared_adult":
-            return "Angebot nur bei Altersangabe ≥ 18 (Selbstauskunft) in der Akte."
+        if summary[0]["age_mark"] == "under_18":  # nur die Sperre zählt (BUG-077, kein Altersblock)
+            return "Akte gesperrt (minderjährig vermutet) – kein Angebot."
         ident = next(
             (i for i in self.store.identities(msg.customer_id) if i["id"] == msg.identity_id),
             None,

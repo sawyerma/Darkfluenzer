@@ -681,7 +681,65 @@ CREATE TABLE cloner_returns (
     PRIMARY KEY (order_id, media_id)
 );
 """,
+    34: """
+-- Dialogbetrieb (SP4 Schritt 6, BUG-097): KI-Antworten als Entwurf (draft) oder storniert
+-- (cancelled), geplante Sendezeit, Bezug auf den Sprachlauf; Tabellenumbau wie Migration 7.
+CREATE TABLE channel_messages_v34 (
+    id                   INTEGER PRIMARY KEY,
+    customer_id          INTEGER NOT NULL REFERENCES customers(id),
+    conversation_id      INTEGER NOT NULL REFERENCES channel_conversations(id),
+    direction            TEXT    NOT NULL CHECK (direction IN ('in', 'out', 'system')),
+    platform_message_id  TEXT,
+    reply_to_platform_id TEXT,
+    text                 TEXT    NOT NULL DEFAULT '',
+    attachments          TEXT    NOT NULL DEFAULT '[]',
+    status               TEXT    NOT NULL CHECK (status IN ('received', 'queued', 'sending',
+                         'sent', 'failed', 'unknown', 'draft', 'cancelled')),
+    error                TEXT,
+    request_id           TEXT,
+    order_id             INTEGER REFERENCES orders(id),
+    sent_at              TEXT    NOT NULL,
+    read_at              TEXT,
+    created_at           TEXT    NOT NULL,
+    origin_message_id    INTEGER REFERENCES channel_messages(id),
+    delivery_id          INTEGER REFERENCES deliveries(id),
+    edited_at            TEXT,
+    original_text        TEXT,
+    deleted_at           TEXT,
+    album_id             TEXT,
+    scheduled_at         TEXT,
+    ai_run_id            INTEGER REFERENCES ai_runs(id),
+    -- vom Betreiber freigegeben (Entwurf gesendet, „Jetzt senden“): beim Versand nur harte Gates
+    released             INTEGER NOT NULL DEFAULT 0 CHECK (released IN (0, 1)),
+    UNIQUE (conversation_id, direction, platform_message_id)
+);
+INSERT INTO channel_messages_v34 (id, customer_id, conversation_id, direction,
+    platform_message_id, reply_to_platform_id, text, attachments, status, error, request_id,
+    order_id, sent_at, read_at, created_at, origin_message_id, delivery_id, edited_at,
+    original_text, deleted_at, album_id)
+SELECT id, customer_id, conversation_id, direction, platform_message_id, reply_to_platform_id,
+       text, attachments, status, error, request_id, order_id, sent_at, read_at, created_at,
+       origin_message_id, delivery_id, edited_at, original_text, deleted_at, album_id
+FROM channel_messages;
+DROP TABLE channel_messages;
+ALTER TABLE channel_messages_v34 RENAME TO channel_messages;
+CREATE INDEX channel_messages_customer ON channel_messages(customer_id, id);
+CREATE UNIQUE INDEX channel_messages_request ON channel_messages(request_id)
+    WHERE request_id IS NOT NULL;
+CREATE INDEX channel_messages_order ON channel_messages(order_id) WHERE order_id IS NOT NULL;
+CREATE INDEX channel_messages_album ON channel_messages(conversation_id, album_id)
+    WHERE album_id IS NOT NULL;
+CREATE INDEX channel_messages_scheduled ON channel_messages(scheduled_at)
+    WHERE status = 'queued' AND scheduled_at IS NOT NULL;
+-- Modus der Konversation: auto (KI antwortet), draft (nur Entwurf), manual (Betreiber)
+ALTER TABLE channel_conversations ADD COLUMN mode TEXT NOT NULL DEFAULT 'auto'
+    CHECK (mode IN ('auto', 'draft', 'manual'));
+-- Schalter der Influencerin (C5.1): Text-KI und automatische Antworten
+ALTER TABLE influencers ADD COLUMN text_ai INTEGER NOT NULL DEFAULT 0 CHECK (text_ai IN (0, 1));
+ALTER TABLE influencers ADD COLUMN auto_replies INTEGER NOT NULL DEFAULT 0
+    CHECK (auto_replies IN (0, 1));
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
-REBUILDS = {5, 6, 7}
+REBUILDS = {5, 6, 7, 34}

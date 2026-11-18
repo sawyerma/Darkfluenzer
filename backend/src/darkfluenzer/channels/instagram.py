@@ -904,8 +904,13 @@ class InstagramAccount(Channel):
         message_id = int(item["id"])
         partner = str(item["platform_conversation_id"])
         # Zustellung an Kunden: Gate im Versandmoment frisch prüfen (approval.py, V0 §8.4 Punkt 9)
-        if item.get("delivery_id") and (reason := await self.gate(item)):
-            self._finish(message_id, "failed", error=reason)
+        gated = item.get("delivery_id") or item.get("ai_run_id")
+        if gated and (reason := await self.gate(item)):
+            if item.get("ai_run_id"):  # KI-Antwort: wird Entwurf mit Grund (SP4 Schritt 6)
+                self.store.hold_message(message_id, reason)
+                self.on_change_message(message_id)
+            else:
+                self._finish(message_id, "failed", error=reason)
             return
         human = message_id in self._ids(HUMAN)
         plan = self.send_check(partner, human_agent=human) or self._parts(item)

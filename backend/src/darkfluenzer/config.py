@@ -300,6 +300,11 @@ class DialogConfig:
     # Wiederholungsprüfung (SP4 Schritt 5): Wortmengen-Überdeckung zu einer früheren Antwort, ab der
     # neu erzeugt wird (Startwert, im Testbetrieb einstellen)
     repeat_similarity: float = 0.8
+    # E21: automatische Antworten an echte Kunden erst nach der Rechtsfreigabe; bis dahin nur in
+    # Konten im Testbetrieb, sonst Entwurf
+    public_contact_cleared: bool = False
+    # so viele letzte Ein- und Ausgänge gehen als Gesprächskontext in einen Kundenlauf
+    chat_turns: int = 12
 
 
 @dataclass(frozen=True)
@@ -796,7 +801,11 @@ def load(root: Path | None = None) -> Config:
     if similar > 1:
         raise ConfigError("Konfiguration: dialog.repeat_similarity muss zwischen 0 und 1 liegen.")
     dialog_cfg = DialogConfig(
-        payment_terms=terms, schema_retries=retries, repeat_similarity=similar
+        payment_terms=terms,
+        schema_retries=retries,
+        repeat_similarity=similar,
+        public_contact_cleared=_flag(dialog_section, "public_contact_cleared", False, "dialog"),
+        chat_turns=int(_positive(dialog_section, "chat_turns", 12, "dialog")),
     )
     cl = data.get("cloner", {})
     if not isinstance(cl, dict):

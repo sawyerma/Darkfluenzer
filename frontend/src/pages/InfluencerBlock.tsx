@@ -25,6 +25,9 @@ export function InfluencerBlock({ influencer, mediaTitle, videoTitle }: { influe
   const [persona, setPersona] = useState(influencer?.persona ?? "");
   const [notice, setNotice] = useState(influencer?.aiNotice ?? "");
   const [character, setCharacter] = useState(influencer?.characterId ? String(influencer.characterId) : "");
+  // Schalter (C5.1): Text-KI und automatische Antworten
+  const [textAi, setTextAi] = useState(influencer?.textAi ?? false);
+  const [autoReplies, setAutoReplies] = useState(influencer?.autoReplies ?? false);
   const [rows, setRows] = useState<Row[]>(() =>
     (influencer?.prices ?? []).map((p) => ({ product: p.product, price: euro(p.priceCents), hd: euro(p.hdSurchargeCents) })),
   );
@@ -53,6 +56,8 @@ export function InfluencerBlock({ influencer, mediaTitle, videoTitle }: { influe
           characterId: character ? BigInt(character) : 0n,
           persona,
           aiNotice: notice,
+          textAi,
+          autoReplies,
           prices: rows.map((r) => ({ product: r.product.trim(), priceCents: BigInt(cents(r.price)), hdSurchargeCents: BigInt(cents(r.hd || "0")) })),
         },
       },
@@ -81,6 +86,14 @@ export function InfluencerBlock({ influencer, mediaTitle, videoTitle }: { influe
             <label htmlFor={`inf-notice-${label}`}>KI-Hinweistext (erster Kontakt je Kanal)</label>
             <textarea id={`inf-notice-${label}`} rows={2} value={notice} onChange={(e) => setNotice(e.target.value)} />
           </div>
+          <label className="g-switch">
+            <input type="checkbox" checked={textAi} onChange={(e) => setTextAi(e.target.checked)} />
+            Text-KI
+          </label>
+          <label className="g-switch">
+            <input type="checkbox" checked={autoReplies} disabled={!textAi} onChange={(e) => setAutoReplies(e.target.checked)} />
+            Automatische Antworten
+          </label>
           <div className="g-field">
             <span>Ehrlichkeitsregel (fest)</span>
             <small>{state?.honestyRule ?? "–"}</small>

@@ -188,6 +188,8 @@ class MessagesMixin:
             )
             self._event("message", cur.lastrowid, "added", customer_id=customer.id)
             self.bump("conversations")
+            # Nachricht vom Handy: der Betreiber hat übernommen (SP4 Schritt 6)
+            self.set_conversation_mode(conv, "manual", "Nachricht vom Handy")
             return conv, cur.lastrowid
 
     def add_system_card(
@@ -374,10 +376,144 @@ class MessagesMixin:
             " JOIN channel_identities i ON i.id = c.identity_id"
             " JOIN customers cu ON cu.id = m.customer_id"
             " WHERE m.direction = 'out' AND m.status = 'queued' AND i.platform = ?"
-            " AND i.account = ? ORDER BY cu.kind = 'internal' DESC, m.id",
-            (platform, account),
+            " AND i.account = ? AND (m.scheduled_at IS NULL OR m.scheduled_at <= ?)"
+            " ORDER BY cu.kind = 'internal' DESC, m.id",
+            (platform, account, now()),
         )
         return [dict(r) | {"attachments": json.loads(r["attachments"])} for r in rows]
+
+    # ------------------------------------------------------------------ Dialogbetrieb (SP4 6)
+
+    def conversation_mode(self, conversation_id: int) -> str:
+        row = self.db.execute(
+            "SELECT mode FROM channel_conversations WHERE id = ?", (conversation_id,)
+        ).fetchone()
+        if row is None:
+            raise StoreError(f"Konversation {conversation_id} unbekannt.")
+        return row[0]
+
+    def set_conversation_mode(self, conversation_id: int, mode: str, why: str = "") -> bool:
+        """Modus der Konversation: auto (KI antwortet), draft (nur Entwurf), manual (Betreiber);
+        True, wenn geändert."""
+        if mode not in ("auto", "draft", "manual"):
+            raise StoreError(f"Modus {mode!r} unbekannt (auto, draft, manual).")
+        with self.tx() as db:
+            n = db.execute(
+                "UPDATE channel_conversations SET mode = ? WHERE id = ? AND mode != ?",
+                (mode, conversation_id, mode),
+            ).rowcount
+            if n:
+                self._event("conversation", conversation_id, "mode", mode=mode, why=why)
+                self.bump("conversations")
+            return bool(n)
+
+    def queue_reply(
+        self,
+        customer_id: int,
+        conversation_id: int,
+        text: str,
+        *,
+        status: str,
+        ai_run_id: int | None,
+        scheduled_at: str | None = None,
+        reason: str = "",
+    ) -> int:
+        """KI-Antwort festhalten (SP4 Schritte 6, 7): ``queued`` (mit Sendezeit) oder ``draft``
+        (mit Grund); Bezug auf den Sprachlauf. Keine Revisionsprüfung: die Antwort entsteht aus
+        dem gespeicherten Verlauf, eine neue Kundennachricht storniert sie."""
+        if status not in ("queued", "draft"):
+            raise StoreError(f"KI-Antwort mit Status {status!r} nicht möglich.")
+        with self.tx() as db:
+            cur = db.execute(
+                "INSERT INTO channel_messages (customer_id, conversation_id, direction, text,"
+                " status, error, ai_run_id, scheduled_at, sent_at, created_at)"
+                " VALUES (?,?,'out',?,?,?,?,?,?,?)",
+                (customer_id, conversation_id, text, status, reason or None, ai_run_id,
+                 scheduled_at, now(), now()),
+            )  # fmt: skip
+            db.execute(
+                "UPDATE channel_conversations SET revision = revision + 1 WHERE id = ?",
+                (conversation_id,),
+            )
+            self._event("message", cur.lastrowid, "added", customer_id=customer_id)
+            self.bump("conversations")
+            return cur.lastrowid
+
+    def open_ai_replies(self, conversation_id: int) -> list[int]:
+        """KI-Antworten dieser Konversation, die noch nicht gesendet werden (Entwurf oder
+        geplant)."""
+        rows = self.db.execute(
+            "SELECT id FROM channel_messages WHERE conversation_id = ? AND ai_run_id IS NOT NULL"
+            " AND status IN ('draft', 'queued') ORDER BY id",
+            (conversation_id,),
+        )
+        return [r[0] for r in rows]
+
+    def cancel_message(self, message_id: int, reason: str) -> bool:
+        """Noch nicht gesendete Nachricht stornieren (bleibt als Karte sichtbar)."""
+        with self.tx() as db:
+            n = db.execute(
+                "UPDATE channel_messages SET status = 'cancelled', error = ?"
+                " WHERE id = ? AND status IN ('draft', 'queued')",
+                (reason, message_id),
+            ).rowcount
+            if n:
+                self._event("message", message_id, "status", status="cancelled", error=reason)
+                self.bump("conversations")
+            return bool(n)
+
+    def release_message(self, message_id: int, text: str | None, scheduled_at: str | None) -> None:
+        """Entwurf oder geplante Antwort freigeben: Text (optional neu), Sendezeit (None =
+        jetzt)."""
+        with self.tx() as db:
+            row = db.execute(
+                "SELECT status FROM channel_messages WHERE id = ?", (message_id,)
+            ).fetchone()
+            if row is None or row[0] not in ("draft", "queued"):
+                raise StoreError("Nur Entwürfe und geplante Antworten lassen sich freigeben.")
+            db.execute(
+                "UPDATE channel_messages SET status = 'queued', error = NULL, scheduled_at = ?,"
+                " text = COALESCE(?, text), released = 1 WHERE id = ?",
+                (scheduled_at, text, message_id),
+            )
+            self._event("message", message_id, "status", status="queued")
+            self.bump("conversations")
+
+    def hold_message(self, message_id: int, reason: str) -> None:
+        """Geplante Antwort zurückhalten: wird Entwurf."""
+        with self.tx() as db:
+            n = db.execute(
+                "UPDATE channel_messages SET status = 'draft', error = ?, scheduled_at = NULL"
+                " WHERE id = ? AND status = 'queued' AND ai_run_id IS NOT NULL",
+                (reason, message_id),
+            ).rowcount
+            if not n:
+                raise StoreError("Nur geplante KI-Antworten lassen sich zurückhalten.")
+            self._event("message", message_id, "status", status="draft", error=reason)
+            self.bump("conversations")
+
+    def dialog_turns(self, conversation_id: int, limit: int) -> list[dict]:
+        """Letzte Ein- und Ausgänge einer Konversation (ohne Systemkarten, Entwürfe,
+        stornierte), aufsteigend."""
+        rows = self.db.execute(
+            "SELECT id, direction, text, status FROM channel_messages WHERE conversation_id = ?"
+            " AND direction IN ('in', 'out') AND status NOT IN ('draft', 'cancelled', 'failed')"
+            " AND deleted_at IS NULL ORDER BY id DESC LIMIT ?",
+            (conversation_id, limit),
+        )
+        return [dict(r) for r in rows][::-1]
+
+    def next_scheduled(self, platform: str, account: str) -> str | None:
+        """Früheste geplante Sendezeit eines Kontos (Postausgang wacht dann auf)."""
+        row = self.db.execute(
+            "SELECT min(m.scheduled_at) FROM channel_messages m"
+            " JOIN channel_conversations c ON c.id = m.conversation_id"
+            " JOIN channel_identities i ON i.id = c.identity_id"
+            " WHERE m.status = 'queued' AND m.scheduled_at IS NOT NULL AND i.platform = ?"
+            " AND i.account = ?",
+            (platform, account),
+        ).fetchone()
+        return row[0] if row else None
 
     def pending_inbound(self, platform: str, account: str) -> list[dict]:
         """Eingänge eines Kontos mit noch nicht geladenen Anhängen (``pending``): ihre

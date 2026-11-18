@@ -255,6 +255,8 @@ def _conversation_item(row: dict, store: Store) -> channel_pb2.ConversationItem:
         edited_at_ms=_unix_ms(row["edited_at"]) if row.get("edited_at") else 0,
         original_text=row.get("original_text") or "",
         deleted_at_ms=_unix_ms(row["deleted_at"]) if row.get("deleted_at") else 0,
+        scheduled_at_ms=_unix_ms(row["scheduled_at"]) if row.get("scheduled_at") else 0,
+        ai_run_id=row.get("ai_run_id") or 0,
     )
     if row["order_id"]:
         _fill_order(item.order, store, store.order_by_id(row["order_id"]))

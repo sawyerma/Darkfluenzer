@@ -100,6 +100,12 @@ class CustomersMixin:
             raise StoreError(f"Kunde {customer_no} unbekannt.")
         return _customer(found)
 
+    def age_mark(self, customer_id: int) -> str:
+        """Altersmarke der Akte (``under_18`` = gesperrt, SP4 Schritt 4)."""
+        row = self.db.execute("SELECT age_mark FROM customers WHERE id = ?", (customer_id,))
+        found = row.fetchone()
+        return (found[0] or "") if found else ""
+
     def identities(self, customer_id: int) -> list[dict]:
         rows = self.db.execute(
             "SELECT i.*, c.id AS conversation_id, c.platform_conversation_id, c.revision,"

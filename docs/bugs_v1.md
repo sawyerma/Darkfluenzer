@@ -66,7 +66,7 @@
 | BUG-094 | LoRA nur in Workflows mit demselben Engine-Eintrag ladbar (`models.engine_model_names` vergleicht `base_engine`). `lustify_sam31_edit` nutzt dasselbe Modell unter anderem Eintrag und dürfte die Charakter-LoRA nicht laden. (In Fables SP3-Blatt als „BUG-089“ geführt; 089 ist bereits vergeben.) | CODE | Bindung an die Architektur (`arch`). | B SP3 |
 | BUG-095 | Jeder Workflow-Lauf prüft die Instanz über `runtime.start`, ruft zweimal `git` auf (`comfy.provenance`), fragt im Sekundentakt ab und schreibt eine Herkunftsdatei. Für Chat-Antworten ist das zu schwer. **[18.11.] PASS** (§7, `llm.generate`) | CODE | Leichter Weg ohne diese Schritte (`llm.generate`). | B SP4 |
 | BUG-096 | Telegram: Tippanzeige nur einmal gesendet, Online-Status nie gesetzt, Gelesen sofort nach dem Speichern. | CODE | Verhalten nach Profil. | B SP4 |
-| BUG-097 | Eine eingereihte Antwort lässt sich nicht stornieren: `channel_messages.status` kennt weder `draft` noch `cancelled`, der Postausgang kennt keine Sendezeit. | CODE | Tabellenumbau, `scheduled_at`, Storno bei neuem Eingang. | B SP4 |
+| BUG-097 | **[18.11.] CODE** (Migration 34 mit draft/cancelled/scheduled_at; Test grün) – Eine eingereihte Antwort lässt sich nicht stornieren: `channel_messages.status` kennt weder `draft` noch `cancelled`, der Postausgang kennt keine Sendezeit. | CODE | Tabellenumbau, `scheduled_at`, Storno bei neuem Eingang. | B SP4 |
 | BUG-098 | **[18.11.] TEIL** (Chat-Textweg in `llm.py`, §7; Prüfknoten-Teil SP5) – `comfy.collect_graph` kennt nur Datei-Ausgaben; ein Textergebnis endet mit „keine Ausgabedatei“. (In Fables SP4-Blatt als „BUG-094“ geführt; 094 ist bereits vergeben.) | CODE | Eigener Textweg in `llm.py`. Derselbe Weg liefert die Messwerte der Prüfknoten (Zahlen, JSON) an `checks.py` (SP5 Schritt 7, Fable 17.11.). | B SP4 |
 | BUG-099 | Zustellung immer als Dokument und ohne Text (`_queue_delivery`, `telegram._send`). E7 verlangt Foto oder Video als Standard mit Begleittext. | CODE | Anhangart aus dem Produkt; Begleittext vom Sprachworkflow (E19), KI-Kennzeichnung als fester Profiltext. | B SP5 |
 | BUG-100 | Nach `delivered` gibt es keinen Übergang (`store.TRANSITIONS`), auch nicht zu `refunded`; der Index `deliveries_one_per_order` erlaubt eine Lieferung je Auftrag. Neuauflage und Erstattung nach der Zustellung sind unmöglich. | CODE | Übergänge ergänzen, Index je Auftrag und Artefakt. | B SP5 |
@@ -76,7 +76,7 @@
 | BUG-081 | **[18.11.] CODE** (ohne Seed 1, cloner_candidates; Handy-Lauf offen) – Kloner verlangt immer `candidates_default` Kandidaten; Workflows ohne Seed lehnt `create_order` dann ab (z. B. Export). | CODE | Ein Kandidat bei Workflows ohne Seed; Default-Produktion `production.cloner_candidates` (Vorgabe 1). | B SP1 |
 | BUG-082 | **[18.11.] CODE** (Default zuerst, ohne Verzögerung; Handy-Lauf offen) – Rückversand an den Default wartet Antwortverzögerung und Tippzeit ab (`telegram._pace`) und steht hinter Kundensendungen. | CODE | Interne Sendungen sofort und zuerst. | B SP1 |
 | BUG-085 | Die Zulassung (`_admit`) entlädt für jeden Medienjob die ruhende andere Instanz, also auch Melody. **[18.11.] TEIL** (`keep_loaded` umgesetzt und getestet; Einschalten nach E15, §7) | CODE | Instanz als „bleibt geladen“ markierbar; Regel für Chat neben Video (E15). | B SP4 |
-| BUG-077 | Angebot verlangt die Altersangabe: `server._create_offer` weist ohne `self_declared_adult` ab. Laut E2 entfällt die Altersfrage. (Im Änderungsblatt vom 17.11. als „BUG-075“ geführt; 075 ist bereits vergeben.) | TEST | Bedingung entfernen; die Sperre bei Hinweisen auf Minderjährigkeit bleibt: `customers.age_mark` kennt bereits `under_18`, dieser Wert trägt die Sperre, `_create_offer` prüft künftig nur noch darauf. Test `test_customer_orders` anpassen. | B SP4 |
+| BUG-077 | **[18.11.] CODE** (nur under_18 sperrt das Angebot; Test grün) – Angebot verlangt die Altersangabe: `server._create_offer` weist ohne `self_declared_adult` ab. Laut E2 entfällt die Altersfrage. (Im Änderungsblatt vom 17.11. als „BUG-075“ geführt; 075 ist bereits vergeben.) | TEST | Bedingung entfernen; die Sperre bei Hinweisen auf Minderjährigkeit bleibt: `customers.age_mark` kennt bereits `under_18`, dieser Wert trägt die Sperre, `_create_offer` prüft künftig nur noch darauf. Test `test_customer_orders` anpassen. | B SP4 |
 
 ## 3. P2
 
@@ -200,6 +200,18 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP4 Schritt 6 (Dialogbetrieb) / C5.1 (Schalter Text-KI, automatische Antworten) / BUG-077, BUG-097
+Commit: siehe git log „SP4 step 6“ / core/chat.py, Migration 34, Befehl 54, models (E20 ai_notice), config
+  [dialog] public_contact_cleared, chat_turns, Adapter-Gate für KI-Antworten, Stream/CustomerPanel/InfluencerBlock
+Nachweis: tests/test_chat.py (Hinweis zuerst, Antwort geplant, Versand-Gate, falscher Betrag → Entwurf, Storno
+  bei neuer Nachricht, Modus draft, Sperre bei Hinweis auf Minderjährigkeit, Handy → manual, Text-KI aus, E21,
+  Erzeugung mit neuer Nachricht verworfen, Befehl 54), Backend 284; Chrome-E2E isoliert tests/dialog.spec.ts
+Nachweis echt: Migration 33→34 (Tabellenumbau) mit Sicherung, foreign_key_check leer, Nachrichten erhalten,
+  Wiederanmeldung 493976404, lesend echt
+NOT_RUN: Kundendialog am Handy (braucht Profil/Clara, Testkonto bzw. Rechtsfreigabe E21 – Betreiberangabe)
+Ergebnis: TEIL
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP3 Schritte 8 und 9 (Kloner-Methode je Befehl, Abnahme mit Figur) / BUG-052 (Teil)
 Commit: siehe git log „SP3 steps 8+9“ / models (cloner), core/cloner (LoRA der Figur), core/cloner_compare + app
   `cloner compare`, comfy.provenance (character_lora), WorkflowInfo 23, DefaultPanel (Vorschlag)

@@ -97,6 +97,11 @@ self = 3
 schema_retries = 1
 # Wiederholung: ab dieser Wortmengen-Überdeckung zu einer früheren Antwort wird neu erzeugt
 repeat_similarity = 0.8
+# Gesprächskontext eines Kundenlaufs: so viele letzte Ein- und Ausgänge
+chat_turns = 12
+# E21: automatische Antworten an echte Kunden erst nach der Rechtsfreigabe (bis dahin nur Konten im
+# Testbetrieb, sonst Entwurf)
+public_contact_cleared = false
 
 [dialog.payment_terms]
 bank = ["Überweisung", "Banküberweisung", "SEPA", "IBAN", "Bankkonto"]

@@ -780,8 +780,12 @@ class TelegramAccount(Channel):
     async def _send(self, item: dict) -> None:
         assert self._td is not None
         # Zustellung an Kunden: Gate im Versandmoment frisch prüfen (approval.py, V0 §8.4 Punkt 9)
-        if item.get("delivery_id") and (reason := await self.gate(item)):
-            self.store.set_message_status(item["id"], "failed", error=reason)
+        gated = item.get("delivery_id") or item.get("ai_run_id")
+        if gated and (reason := await self.gate(item)):
+            if item.get("ai_run_id"):  # KI-Antwort: wird Entwurf mit Grund (SP4 Schritt 6)
+                self.store.hold_message(item["id"], reason)
+            else:
+                self.store.set_message_status(item["id"], "failed", error=reason)
             self.on_change_message(item["id"])
             return
         self.store.set_message_status(item["id"], "sending")

@@ -28,6 +28,7 @@ from ..core import memory
 from ..core.ai import AiStudioMixin, memory_entry
 from ..core.base import CockpitBase, log
 from ..core.characters import CharactersMixin
+from ..core.chat import ChatMixin
 from ..core.cloner import ClonerMixin
 from ..core.delivery import DeliveryMixin
 from ..core.messages import MessagesMixin
@@ -91,6 +92,7 @@ class Cockpit(
     OrdersMixin,
     ClonerMixin,
     MessagesMixin,
+    ChatMixin,
     SalesMixin,
     DeliveryMixin,
     CharactersMixin,
@@ -518,6 +520,9 @@ async def _conversation_page(request: web.Request) -> web.Response:
             conversation_id=ident["conversation_id"] or 0,
             revision=ident["revision"] or 0,
             ai_notice=ident["ai_notice_status"] or "",
+            mode=store.conversation_mode(ident["conversation_id"])
+            if ident["conversation_id"]
+            else "",
             **_window(cockpit._adapter(ident["platform"], ident["account"]), ident),
         )
     if summary[0]["kind"] == "internal":

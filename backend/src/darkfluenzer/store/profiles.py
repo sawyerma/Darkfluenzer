@@ -24,6 +24,21 @@ class ProfilesMixin:
             out.append(dict(row) | {"prices": [dict(p) for p in prices]})
         return out
 
+    def set_influencer_switches(
+        self, influencer_id: int, text_ai: bool, auto_replies: bool
+    ) -> None:
+        """Schalter der Influencerin (C5.1): Text-KI und automatische Antworten."""
+        with self.tx() as db:
+            n = db.execute(
+                "UPDATE influencers SET text_ai = ?, auto_replies = ? WHERE id = ?"
+                " AND (text_ai != ? OR auto_replies != ?)",
+                (int(text_ai), int(auto_replies), influencer_id, int(text_ai), int(auto_replies)),
+            ).rowcount
+            if n:
+                self._event("influencer", influencer_id, "switches", text_ai=text_ai,
+                            auto_replies=auto_replies)  # fmt: skip
+                self.bump("influencers")
+
     def save_influencer(
         self,
         influencer_id: int,

@@ -113,6 +113,8 @@ class CockpitBase:
         self._manifest_mtime = self._registry_mtime()
         self._tasks: set[asyncio.Task] = set()
         self._commands_off_at: dict[int, float] = {}  # Hinweis „Befehle sind aus“ je Chat
+        self._dialog_state: dict[int, dict] = {}  # Erzeugung je Konversation (SP4 Schritt 6)
+        self._notice_missing: set[int] = set()  # Karte „KI-Hinweis fehlt“ je Konversation
         # Sprach-KI (SP4 Schritt 1): laufende Sprachläufe (prompt_id -> Workflowtitel), Aufwärmlauf
         self._llm_runs: dict[str, str] = {}
         self._warm_key: str | None = None

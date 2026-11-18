@@ -56,6 +56,7 @@ export function CustomerPanel({ customer, identities }: { customer: CustomerSumm
               {i.account ? ` · Konto ${i.account}` : ""}
             </small>
             <AiNotice customer={customer} identity={i} />
+            {i.conversationId ? <ConversationMode identity={i} /> : null}
             <MakeDefault customer={customer} identity={i} />
           </div>
         ))}
@@ -100,8 +101,8 @@ function OfferForm({
     ? "Influencerin-Profil fehlt"
     : figure.prices.length === 0
       ? "Preisliste der Influencerin ist leer"
-      : customer.ageMark !== "self_declared_adult"
-        ? "Erst Altersangabe ≥ 18 (Selbstauskunft)"
+      : customer.ageMark === "under_18"
+        ? "Akte gesperrt (minderjährig vermutet)"
         : !ident
           ? "Noch keine Konversation"
           : ident.aiNotice !== "sent"
@@ -225,12 +226,46 @@ function AgeMark({ customer }: { customer: CustomerSummary }) {
           Übernehmen
         </button>
       </span>
-      {mark !== "self_declared_adult" ? <small>Keine Angebote, nur neutrale Unterhaltung.</small> : null}
+      {mark === "under_18" ? <small>Gesperrt: keine KI-Antwort, kein Angebot.</small> : null}
       {cmd.notice ? (
         <p className="g-note" role="alert">
           {cmd.notice}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+// Modus der Konversation (SP4 Schritt 6): KI antwortet, nur Entwurf, Betreiber
+const MODES: [string, string][] = [
+  ["auto", "KI antwortet"],
+  ["draft", "Nur Entwurf"],
+  ["manual", "Betreiber"],
+];
+
+/** Modus je Konversation (Befehl 54 set_mode); eine Nachricht vom Handy setzt „Betreiber“. */
+function ConversationMode({ identity }: { identity: ChannelIdentity }) {
+  const cmd = useCommand();
+  const id = `mode-${identity.identityId}`;
+  return (
+    <div className="g-field">
+      <label htmlFor={id}>Modus</label>
+      <select
+        id={id}
+        className="g-input"
+        value={identity.mode || "auto"}
+        disabled={cmd.pending}
+        onChange={(e) =>
+          void cmd.run({ case: "outboxControl", value: { conversationId: identity.conversationId, action: "set_mode", mode: e.target.value } })
+        }
+      >
+        {MODES.map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+      {cmd.notice ? <small role="alert">{cmd.notice}</small> : null}
     </div>
   );
 }

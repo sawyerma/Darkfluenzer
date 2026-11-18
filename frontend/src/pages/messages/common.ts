@@ -57,6 +57,8 @@ export function clonerHead(head: string): [string, string, Tone] | null {
 }
 
 export const ITEM_STATUS: Record<string, string> = {
+  draft: "Entwurf",
+  cancelled: "storniert",
   queued: "wartet",
   sending: "wird gesendet",
   sent: "gesendet",

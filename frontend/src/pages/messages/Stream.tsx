@@ -218,6 +218,47 @@ function OrderCard({ item }: { item: ConversationItem }) {
   );
 }
 
+/** KI-Antwort (SP4 Schritte 6, 7; Befehl 54): Entwurf bearbeitbar mit Senden/Verwerfen, geplante
+ *  Antwort mit Sendezeit, „Jetzt senden“ und „Zurückhalten“. */
+function AiReplyActions({ item }: { item: ConversationItem }) {
+  const cmd = useCommand();
+  const [text, setText] = useState(item.text);
+  const control = (action: string, done: string, edited = "") =>
+    void cmd.run({ case: "outboxControl", value: { messageId: item.itemId, action, text: edited } }, { done });
+  const draft = item.status === "draft";
+  return (
+    <div className="g-stack">
+      {draft ? (
+        <textarea className="g-input" aria-label="Entwurf bearbeiten" rows={3} value={text} onChange={(e) => setText(e.target.value)} />
+      ) : null}
+      <div className="g-actions">
+        {draft ? (
+          <button type="button" className="g-button g-primary" disabled={cmd.pending || !text.trim()} onClick={() => control("send_draft", "Antwort freigegeben.", text.trim() === item.text ? "" : text.trim())}>
+            Senden
+          </button>
+        ) : (
+          <>
+            <button type="button" className="g-button g-primary" disabled={cmd.pending} onClick={() => control("send_now", "Antwort freigegeben.")}>
+              Jetzt senden
+            </button>
+            <button type="button" className="g-button" disabled={cmd.pending} onClick={() => control("hold", "Zurückgehalten.")}>
+              Zurückhalten
+            </button>
+          </>
+        )}
+        <button type="button" className="g-button" disabled={cmd.pending} onClick={() => control("discard", "Verworfen.")}>
+          Verwerfen
+        </button>
+      </div>
+      {cmd.notice ? (
+        <p className="g-note" role="status">
+          {cmd.notice}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /** Sendung mit unbekanntem Ergebnis (SPEC-009, Befehl 66): der Betreiber entscheidet; „Erneut
  *  senden“ erst nach einer zweiten Bestätigung, weil die erste Sendung angekommen sein kann. */
 function UnknownActions({ item }: { item: ConversationItem }) {
@@ -284,9 +325,18 @@ function Entry({ item }: { item: ConversationItem }) {
     out ? (ITEM_STATUS[item.status] ?? item.status) : "",
     edited ? `bearbeitet ${shortTime(item.editedAtMs)}` : "",
     deleted ? `gelöscht ${shortTime(item.deletedAtMs)}` : "",
+    item.status === "queued" && Number(item.scheduledAtMs) > 0 ? `geplant ${shortTime(item.scheduledAtMs)}` : "",
+    item.aiRunId ? `KI-Lauf #${String(item.aiRunId)}` : "",
   ];
+  const aiOpen = out && Boolean(item.aiRunId) && (item.status === "draft" || item.status === "queued");
   return (
-    <div className="g-bubble" data-platform={item.platform} data-dir={out ? "out" : "in"} data-deleted={deleted || undefined}>
+    <div
+      className="g-bubble"
+      data-platform={item.platform}
+      data-dir={out ? "out" : "in"}
+      data-deleted={deleted || undefined}
+      data-status={out && ["draft", "cancelled"].includes(item.status) ? item.status : undefined}
+    >
       {item.text ? <p>{item.text}</p> : null}
       {edited && item.originalText ? (
         <details className="g-orig">
@@ -296,8 +346,9 @@ function Entry({ item }: { item: ConversationItem }) {
       ) : null}
       {attachments}
       <small>{meta.filter(Boolean).join(" · ")}</small>
-      {item.error ? <p className="g-error">{item.error}</p> : null}
+      {item.error ? <p className={item.status === "draft" || item.status === "cancelled" ? "g-note" : "g-error"}>{item.error}</p> : null}
       {out && item.status === "unknown" ? <UnknownActions item={item} /> : null}
+      {aiOpen ? <AiReplyActions item={item} /> : null}
     </div>
   );
 }

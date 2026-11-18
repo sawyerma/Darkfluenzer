@@ -629,6 +629,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 }
 .g-bubble[data-dir="out"] { align-self: flex-end; background: var(--g-ch-bg-out, var(--g-well)); }
 .g-bubble[data-deleted] > p { color: var(--g-muted); text-decoration: line-through; }
+.g-bubble[data-status="draft"] { border-style: dashed; }
+.g-bubble[data-status="cancelled"] { opacity: var(--g-dim-stale); }
+.g-bubble[data-status="cancelled"] > p:first-child { text-decoration: line-through; }
 .g-orig { margin-top: var(--g-gap-xs); font-size: var(--g-fs-small); color: var(--g-muted); }
 .g-orig > summary { cursor: pointer; font-size: var(--g-fs-tiny); }
 .g-bubble .g-warn { color: var(--g-warn-text); font-size: var(--g-fs-small); }

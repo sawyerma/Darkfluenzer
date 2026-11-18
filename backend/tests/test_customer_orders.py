@@ -202,7 +202,8 @@ def test_customer_order_chain(cfg, monkeypatch):
                         note="Gern!")  # fmt: skip
             return commands_pb2.CreateOffer(**(args | over))
 
-        assert "Altersangabe" in await send(create_offer=offer())
+        store.set_age_mark(cust, "under_18")  # nur die Sperre blockiert (BUG-077)
+        assert "gesperrt" in await send(create_offer=offer())
         store.set_age_mark(cust, "self_declared_adult")
         assert "KI-Hinweis" in await send(create_offer=offer())
         notice = store.queue_ai_notice(cust, ident["id"], "Ich bin eine KI.")

@@ -209,6 +209,10 @@ class TextSpec:
     classification: str
     system: str
     user: str
+    # KI-Hinweis (E20): fester Textknoten, wortgetreu als erste Nachricht je Kanalidentität;
+    # optional, bis die Rechtsfreigabe (E21) den Text liefert
+    ai_notice_node: str = ""
+    ai_notice: str = ""
 
 
 @dataclass(frozen=True)
@@ -489,9 +493,12 @@ def _text_spec(t: object, params: dict[str, Param], w: str) -> TextSpec | None:
         spec = TextSpec(**{k: str(v) for k, v in t.items()})
     except TypeError as exc:
         raise ManifestError(f"Manifest: {w}.text: {exc}") from exc
-    empty = [k for k, v in vars(spec).items() if not v.strip()]
+    optional = ("ai_notice_node", "ai_notice")
+    empty = [k for k, v in vars(spec).items() if not v.strip() and k not in optional]
     if empty:
         raise ManifestError(f"Manifest: {w}.text.{empty[0]} fehlt.")
+    if bool(spec.ai_notice_node.strip()) != bool(spec.ai_notice.strip()):
+        raise ManifestError(f"Manifest: {w}.text: ai_notice_node und ai_notice nur gemeinsam.")
     missing = [n for n in (*PROFILE_INPUTS, *CONTEXT_INPUTS) if n not in params]
     if missing:
         raise ManifestError(f"Manifest: {w}: Profil- bzw. Kontexteingang {missing[0]} fehlt.")
@@ -937,11 +944,22 @@ def _text_problems(wf: Workflow, graph: dict) -> list[str]:
         problems.append("text: Ehrlichkeitsblock fehlt oder weicht ab (Regel 12 c).")
     elif (persona, "system_prompt") not in _reaches(graph, t.honesty_node):
         problems.append("text: Ehrlichkeitsblock ist nicht mit dem Systemprompt verbunden.")
+    if t.ai_notice_node:  # KI-Hinweis (E20): Knoten vorhanden und wortgleich
+        notice = graph.get(t.ai_notice_node) or {}
+        if notice.get("class_type") != TEXT_NODE or notice.get("inputs", {}).get("value") != (
+            t.ai_notice
+        ):
+            problems.append("text: KI-Hinweis fehlt oder weicht ab (E20).")
     if _source(graph, t.system, "source") != _source(graph, persona, "system_prompt"):
         problems.append("text.system zeigt nicht den Systemprompt der Antwort.")
     if _source(graph, t.user, "source") != _source(graph, persona, "user_text"):
         problems.append("text.user zeigt nicht den Nutzertext der Antwort.")
     return problems
+
+
+def ai_notice_text(wf: Workflow) -> str:
+    """KI-Hinweis aus dem registrierten Sprachworkflow (E20); leer, solange er fehlt (E21)."""
+    return wf.text.ai_notice if wf.text else ""
 
 
 def honesty_text(man: Manifest) -> str:

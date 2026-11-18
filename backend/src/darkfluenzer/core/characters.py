@@ -286,6 +286,8 @@ class CharactersMixin:
                 ai_notice=row["ai_notice"],
                 revision=row["revision"],
                 studio_session=self.store.studio_session(row["id"]),
+                text_ai=bool(row["text_ai"]),
+                auto_replies=bool(row["auto_replies"]),
             )
             for price in row["prices"]:
                 item.prices.add(**price)
@@ -331,6 +333,7 @@ class CharactersMixin:
             ],
         )
         call.entity = f"influencer:{influencer_id}"
+        self.store.set_influencer_switches(influencer_id, msg.text_ai, msg.auto_replies)  # C5.1
         active = self.store.active_persona(influencer_id)
         blocks = dict(active["blocks"]) if active else {}
         if draft is not None:

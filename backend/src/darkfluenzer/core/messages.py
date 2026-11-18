@@ -81,6 +81,8 @@ class MessagesMixin:
         self._wallet_changed()  # erkannter Gutscheincode erscheint im Reiter Wallet
         if inbound.customer.kind == "internal" and inbound.message_id:
             await self._cloner_entry(inbound)  # jeder Ausgang mit Karte und Antwort (SP1 5)
+        elif inbound.message_id:
+            await self._dialog_entry(inbound)  # Kundenzweig: Dialogbetrieb (SP4 Schritt 6)
 
     async def _send_ai_notice(self, msg: commands_pb2.SendAiNotice, call: _Call) -> str:
         """KI-Hinweis der Influencerin einmal je Kanalidentität (Befehl 45, Regel 12 b)."""

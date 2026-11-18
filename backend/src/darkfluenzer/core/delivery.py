@@ -147,7 +147,9 @@ class DeliveryMixin:
     async def _delivery_gate(self, item: dict) -> str:
         """Letzte Prüfung im Versandmoment (Postausgang): Gate frisch gegen Datenbank und Datei,
         Zustellkopie unverändert und gekennzeichnet. Leer = senden. Datenbank im Hauptstrang,
-        Dateien im Arbeiter-Thread (SP0 Schritt 5)."""
+        Dateien im Arbeiter-Thread (SP0 Schritt 5). KI-Antworten prüft ``_reply_gate``."""
+        if item.get("ai_run_id") and not item.get("delivery_id"):
+            return await self._reply_gate(item)
         delivery = self.store.delivery(item["delivery_id"])
         if delivery is None or delivery["status"] != "pending":
             return "Zustellung ist nicht mehr offen."

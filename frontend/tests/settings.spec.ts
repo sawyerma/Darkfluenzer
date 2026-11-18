@@ -22,6 +22,7 @@ test("Einstellungen: Influencerin einem Kanalkonto zuordnen, nach Neuladen erhal
   await page.goto("/#einstellungen");
   await expect(page.locator(".g-nav-end")).toHaveText("VERBUNDEN");
   const select = page.getByLabel(/^Influencerin des Kontos /).first();
+  await expect(select.locator("option").nth(1)).toBeAttached(); // STATE mit Influencerinnen da
   const options = await select.locator("option").allTextContents();
   expect(options.length).toBeGreaterThan(1); // Testinfluencerin vorhanden
   const target = options[options.length - 1] ?? "";

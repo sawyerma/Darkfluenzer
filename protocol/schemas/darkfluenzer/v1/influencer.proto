@@ -30,6 +30,9 @@ message Influencer {
   uint32 persona_active = 9;
   // laufende Studio-Sitzung im KI-Studio (SP4 Schritt 1, Befehl 50 beginnt eine neue)
   uint32 studio_session = 10;
+  // Schalter (C5.1): Text-KI und automatische Antworten
+  bool text_ai = 11;
+  bool auto_replies = 12;
 }
 
 // Eine gespeicherte Fassung des Promptprofils einer Influencerin (SP4 Schritt 2, E19).

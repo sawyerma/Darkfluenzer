@@ -214,6 +214,17 @@ message MessageResolve {
   string action = 2;
 }
 
+// Dialogbetrieb (Befehl 54, SP4 Schritte 6, 7): KI-Antwort als Entwurf senden (send_draft, Text
+// optional geändert), verwerfen (discard), geplante jetzt senden (send_now) oder zurückhalten
+// (hold); Modus einer Konversation setzen (set_mode: auto | draft | manual).
+message OutboxControl {
+  uint64 message_id = 1;
+  string action = 2;
+  string text = 3;
+  uint64 conversation_id = 4;
+  string mode = 5;
+}
+
 // Kanalkonto steuern: Automatik freigeben/sperren oder abmelden (Abmelden beendet die Sitzung).
 message ChannelAccountUpdate {
   string platform = 1;
@@ -238,6 +249,9 @@ message InfluencerUpdate {
   // Promptprofil speichern (SP4 Schritt 2, additiv): neue Version, wenn sich Blöcke oder
   // Parameter von der letzten unterscheiden; mit activate sofort aktiv
   ProfileDraft profile = 8;
+  // Schalter (C5.1): Text-KI und automatische Antworten
+  bool text_ai = 9;
+  bool auto_replies = 10;
 }
 
 message ProfileDraft {
@@ -439,6 +453,7 @@ message CommandRequest {
     ChannelAccountLogin channel_account_login = 39;
     ChannelAccountUpdate channel_account_update = 40;
     MessageResolve message_resolve = 66;
+    OutboxControl outbox_control = 54;
     InfluencerUpdate influencer_update = 35;
     MediaContentTier media_content_tier = 43;
     CustomerAgeMark customer_age_mark = 44;

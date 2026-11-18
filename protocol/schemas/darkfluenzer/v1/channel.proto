@@ -126,6 +126,10 @@ message ConversationItem {
   string original_text = 16;
   // Plattform meldet die Löschung: Löschmarke; der Inhalt bleibt bis zur Regel aus SP6 Schritt 8
   int64 deleted_at_ms = 17;
+  // KI-Antwort (SP4 Schritte 6, 7): geplante Sendezeit (Status queued) und Sprachlauf; Entwurf
+  // = Status draft mit Grund in error, storniert = cancelled
+  int64 scheduled_at_ms = 18;
+  uint64 ai_run_id = 19;
 }
 
 // EVENT conversations.event: Nachricht neu oder geändert (Status, Anhänge)
@@ -151,6 +155,8 @@ message ChannelIdentity {
   // Instagram) und das verlängerte Fenster für manuelle Antworten mit Human-Agent-Kennzeichnung
   int64 window_until_ms = 10;
   int64 human_until_ms = 11;
+  // Modus der Konversation (SP4 Schritt 6): auto | draft | manual
+  string mode = 12;
 }
 
 // Operator-Felder des internen Kontakts Default (F7.4, V0 §8/§8.1).
