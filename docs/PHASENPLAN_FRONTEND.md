@@ -544,6 +544,50 @@ flowchart TD
 
 **Verbindlich:** Backend-Plan §13 enthält alle Daten-/Gate-/Modul- und DS-Paketverträge. Dieser Frontend-Abschnitt legt ausschließlich die React-/Interaktions-/Browser-Abnahme fest. Kein konkurrierender Masterplan im Repository.
 
+
+### 6.9 Verbindliche klickbare HTML-Studio-Designreferenz (Betreiberfreigabe 18.11.2026)
+
+**Maßgebliche Datei:** [Darkfluenzer_Studio_Klickdemo.html](design/Darkfluenzer_Studio_Klickdemo.html). Sie wird **unverändert als klickbare HTML/CSS/JavaScript-Referenz** im Repository geführt, ist lokal im Browser ohne Build und Backend zu öffnen und bildet das **verbindliche visuelle und interaktive Soll** für die neue DarkStudio-Oberfläche. Die bisherige [F7-Cockpit-Referenz](design/Darkfluenzer_Cockpit_Interaktiv.html) bleibt für **Übersicht, Nachrichten, Dateien, Wallet und Einstellungen** maßgeblich. Das Studio folgt für Navigation, Seitenaufbau, Panels, Abstände, visuelle Hierarchie und Interaktionsstruktur vorrangig der **neuen Studio-Klickdemo**.
+
+**Wirkungsgrenze:** Verbindlich sind **Layout, Anordnung, Bedienwege, Beschriftungssystem, Interaktionsmuster, Dark-Graphite/Pink-Design und die fünf Studio-Unteransichten**, soweit sie mit diesem Plan und dem Backend-Vertrag vereinbar sind. **Nicht verbindlich** sind fest eingetragene Beispielkunden/-projekte/-figuren, erfundene Status/Prüfwerte, simulierter Renderfortschritt, klickbare Dummy-Aktionen, Dummy-Providerkonten, exemplarische Flowgraphen, vorgegebene Modellnamen/LoRA-Versionen oder in der Demo gezeigte Kryptowallet-Karten. Dies sind **ausschließlich Mock-/Layoutinhalte**, keine Bestands-, Sicherheits-, Qualifikations- oder Funktionsbelege. Tatsächliche Funktionsdaten kommen ausschließlich aus den bestehenden Backend-Verträgen/Registry/Protobuf-STATE/EVENT.
+
+**Konfliktauflösung nach Priorität:** bestehende Schutz-/Zahlungs-/Rechts-/Gate-Regeln und Backend §13 → die verbindlichen funktionalen Anforderungen dieses Frontend-Plans §6 → **Studio-Klickdemo für visuelle und interaktive Umsetzung** → historische F7-Ansichten für die übrigen Reiter. Bei einem Konflikt ist das visuelle Ziel **minimalinvasiv** an die echte Fachlogik anzupassen, ohne die Oberfläche unnötig neu zu konzipieren; kein stilles Ersetzen des Operatorscreens durch generische Material-UI. **Eine Studio-Änderung darf nicht eigenmächtig andere F7-Reiter umgestalten.**
+
+#### 6.9.1 Direkt übernehmbare Screens und Aktionen
+
+| Klickdemo-Funktion | Reale Zielansicht/Interaktion | Abnahme |
+|---|---|---|
+| Hauptnavigation `nav` | sechs Hauptreiter, **Studio** aktiv; keine zweite App | echte React-Routen und persistierte Auswahl |
+| `create()` | **Erstellen:** Aufgabenleiste links; Eingabe/Referenzen/Profil in der Mitte; Vorschau, Prozesskette, Export rechts | Aufgabe → Rezeptvalidierung → echter kurzer Mac-Render → persistierte Datei |
+| `storyboard()` | **Storyboard:** Shotliste, Szenenkarten, Blocking-/Guidevorschau, Kamera-/Control-Auswahl, Timeline und Inspector | SceneSpec-Revision, echte Vorschau und selektive Shot-Änderung ab DS5/DS6b |
+| `characters()` | **Charaktere:** Charakterauswahl, Referenz-/Datensatzpflege, LoRA-/Versionsstatus, Training | ausschließlich vorhandene Character-/LoRA-Registry, echte Fähigkeiten |
+| `projects()` | **Projekte:** Produktion/Varianten nach Quelle, Status, Öffnen, Export, Verweis **in Dateien** | derselbe `production_id` für Studio und Kunde; Projekt optional |
+| `lab()` | **Labor:** Filter, Bestandsworkflowliste, Engine/Modell/Qualifikation, technische Detailansicht | sämtliche alten ComfyUI-Graphen erreichbar, keine Löschung oder doppelte Engine |
+| `editor()` | **Expertenansicht** innerhalb Studio, Nodepalette, Canvas, Inspector und Verbindungsschema | erst DS7 ausführbar, typisierte Ports/Validierung, gleiche Flow-Engine |
+| `messages()` → `customer-studio` | „Im Studio öffnen“ aus Kundenakte | identische Produktion/Revision, nie direkte Lieferung aus GUI |
+| `settings()` → API | Konto-/Rollenbindung für lokale und optionale Cloud-KI | echte Backend-/Keychain-Anbindung, nichts aus HTML-Dummy übernehmen |
+
+#### 6.9.2 Verbindliche Layout- und Bedienregeln
+
+- Desktop-Referenz: drei Spalten **Aufgaben/Shotliste – Hauptarbeitsfläche – Vorschau/Inspector**; die Klickdemo nutzt in `Erstellen` rund **240 px linke Spalte** und **318 px rechte Spalte**, dazwischen flexible Hauptfläche. Bei schmalen Fenstern responsiv stapeln; keine abgeschnittenen Pflichtaktionen oder horizontale Zwangsbreite.
+- Studio-Unteransichten **exakt:** **Erstellen · Storyboard · Charaktere · Projekte · Labor**. `Produktionen` sind Listen/Ketten in Erstellen/Projekte, `Assets` bleiben im Hauptreiter Dateien; der Experten-Flow-Editor ist ein **Modus**, kein sechster Unterreiter.
+- Graphite-Grunddesign mit bestehendem pinken Akzent; sichtbare aktive Navigation, klare Karten-/Panelhierarchie, konsistente Buttons, lesbare Beschriftungen, Formzustände und Fokus. Keine Modell-/Workflow-Massenauswahl in der Standardansicht.
+- Die Klickdemo zeigt im Labor teils zusätzliche Gruppen **KI** und **Audio**. Für die tatsächliche Registry gelten die in §6.6.3 festgelegten Filter **Bild, Charaktere, Kontrolle, Video, Technik**; KI/Audio werden als passende fachliche Kategorien/Unterfilter dargestellt, **nicht** als zusätzliche Studio-Hauptansichten. Alle Workflows bleiben auffindbar.
+- Die HTML-Demo enthält für andere Reiter Platzhalter wie **Bitcoin/BSC**. Diese **dürfen die verbindliche E6-Wallet-Logik (PayPal/Amazon und nur aktivierte optionale Zahlungswege) nicht überschreiben**. Die Demo ist **Studio-Designreferenz**, kein Rückschritt für Zahlung oder Kanäle.
+- Nicht qualifizierte Modelle, iPhone-Tracking, Blender-ControlVideo, Cloud-API oder nicht verfügbare LoRA bleiben **mit konkretem Grund deaktiviert**; keine Demo-`PASS`-Werte oder simulierten Exporte im echten Cockpit. Verbindliche Produktionskette: **PLAN/DRAFT/MASTER/FINAL nur soweit rezeptpflichtig**, Status tatsächlich aus Backend.
+- Klickbare Interaktionsmuster der Demo sind visuelle Sollbelege, aber **keine** Aufforderung, Demo-JavaScript in die React-App zu kopieren, globale In-Memory-Listen als Datenbank zu verwenden oder dynamisch nicht validierte Graphen zu speichern.
+
+#### 6.9.3 Feste Umsetzung und Vergleich je Paket
+
+1. **DS0:** Studio-Klickdemo und bestehendes F7-Screenshotset als Designbaseline erfassen (Desktop und schmale Ansicht); HTML unverändert als Referenz erhalten; Screen-zu-React-Zuordnung protokollieren.
+2. **DS1:** `Erstellen` und `Labor` zunächst **optisch und bedienlogisch gegen diese Demo** implementieren, bestehende reale Workflows im Labor sichtbar lassen. Der echte Renderweg wird gleichzeitig integriert.
+3. **DS2/DS3-c:** fünf Unteransichten und Produktionskette samt Protobuf-/Backend-Zuständen an die Klickdemo angleichen; keine Dummy-Flächen mit angeblich aktiven Funktionen.
+4. **DS4–DS6b:** Charaktere, Storyboard, Shot-Inspector, Blocking-/Kameraoptionen, Projektliste und Editieransichten **am jeweiligen im HTML enthaltenen Screen** weiterentwickeln. Fehlende Funktionen als offen deklarieren, nicht als beliebige neue UI gestalten.
+5. **DS7:** Experten-Flow-Editor nach dem vorhandenen Graph-Canvas/Inspector-Aufbau; fachlich echte Port-/Versions-/Capability-Prüfung ergänzen.
+6. **Abnahme jedes GUI-Pakets:** echter Chrome-Playwright-Klickpfad; Desktop- und schmale Screenshots **gegen die geöffneten Referenzansichten**; echte STATE/EVENT-Daten und kurzer Mac-Lauf bei lauffähigem Pfad. Abweichungen mit konkreten Gründen/Funktionsunterschieden festhalten; **keine reine „gefällt ungefähr“-Abnahme**.
+
+**Die Klickdemo ist eine ausführbare Designreferenz, kein Produktionsprogramm.** Neue Backend- und GUI-Funktionalität muss vollständig an den beiden Phasenplänen geprüft werden. Alte F7-Referenz nicht ersetzen; beide Designartefakte haben getrennten Geltungsbereich.
+
 ---
 
 ## Anhang A – Freigegebene Klickreferenz F7

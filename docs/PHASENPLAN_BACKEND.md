@@ -1658,3 +1658,14 @@ flowchart LR
 - E1–E26, bestehende Inhalte und Sicherheits-/Kundengates bleiben gültig. **FREE ONLY** gilt für den kostenfreien lokalen Kern; optionale bezahlte Cloudadapter sind eine **vorgesehene ausdrückliche Ausnahme**, nicht ohne Betreiberaktivierung produktiv. **E19** gilt für Kundendialog weiterhin unverändert.
 - **Nur zwei verbindliche Pläne:** dieser Backend-Plan und PHASENPLAN_FRONTEND.md. bugs_v1.md als separates Fehlerregister. Die hochgeladene Masterdatei bleibt einmalige Übernahmereferenz und wird nicht als vierter Plan ins Repository kopiert.
 - **Implementierung ist noch offen:** nach dieser Dokumentübernahme startet der Hauptentwickler DS0, nicht ein unkontrollierter paralleler Blender-/Flow-Editor-Bau. Niemals den Planstand mit Git-/Mac-Implementierungs-PASS verwechseln.
+
+
+### 13.14 Klickbare Studio-Designreferenz und fachliche Implementierungsgrenzen
+
+**Verbindliche UI-Referenz für DarkStudio:** [Darkfluenzer_Studio_Klickdemo.html](design/Darkfluenzer_Studio_Klickdemo.html), konkretisiert in **PHASENPLAN_FRONTEND.md §6.9**. Diese zusätzliche HTML-Datei ist ein **Designartefakt, kein dritter Phasenplan**. Die historische F7-HTML bleibt verbindlich für die fünf übrigen Hauptreiter. Das Studio muss die in der Referenz sichtbaren Screen- und Bedienwege übernehmen, ohne die fachliche Trennung zu unterlaufen.
+
+**Backend-Verträge bleiben maßgeblich:** Klickaktionen aus der statischen Demo wie `Erstellen`, `Shot neu`, `Workflow bearbeiten`, `Freigeben`, `Im Studio öffnen` und `Export` sind über die bestehende Protobuf-COMMAND/Receipt/STATE/EVENT-Schicht und den gemeinsamen ProductionService zu realisieren. HTML-Demo-JavaScript ist **keine** Backend-Implementierung. `ACCEPTED` ist kein Renderergebnis; Studio-Review ist keine Kundenfreigabe; Export ist keine Zustellung. Datum, Status, Kosten, Modellfähigkeit, Figur-/LoRA-Version, Quelle und Assetdaten kommen aus persistenten Projektdaten, nicht aus den Demo-Arrays.
+
+**Schnittstellenparität:** Jede sichtbare Studio-Funktion aus Erstellen, Storyboard, Charaktere, Projekte, Labor und dem DS7-Experteneditor erhält erst beim zuständigen DS-Paket einen echten Fachvertrag, eine zulässige Status-/Fehlerdarstellung und eine Regression. Nicht vorhandene Funktionen bleiben deaktiviert/als `NOT_RUN` gekennzeichnet. Kein duplizierter `media`-/`artifacts`-/`jobs`-Speicher, keine zweite Flow-Engine und kein direkter Frontend-ComfyUI-Zugriff. Demo-Wallet-/Cloud-/Modellwerte sind nicht autoritativ, insbesondere gelten E6-Zahlungswege, E19-Gesprächs-KI und §13.4 Liefer-Gate unverändert.
+
+**Verbindliche Abnahme:** Die bereits in §13.10 festgelegten DS0–DS10-Pakete erhalten zusätzlich eine visuelle Browserreferenz: Studio-Layout und Interaktionspfade in `docs/design/Darkfluenzer_Studio_Klickdemo.html`. Backend-/Daten-/Gate- und Mac-Abnahmen werden dadurch ergänzt, nicht ersetzt. Kein Design-PASS aus bloß vorhandener HTML-Datei.
