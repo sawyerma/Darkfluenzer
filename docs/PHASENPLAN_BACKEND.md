@@ -1453,6 +1453,90 @@ flowchart TD
 
 **Zur eingebrachten Blender/iPhone/Seedance-Demo:** nur das Prinzip „Carrier-Position + getrennte Kamera-Rotation; einfache Proxy-Figuren statt fehlerhafter Körperposen“ übernehmen. Die konkrete iPhone-App, Bridge (OSC/WebSocket/LiveLink etc.), Blender-Constraints, Seedance-Modell/Parameter und identische Ergebnisse auf M4 sind **nicht belegt**. Ein iPhone-Kamerarig ist deshalb **optionaler Kandidat**, kein Pflichtumfang/kein PASS. Kein Seedance-lokal behaupten.
 
+
+### 13.8.1 Drei Wege der 3D-Blocking-Erstellung (DS6b)
+
+**Eingang ist immer eine versionierte `SceneSpec` mit geprüften Referenzen und Frames**, niemals generierter Python-/Blender-Code. Der Betreiber wählt eine Quelle, kann Quellen kombinieren und ändert ausschließlich erlaubte Szenenparameter:
+
+| Quelle | Datenfluss und Modulgrenze | Soll-Ergebnis / Grenze |
+|---|---|---|
+| **KI-Szenenaufbau** | Betreiberbrief → Studio-Regie (DS5) → typisierte Storyboard-/SceneSpec-Version → Schema-/Capability-Prüfung → fester `bl_build.py`-Builder (DS6b) | editierbare Low-Poly-/Blocking-Szene, Kamera-/Actor-Tracks und schneller Playblast |
+| **Eigenes Referenzvideo** | Asset-Import → Referenzrolle `motion`/`pose`/`camera` → registrierter Analyseadapter (DS4/DS6) → zeitlich normalisierte Control-/Trackdaten → SceneSpec | Bewegung/Posen/Kamera soweit vom konkret qualifizierten Verfahren erfassbar; keine automatische Identitätsübernahme |
+| **Manueller Aufbau / Korrektur** | Storyboard → 3D-Vorschau → geprüfte Eingaben für Actor-/Objekt-Position, Keyframe, Kamerapfad und Brennweite → neue SceneSpec-Revision → Builder | Betreiber kann KI-Blocking korrigieren, ohne Python-Code zu schreiben; optional Blender-Datei im Labor öffnen |
+
+**Beispiel und Akzeptanzfall:** „Drei Personen fahren auf Longboards durch Island; Kamera am Straßenrand, folgt der Gruppe und wechselt nach fünf Sekunden in handgeführte Perspektive.“ Bei **15 s / 24 FPS** entstehen 360 Ausgabeframes (Index 0–359). Szene definiert Actor-/Board-Proxies, Bewegungsbahnen, Kamerawechsel und markierten Zeitpunkt; der Builder erzeugt die Vorschau plus zeitlich passende Pässe. Eine ausformulierte Geschichte allein ist **keine** geometrisch validierte Szene. Jede Übergabe Szene → Builder → Ausgabe ist revisioniert, bei Abbruch wiederaufnehmbar und mit Hash/Engineversion belegt.
+
+**Referenz zur Rolle des Rohvideos:** Der Import eines fremden Films liefert lediglich seine explizit gewählte Rolle (Körperbewegung, Kamera, Komposition etc.); Figur/Identität stammen aus der eigenen Charakterbindung. Der tatsächliche Video-Control-Adapter darf nur mit verifizierter Unterstützung für diese Eingaben starten.
+
+### 13.8.2 Verbindlicher `BlockingControlPolicy`-Vertrag
+
+Die Steuerung wird **je Shot** definiert und zusammen mit `SceneSpec` und `GuideBundle` versioniert. Unterschiedliche Grade der Guide-Treue sind **kein** stiller Modellfallback.
+
+| Feld | Zulässige UI-Werte | Fachliche Konsequenz |
+|---|---|---|
+| `blocking_mode` | `CAMERA_LAYOUT`, `CAMERA_BODY_POSE`, `FULL_REFERENCE` | 1. nur Kamerabewegung/Anordnung mit Markerfiguren; 2. zusätzlich Skelett/Körperpose; 3. weitere freigegebene Form-/Oberflächen-Control-Inputs |
+| `actor_proxy` | `BOX`, `CAPSULE`, `HUMAN_PROXY`, `RIG` | Auswahl zwischen Quader, Kapsel, Mensch-Proxy, Rig; `HUMAN_PROXY`/`RIG` nur bei registrierten Assets und tatsächlichen Capabilities |
+| `pose_transfer` | `NONE`, `BODY`, `BODY_HANDS` | welche der vorhandenen und qualifizierten Pose-Kanäle an das Video-/Bild-Rezept weitergereicht werden |
+| `camera_channels` | `POSITION`, `ROTATION`, `BOTH` | separater Datenpfad für Translation und Blick-/Kamerarotation |
+| `environment_channels` | kompatible Auswahl `COMPOSITION`, `DEPTH`, `MASK` | Guide-/Depth-/Mask-Bezüge; nur validierte Kombinationen nach Engine-Capability |
+| `motion_source` | `AI_SPEC`, `KEYFRAMES`, `REFERENCE_VIDEO` | verbindliche Herkunft der Bewegung; alternative Quelle nur als explizite neue Revision |
+| `appearance` | CharacterVersion + kompatible LoRA-/Referenz- und LookPreset-Revision | Identität, Kleidung und Fotografie bleiben unabhängig von Geometrie-/Bewegungsquelle |
+
+- **Preset CAMERA_LAYOUT:** einfache Markerfiguren, räumliche Positionen und Kameratracks sind kontrolliert; ungewollte Proxy-Körperhaltung wird **nicht** als Posereferenz ausgegeben. **Preset CAMERA_BODY_POSE:** ein qualifizierter Rig-/Posepfad ergänzt Körperbewegung; ohne gültige Skelettdaten `NEEDS_INPUT` statt scheinbarem Pose-PASS. **FULL_REFERENCE:** nur wo die ausgewählte Engine zusätzliche Formen/Materialguide tatsächlich unterstützt; sonst deaktiviert mit Capability-Grund.
+- Der `GuideBundle` enthält **explizit**, welche Kontrollkanäle erzeugt und welche davon an den Renderingadapter übergeben wurden: Geometrie-/Kamerarevision, Frames/FPS, Quell-ID/Hash, Transformationssystem, Typ, Modell-/Control-Graphrevision. Die Warnung „Guide ≠ pixelgenaue Übernahme“ wird in der Rezeptqualifikation und im Vergleich sichtbar.
+- **Capability-Compiler:** fehlende Tiefenkarten, Rig-Daten, Kamerakurven, inkompatible Architekturen oder unqualifizierte Control-Engines **vor Submit** mit nachvollziehbarem Fehler ablehnen. Keine nicht unterstützten Kontrollfelder in einen normalen Prompt umetikettieren.
+- **Geometrie-Korrektur:** Operator oder KI-Regie liefert neue, geprüfte `SceneSpec`-Werte (Proxyform, Positionen, Bahnen, Blickrichtung), kein neues Skript. Fingerprint invalidiert nur abhängige Guide-/ControlVideo-/QC-/Export-Schritte; unabhängige Shots, Charakter-/Look-Assets bleiben erhalten.
+
+~~~mermaid
+flowchart TD
+  SRC["Text/KI-Szene · Referenzvideo · manuelle Keyframes"] --> SPEC["Validierte SceneSpec und ControlPolicy"]
+  SPEC --> BUILDER["Blender-Builder: Actor-Proxies + Kamera"]
+  BUILDER --> MODES{"Blocking-Modus"}
+  MODES -->|Kamera/Layout| M1["Marker · Kameratrack · Position"]
+  MODES -->|Körperpose| M2["Marker/Rig · Körper-Pose · Kameratrack"]
+  MODES -->|Vollständige Referenz| M3["Zusätzliche qualifizierte Form-/Materialguides"]
+  M1 --> GUIDES["GuideBundle mit aktiven Kanälen"]
+  M2 --> GUIDES
+  M3 --> GUIDES
+  GUIDES --> CAPS{"ControlVideo-Rezept und M4-Capability vorhanden?"}
+  CAPS -->|ja| RENDER["Generieren mit Charakter/Look"]
+  CAPS -->|nein| TEIL["Teilfunktion Blender-Vorschau verfügbar, ControlVideo nicht freigegeben"]
+  RENDER --> CHECK["Guide-vs-Ergebnis: Kamera/Pose/Timing/Identität"]
+  CHECK -->|Korrektur| SPEC
+  CHECK -->|akzeptiert| OUT["Revisioniertes Shot-Ergebnis"]
+~~~
+
+### 13.8.3 Virtuelle Kamera: Position und Rotation trennen (DS6b; echter iPhone-Adapter optional DS9)
+
+**Basis ohne iPhone:** Ein `CameraCarrierTrack` gibt die räumliche Kameraposition als Zeitreihe vor; ein unabhängiger `CameraOrientationTrack` Blickrichtung/Rotation. Das `CameraRig` kombiniert beides mit geprüfter Reihenfolge/Koordinatensystemen und berechnet pro Zielframe deterministisch die Kamera-Transformation. Alternativ steuert ein einzelner animierter Pfad beide Werte. Übergänge zwischen statischer Kamera, Follow-Path, Follow-Actor und Handkamera werden als benannte, versionierte Shot-Beats mit Keyframes modelliert.
+
+**Quellenwahl:** `camera_position_source = MANUAL | KEYFRAMED_PATH | QUALIFIED_CAPTURE`, `camera_orientation_source = MANUAL | KEYFRAMES | QUALIFIED_CAPTURE`. Ein Capture-Input darf **nur** als tatsächlich verbunden/kalibriert angezeigt werden; `QUALIFIED_CAPTURE` ist vor dem echten Adapter DS9 gesperrt. Keine konkrete iPhone-App oder OSC-/WebSocket-/LiveLink-Verbindung behaupten, solange nicht geprüft.
+
+**Pflichtvertrag eines späteren `CameraCaptureAdapter`:** explizite Session-ID, Gerätekennung ohne ungeschützte Identifikatoren, Zeitstempel mit monotonic-clock-Abgleich, Transformationskoordinaten (Handedness, Einheiten, Nullpunkt), Kalibrierung/Orientierungsnullung, Sample-Rate und Qualitätsstatus, Frame-Resampling/Interpolation mit gemessenem Drift/Jitter, Start/Stop, Reconnect/Verbindungsverlust, gespeicherte Trackrevision und Hash. Positionsdaten **nicht** aus bloßen Gyroskop-Rotationswerten erfinden; ohne unterstütztes Positionstracking bleibt der Carrier-/Pfadpositionskanal bestehen.
+
+~~~mermaid
+flowchart LR
+  PATH["CameraCarrierTrack: Pfad, Position, Timing"] --> RIG["CameraRig: Frame-Sync + Koordinaten"]
+  KEYS["Manuelle Rotations-Keyframes"] --> ROT["CameraOrientationTrack"]
+  PHONE["Optionaler qualifizierter iPhone-Adapter"] -.-> ROT
+  ROT --> RIG
+  RIG --> PLAY["Blender Playblast + Kameradaten"]
+  PLAY --> GUIDE["GuideBundle: Kamera + Depth/Pose/Mask"]
+  GUIDE --> MODEL["Nur kompatible ControlVideo-Engine"]
+  MODEL --> QA["Kameravergleich und Shot-Review"]
+~~~
+
+**DS6b-Mindestabnahme:** 3–5 s Kamerafahrt mit zwei getrennten Tracks, Wechsel zur Handkameraorientierung ab definiertem Keyframe, identische FPS/Framezahl/Zeitsynchronität im Playblast und Guide; jede Einstellung in den Studio-Controls änderbar und als neue Revision wiederholbar. Zusätzlich je ein kurzer Blocking-Vorschautest mit `CAMERA_LAYOUT` und `CAMERA_BODY_POSE` (Pose nur, wenn qualifizierter Rig/Adapter vorhanden; sonst `TEIL`). **DS9 optional:** echter iPhone-Capture-Test für Rotation, Ausfall/Reconnect und Zeitdrift; **keine** künstliche DS6b-PASS-Behauptung über iPhone-Streaming.
+
+### 13.8.4 ComfyUI bleibt vollständige technische Engine
+
+Die Studio-Flow-Maschine **ersetzt ComfyUI nicht** und implementiert weder einen zweiten Sampler noch eine zweite Renderengine. Jeder technische ComfyUI-Graph wird als atomarer, versionierter Engine-Adapter referenziert; seine Modell-/LoRA-Hashes, Architektur, Input-/Outputports, Parametergrenzen und Mac-Nachweise stehen in der bestehenden Workflow-/Model-Registry. Studio-Rezept ↔ Graphreferenz erfolgt über explizite stabile IDs und Revisionen.
+
+**Labor-Kategorien der einen Studio-Unteransicht:** **Bild** (T2I, I2I, Inpaint, Upscale), **Charaktere** (Training, Identitätsbindung, Character Replacement), **Kontrolle** (Pose, Depth, Mask, Skizze, Mehrfachreferenz), **Video** (T2V, I2V, Wan, LTX, Motion Transfer) und **Technik** (Modelle, Benchmark, Logs, Qualifikationsstatus). Dies sind **Filter innerhalb von Labor**, keine weiteren Studio-Haupt- oder Unterreiter. Alle Bestandsworkflows bleiben technisch zugänglich, auch wenn sie nicht als Standardrezept für normale Aufgaben freigegeben sind.
+
+Eine technische Änderung (Graph/Sampler/LoRA-Stärke/Control-Einstellung) wird **als neue geprüfte Graph-/Rezeptrevision** gespeichert. Bestehende oder laufende Kundenproduktionen bleiben an die ursprüngliche Revision gebunden; nur explizit aktualisierte Rezepte dürfen neue Jobs verwenden. Graph-Zugriff/Experten-Edit erfolgt über die bestehende ComfyUI-Technik bzw. ab DS7 den Studio-Flow-Editor; ein Studio-Node ist **kein** unkontrollierter Ersatz des ComfyUI-Node-Editors. Modelle, Knoten, LoRA-Fähigkeiten, ABI-/Installationsstatus und Run-Belege werden nicht im UI erfunden.
+
+
 ### 13.9 Flow-Katalog F01–F10 (ein Executor)
 
 | Flow | Auftrag und Ergebnis | Vorbedingungen / Paket |

@@ -410,6 +410,108 @@ Der Top/Middle/Bottom-Vergleich aus der Vorlage ist ein **optional wählbarer Ve
 
 **Einstellungen → KI-Anbieter / Rollen:** lokale KI/ComfyUI 2 als Standard; optionale Anthropic/OpenAI-Konten je benanntem API-Zugang, echte Modellliste, Verbindungstest, Rollenbindung (Drehbuch/Regie), Aus-Schalter, pro Auftrag/Monat Budget/Usage. Higgsfield unter Cloud-Medien erst mit verfügbarer API/Berechtigung; Artlist nur mit nachgewiesener geeigneter API. Keine Ausgabe von API-Keys/Secrets im Frontend-STATE, Screenshots oder Logs. Bei Cloud-Aus darf **kein** Cloud-Request erfolgen. E19 für Kundengespräche unverändert lokal.
 
+
+### 6.6.1 Bedienvertrag: 3D-Blocking je Szene (DS6b)
+
+**Einstieg:** `Studio → Storyboard → Shot öffnen → 3D-Vorschau → Blocking-Einstellungen`. Jeder Shot hat genau eine `SceneSpec`-Revision und eine zugehörige `BlockingControlPolicy` (Backend §13.8.1–§13.8.3). **Kein zusätzlicher Hauptreiter oder Studio-Unterreiter.** Vor dem ersten Render existiert eine echte **Editieransicht**, keine reine Vorschau.
+
+| Bereich | Tatsächliches UI-Control | Rückwirkung |
+|---|---|---|
+| **Blocking-Quelle** | **KI-Szene / Referenzvideo / Manuell** (kombinierbar durch definierte Rollen) | `SceneSpec`-Erstellung oder neue Revision; kein Code-Editor |
+| **Figuren** | **Quader / Kapseln / 3D-Mensch / Rig** | `actor_proxy`, nur vorhandene registrierte Proxies/Rigs |
+| **Übernahme-Modus** | **Nur Kamera und Position / Kamera und Körperpose / Vollständige Referenz** | `blocking_mode` + sichtbare wirksame Guide-Kanäle |
+| **Pose** | **Keine / Körper / Körper und Hände** | `pose_transfer` mit Capabilities/Referenzbeleg |
+| **Kamera** | **Position / Rotation / Beides** | `camera_channels`; Positions-/Rotationstracks getrennt |
+| **Umgebung** | **Komposition / Tiefe / Masken** (Mehrfachauswahl soweit unterstützt) | `environment_channels` |
+| **Bewegung** | **KI / Keyframes / Referenzvideo** | `motion_source`, visuell auf Timeline |
+| **Look** | eigene **Charakterversion/LoRA + LookPreset** | `appearance` als separate Identitäts-/Fotografieversion |
+
+**Regel für Bedienelemente:** Backend liefert Auswahl, Kompatibilität, Einheiten, echte Grenzen und Grund für nicht verfügbare Optionen; die React-Oberfläche hardcodiert keine Modellfähigkeit. Jede Parameteränderung wird als neue **noch nicht freigegebene** SceneSpec-Vorschau angezeigt; erst über Protobuf-COMMAND und terminalen Receipt gespeichert. Ein neues Rendering invalidiert nur abhängige Shots/Guides, bestehende freigegebene Kundenrevisionen bleiben unverändert.
+
+**Aktionsfolge:** `3D-Blocking erzeugen` → **Playblast** mit Timecode → Geometrie/Kamera/Actor-Keyframes ansehen und ändern → `Vorschau freigeben` (Studio-Tor, **nicht** Kunden-Zustellfreigabe) → kontrollierter Bild-/Videorender, falls qualifizierte Engine verfügbar → `Guide und Ergebnis vergleichen` → `Shot neu` oder Export. Für unqualifiziertes ControlVideo gilt `TEIL`, während Blender-Preview separat benutzt werden darf.
+
+**Vergleichsansicht:** Umschaltbarer **Endvideo / 3D-Blocking / Kamera-/Guide-Input**-Vergleich (einzeln oder Top/Middle/Bottom bei genügend Platz). Pro Bild/Shot gemeinsame Abspielposition, gleiche FPS/Zeitleiste, erwartete vs. tatsächliche Kamera/Pose und klarer Messstatus. Kein permanenter dreifacher Layoutzwang und keine erfundenen Übereinstimmungswerte.
+
+~~~mermaid
+flowchart TD
+  STORY["Storyboard: Shot auswählen"] --> SOURCE["KI-Blocking · eigenes Video · manuelle Keyframes"]
+  SOURCE --> OPTIONS["Figur, Modus, Pose, Kamera, Umgebung, Look"]
+  OPTIONS --> VALID{"SceneSpec/Capabilities gültig?"}
+  VALID -->|nein| ERROR["Grund am betroffenen Control anzeigen"]
+  VALID -->|ja| PREVIS["3D-Blocking erzeugen + Playblast"]
+  PREVIS --> EDIT["Actor und Kameratracks korrigieren / neue Revision"]
+  EDIT --> PREVIS
+  PREVIS --> REVIEW["Vorschau freigeben"]
+  REVIEW --> CAP{"ControlVideo auf M4 qualifiziert?"}
+  CAP -->|ja| RENDER["Finales Modellvideo"]
+  CAP -->|nein| PENDING["Blender-Vorschau verfügbar; Video-Control TEIL"]
+  RENDER --> COMPARE["Guide/Blocking/Final zeitgleich vergleichen"]
+  COMPARE --> OUT["Shot behalten oder gezielt neu"]
+~~~
+
+### 6.6.2 Kamera-Inspector und optionale iPhone-Steuerung
+
+**Pfad:** `Storyboard → 3D-Vorschau → Kamera → Steuerungsquelle`. Zunächst **Manuell** und **Animierter Pfad**; **iPhone** ist ein **gesperrter optionaler Kandidat bis DS9/Adapterqualifikation**, kein funktionierender LIVE-Schalter ohne Backend. Ein Inspector zeigt Carrier-Position, Blickrichtung/Rotation, FOV/Brennweite, Keyframes/Shot-Beats, Timecode und aktuelle Quelle.
+
+- **Position** = vom Camera-Carrier/Blender-Pfad; **Rotation** = manuelle Keys oder später nach Kalibrierung echte Gerätedaten. Freie Kombination mit dokumentierten Prioritäts-/Override-Regeln.
+- **iPhone-Status bei späterer Implementierung:** nicht eingerichtet / verbindet / kalibriert / verbunden / Tracking verloren / Fehler; Zeitstempel, Drift, Frames und aufgezeichneter Take müssen als echte Backendwerte angezeigt werden. Ohne Positionstracking darf das UI keine real gemessene Smartphone-Position anzeigen.
+- **Änderung des Kamerapfads:** nur diese SceneSpec und ihre abhängigen Guide-/Render-/Vergleichsartefakte werden neu erzeugt. Dieselben Look-/Charakterversionen bleiben erhalten.
+- **Mac-Tests DS6b:** Playblast mit zwei Tracks, Kameraübergang und synchroner Vorschau; Browser-Interaktion mit Speicherung/Versionierung/Reload und gesperrtem iPhone-Status. **DS9:** echter iPhone-Adapter nur bei nachgewiesener Verbindung und reproduzierbaren Tracking-/Reconnect-Messungen.
+
+~~~mermaid
+flowchart LR
+  CARR["Carrier: Position + Zeit"] --> MERGE["CameraRig + Frame-Sync"]
+  ROT["Rotation: manuell oder Keyframes"] --> MERGE
+  PHONE["iPhone: optional ab DS9, nur nach Test"] -.-> ROT
+  MERGE --> PREVIEW["Playblast / GuideBundle"]
+  PREVIEW --> PLAY["Storyboard-Vorschau / Shot-Korrektur"]
+~~~
+
+### 6.6.3 ComfyUI im Labor vollständig erhalten und sinnvoll sortieren
+
+**Die drei Bedienebenen sind verbindlich:**
+
+1. **Studio/Erstellen:** Aufgabe auswählen, qualifiziertes Rezept anwenden; **keine Modellflut**.
+2. **Studio-Produktionskette:** Schritte und Status zeigen; der Betreiber kann einen Arbeitsschritt prüfen und bei Bedarf seine Rezept-/Graphversion öffnen.
+3. **Studio/Labor:** technische ComfyUI-Workflows, Modell-/LoRA-Parameter, Tests und Debugging vollständig erhalten.
+
+**Labor ist eine der fünf Studio-Unteransichten.** Die nachstehenden Kategorien sind **Filter/Gruppen innerhalb von Labor**, nicht neue Unteransichten:
+
+| Filter | Zugeordnete technische Workflows |
+|---|---|
+| **Bild** | Text-to-Image, Image-to-Image, Inpainting, Upscaling |
+| **Charaktere** | LoRA-Training, Identitätsbindung, Face-/Character-Replacement |
+| **Kontrolle** | Pose, Depth, Masken, Skizzen, Referenzbilder und Control-Modelltests |
+| **Video** | Text-to-Video, Image-to-Video, Wan, LTX, Animation und Motion-Transfer |
+| **Technik** | Modellverwaltung, Benchmarks, Logs, Workflowvalidierung und Qualifikationsnachweise |
+
+**Jede Workflowzeile zeigt verbindlich:** verständlicher Name, stabiler Schlüssel/Version, Aufgabe, Ein-/Ausgabetypen, Engine/Architektur, kompatible LoRAs/Control-Capabilities, echter Installations-/Qualifikationsstatus, letztes Ergebnis und ggf. `Als Standard vorschlagen` (nur nach nachgewiesener Eignung aktivierbar). Die Registry bleibt Datenquelle; vorhandene Graphen werden weder gelöscht noch beim Umzug nach Labor umbenannt, sofern dies ihre technischen Schlüssel brechen würde.
+
+**Technik öffnen:** Aus einem Produktionsschritt `Workflowdetails` → technischer Graph/Parameter (z. B. Sampler, LoRA-Stärke, ControlNet, Seed); Änderungen speichern **eine neue Graph-/RecipeVersion**, die erst nach Validierung und Qualifikation einem Standardprofil zugeordnet werden darf. Laufende/alte Kundenaufträge behalten unveränderlich ihre ursprüngliche RecipeVersion. Der ab DS7 eingeführte **Studio-Flow-Editor** bearbeitet die **übergeordneten Produktionsketten**, nicht heimlich die internen ComfyUI-Graphen.
+
+~~~mermaid
+flowchart TD
+  STUDIO["Studio: Foto/Video/Storyboard-Aufgabe"] --> REC["TaskProfile → qualifiziertes Standardrezept"]
+  REC --> CHAIN["Flow-Engine: versionierte Produktionsschritte"]
+  CHAIN --> IMAGE["ComfyUI Bildgraph"]
+  CHAIN --> VIDEO["ComfyUI Videograph"]
+  CHAIN --> TEXT["ComfyUI KI-Graph"]
+  IMAGE --> LAB["Labor: Workflows/Modelle/Technik"]
+  VIDEO --> LAB
+  TEXT --> LAB
+  LAB --> CAT["Filter: Bild · Charaktere · Kontrolle · Video · Technik"]
+  CAT --> EDIT["Graph prüfen / Parameter bearbeiten"]
+  EDIT --> NEW["Neue geprüfte Graph-/Rezeptversion"]
+  NEW --> REC
+~~~
+
+### 6.6.4 Beispiel-Akzeptanz: 15 Sekunden Longboard-Film
+
+**Operator-Flow:** Textidee „drei Longboard-Fahrer in Island, nach 5 s Handkamera“ → KI-Szenenschema (mit geprüften 15 s / 24 FPS / 360 Ausgabeframes) → Blender-Blocking mit Straße, Landschaft, Proxies, Kamera-Carrier und unabhängiger Rotation → Playblast und Guide-Pässe → Operator korrigiert die Kamerafahrt/Actor-Position → `Vorschau freigeben` → bei kompatibler qualifizierter ControlVideo-Engine finaler Shot/Film → Guide/Final nebeneinander vergleichen → Ergebnis unter derselben `production_id` in Studio/Dateien. Die technische Graphauswahl erfolgt aus dem Rezept; Details stehen im Labor.
+
+**Abnahmen im Browser/auf Mac:** drei Blocking-Modi mit sichtbaren wirksamen Kanälen; alle sieben Blocking-Control-Gruppen im Inspector; Manual/Path-Kamera funktioniert ohne iPhone; iPhone ohne verifizierten Adapter disabled; Proxy-/Rig-Optionen capability-gated; Versionierung, Seitenreload, Undo/erneutes Rendering und selektiver Shot-Rerun bleiben nachvollziehbar. DS6b-Test darf bei fehlendem Video-Control-Modell **Blender-Pfad PASS, ControlVideo TEIL** melden; nie einen nicht gefahrenen M4-Videorender behaupten.
+
+
 ### 6.7 Frontend-Pakete synchron zum Backend
 
 | Paket | Verbindliche GUI-Lieferung | Chrome-/Mac-Nachweis |
