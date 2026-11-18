@@ -239,6 +239,7 @@ class MessagesMixin:
                 "video_workflow": msg.video_workflow,
                 "candidates": msg.cloner_candidates or None,
                 "cancel_word": word,
+                "test_delay": int(msg.test_delay),
             },
             senders,
             commands,

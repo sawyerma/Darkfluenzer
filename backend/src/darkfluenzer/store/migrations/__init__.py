@@ -763,6 +763,17 @@ CREATE TABLE consolations (
 );
 CREATE INDEX consolations_free ON consolations(persona_version) WHERE used_at IS NULL;
 """,
+    36: """
+-- Kundentest im Default-Chat (SP4 Schritt 8): Testnachrichten bilden einen eigenen Verlauf
+-- (Telegram kennt nur einen Chat je Absender); Testsitzung (Zurücksetzen), KI-Hinweis je Test,
+-- Schalter „Verzögerung wie Kunde“.
+ALTER TABLE channel_messages ADD COLUMN test INTEGER NOT NULL DEFAULT 0 CHECK (test IN (0, 1));
+ALTER TABLE default_contact ADD COLUMN test_session INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE default_contact ADD COLUMN test_notice_message_id INTEGER
+    REFERENCES channel_messages(id);
+ALTER TABLE default_contact ADD COLUMN test_delay INTEGER NOT NULL DEFAULT 0
+    CHECK (test_delay IN (0, 1));
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

@@ -427,6 +427,7 @@ class ProfilesMixin:
             "video_workflow",
             "candidates",
             "cancel_word",
+            "test_delay",
         }
         unknown = set(fields) - allowed
         if unknown:

@@ -238,9 +238,11 @@ def test_operating_mode_per_account(cloner_cfg):  # noqa: F811
         assert [i["direction"] for i in _items(store, first.customer.id)] == ["in"]  # nur anzeigen
         store.set_account_mode("tg", "test")
         await cockpit._on_inbound(send("2", "remix", "2", [photo]))
-        await cockpit._on_inbound(send("3", "remix", "3", [photo]))  # Hinweis nur einmal
+        await cockpit._on_inbound(send("3", "remix", "3", [photo]))
         outs = [i for i in _items(store, first.customer.id) if i["direction"] == "out"]
-        assert [o["text"] for o in outs] == [cloner_text.TEST_MODE]
+        # Kundentest (SP4 Schritt 8) statt Kloner; ohne Influencerin mit Grund
+        missing = "Kundentest: keine Influencerin im Default-Kontakt."
+        assert [o["text"] for o in outs] == [missing, missing]
         assert store.db.execute("SELECT count(*) FROM orders").fetchone()[0] == 0
         store.set_account_mode("tg", "production")
         await cockpit._on_inbound(send("4", "remix", "4", [photo]))

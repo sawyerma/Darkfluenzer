@@ -418,7 +418,12 @@ message DefaultContactUpdate {
   uint32 cloner_candidates = 11;
   string cancel_word = 12;
   repeated AccountMode account_modes = 13;
+  // Kundentest (SP4 Schritt 8): Antwortzeiten wie bei Kunden (Verhaltensprofil)
+  bool test_delay = 14;
 }
+
+// Kundentest zurücksetzen (Befehl 63, SP4 Schritt 8): Testgedächtnis und Hinweisstatus leer.
+message TestReset {}
 
 // Kanalidentität einer Kundenakte als Absender des Default-Kontakts festlegen (Befehl 48, F7.4):
 // die Identität zieht samt Verlauf zum Default um, eine dadurch leere Kundenakte entfällt.
@@ -462,6 +467,7 @@ message CommandRequest {
     MessageResolve message_resolve = 66;
     OutboxControl outbox_control = 54;
     BehaviorUpdate behavior_update = 53;
+    TestReset test_reset = 63;
     InfluencerUpdate influencer_update = 35;
     MediaContentTier media_content_tier = 43;
     CustomerAgeMark customer_age_mark = 44;

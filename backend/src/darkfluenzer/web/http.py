@@ -552,6 +552,8 @@ async def _conversation_page(request: web.Request) -> web.Response:
                 cloner_candidates=d["candidates"] or 0,
                 cloner_candidates_default=cockpit.cfg.production.cloner_candidates,
                 cancel_word=d["cancel_word"],
+                test_delay=bool(d["test_delay"]),
+                test_session=d["test_session"],
                 account_modes=[
                     channel_pb2.AccountMode(key=a["key"], mode=a["operating_mode"])
                     for a in store.channel_accounts()

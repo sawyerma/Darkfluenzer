@@ -249,6 +249,10 @@ class ClonerConfig:
     album_settle_s: float = 3.0
     # Hinweis „Befehle sind aus“ höchstens einmal je Zeitraum und Chat
     notice_interval_s: float = 3600.0
+    # feste Wörter im Default-Chat für die Betriebsart (SP4 Schritt 8), klein geschrieben
+    mode_words: dict = field(
+        default_factory=lambda: {"produktion": "production", "kundentest": "test", "aus": "off"}
+    )
 
 
 @dataclass(frozen=True)
@@ -806,6 +810,7 @@ def load(root: Path | None = None) -> Config:
         reference_window_s=float(_positive(cl, "reference_window_s", 300, "cloner")),
         album_settle_s=float(_positive(cl, "album_settle_s", 3, "cloner")),
         notice_interval_s=float(_positive(cl, "notice_interval_s", 3600, "cloner")),
+        mode_words=_mode_words(cl.get("mode_words"), path),
     )
     beh = data.get("behavior", {})
     if not isinstance(beh, dict) or not all(
@@ -833,6 +838,20 @@ def load(root: Path | None = None) -> Config:
         cloner=cloner_cfg,
         behavior=dict(beh),
     )
+
+
+def _mode_words(raw: object, path: Path) -> dict:
+    default = {"produktion": "production", "kundentest": "test", "aus": "off"}
+    if raw is None:
+        return default
+    if not isinstance(raw, dict) or not all(
+        isinstance(k, str) and k.strip() and v in ("production", "test", "off")
+        for k, v in raw.items()
+    ):
+        raise ConfigError(
+            f'Konfiguration {path}: cloner.mode_words = {{Wort = "production|test|off"}}.'
+        )
+    return {k.strip().lower(): v for k, v in raw.items()}
 
 
 def setup_logging(cfg: Config, name: str = "darkfluenzer.log") -> Path:

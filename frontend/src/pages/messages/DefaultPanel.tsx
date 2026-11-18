@@ -7,7 +7,8 @@ import { Row } from "./CustomerPanel";
 import { Topic } from "../../core/generated/darkfluenzer/v1/stream_pb";
 import { channelNote } from "./Channels";
 import { useCommand } from "../../core/commands";
-import { useStateTopic } from "../../core/state";
+import { useEventTopic, useStateTopic } from "../../core/state";
+import type { AiRun } from "../../core/generated/darkfluenzer/v1/ai_pb";
 
 type Run = ReturnType<typeof useCommand>["run"];
 
@@ -25,9 +26,9 @@ type Profile = { workflow: string; format: string; duration: string; finish: str
 const EMPTY: Profile = { workflow: "", format: "", duration: "", finish: "" };
 
 // Gruppen der Default-Steuerung (F7.4 „Identität & Dialog“, „KI & Medien“; Befehle FL-6), einklappbar
-type FoldId = "identity" | "media" | "commands";
+type FoldId = "identity" | "media" | "commands" | "test";
 type Folds = Record<FoldId, boolean>;
-const FOLDS_OPEN: Folds = { identity: true, media: true, commands: false };
+const FOLDS_OPEN: Folds = { identity: true, media: true, commands: false, test: false };
 
 /** Einklappbare Gruppe (F7 details): Kopf mit Zustand, damit auch geschlossen sichtbar ist, was
  *  fehlt (SP1: ausgeschaltete Schalter und fehlende Workflows sichtbar). */
@@ -104,6 +105,15 @@ function DefaultForm({
   const [cancelWord, setCancelWord] = useState(contact.cancelWord);
   const savedModes = Object.fromEntries(contact.accountModes.map((m) => [m.key, m.mode]));
   const [modes, setModes] = useState<Record<string, string>>(savedModes);
+  const [testDelay, setTestDelay] = useState(contact.testDelay);
+  const reset = useCommand();
+  const results = useEventTopic(Topic.AI_RESULT);
+  // Messwerte je Testantwort (SP4 Schritt 8) aus ai_runs: laufende Sitzung, neueste zuerst
+  const testRuns = (results?.items ?? [])
+    .map((e) => e.value.run)
+    .filter((r): r is AiRun => !!r && r.kind === "test" && r.session === contact.testSession)
+    .slice(-5)
+    .reverse();
   const registry = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
   const influencers = useStateTopic(Topic.INFLUENCERS)?.value.influencers ?? [];
   const usable = registry.filter((w) => w.enabled && w.modelsReady && w.instance !== "ai" && !w.training);
@@ -124,7 +134,8 @@ function DefaultForm({
     influencer.trim() !== contact.influencer ||
     workflow !== contact.mediaWorkflow ||
     video !== contact.videoWorkflow ||
-    (Number(candidates) || 0) !== contact.clonerCandidates;
+    (Number(candidates) || 0) !== contact.clonerCandidates ||
+    testDelay !== contact.testDelay;
   const same = (a: Profile | undefined, b: Profile | undefined) => JSON.stringify(a ?? EMPTY) === JSON.stringify(b ?? EMPTY);
   const changedCommands = COMMANDS.some((c) => !same(profiles[c], saved[c]));
   const changed = changedIdentity || changedMedia || changedCommands;
@@ -169,6 +180,7 @@ function DefaultForm({
             return { command: c, workflow: p.workflow, format: p.format, durationS: Number(p.duration) || 0, finish: p.finish };
           }),
           clonerCandidates: Number(candidates) || 0,
+          testDelay,
           cancelWord: cancelWord.trim(),
           accountModes: Object.entries(modes)
             .filter(([k, m]) => m !== savedModes[k])
@@ -387,6 +399,55 @@ function DefaultForm({
             </div>
           );
         })}
+      </Fold>
+      <Fold
+        id="test"
+        title="Kundentest"
+        hint={`Sitzung ${contact.testSession}${Object.values(modes).includes("test") ? " · aktiv" : ""}`}
+        warn={false}
+        changed={testDelay !== contact.testDelay}
+        folds={folds}
+        toggle={toggle}
+      >
+        <label className="g-switch">
+          <input type="checkbox" checked={testDelay} onChange={(e) => setTestDelay(e.target.checked)} />
+          Verzögerung wie Kunde
+        </label>
+        <button
+          type="button"
+          className="g-button"
+          disabled={!live || reset.pending}
+          onClick={() => void reset.run({ case: "testReset", value: {} }, { done: "Kundentest zurückgesetzt." })}
+        >
+          Zurücksetzen
+        </button>
+        {reset.notice ? <small role="status">{reset.notice}</small> : null}
+        <table className="g-table" aria-label="Messwerte Kundentest">
+          <thead>
+            <tr>
+              <th>Lauf</th>
+              <th>Gesamt s</th>
+              <th>Warten s</th>
+              <th>Rechnen s</th>
+            </tr>
+          </thead>
+          <tbody>
+            {testRuns.length ? (
+              testRuns.map((r) => (
+                <tr key={String(r.runId)}>
+                  <td>#{String(r.runId)}</td>
+                  <td>{r.totalS.toFixed(1)}</td>
+                  <td>{r.waitS.toFixed(1)}</td>
+                  <td>{r.durationS.toFixed(1)}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4}>Noch keine Testantwort in dieser Sitzung.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </Fold>
       <button type="submit" className="g-button g-primary g-block g-wide" disabled={!live || pending || !changed}>
         Einstellungen übernehmen

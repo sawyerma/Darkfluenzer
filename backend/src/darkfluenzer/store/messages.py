@@ -417,6 +417,7 @@ class MessagesMixin:
         ai_run_id: int | None,
         scheduled_at: str | None = None,
         reason: str = "",
+        test: bool = False,
     ) -> int:
         """KI-Antwort festhalten (SP4 Schritte 6, 7): ``queued`` (mit Sendezeit) oder ``draft``
         (mit Grund); Bezug auf den Sprachlauf. Keine Revisionsprüfung: die Antwort entsteht aus
@@ -426,10 +427,10 @@ class MessagesMixin:
         with self.tx() as db:
             cur = db.execute(
                 "INSERT INTO channel_messages (customer_id, conversation_id, direction, text,"
-                " status, error, ai_run_id, scheduled_at, sent_at, created_at)"
-                " VALUES (?,?,'out',?,?,?,?,?,?,?)",
+                " status, error, ai_run_id, scheduled_at, sent_at, created_at, test)"
+                " VALUES (?,?,'out',?,?,?,?,?,?,?,?)",
                 (customer_id, conversation_id, text, status, reason or None, ai_run_id,
-                 scheduled_at, now(), now()),
+                 scheduled_at, now(), now(), int(test)),
             )  # fmt: skip
             db.execute(
                 "UPDATE channel_conversations SET revision = revision + 1 WHERE id = ?",
@@ -492,16 +493,63 @@ class MessagesMixin:
             self._event("message", message_id, "status", status="draft", error=reason)
             self.bump("conversations")
 
-    def dialog_turns(self, conversation_id: int, limit: int) -> list[dict]:
+    def dialog_turns(self, conversation_id: int, limit: int, *, test: bool = False) -> list[dict]:
         """Letzte Ein- und Ausgänge einer Konversation (ohne Systemkarten, Entwürfe,
-        stornierte), aufsteigend."""
+        stornierte), aufsteigend; ``test``: nur der Verlauf des Kundentests (SP4 Schritt 8), sonst
+        nur der Produktionsverlauf."""
         rows = self.db.execute(
             "SELECT id, direction, text, status FROM channel_messages WHERE conversation_id = ?"
             " AND direction IN ('in', 'out') AND status NOT IN ('draft', 'cancelled', 'failed')"
-            " AND deleted_at IS NULL ORDER BY id DESC LIMIT ?",
-            (conversation_id, limit),
+            " AND deleted_at IS NULL AND test = ? ORDER BY id DESC LIMIT ?",
+            (conversation_id, int(test), limit),
         )
         return [dict(r) for r in rows][::-1]
+
+    def default_conversation(self) -> int | None:
+        """Jüngste Konversation des Default-Kontakts (Karten zum Kundentest)."""
+        row = self.db.execute(
+            "SELECT c.id FROM channel_conversations c JOIN channel_identities i"
+            " ON i.id = c.identity_id JOIN default_contact d ON d.customer_id = i.customer_id"
+            " ORDER BY c.id DESC LIMIT 1"
+        ).fetchone()
+        return row[0] if row else None
+
+    def mark_test(self, message_id: int) -> None:
+        """Eingang gehört zum Kundentest (eigener Verlauf, nie Produktion)."""
+        with self.tx() as db:
+            db.execute("UPDATE channel_messages SET test = 1 WHERE id = ?", (message_id,))
+
+    def queue_test_notice(self, conversation_id: int, text: str) -> int:
+        """KI-Hinweis des Kundentests (einmal je Testsitzung, wie bei einem Kunden)."""
+        default = self.default_contact()
+        message_id = self.queue_reply(
+            default["customer_id"], conversation_id, text, status="queued", ai_run_id=None,
+            test=True,
+        )  # fmt: skip
+        with self.tx() as db:
+            db.execute("UPDATE default_contact SET test_notice_message_id = ?", (message_id,))
+        return message_id
+
+    def test_reset(self, influencer_id: int | None) -> int:
+        """Kundentest zurücksetzen: neue Sitzung, Hinweisstatus leer, Testgedächtnis gelöscht;
+        liefert die neue Sitzung."""
+        with self.tx() as db:
+            db.execute(
+                "UPDATE default_contact SET test_session = test_session + 1,"
+                " test_notice_message_id = NULL, revision = revision + 1, updated_at = ?",
+                (now(),),
+            )
+            if influencer_id:
+                db.execute(
+                    "UPDATE memories SET status = 'deleted', updated_at = ? WHERE scope = 'test'"
+                    " AND owner_id = ? AND status = 'active'",
+                    (now(), influencer_id),
+                )
+            session = db.execute("SELECT test_session FROM default_contact").fetchone()[0]
+            self._event("customer", self.default_contact()["customer_id"], "test_reset",
+                        session=session)  # fmt: skip
+            self.bump("customers")
+            return session
 
     def last_sent_at(self, conversation_id: int) -> str | None:
         """Zeit der letzten gesendeten eigenen Nachricht (Pause, Erstkontakt; SP4 Schritt 7)."""

@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from ..media import models
 from ..store import StoreError
 from ..v1 import commands_pb2
+from ..v1 import stream_pb2 as spb
 from . import assessment, behavior, dialog, memory
 from .base import _Call, log
 
@@ -80,6 +81,72 @@ class ChatMixin:
         self._presence_start(conv, state["plan"])
         self._dialog_start(conv, delay=b.bundle_s)  # bündeln: eine Antwort für alle
         return True
+
+    def _test_figure(self, ident: dict) -> dict | None:
+        """Influencerin des Kundentests: die des Default-Kontakts, sonst die des Kontos."""
+        chosen = self.store.default_contact()["influencer"]
+        figures = self.store.influencers()
+        found = next((f for f in figures if str(f["id"]) == chosen), None)
+        if found is None:
+            figure_id = self.store.influencer_for_identity(ident)
+            found = next((f for f in figures if f["id"] == figure_id), None)
+        return found
+
+    async def _dialog_test(self, inbound) -> None:
+        """Kundentest (SP4 Schritt 8): derselbe Dialog und derselbe registrierte Workflow wie bei
+        Kunden, im eigenen Testverlauf des Default-Chats mit eigenem Gedächtnis je Sitzung."""
+        conv = inbound.conversation_id
+        self.store.mark_test(inbound.message_id)
+        ident, _figure = self._dialog_parts(conv)
+        figure = self._test_figure(ident)
+        if figure is None:
+            await self._reply_internal(conv, "Kundentest: keine Influencerin im Default-Kontakt.")
+            return
+        for message_id in self.store.open_ai_replies(conv):
+            if self.store.cancel_message(message_id, "neue Testnachricht – neu erzeugt"):
+                self._message_changed(message_id)
+        default = self.store.default_contact()
+        notice = default["test_notice_message_id"]
+        if notice is None or self.store.message(notice)["status"] == "failed":
+            text = self._notice_text(figure)
+            if text:
+                message_id = self.store.queue_test_notice(conv, text)
+                adapter = self._adapter(ident["platform"], ident["account"])
+                if adapter is not None:
+                    adapter.wake.set()
+                self._message_changed(message_id)
+            else:
+                self.store.add_system_card(conv, "KUNDENTEST · KI-Hinweistext fehlt (E20/E21)")
+                self._message_changed(0)
+        state = self._dialog_state.setdefault(conv, {"task": None, "dirty": False})
+        state["test"] = True
+        b = self._behavior(figure)
+        if default["test_delay"]:  # „Verzögerung wie Kunde“
+            last = self.store.last_sent_at(conv)
+            state["plan"] = behavior.plan(
+                b, datetime.now().astimezone(),
+                previous_out=datetime.fromisoformat(last) if last else None,
+                first_contact=last is None, readiness=0,
+            )  # fmt: skip
+            self._dialog_start(conv, delay=b.bundle_s)
+        else:
+            state["plan"] = None
+            self._dialog_start(conv)
+
+    async def _test_reset(self, msg: commands_pb2.TestReset, call: _Call) -> str:
+        """Kundentest zurücksetzen (Befehl 63): Testgedächtnis und Hinweisstatus leer."""
+        default = self.store.default_contact()
+        call.entity = f"customer:{default['customer_id']}"
+        figure = next(
+            (f for f in self.store.influencers() if str(f["id"]) == default["influencer"]), None
+        )
+        session = self.store.test_reset(figure["id"] if figure else None)
+        conv = self.store.default_conversation()
+        if conv is not None:
+            self.store.add_system_card(conv, f"KUNDENTEST ZURÜCKGESETZT · Sitzung {session}")
+        self._message_changed(0)
+        self.hub.push_events(spb.TOPIC_MEMORY_CHANGED)
+        return ""
 
     def _behavior(self, figure: dict) -> behavior.Behavior:
         """Verhaltensprofil: Startwerte aus ``[behavior]``, darüber das aktive Profil."""
@@ -177,29 +244,56 @@ class ChatMixin:
 
     # ------------------------------------------------------------------ Antwort
 
-    async def _dialog_reply(self, conv: int, state: dict) -> None:
+    def _dialog_frame(self, conv: int, state: dict) -> dict | None:
+        """Rahmen eines Laufs: Kunde (Akte, Kundengedächtnis) oder Kundentest im Default-Chat
+        (eigener Verlauf, Testgedächtnis je Sitzung, nie Sperre der internen Akte; SP4 Schritt 8).
+        None = keine Antwort."""
         ident, figure = self._dialog_parts(conv)
+        if state.get("test"):
+            default = self.store.default_contact()
+            figure = self._test_figure(ident)
+            if figure is None:
+                return None
+            notice = default["test_notice_message_id"]
+            status = self.store.message(notice)["status"] if notice else None
+            return {
+                "ident": ident, "figure": figure, "customer_id": default["customer_id"],
+                "age_mark": "", "notice": notice, "notice_status": status, "test": True,
+                "memory": ("test", figure["id"], default["test_session"]),
+                "kind": "test", "session": default["test_session"],
+            }  # fmt: skip
         if (
             figure is None
             or not figure["text_ai"]
             or self.store.conversation_mode(conv) == "manual"
         ):
-            return
-        customer = self.store.customer_by_id(ident["customer_id"])
-        age_mark = self.store.age_mark(customer.id)
+            return None
+        age_mark = self.store.age_mark(ident["customer_id"])
         if age_mark == "under_18":
+            return None
+        return {
+            "ident": ident, "figure": figure, "customer_id": ident["customer_id"],
+            "age_mark": age_mark, "notice": ident["ai_notice_message_id"],
+            "notice_status": ident["ai_notice_status"], "test": False,
+            "memory": ("customer", ident["customer_id"], 0), "kind": "chat", "session": 0,
+        }  # fmt: skip
+
+    async def _dialog_reply(self, conv: int, state: dict) -> None:
+        frame = self._dialog_frame(conv, state)
+        if frame is None:
             return
+        ident, figure, test = frame["ident"], frame["figure"], frame["test"]
         persona = self.store.active_persona(figure["id"])
         if persona is None:
             self.store.add_system_card(conv, "KI-ANTWORT · kein aktives Profil der Influencerin")
             self._message_changed(0)
             return
         wf = self._text_workflow("")
-        notice = ident["ai_notice_message_id"]  # fester Hinweis gehört nicht zum Gespräch
+        limit_turns = self.cfg.dialog.chat_turns
         turns = [
-            t for t in self.store.dialog_turns(conv, self.cfg.dialog.chat_turns + 1)
-            if t["id"] != notice
-        ][-self.cfg.dialog.chat_turns :]  # fmt: skip
+            t for t in self.store.dialog_turns(conv, limit_turns + 1, test=test)
+            if t["id"] != frame["notice"]  # fester Hinweis gehört nicht zum Gespräch
+        ][-limit_turns:]  # fmt: skip
         tail = 0
         while tail < len(turns) and turns[len(turns) - 1 - tail]["direction"] == "in":
             tail += 1
@@ -213,7 +307,7 @@ class ChatMixin:
         )
         message = "\n".join(newest)
         facts = dialog.facts_for(self.cfg, figure)
-        chosen = memory.select(self.store, self.cfg, "customer", customer.id, 0, message)
+        chosen = memory.select(self.store, self.cfg, *frame["memory"], message)
         values = {k: persona["blocks"].get(k, "") for k in models.PROFILE_INPUTS}
         values |= {"context": context, "memory": memory.as_input(chosen), "facts": facts.text()}
         values |= {"message": message}
@@ -222,11 +316,11 @@ class ChatMixin:
         partner = ident["platform_conversation_id"]
         window = adapter.window_open(partner) if adapter is not None else True
         limit = getattr(getattr(adapter, "ig", None), "max_text_bytes", None)
-        mode = self.store.conversation_mode(conv)
+        mode = "auto" if test else self.store.conversation_mode(conv)
         context_gates = dialog.ReplyContext(
             # der Hinweis geht vor der Antwort raus (gleiche Konversation, ältere Nachricht)
-            ai_notice_sent=ident["ai_notice_status"] in ("sent", "queued", "sending"),
-            age_mark=age_mark,
+            ai_notice_sent=frame["notice_status"] in ("sent", "queued", "sending"),
+            age_mark=frame["age_mark"],
             operator_active=mode == "manual",
             automation=True,  # Automatik/Modus entscheiden Entwurf oder Versand (unten)
             window_open=window,
@@ -235,11 +329,13 @@ class ChatMixin:
         run = {
             "influencer_id": figure["id"],
             "persona_version": persona["id"],
-            "customer_id": customer.id,
+            "customer_id": frame["customer_id"],
+            "session": frame["session"],
             "message": message,
             "context": {
                 "turns": len(turns) - tail,
                 "conversation": conv,
+                "test": test,
                 "memory": [
                     {"id": m["id"], "level": m["level"], "reason": m["reason"]} for m in chosen
                 ],
@@ -248,38 +344,43 @@ class ChatMixin:
         }
         previous = [t["text"] for t in turns if t["direction"] == "out"]
         error, run_id, typed = await self._llm_run(
-            "chat", wf.key, values, run, facts, context_gates, previous
+            frame["kind"], wf.key, values, run, facts, context_gates, previous
         )
         if typed is not None and typed.memory:
-            area = ("customer", customer.id, 0)
-            memory.apply_items(self.store, *area, list(typed.memory), source=f"Lauf #{run_id}")
+            source = f"Lauf #{run_id}"
+            memory.apply_items(self.store, *frame["memory"], list(typed.memory), source=source)
         if error:
             self.store.add_system_card(conv, f"KI-ANTWORT FEHLGESCHLAGEN · {error}")
             self._message_changed(0)
             return
-        if typed is not None and self._consequences(conv, customer.id, typed):
-            return  # gesperrt: keine Antwort
+        if typed is not None and self._consequences(conv, frame, typed):
+            return  # gesperrt bzw. im Test: Hinweis auf Minderjährigkeit, keine Antwort
         row = self.store.ai_run(run_id)
+        customer_id = frame["customer_id"]
         if state.get("dirty"):  # neue Nachricht während der Erzeugung: verworfen, neu erzeugt
             message_id = self.store.queue_reply(
-                customer.id, conv, row["answer"], status="draft", ai_run_id=run_id
+                customer_id, conv, row["answer"], status="draft", ai_run_id=run_id, test=test
             )
             self.store.cancel_message(message_id, "neue Kundennachricht während der Erzeugung")
             self._message_changed(message_id)
             return
         failed = [g["reason"] for g in self._gates_of(row) if not g["ok"]]
-        why = failed + ([w] if (w := self._auto_allowed(conv, ident, figure)) else [])
+        allowed = "" if test else self._auto_allowed(conv, ident, figure)
+        why = failed + ([allowed] if allowed else [])
         if not why:
+            when = self._reply_time(conv, figure, row["answer"])
+            if test and not self.store.default_contact()["test_delay"]:
+                when = None  # Kundentest ohne „Verzögerung wie Kunde“: sofort
             message_id = self.store.queue_reply(
-                customer.id, conv, row["answer"], status="queued", ai_run_id=run_id,
-                scheduled_at=self._reply_time(conv, figure, row["answer"]),
+                customer_id, conv, row["answer"], status="queued", ai_run_id=run_id,
+                scheduled_at=when, test=test,
             )  # fmt: skip
             if adapter is not None:
                 adapter.wake.set()
         else:
             message_id = self.store.queue_reply(
-                customer.id, conv, row["answer"], status="draft", ai_run_id=run_id,
-                reason="; ".join(why),
+                customer_id, conv, row["answer"], status="draft", ai_run_id=run_id,
+                reason="; ".join(why), test=test,
             )  # fmt: skip
         self._message_changed(message_id)
         if self._fill is None or self._fill.done():  # Vertröst-Texte nachlegen (Leerlauf)
@@ -404,19 +505,29 @@ class ChatMixin:
     def _gates_of(row: dict) -> list[dict]:
         return json.loads(row.get("gates") or "[]")
 
-    def _consequences(self, conv: int, customer_id: int, typed: assessment.Assessment) -> bool:
-        """Autorisierte Folgen der Einstufung (SP4 Schritt 4); True = keine Antwort."""
+    def _consequences(self, conv: int, frame: dict, typed: assessment.Assessment) -> bool:
+        """Autorisierte Folgen der Einstufung (SP4 Schritt 4); True = keine Antwort. Im Kundentest
+        nur Karten (die interne Akte wird nie gesperrt)."""
+        prefix = "TEST · " if frame["test"] else ""
         if typed.minor_hint:
-            if assessment.apply_minor_lock(self.store, customer_id, conv, typed.minor_evidence):
-                self._message_changed(0)
+            if frame["test"]:
+                evidence = f" · Beleg: {typed.minor_evidence}" if typed.minor_evidence else ""
+                self.store.add_system_card(
+                    conv, f"{prefix}SPERRE wäre gesetzt (minderjährig vermutet){evidence}"
+                )
+            elif assessment.apply_minor_lock(
+                self.store, frame["customer_id"], conv, typed.minor_evidence
+            ):
+                pass
+            self._message_changed(0)
             return True
         if typed.explicit_wish:
             self.store.add_system_card(
-                conv, "EXPLIZITER WUNSCH · kein Auftrag – Antwort nach der Strategie im Profil"
+                conv, f"{prefix}EXPLIZITER WUNSCH · kein Auftrag – Antwort nach der Strategie"
             )
         elif "offer_ready" in typed.consequences:
             wish = typed.wish.description or "–"
-            self.store.add_system_card(conv, f"KAUFBEREIT · {wish} · Angebot folgt (SP5)")
+            self.store.add_system_card(conv, f"{prefix}KAUFBEREIT · {wish} · Angebot folgt (SP5)")
         self._message_changed(0)
         return False
 
@@ -427,6 +538,11 @@ class ChatMixin:
         freigegebene Antworten prüfen nur die harten Gates (Hinweis, Sperre, Fenster)."""
         conv = item["conversation_id"]
         ident, figure = self._dialog_parts(conv)
+        if item.get("test"):  # Kundentest: nur der Testhinweis muss vorher raus
+            notice = self.store.default_contact()["test_notice_message_id"]
+            if notice and notice != item["id"] and self.store.message(notice)["status"] != "sent":
+                return "KI-Hinweis des Kundentests noch nicht gesendet."
+            return ""
         if self.store.age_mark(ident["customer_id"]) == "under_18":
             return LOCK_REASON
         notice = ident["ai_notice_message_id"]

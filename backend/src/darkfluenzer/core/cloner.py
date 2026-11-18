@@ -155,16 +155,20 @@ class ClonerMixin:
         default = self.store.default_contact()
         msg = self.store.message(inbound.message_id)
         conv = inbound.conversation_id
+        # feste Wörter vor der Betriebsart (SP4 Schritt 8): nie Sprachmodell oder Gedächtnis
+        said = msg["text"].strip().lower()
+        word = (default.get("cancel_word") or "").strip().lower()
+        if word and said == word:  # Chat-Wort (SP1 Schritt 11)
+            await self._cloner_cancel_chat(conv, msg)
+            return
+        if said in self.cfg.cloner.mode_words:  # Betriebsart per Chat
+            await self._cloner_mode_word(conv, msg, self.cfg.cloner.mode_words[said])
+            return
         mode = self.store.account_mode(msg["platform"], msg["account"])
         if mode == "off":
             return  # Betriebsart aus: nur anzeigen (SP1 Schritt 12)
         if mode == "test":
-            if self._notice_due(conv, "test"):
-                await self._reply_internal(conv, cloner.TEST_MODE)
-            return
-        word = (default.get("cancel_word") or "").strip().lower()
-        if word and msg["text"].strip().lower() == word:  # Chat-Wort (SP1 Schritt 11)
-            await self._cloner_cancel_chat(conv, msg)
+            await self._dialog_test(inbound)  # Kundentest (SP4 Schritt 8)
             return
         parsed = cloner.parse(msg["text"])
         if not default["process_commands"]:
@@ -596,6 +600,17 @@ class ClonerMixin:
                 conv, "returned", command, platform, f"{sent} Datei(en) im Chat",
                 order_no=order.order_no, reply="",
             )  # fmt: skip
+
+    async def _cloner_mode_word(self, conv: int, msg: dict, mode: str) -> None:
+        """Betriebsart des Kontos per festem Wort im Default-Chat."""
+        acc = self.store.account_for(msg["platform"], msg["account"])
+        if acc is None:
+            await self._reply_internal(conv, "Betriebsart: Kanalkonto unbekannt.")
+            return
+        self.store.set_account_mode(acc["key"], mode)
+        self._channels_changed()
+        labels = {"production": "Produktion", "test": "Kundentest", "off": "Aus"}
+        await self._reply_internal(conv, f"Betriebsart: {labels[mode]}.")
 
     async def _cloner_cancel_chat(self, conv: int, msg: dict) -> None:
         """Chat-Wort (SP1 Schritt 11): laufende Kloner-Aufträge dieses Chats abbrechen."""

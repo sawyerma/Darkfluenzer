@@ -125,6 +125,7 @@ class CommandsMixin:
             "message_resolve": self._message_resolve,
             "outbox_control": self._outbox_control,
             "behavior_update": self._behavior_update,
+            "test_reset": self._test_reset,
             "set_workflow_enabled": self._set_enabled,
             "open_workflow": self._open,
             "adopt_workflow": self._adopt,

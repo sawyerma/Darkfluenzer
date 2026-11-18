@@ -200,6 +200,15 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP4 Schritt 8 (Kundentest Chat)
+Commit: siehe git log „SP4 step 8“ / core/chat.py (_dialog_test, Rahmen, _test_reset), core/cloner (feste Wörter
+  vor der Betriebsart, mode_words), Migration 36, Befehle 63 und 37 (test_delay), DefaultPanel (Kundentest)
+Nachweis: tests/test_kundentest.py, Backend 293; Chrome-E2E isoliert 22/22
+Nachweis echt: Migration 35→36 mit Sicherung, Wiederanmeldung, lesend echt 9/9
+NOT_RUN: 20 Testnachrichten vom Handy mit Messwerten (Profil/Clara am echten System fehlt – Betreiberangabe)
+Ergebnis: TEIL
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP4 Schritt 7 (Verhalten, E3/E4) / BUG-096, BUG-017 (Textteil)
 Commit: siehe git log „SP4 step 7“ / core/behavior.py, core/chat.py (Plan, Lesen/Tippen/Online, Vertröstung),
   Migration 35, Befehl 53, [behavior], channels (mark_read/set_typing/set_online, Postausgang nach Sendezeit,

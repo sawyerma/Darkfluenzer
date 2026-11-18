@@ -130,6 +130,8 @@ message ConversationItem {
   // = Status draft mit Grund in error, storniert = cancelled
   int64 scheduled_at_ms = 18;
   uint64 ai_run_id = 19;
+  // gehört zum Kundentest im Default-Chat (SP4 Schritt 8), nie zur Produktion
+  bool test = 20;
 }
 
 // EVENT conversations.event: Nachricht neu oder geändert (Status, Anhänge)
@@ -182,6 +184,9 @@ message DefaultContact {
   string cancel_word = 14;
   // Betriebsart je Kanalkonto (SP1 Schritt 12)
   repeated AccountMode account_modes = 15;
+  // Kundentest (SP4 Schritt 8): Verzögerung wie Kunde, laufende Testsitzung
+  bool test_delay = 16;
+  uint32 test_session = 17;
 }
 
 message CommandWorkflow {

@@ -327,6 +327,7 @@ function Entry({ item }: { item: ConversationItem }) {
     deleted ? `gelöscht ${shortTime(item.deletedAtMs)}` : "",
     item.status === "queued" && Number(item.scheduledAtMs) > 0 ? `geplant ${shortTime(item.scheduledAtMs)}` : "",
     item.aiRunId ? `KI-Lauf #${String(item.aiRunId)}` : "",
+    item.test ? "TEST" : "",
   ];
   const aiOpen = out && Boolean(item.aiRunId) && (item.status === "draft" || item.status === "queued");
   return (
