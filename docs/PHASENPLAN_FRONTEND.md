@@ -601,6 +601,22 @@ flowchart TD
 
 ---
 
+### 6.10 Verbindliche Protobuf-Tabelle: jedes Studio-Bedienelement routen
+
+**Normativer, versionierter GUI-/Backend-Vertrag:** [Studio-Protobuf-Index](../protocol/contracts/studio/README.md) und [vollständige Routing-Tabelle](../protocol/contracts/studio/Studio_Protobuf_Routing_Vollstaendig.csv) sowie [alle 1.781 Felder](../protocol/contracts/studio/Studio_Protobuf_Feldkatalog.csv), [alle Felddefinitionen](../protocol/contracts/studio/Studio_Protobuf_Alle_Felder.md). **Priorität:** geltende Sicherheits-/Kundenregeln → Backend §13.15 → diese Feld-/Routing-Tabelle → Studio-Klickdemo §6.9 für das Erscheinungsbild. Kein UI-Control ohne eindeutige Command-, Read-, STATE-/EVENT- und echte Backend-Zuordnung.
+
+| Bedienbereich | Verbindlicher Weg | Fachliche Konsequenz |
+|---|---|---|
+| **Erstellen** | `StudioTaskProfile`, `StudioRecipeVersion`, `StudioCreativeBrief`, `StudioProductionRequest`; Commands 100–111, 105–107; STATE 40/41/42; EVENT 60–64 | Aufgabe → Rezept/Referenz/Prompt → echter Lauf und Status |
+| **Storyboard/Regie** | Script-/Storyboard-/Scene-/Shot-/Camera-/SceneSpec-/Guide-/Timeline-Felder; Commands 112–118, 143–150, 154; STATE 43; EVENT 64/68/71 | Revisionssichere Shot-/Blocking-/Kameraführung; nur qualifizierte Adapter |
+| **Charaktere** | `StudioCharacterSheet`, `StudioLoraRef`, `StudioTrainingRun`, `StudioLookPreset`; entsprechende katalogisierte Commands; STATE 48; EVENT 67 | reale Charakter- und LoRA-Registry, keine zweite Datenhaltung |
+| **Projekte / Exporte** | `StudioProject`, `StudioProduction`, `StudioExportManifest`, `StudioHandoffValidity`; STATE 41/42; EVENT 60/63/69/70 | Studio zeigt Export, Kunden-Gate allein verantwortet Zustellung |
+| **Labor + Flow-Editor** | `StudioModelCatalog`, `StudioComparisonRun`, `StudioFlowDefinition`, `StudioNodeRun`; STATE 40/46/47; EVENT 61/65/72/73 | graphversionsgebundener Executor, kein zweiter ComfyUI-Editor im Normalmodus |
+| **Einstellungen/KI** | `StudioProviderAccount`, `StudioRoleBinding`, `StudioProviderSettings`, `StudioProviderUsage`; STATE 45; EVENT 66 | mehrere Konten/Modelle, Secrets nur write-only, Cloud ohne Freigabe AUS |
+| **Große Details** | `StudioReadRequest` mit **24** typisierten Alternativen → `StudioReadResponse` am vorgesehenen `POST /api/v1/studio/read` | bedarfsgesteuert, paginiert, autorisiert; kein permanentes WS-Snapshot/Polling |
+
+**Status & Umsetzung:** Die sechs neuen Studio-Proto-Dateien und 21 Enumdefinitionen sind in den Uploads **nicht enthalten**. Die Git-Ablage fixiert **SOLL-IDs**, keine bereits lauffähigen DTOs. DS0 muss die echten `*.proto` und Enums ergänzen/prüfen, Schema-Codegen und Handshake nachweisen; jedes DS-Paket aktiviert nur die tatsächlich implementierten Handler. **Nicht verfügbare Buttons bleiben begründet deaktiviert.** `ACCEPTED` ist keine abgeschlossene Produktion, und eine im HTML klickbare Funktion ist kein funktionales PASS. Für Kunden bleibt LOCAL_ONLY, für F06 Regel 4 und für Lieferungen das widerrufbare Kundengate verbindlich.
+
 ## Anhang A – Freigegebene Klickreferenz F7
 
 Wörtlich aus dem archivierten `PHASENPLAN_FRONT_V1.md` (F7, Betreiberfreigabe 15./16.11.2026) übernommen. Verweise auf „V0“, „FRONT“ oder Abschnittsnummern beziehen sich auf die Archivfassungen. Bei Widerspruch gilt dieser Plan, insbesondere §1 (sechs Reiter, einheitliche Bedienung je Art) und §3. Die früheren Abschnitte F0–F6 sind durch §1–§4 dieses Plans und den Backend-Plan ersetzt und liegen im Archiv.

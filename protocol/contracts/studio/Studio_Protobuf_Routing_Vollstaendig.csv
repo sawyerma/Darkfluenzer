@@ -1,0 +1,107 @@
+Transport;Feldnummer;Feldname;Payload;Klasse;Antwort;Status
+POST /api/v1/command;100;studio_project_upsert;StudioProjectUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;101;studio_project_archive;StudioProjectArchive;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;102;studio_task_select;StudioTaskSelect;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;103;studio_recipe_upsert;StudioRecipeUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;104;studio_recipe_activate;StudioRecipeActivate;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;105;studio_production_submit;StudioProductionSubmit;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;106;studio_production_control;StudioProductionControl;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;107;studio_production_rerun;StudioProductionRerun;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;108;studio_asset_import;StudioAssetImport;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;109;studio_asset_role_update;StudioAssetRoleUpdate;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;110;studio_asset_detach;StudioAssetDetach;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;111;studio_brief_upsert;StudioBriefUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;112;studio_script_generate;StudioScriptGenerate;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;113;studio_script_upsert;StudioScriptUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;114;studio_storyboard_generate;StudioStoryboardGenerate;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;115;studio_storyboard_upsert;StudioStoryboardUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;116;studio_scene_upsert;StudioSceneUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;117;studio_shot_upsert;StudioShotUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;118;studio_shot_remove;StudioShotRemove;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;119;studio_look_upsert;StudioLookUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;120;studio_character_sheet_update;StudioCharacterSheetUpdate;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;121;studio_training_start;StudioTrainingStart;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;122;studio_training_control;StudioTrainingControl;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;123;studio_flow_upsert;StudioFlowUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;124;studio_flow_validate;StudioFlowValidate;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;125;studio_flow_activate;StudioFlowActivate;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;126;studio_flow_node_update;StudioFlowNodeUpdate;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;127;studio_flow_node_remove;StudioFlowNodeRemove;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;128;studio_model_registry_refresh;StudioModelRegistryRefresh;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;129;studio_model_register;StudioModelRegister;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;130;studio_model_set_qualification;StudioModelSetQualification;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;131;studio_provider_account_upsert;StudioProviderAccountUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;132;studio_provider_secret_replace;StudioProviderSecretReplace;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;133;studio_provider_secret_clear;StudioProviderSecretClear;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;134;studio_provider_account_remove;StudioProviderAccountRemove;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;135;studio_provider_test;StudioProviderTest;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;136;studio_provider_models_refresh;StudioProviderModelsRefresh;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;137;studio_role_binding_upsert;StudioRoleBindingUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;138;studio_global_provider_settings_update;StudioGlobalProviderSettingsUpdate;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;139;studio_director_request;StudioDirectorRequest;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;140;studio_director_note_decision;StudioDirectorNoteDecision;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;141;studio_scene_spec_upsert;StudioSceneSpecUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;142;studio_blender_build;StudioBlenderBuild;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;143;studio_guide_approval;StudioGuideApproval;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;144;studio_guide_compare_request;StudioGuideCompareRequest;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;145;studio_camera_input_register;StudioCameraInputRegister;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;146;studio_camera_input_calibration;StudioCameraInputCalibration;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;147;studio_blocking_settings_update;StudioBlockingSettingsUpdate;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;148;studio_timeline_upsert;StudioTimelineUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;149;studio_export_request;StudioExportRequest;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;150;studio_export_review;StudioExportReview;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;151;studio_export_revoke;StudioExportRevoke;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;152;studio_comparison_start;StudioComparisonStart;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;153;studio_comparison_select;StudioComparisonSelect;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;154;studio_queue_control;StudioQueueControl;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;155;studio_prompt_template_upsert;StudioPromptTemplateUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;156;studio_shot_preset_upsert;StudioShotPresetUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;157;studio_audio_generate;StudioAudioGenerate;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+POST /api/v1/command;158;studio_audio_preset_upsert;StudioAudioPresetUpsert;COMMAND;CommandResponse + CommandReceipt;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;40;TOPIC_STUDIO_TASKS;StudioTasksState;STATE;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;41;TOPIC_STUDIO_PRODUCTIONS;StudioProductionsState;STATE;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;42;TOPIC_STUDIO_PROJECTS;StudioProjectsState;STATE;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;43;TOPIC_STUDIO_STORYBOARDS;StudioStoryboardsState;STATE;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;44;TOPIC_STUDIO_QUEUE;StudioQueueState;STATE;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;45;TOPIC_STUDIO_PROVIDERS;StudioProvidersState;STATE;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;46;TOPIC_STUDIO_FLOWS;StudioFlowsState;STATE;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;47;TOPIC_STUDIO_RESOURCES;StudioResourcesState;STATE;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;48;TOPIC_STUDIO_CHARACTERS;StudioCharactersState;STATE;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;60;TOPIC_STUDIO_PRODUCTION_CHANGED;StudioProductionChanged;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;61;TOPIC_STUDIO_NODE_RUN_CHANGED;StudioNodeRunChanged;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;62;TOPIC_STUDIO_ASSET_CHANGED;StudioAssetChanged;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;63;TOPIC_STUDIO_PROJECT_CHANGED;StudioProjectChanged;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;64;TOPIC_STUDIO_CREATIVE_CHANGED;StudioCreativeChanged;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;65;TOPIC_STUDIO_FLOW_CHANGED;StudioFlowChanged;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;66;TOPIC_STUDIO_PROVIDER_CHANGED;StudioProviderChanged;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;67;TOPIC_STUDIO_CHARACTER_CHANGED;StudioCharacterChanged;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;68;TOPIC_STUDIO_GUIDE_CHANGED;StudioGuideChanged;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;69;TOPIC_STUDIO_EXPORT_CHANGED;StudioExportChanged;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;70;TOPIC_STUDIO_HANDOFF_CHANGED;StudioHandoffChanged;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;71;TOPIC_STUDIO_DIRECTOR_RESULT;StudioDirectorResult;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;72;TOPIC_STUDIO_COMPARISON_CHANGED;StudioComparisonChanged;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+WebSocket /ws/v1/stream;73;TOPIC_STUDIO_FLOW_VALIDATED;StudioFlowValidated;EVENT;Welcome.topic + STATE/EVENT;SOLL_RESERVIERT
+POST /api/v1/studio/read;1;list_projects;StudioReadRequest.list_projects;READ;StudioReadResponse.projects;SOLL_RESERVIERT
+POST /api/v1/studio/read;2;list_productions;StudioReadRequest.list_productions;READ;StudioReadResponse.productions;SOLL_RESERVIERT
+POST /api/v1/studio/read;3;list_assets;StudioReadRequest.list_assets;READ;StudioReadResponse.assets;SOLL_RESERVIERT
+POST /api/v1/studio/read;4;list_flows;StudioReadRequest.list_flows;READ;StudioReadResponse.flows;SOLL_RESERVIERT
+POST /api/v1/studio/read;5;list_training;StudioReadRequest.list_training;READ;StudioReadResponse.trainings;SOLL_RESERVIERT
+POST /api/v1/studio/read;6;get_project;StudioReadRequest.get_project;READ;StudioReadResponse.project;SOLL_RESERVIERT
+POST /api/v1/studio/read;7;get_production;StudioReadRequest.get_production;READ;StudioReadResponse.production;SOLL_RESERVIERT
+POST /api/v1/studio/read;8;get_flow;StudioReadRequest.get_flow;READ;StudioReadResponse.flow;SOLL_RESERVIERT
+POST /api/v1/studio/read;9;get_storyboard;StudioReadRequest.get_storyboard;READ;StudioReadResponse.storyboard;SOLL_RESERVIERT
+POST /api/v1/studio/read;10;get_script;StudioReadRequest.get_script;READ;StudioReadResponse.script;SOLL_RESERVIERT
+POST /api/v1/studio/read;11;get_brief;StudioReadRequest.get_brief;READ;StudioReadResponse.brief;SOLL_RESERVIERT
+POST /api/v1/studio/read;12;get_scene_spec;StudioReadRequest.get_scene_spec;READ;StudioReadResponse.scene_spec;SOLL_RESERVIERT
+POST /api/v1/studio/read;13;get_guide;StudioReadRequest.get_guide;READ;StudioReadResponse.guide;SOLL_RESERVIERT
+POST /api/v1/studio/read;14;get_timeline;StudioReadRequest.get_timeline;READ;StudioReadResponse.timeline;SOLL_RESERVIERT
+POST /api/v1/studio/read;15;get_export;StudioReadRequest.get_export;READ;StudioReadResponse.export_manifest;SOLL_RESERVIERT
+POST /api/v1/studio/read;16;get_handoff_validity;StudioReadRequest.get_handoff_validity;READ;StudioReadResponse.handoff_validity;SOLL_RESERVIERT
+POST /api/v1/studio/read;17;get_comparison;StudioReadRequest.get_comparison;READ;StudioReadResponse.comparison;SOLL_RESERVIERT
+POST /api/v1/studio/read;18;get_training;StudioReadRequest.get_training;READ;StudioReadResponse.training;SOLL_RESERVIERT
+POST /api/v1/studio/read;19;get_asset;StudioReadRequest.get_asset;READ;StudioReadResponse.asset;SOLL_RESERVIERT
+POST /api/v1/studio/read;20;get_character_sheet;StudioReadRequest.get_character_sheet;READ;StudioReadResponse.character_sheet;SOLL_RESERVIERT
+POST /api/v1/studio/read;21;list_looks;StudioReadRequest.list_looks;READ;StudioReadResponse.looks;SOLL_RESERVIERT
+POST /api/v1/studio/read;22;get_look;StudioReadRequest.get_look;READ;StudioReadResponse.look;SOLL_RESERVIERT
+POST /api/v1/studio/read;23;get_node_run;StudioReadRequest.get_node_run;READ;StudioReadResponse.node_run;SOLL_RESERVIERT
+POST /api/v1/studio/read;24;list_provider_usage;StudioReadRequest.list_provider_usage;READ;StudioReadResponse.provider_usage;SOLL_RESERVIERT

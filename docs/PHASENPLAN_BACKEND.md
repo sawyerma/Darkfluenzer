@@ -1680,3 +1680,38 @@ flowchart LR
 **Schnittstellenparität:** Jede sichtbare Studio-Funktion aus Erstellen, Storyboard, Charaktere, Projekte, Labor und dem DS7-Experteneditor erhält erst beim zuständigen DS-Paket einen echten Fachvertrag, eine zulässige Status-/Fehlerdarstellung und eine Regression. Nicht vorhandene Funktionen bleiben deaktiviert/als `NOT_RUN` gekennzeichnet. Kein duplizierter `media`-/`artifacts`-/`jobs`-Speicher, keine zweite Flow-Engine und kein direkter Frontend-ComfyUI-Zugriff. Demo-Wallet-/Cloud-/Modellwerte sind nicht autoritativ, insbesondere gelten E6-Zahlungswege, E19-Gesprächs-KI und §13.4 Liefer-Gate unverändert.
 
 **Verbindliche Abnahme:** Die bereits in §13.10 festgelegten DS0–DS10-Pakete erhalten zusätzlich eine visuelle Browserreferenz: Studio-Layout und Interaktionspfade in `docs/design/Darkfluenzer_Studio_Klickdemo.html`. Backend-/Daten-/Gate- und Mac-Abnahmen werden dadurch ergänzt, nicht ersetzt. Kein Design-PASS aus bloß vorhandener HTML-Datei.
+
+### 13.15 Verbindlicher Protobuf-Routingvertrag für DarkStudio (18.11.2026)
+
+**Einzige versionierte Sollquelle für die neue Studio-Protobuf-Schnittstelle:** [protocol/contracts/studio/README.md](../protocol/contracts/studio/README.md), zusammen mit dem hochgeladenen [Routing-Original](../protocol/contracts/studio/Studio_Protobuf_Routing.csv), der [vollständigen Routing-Tabelle](../protocol/contracts/studio/Studio_Protobuf_Routing_Vollstaendig.csv), dem [Feldkatalog](../protocol/contracts/studio/Studio_Protobuf_Feldkatalog.csv), der [Feldliste mit festem Tag](../protocol/contracts/studio/Studio_Protobuf_Alle_Felder.md) und dem [fachlichen README](../protocol/contracts/studio/README_STUDIO_PROTOBUF.md). **Dies ist Vertragsdokumentation, kein dritter Phasenplan und kein bereits implementierter Protobuf-Code.**
+
+**Reservierter Nummernvertrag** (gegen `main` am 18.11. kollisionsfrei geprüft): `CommandRequest.oneof command` **100–158 = 59** typisierte Studio-Kommandos; `Topic` **40–48 = 9 STATE**, **60–73 = 14 EVENT**; der bestehende `TOPIC_COMMAND_RECEIPT = 29` bleibt unverändert. Ergänzend **24** Protobuf-`StudioReadRequest`-Operationen für Details und Listen über den vorgesehenen, bisher nicht implementierten Endpunkt `POST /api/v1/studio/read`. **Insgesamt 106 Routingzeilen**. Der hochgeladene vollständige Feldentwurf beschreibt **195 Nachrichtentypen und 1.781 Feldnummern**; `Studio_Protobuf_Feldkatalog.csv` erhält die Einzelzuordnung von Nachricht, Tag, Typ und Kardinalität. Feldnummern dürfen nicht nach Gefühl ersetzt werden.
+
+**Harte Backend-Regeln:**
+1. Alle Betreiber-/Kunden-/Kloner-Aktionen laufen über dieselbe Command-Envelope, Persistenz, CAS-/Idempotenzschicht und `CommandReceipt`; `ACCEPTED` bedeutet nicht `COMPLETED`. Kein zweiter Gateway, kein JSON-Transport und keine Python- oder ComfyUI-Direktaufrufe aus React.
+2. STATE-Projektionen sind kompakt, versionsgebunden und subscribierbar; EVENT entsteht erst nach Commit mit reproduzierbarem Cursor, Catch-up/Gap bei Reconnect. Große Graphen, Shotlisten, Asset-/Node-Details und Verlauf nur per autorisiertem paginiertem `StudioReadRequest` abrufen, nicht per Dauer-STATE oder Polling.
+3. `ProductionClient`/`ProductionService` besitzt die Produktionskommandos und delegiert ComfyUI/Blender/Provider als Adapter. `production_handoffs`, Zahlungs-/Kundenfreigabe und tatsächlicher Versand gehören dem Kundenmodul; Gate, zwei SQLite-Trigger, Hash und Widerruf aus §13.4 bleiben verbindlich. `StudioHandoff` ist **kein** Kundenversandbefehl.
+4. **Regel 3/4/6/12e gehen vor potenziell anders benannten Payload-Feldern:** F06 ersetzt niemals reale Personen in Fremdvideos; fremde Vorlage liefert nur Kontrollsignal für eigene synthetische Produktion. Kundendaten, Chat-/Kreativbrief und Kundenreferenzen gehen nie an externe KI; Cloud bleibt AUS bis E33 tatsächlich freigegeben wird. `allow_customer_text_transfer` und `customer_conversation_external_enabled` können diese Regel nicht überschreiben.
+5. Zugangsdaten werden nie als Raw-Command-Bytes journalisiert, geloggt, wiedergegeben oder in Receipts/STATE/EVENT persistiert. Ein Provider-Key wird ausschließlich verschlüsselt über den vorhandenen Schlüsselbund verwaltet. `StudioProviderSecretReplace` braucht **vor** Integration eine separate Schreib-/Maskierungs-/Log-Leak-Abnahme.
+6. **Nur Sollschema, noch keine sechs echten `studio_*.proto`:** Die Uploads enthalten weder diese Proto-Quelldateien noch die erwähnten Enumzahlen, `studio_descriptor.pb` oder `apply_studio_proto.py`. **21 aufgelistete Enumtypen** haben im Feld-Upload keine numerischen Definitionen; diese und `oneof`-Semantik (z. B. `StudioValue`, `StudioReadRequest`) müssen in DS0 verbindlich aufgelöst werden, **ohne Werte zu erfinden**. Erst mit vollständigem Quellcode, `buf lint`/`buf generate`, Python-/TS-Codec-Roundtrips, Schema-ID/Welcome und realen Handler-Tests ist Protobuf-Integration nachgewiesen.
+
+**Phasenpflichten:** DS0 prüft `main` erneut auf alle belegt/reserviert-Tags und macht die vollständigen sechs Proto-/Enum-Definitionen compilefähig; DS1 aktiviert nur Aufgaben-/Rezeptfelder und deren echte Commands; DS2/3 ergänzt Flow-/Run-/State-/Event-/Read-Schicht und Handoff; DS8 routet alle drei Aufrufarten; DS4–DS6b füllen Referenzen, KI-Regie, Film, Blender und Tracking; DS7 macht Flow-Editorversionen bedienbar; DS9 optionale Provider, DS10 Protokoll-/Recovery-/Mac-Gesamtqualifikation. Nicht implementierte reservierte Nachrichten bleiben **NOT_IMPLEMENTED** und ihre GUI-Controls deaktiviert, niemals ein Fake-`PASS`.
+
+~~~mermaid
+flowchart TD
+  F["React Studio / Kunde / Default"] -->|"CommandRequest 100-158 + request_id"| C["/api/v1/command"]
+  C -->|"ACCEPTED ≠ fertig"| S["ProductionClient / Service"]
+  S -->|"versionierte Flow-/NodeRuns"| E["Ein Executor"]
+  E --> M["ComfyUI 1/2 · Blender · freigegebener Provider"]
+  S -->|"Commit"| DB[("Eine SQLite + Eventjournal")]
+  DB --> R["CommandReceipt Topic 29"]
+  DB --> T["STATE Topics 40-48"]
+  DB --> V["EVENT Topics 60-73"]
+  R --> F
+  T --> F
+  V --> F
+  F -->|"24 paginierte Reads, ohne Polling"| Q["/api/v1/studio/read: SOLL"]
+  Q --> F
+  S -->|"nur geprüfter Export"| H["Koordinator + Kunden-Handoff"]
+  H --> G["Kunden-Gate / Trigger / Versand"]
+~~~
