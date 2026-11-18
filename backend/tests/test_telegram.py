@@ -5,6 +5,7 @@ Anmeldewert nie im Befehlsjournal."""
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import dataclasses
 import hashlib
 import time
@@ -372,3 +373,139 @@ def test_interrupted_attachment_copy_leaves_no_partial_file(cfg, tmp_path, monke
         asyncio.run(scenario())
     finally:
         store.close()
+
+
+def test_service_chat_777000_is_never_stored(cfg, tmp_path):
+    """SP2 Schritt 5: Anmeldecodes des Telegram-Dienstkontos landen nie im Verlauf – auch nicht als
+    freigegebener Test-Chat oder außerhalb des Testbetriebs."""
+    store = Store(cfg.local)
+    acc, inbound, _ = _account(cfg, tmp_path, store)
+    acc.test_chat_ids = (TEST_CHAT, 777000)
+
+    async def scenario():
+        await acc._message(_msg(777000, 5, text="Login code: 12345"))
+        acc.test_mode = False
+        await acc._message(_msg(777000, 6, text="Login code: 67890"))
+
+    asyncio.run(scenario())
+    assert store.db.execute("SELECT count(*) FROM channel_messages").fetchone()[0] == 0
+    assert inbound == [] and acc._td.calls == []  # nicht einmal getChat/getUser
+    store.close()
+
+
+def test_edit_and_delete_change_the_history(cfg, tmp_path):
+    """updateMessageContent: neuer Text, erster Text bleibt, Ereignis; updateDeleteMessages:
+    Löschmarke nur bei endgültiger Löschung, nicht beim Entfernen aus dem TDLib-Speicher."""
+    from darkfluenzer.web import mappers
+
+    store = Store(cfg.local)
+    acc, inbound, changed = _account(cfg, tmp_path, store)
+
+    def content(text):
+        return {"@type": "messageText", "text": {"text": text}}
+
+    async def scenario():
+        await acc._message(_msg(TEST_CHAT, 10, text="hallo"))
+
+    asyncio.run(scenario())
+    mid = inbound[0].message_id
+    edit = {"@type": "updateMessageContent", "chat_id": TEST_CHAT, "message_id": 10}
+    acc._on_update(edit | {"new_content": content("hallo du")})
+    acc._on_update(edit | {"new_content": content("hallo ihr")})
+    acc._on_update(edit | {"new_content": content("hallo ihr")})  # unverändert: nichts
+    acc._on_update(edit | {"message_id": 99, "new_content": content("x")})  # unbekannt
+    row = store.message(mid)
+    assert (row["text"], row["original_text"]) == ("hallo ihr", "hallo") and row["edited_at"]
+    assert changed == [mid, mid]
+    events = store.db.execute(
+        "SELECT event FROM events WHERE entity = 'message' AND entity_id = ?", (mid,)
+    ).fetchall()
+    assert [e[0] for e in events].count("edited") == 2
+    gone = {"@type": "updateDeleteMessages", "chat_id": TEST_CHAT, "message_ids": [10]}
+    acc._on_update(gone | {"is_permanent": False, "from_cache": False})
+    acc._on_update(gone | {"is_permanent": True, "from_cache": True})
+    assert store.message(mid)["deleted_at"] is None
+    acc._on_update(gone | {"is_permanent": True, "from_cache": False})
+    acc._on_update(gone | {"is_permanent": True, "from_cache": False})  # schon markiert
+    row = store.message(mid)
+    assert row["deleted_at"] and row["text"] == "hallo ihr"  # Inhalt bleibt (SP6 Schritt 8)
+    assert changed == [mid, mid, mid]
+    acc._on_update(edit | {"new_content": content("nach dem Löschen")})  # gelöscht: keine Änderung
+    item = mappers._conversation_item(store.conversation_item(mid), store)
+    assert item.deleted_at_ms > 0 and item.edited_at_ms > 0 and item.original_text == "hallo"
+    acc._on_update(
+        {"@type": "updateMessageContent", "chat_id": 777000, "message_id": 10,
+         "new_content": content("x")}
+    )  # fmt: skip
+    assert store.message(mid)["text"] == "hallo ihr"
+    store.close()
+
+
+def test_caption_only_on_the_first_attachment(cfg, tmp_path):
+    store = Store(cfg.local)
+    acc, inbound, _ = _account(cfg, tmp_path, store)
+    files = []
+    for n in (1, 2, 3):
+        rel = f"customers/f{n}.png"
+        (cfg.local / "customers").mkdir(parents=True, exist_ok=True)
+        (cfg.local / rel).write_bytes(b"png")
+        files.append({"kind": "document", "path": rel, "mime": "image/png", "size": 3})
+
+    async def scenario():
+        await acc._message(_msg(TEST_CHAT, 10))
+        conv = inbound[0].conversation_id
+        store.queue_outbound(
+            inbound[0].customer.id, conv, "Deine Bilder", attachments=files,
+            revision=store.conversation_revision(conv),
+        )  # fmt: skip
+        (item,) = store.outbox("telegram", CLARA)
+        await acc._send(item)
+
+    asyncio.run(scenario())
+    sent = [c["input_message_content"] for c in acc._td.calls if c["@type"] == "sendMessage"]
+    assert [c["caption"]["text"] for c in sent] == ["Deine Bilder", "", ""]
+    assert all(c["@type"] == "inputMessageDocument" for c in sent)
+    store.close()
+
+
+def test_stopping_closes_tdlib_and_ignores_late_updates(cfg, tmp_path, monkeypatch):
+    """Befund am echten Neustart (SP2 Schritt 4): nach dem Beenden kamen ``closing``/``closed``
+    noch an, liefen gegen die geschlossene Datenbank und hätten eine neue Instanz gestartet."""
+    store = Store(cfg.local)
+    acc, _, _ = _account(cfg, tmp_path, store)
+    acc.tg.tdjson.write_bytes(b"")
+    monkeypatch.setattr(acc, "_prerequisites", lambda: ("1", "h"))
+    monkeypatch.setattr(acc, "_db_key", lambda: "k")
+    closed, started = [], []
+
+    class Td:
+        closed = False
+
+        def close(self):
+            closed.append(True)
+
+    def start():
+        started.append(True)
+        acc._td = Td()
+
+    monkeypatch.setattr(acc, "_start_client", start)
+    acc._td = None
+
+    async def scenario():
+        task = asyncio.ensure_future(acc.run())
+        await asyncio.sleep(0.05)
+        assert started == [True]
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    asyncio.run(scenario())
+    assert closed == [True] and acc._stopping
+    store.close()  # wie beim Herunterfahren: Datenbank zu
+    state = acc.state
+    for kind in ("authorizationStateClosing", "authorizationStateClosed"):
+        acc._on_update(
+            {"@type": "updateAuthorizationState", "authorization_state": {"@type": kind}}
+        )
+    acc._on_update({"@type": "updateNewMessage", "message": _msg(TEST_CHAT, 99)})
+    assert started == [True] and acc.state == state  # keine neue Instanz, kein Zustand

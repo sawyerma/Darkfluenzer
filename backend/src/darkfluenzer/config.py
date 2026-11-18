@@ -124,6 +124,8 @@ class TelegramConfig:
     reply_delay_max_s: float
     typing_chars_per_s: float
     max_messages_per_minute: int
+    # nie gespeichert (SP2 Schritt 5): Telegram-Dienstkonto 777000 (Anmeldecodes)
+    ignored_chat_ids: tuple[int, ...] = (777000,)
 
 
 @dataclass(frozen=True)
@@ -459,10 +461,12 @@ def _parse_telegram(tg: object, root: Path, path: Path) -> TelegramConfig | None
     if not isinstance(tg, dict):
         raise ConfigError(f"Konfiguration {path}: [{w}] muss ein Abschnitt sein.")
     ids = tg.get("test_chat_ids", [])
-    if not isinstance(ids, list) or not all(
-        isinstance(i, int) and not isinstance(i, bool) for i in ids
-    ):
-        raise ConfigError(f"Konfiguration: {w}.test_chat_ids muss eine Liste von Chat-IDs sein.")
+    ignored = tg.get("ignored_chat_ids", [777000])
+    for key, val in (("test_chat_ids", ids), ("ignored_chat_ids", ignored)):
+        if not isinstance(val, list) or not all(
+            isinstance(i, int) and not isinstance(i, bool) for i in val
+        ):
+            raise ConfigError(f"Konfiguration: {w}.{key} muss eine Liste von Chat-IDs sein.")
     test_mode = tg.get("test_mode", True)
     if not isinstance(test_mode, bool):
         raise ConfigError(f"Konfiguration: {w}.test_mode muss true oder false sein.")
@@ -483,6 +487,7 @@ def _parse_telegram(tg: object, root: Path, path: Path) -> TelegramConfig | None
         reply_delay_max_s=high,
         typing_chars_per_s=_positive(tg, "typing_chars_per_s", 6, w),
         max_messages_per_minute=int(_positive(tg, "max_messages_per_minute", 6, w)),
+        ignored_chat_ids=tuple(ignored),
     )
 
 

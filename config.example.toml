@@ -140,6 +140,8 @@ tdjson = "local/tdlib/libtdjson.dylib"
 data_dir = "local/telegram"
 test_mode = true
 test_chat_ids = []
+# nie gespeichert: Telegram-Dienstkonto (Anmeldecodes)
+ignored_chat_ids = [777000]
 max_download_mb = 2000
 # Antworttempo gegen Sperren: Verzögerung vor jeder Nachricht, Schreibanzeige, Höchstzahl je Minute
 reply_delay_min_s = 4

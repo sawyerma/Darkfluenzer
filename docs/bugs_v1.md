@@ -44,7 +44,7 @@
 | BUG-010 | BTC-Adresse in Großbuchstaben: Prüfung akzeptiert, Vergleich unterscheidet Groß/klein. | CODE | Für Vergleich und Abfrage normalisieren. | B SP5 |
 | BUG-011 | Zuordnung nach Erkennungszeit statt Blockzeit (`store._match_offer`). | CODE | Verspätet gescannte, rechtzeitig bestätigte Zahlung wird zugeordnet; nach Ablauf nicht. | B SP5 |
 | BUG-013 | Telegram-Anhang bleibt nach Absturz zwischen Speichern und Download `pending`. | CODE | Fortsetzung nach Neustart oder Fehlschlag mit Grund. | B SP1 |
-| BUG-015 | Telegram-Dienstkonto 777000 kann als Kunde landen. | OFFEN | Keine Akte, kein KI-Dialog, Code nie im Gedächtnis. | B SP2 |
+| BUG-015 | **[18.11.] CODE** (`ignored_chat_ids`, Vorgabe 777000; Test rot→grün; echter Code-Eingang offen) – Telegram-Dienstkonto 777000 kann als Kunde landen. | OFFEN | Keine Akte, kein KI-Dialog, Code nie im Gedächtnis. | B SP2 |
 | BUG-016 | Versand mit Status `unknown` bleibt hängen; Instagram klärt ihn nur im Speicher, nach Neustart entsteht fälschlich „ÜBERGABE AN BETREIBER“. | CODE | Abgleich dauerhaft über Verlauf/Echo, nie blind zweimal senden, eigene Nachricht nie als Übergabe. | B SP2 |
 | BUG-017 | Instagram lehnt Bilder über 8 MB ab; keine Zustellkopie; Texte über 1000 Byte nicht geteilt: `instagram._parts` lehnt Text über `max_text_bytes` ganz ab. | CODE | Zustellkopie je Kanalgrenze, nie unter 1K; Text teilen; genau einmal zugestellt. | B SP5 (Datei), SP4 (Text) |
 | BUG-019 | Angebot wählt das Produkt über den Listenindex. | CODE | Stabile ID je Preisposition, Revisionsprüfung. | B SP5 |
@@ -200,6 +200,22 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP2 Schritt 5 (Telegram-Eingang vervollständigen) / BUG-015
+Commit: siehe git log „SP2 step 5“ / config (ignored_chat_ids), channels/telegram (_edited, _deleted, Beschriftung,
+  _stopping), store/messages (edit_platform_message, delete_platform_messages), Migration 31,
+  ConversationItem 15–17, Stream.tsx (bearbeitet/gelöscht), graphite.css (.g-orig, data-deleted)
+Nachweis Unit/Integration: tests/test_telegram.py – 777000 nie gespeichert (Test-Chat und Produktivbetrieb, keine
+  TDLib-Abfrage), Bearbeiten zweimal (erster Text bleibt, zwei Ereignisse, unverändert/unbekannt ohne Wirkung),
+  Löschen nur endgültig und nicht aus dem Speicher, Inhalt bleibt, gelöscht nicht mehr bearbeitbar, Mapper liefert
+  15–17; Beschriftung nur am ersten von drei Anhängen; Beenden schließt TDLib und verarbeitet danach nichts
+Nachweis echt: Migration 30→31 mit Sicherung; Befund beim Neustart (alter Prozess: authorizationStateClosing gegen
+  geschlossene Datenbank) behoben und mit zweitem Neustart bestätigt (Beenden ohne Fehler, Wiederanmeldung
+  493976404); Chrome-E2E isoliert tests/messages-edit.spec.ts (bearbeitet mit erstem Text, gelöscht, Neuladen),
+  lesend echt
+NOT_RUN: Bearbeiten/Löschen am Handy in einem echten Chat, echter 777000-Code-Eingang
+Ergebnis: TEIL
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP2 Schritt 4 (ein TDLib-Empfänger) / BUG-049
 Commit: siehe git log „SP2 step 4“ / channels/tdjson.py (Receiver je Bibliothek, TdJson.close/wait_closed),
   channels/telegram.py (Datenverzeichnis und DB-Schlüssel je Konto, Schließen beim Beenden/Neustart),

@@ -93,6 +93,59 @@ class MessagesMixin:
                 self.add_system_card(conv, "GUTSCHEIN ERHALTEN · im Reiter Wallet prüfen")
             return Inbound(customer, identity, conv, message_id, created)
 
+    def _platform_messages(
+        self, platform: str, account: str, partner_id: str, ids: list[str]
+    ) -> list[tuple[int, int, str, str | None]]:
+        """Gespeicherte Nachrichten einer Plattform-Konversation zu Plattform-IDs:
+        (ID, Akte, Text, Löschzeit)."""
+        if not ids:
+            return []
+        marks = ",".join("?" * len(ids))
+        return self.db.execute(
+            "SELECT m.id, m.customer_id, m.text, m.deleted_at FROM channel_messages m"
+            " JOIN channel_conversations c ON c.id = m.conversation_id"
+            " JOIN channel_identities i ON i.id = c.identity_id"
+            " WHERE i.platform = ? AND i.account = ? AND c.platform_conversation_id = ?"
+            f" AND m.direction IN ('in', 'out') AND m.platform_message_id IN ({marks})",
+            (platform, account, partner_id, *ids),
+        ).fetchall()
+
+    def edit_platform_message(
+        self, platform: str, account: str, partner_id: str, platform_message_id: str, text: str
+    ) -> int | None:
+        """Die Plattform meldet neuen Text (SP2 Schritt 5): Text ersetzen, den ersten Text und die
+        Zeit behalten, Ereignis ``edited``. None, wenn unbekannt, gelöscht oder unverändert."""
+        rows = self._platform_messages(platform, account, partner_id, [platform_message_id])
+        if not rows or rows[0][3] is not None or rows[0][2] == text:
+            return None
+        message_id, customer_id, _, _ = rows[0]
+        with self.tx() as db:
+            db.execute(
+                "UPDATE channel_messages SET original_text = COALESCE(original_text, text),"
+                " text = ?, edited_at = ? WHERE id = ?",
+                (text, now(), message_id),
+            )
+            self._event("message", message_id, "edited", customer_id=customer_id)
+            self.bump("conversations")
+        return message_id
+
+    def delete_platform_messages(
+        self, platform: str, account: str, partner_id: str, ids: list[str]
+    ) -> list[int]:
+        """Die Plattform meldet gelöschte Nachrichten: Löschmarke setzen (Inhalt bleibt bis zur
+        Entscheidung in SP6 Schritt 8), Ereignis ``deleted``; liefert die neu markierten IDs."""
+        rows = [r for r in self._platform_messages(platform, account, partner_id, ids) if not r[3]]
+        if not rows:
+            return []
+        with self.tx() as db:
+            for message_id, customer_id, _, _ in rows:
+                db.execute(
+                    "UPDATE channel_messages SET deleted_at = ? WHERE id = ?", (now(), message_id)
+                )
+                self._event("message", message_id, "deleted", customer_id=customer_id)
+            self.bump("conversations")
+        return [r[0] for r in rows]
+
     def record_external_outgoing(
         self,
         platform: str,

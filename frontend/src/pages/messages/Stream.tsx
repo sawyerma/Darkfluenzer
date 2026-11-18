@@ -225,15 +225,26 @@ function Entry({ item }: { item: ConversationItem }) {
     );
   }
   const out = item.direction === "out";
+  // Bearbeitung und Löschung meldet die Plattform (SP2 Schritt 5); der Inhalt bleibt sichtbar
+  const edited = Number(item.editedAtMs) > 0;
+  const deleted = Number(item.deletedAtMs) > 0;
   const meta = [
     PLATFORM_LABEL[item.platform] ?? item.platform,
     item.sender,
     shortTime(item.atMs),
     out ? (ITEM_STATUS[item.status] ?? item.status) : "",
+    edited ? `bearbeitet ${shortTime(item.editedAtMs)}` : "",
+    deleted ? `gelöscht ${shortTime(item.deletedAtMs)}` : "",
   ];
   return (
-    <div className="g-bubble" data-platform={item.platform} data-dir={out ? "out" : "in"}>
+    <div className="g-bubble" data-platform={item.platform} data-dir={out ? "out" : "in"} data-deleted={deleted || undefined}>
       {item.text ? <p>{item.text}</p> : null}
+      {edited && item.originalText ? (
+        <details className="g-orig">
+          <summary>Erster Text</summary>
+          <p>{item.originalText}</p>
+        </details>
+      ) : null}
       {attachments}
       <small>{meta.filter(Boolean).join(" · ")}</small>
       {item.error ? <p className="g-error">{item.error}</p> : null}

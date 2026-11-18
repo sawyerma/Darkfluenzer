@@ -139,6 +139,7 @@ class TelegramAccount(Channel):
         self.flood_until = 0.0
         self.wake = asyncio.Event()  # Postausgang hat Arbeit
         self._td: TdJson | None = None
+        self._stopping = False  # Server beendet: TDLib-Updates nicht mehr verarbeiten
         self._chats: dict[int, str] = {}  # Chat-ID -> TDLib-Chatart
         self._titles: dict[int, str] = {}  # Chat-ID -> Titel (Einzelchat: Name des Kontakts)
         # Chats mit ungelesenen Nachrichten -> zuletzt gelesene eingehende ID (aus TDLib-Updates);
@@ -236,13 +237,17 @@ class TelegramAccount(Channel):
         if self._td is not None and not self._td.closed:
             self._td.close()
             await self._td.wait_closed(self._timeout)
+        self._stopping = False
         self._set("CONNECTING", missing="")
         self._start_client()
         try:
             await asyncio.Event().wait()  # läuft bis zum Beenden des Servers
         finally:
+            # erst nichts mehr verarbeiten (die Datenbank schließt gleich), dann TDLib sauber
+            # schließen; ``closed`` startet dann keine neue Instanz
+            self._stopping = True
             if self._td is not None:
-                self._td.close()  # TDLib schreibt seine Datenbank sauber zu
+                self._td.close()
 
     def _start_client(self) -> None:
         """Neue TDLib-Instanz am gemeinsamen Empfangsthread (kein eigener Thread je Instanz)."""
@@ -316,6 +321,8 @@ class TelegramAccount(Channel):
     # ------------------------------------------------------------------ Updates
 
     def _on_update(self, update: dict) -> None:
+        if self._stopping:
+            return
         kind = update.get("@type")
         if kind == "updateAuthorizationState":
             self._spawn(self._auth_step(update["authorization_state"]))
@@ -332,6 +339,10 @@ class TelegramAccount(Channel):
                 self._unread.pop(update["chat_id"], None)
         elif kind == "updateNewMessage":
             self._spawn(self._guard(self._message(update["message"])))
+        elif kind == "updateMessageContent":
+            self._edited(update)
+        elif kind == "updateDeleteMessages":
+            self._deleted(update)
         elif kind == "updateMessageSendSucceeded":
             self._send_result(update["old_message_id"], str(update["message"]["id"]), None)
         elif kind == "updateMessageSendFailed":
@@ -343,6 +354,35 @@ class TelegramAccount(Channel):
             self._set("READY" if ready else "CONNECTING")
             if ready:
                 self.wake.set()
+
+    def _edited(self, update: dict) -> None:
+        """Bearbeitete Nachricht (SP2 Schritt 5): neuer Text im Verlauf, erster Text bleibt; nur
+        für gespeicherte Nachrichten, nie für ignorierte Chats."""
+        chat = int(update["chat_id"])
+        if chat in self.tg.ignored_chat_ids or not self.account:
+            return
+        text = message_text(update.get("new_content") or {})
+        changed = self.store.edit_platform_message(
+            PLATFORM, self.account, str(chat), str(update["message_id"]), text
+        )
+        if changed is not None:
+            self.on_change_message(changed)
+
+    def _deleted(self, update: dict) -> None:
+        """Gelöschte Nachrichten: Löschmarke im Verlauf; ``from_cache`` (nur aus dem TDLib-Speicher
+        entfernt) und nicht endgültige Löschungen ändern nichts."""
+        chat = int(update["chat_id"])
+        if (
+            chat in self.tg.ignored_chat_ids
+            or not self.account
+            or update.get("from_cache")
+            or not update.get("is_permanent")
+        ):
+            return
+        ids = [str(i) for i in update.get("message_ids") or ()]
+        gone = self.store.delete_platform_messages(PLATFORM, self.account, str(chat), ids)
+        for message_id in gone:
+            self.on_change_message(message_id)
 
     def _spawn(self, job: Awaitable[None]) -> None:
         """Hintergrundaufgabe mit Referenz bis zum Ende; ohne sie kann der Event-Loop die Aufgabe
@@ -471,6 +511,8 @@ class TelegramAccount(Channel):
 
     async def _message(self, msg: dict) -> None:
         chat_id = int(msg["chat_id"])
+        if chat_id in self.tg.ignored_chat_ids:
+            return  # Dienstkonto 777000 u. ä.: nie gespeichert, nie im Verlauf (SP2 Schritt 5)
         if self.test_mode and chat_id not in self.test_chat_ids:
             if chat_id > 0 and not msg.get("is_outgoing"):  # Einzelchat (TDLib: positive ID)
                 self.rejected = deque(
@@ -656,9 +698,10 @@ class TelegramAccount(Channel):
                         "@type": "inputFileLocal",
                         "path": str(self.cfg.local / a["path"]),
                     },
-                    "caption": text,
+                    # Beschriftung nur am ersten Anhang (SP2 Schritt 5), nicht an jedem Teil
+                    "caption": text if i == 0 else {"@type": "formattedText", "text": ""},
                 }
-                for a in files
+                for i, a in enumerate(files)
             ]
             if files
             else [{"@type": "inputMessageText", "text": text}]

@@ -121,6 +121,11 @@ message ConversationItem {
   // Systemkarte eines erkannten Kloner-Auftrags, der auf den Betreiberstart wartet
   // („Automatische Produktionsaufträge“ aus, V0 §8)
   bool awaiting_start = 14;
+  // Plattform meldet eine Bearbeitung (SP2 Schritt 5): Zeit und erster Text; 0/leer = unverändert
+  int64 edited_at_ms = 15;
+  string original_text = 16;
+  // Plattform meldet die Löschung: Löschmarke; der Inhalt bleibt bis zur Regel aus SP6 Schritt 8
+  int64 deleted_at_ms = 17;
 }
 
 // EVENT conversations.event: Nachricht neu oder geändert (Status, Anhänge)

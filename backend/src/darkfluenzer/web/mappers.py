@@ -252,6 +252,9 @@ def _conversation_item(row: dict, store: Store) -> channel_pb2.ConversationItem:
         awaiting_start=row["direction"] == "system"
         and bool(row["origin_message_id"])
         and not row["order_id"],
+        edited_at_ms=_unix_ms(row["edited_at"]) if row.get("edited_at") else 0,
+        original_text=row.get("original_text") or "",
+        deleted_at_ms=_unix_ms(row["deleted_at"]) if row.get("deleted_at") else 0,
     )
     if row["order_id"]:
         _fill_order(item.order, store, store.order_by_id(row["order_id"]))

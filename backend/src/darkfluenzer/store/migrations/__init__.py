@@ -647,6 +647,14 @@ CREATE TABLE channel_accounts (
 CREATE UNIQUE INDEX channel_accounts_platform_id ON channel_accounts(platform, platform_account_id)
     WHERE platform_account_id != '';
 """,
+    31: """
+-- Telegram-Eingang vervollständigen (SP2 Schritt 5): bearbeitete Nachricht mit Zeit und erstem
+-- Text, gelöschte mit Löschmarke. Der Inhalt bleibt; ob er bei Löschung entfernt wird, klärt
+-- SP6 Schritt 8.
+ALTER TABLE channel_messages ADD COLUMN edited_at TEXT;
+ALTER TABLE channel_messages ADD COLUMN original_text TEXT;
+ALTER TABLE channel_messages ADD COLUMN deleted_at TEXT;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft
