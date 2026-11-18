@@ -10,7 +10,8 @@ Das Backend typisiert es streng und leitet daraus nur autorisierte Folgen ab –
 
 Schema-Vertrag (``SCHEMA_HINT``): Pflicht sind ``minor_hint``, ``explicit_wish`` und
 ``purchase_readiness`` (0–3); optional ``minor_evidence``, ``readiness_evidence``, ``intent`` und
-``wish`` mit ``kind`` (image, video, leer), ``description``, ``source``.
+``wish`` mit ``kind`` (image, video, leer), ``description``, ``source``, und ``memory`` (Liste
+mit ``level`` customer, memo, event, self, ``text`` und optional ``replaces``, SP4 Schritt 5).
 """
 
 from __future__ import annotations
@@ -19,10 +20,13 @@ from dataclasses import dataclass, field
 
 OFFER_READINESS = 2  # ab dieser Kaufbereitschaft mit Wunsch folgt das Angebot (SP5)
 WISH_KINDS = ("image", "video", "")
+MEMORY_LEVELS = ("customer", "memo", "event", "self")
 REQUIRED = ("minor_hint", "explicit_wish", "purchase_readiness")
 SCHEMA_HINT = (
     '{"minor_hint": false, "minor_evidence": "", "explicit_wish": false, "purchase_readiness": 0, '
-    '"readiness_evidence": "", "wish": {"kind": "", "description": "", "source": ""}, "intent": ""}'
+    '"readiness_evidence": "", "wish": {"kind": "", "description": "", "source": ""}, '
+    '"intent": "", '
+    '"memory": [{"level": "customer|memo|event|self", "text": "", "replaces": 0}]}'
 )
 
 
@@ -34,6 +38,15 @@ class Wish:
 
 
 @dataclass(frozen=True)
+class MemoryItem:
+    """Vorschlag für das Gedächtnis (SP4 Schritt 5): Ebene, Text, optional ersetzte Erinnerung."""
+
+    level: str
+    text: str
+    replaces: int = 0
+
+
+@dataclass(frozen=True)
 class Assessment:
     minor_hint: bool
     explicit_wish: bool
@@ -42,6 +55,7 @@ class Assessment:
     readiness_evidence: str = ""
     wish: Wish = field(default_factory=Wish)
     intent: str = ""
+    memory: tuple[MemoryItem, ...] = ()
 
     @property
     def consequences(self) -> list[str]:
@@ -83,9 +97,23 @@ def parse(value: object) -> tuple[Assessment | None, str]:
     wish = Wish(**{k: raw_wish.get(k, "") for k in ("kind", "description", "source")})
     if any(not isinstance(v, str) for v in vars(wish).values()) or wish.kind not in WISH_KINDS:
         return None, "Einstufung: wish braucht kind (image, video oder leer), description, source."
-    return Assessment(
-        value["minor_hint"], value["explicit_wish"], readiness, wish=wish, **texts
-    ), ""
+    raw_memory = value.get("memory") or []
+    if not isinstance(raw_memory, list):
+        return None, "Einstufung: memory muss eine Liste sein."
+    memory = []
+    for item in raw_memory:
+        if not isinstance(item, dict) or item.get("level") not in MEMORY_LEVELS:
+            return None, f"Einstufung: memory braucht level ({', '.join(MEMORY_LEVELS)})."
+        text, replaces = item.get("text"), item.get("replaces", 0) or 0
+        if not isinstance(text, str) or isinstance(replaces, bool) or not isinstance(replaces, int):
+            return None, "Einstufung: memory braucht text und optional replaces (Nummer)."
+        if text.strip():
+            memory.append(MemoryItem(item["level"], text.strip(), replaces))
+    typed = Assessment(
+        value["minor_hint"], value["explicit_wish"], readiness, wish=wish, memory=tuple(memory),
+        **texts,
+    )  # fmt: skip
+    return typed, ""
 
 
 def apply_minor_lock(store, customer_id: int, conversation_id: int, evidence: str) -> bool:

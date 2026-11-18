@@ -30,6 +30,8 @@ test("KI-Studio: Sprachworkflow registriert, Chat-Test statt Render, gesperrte A
   await expect(page.locator(".g-workmain .g-note").first()).toContainText(/gesperrt|Noch keine Influencerin/);
   await page.getByRole("tab", { name: "Persona" }).click();
   await expect(page.locator(".g-workmain")).toContainText(/Ehrlichkeitsblock|Noch keine Influencerin/);
+  await page.getByRole("tab", { name: "Gedächtnis" }).click();
+  await expect(page.locator(".g-workmain")).toContainText(/Gedächtnis · Sitzung|Noch keine Influencerin/);
   expect(errors).toEqual([]);
 });
 
@@ -91,6 +93,26 @@ test("KI-Studio: Profil anlegen, Testnachrichten an Melody, Verlauf und neue Sit
   const status = page.locator(".g-control-part", { has: page.getByRole("heading", { name: "KI-Status" }) });
   await expect(status.locator("dd").first()).toContainText("Melody1437");
   await expect(status.locator("dd").nth(2)).toContainText(/KI-Studio \d+,\d s/);
+  // Gedächtnis (SP4 Schritt 5): Notiz, Korrektur mit Verlauf, Kontextinspektor, Löschen (Befehl 52)
+  await page.getByRole("tab", { name: "Gedächtnis" }).click();
+  await expect(page.getByText(/^Gedächtnis · Sitzung \d+$/)).toBeVisible();
+  await page.locator("#mem-note").fill("E2E-Notiz: mag Pilze");
+  await page.getByRole("button", { name: "Notiz manuell hinzufügen" }).click();
+  const entry = page.locator(".g-memory", { hasText: "E2E-Notiz: mag Pilze" });
+  await expect(entry).toBeVisible();
+  await entry.getByRole("button", { name: "Korrigieren" }).click();
+  await page.getByLabel("Korrigierter Text").fill("E2E-Notiz: mag keine Pilze");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  const fixed = page.locator('.g-memory[data-status="active"]', { hasText: "E2E-Notiz: mag keine Pilze" });
+  await expect(fixed).toBeVisible();
+  await expect(page.locator("details.g-checks summary", { hasText: /Verlauf · \d+/ })).toBeVisible();
+  await page.locator("#mem-probe").fill("Isst du Pilze?");
+  await page.getByRole("button", { name: "Auswahl zeigen" }).click();
+  await expect(fixed.locator(".g-badge")).toHaveText("TREFFER");
+  await fixed.getByRole("button", { name: "Löschen" }).click();
+  await fixed.getByRole("button", { name: "Wirklich löschen" }).click();
+  await expect(page.locator('.g-memory[data-status="active"]', { hasText: "E2E-Notiz" })).toHaveCount(0);
+  await page.getByRole("tab", { name: "Chat-Test" }).click();
   await page.getByRole("button", { name: "Neue Sitzung" }).click();
   await expect(turns).toHaveCount(0);
   // die laufende Sitzung kommt vom Backend: nach dem Neuladen bleibt der Verlauf leer

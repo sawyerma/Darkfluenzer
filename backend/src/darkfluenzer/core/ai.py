@@ -14,10 +14,27 @@ import time
 from ..media import models
 from ..nodes import llm
 from ..nodes.comfy import ComfyError
-from ..v1 import ai_pb2, commands_pb2
+from ..v1 import ai_pb2, commands_pb2, memory_pb2
 from ..v1 import stream_pb2 as spb
-from . import assessment, dialog
+from . import assessment, dialog, memory
 from .base import _Call, _unix_ms, log
+
+
+def memory_entry(r: dict) -> memory_pb2.MemoryEntry:
+    return memory_pb2.MemoryEntry(
+        memory_id=r["id"],
+        scope=r["scope"],
+        owner_id=r["owner_id"],
+        session=r["session"],
+        level=r["level"],
+        text=r["text"],
+        source=r["source"],
+        origin=r["origin"],
+        status=r["status"],
+        replaced_by=r["replaced_by"] or 0,
+        created_ms=_unix_ms(r["created_at"]),
+        updated_ms=_unix_ms(r["updated_at"]),
+    )
 
 
 def _assessment_msg(a: assessment.Assessment) -> ai_pb2.Assessment:
@@ -80,7 +97,9 @@ class AiStudioMixin:
         params = {k: v for k, v in persona["params"].items() if k in wf.params}
         values = {k: persona["blocks"].get(k, "") for k in models.PROFILE_INPUTS}
         facts = dialog.facts_for(self.cfg, influencer)  # Preise und freigegebene Zahlungswege
-        values |= {"context": context, "memory": "", "facts": facts.text()}
+        # Gedächtnis der Studio-Sitzung (SP4 Schritt 5): Auswahl nach Zahlen aus [ai.memory]
+        chosen = memory.select(self.store, self.cfg, "studio", influencer["id"], session, text)
+        values |= {"context": context, "memory": memory.as_input(chosen), "facts": facts.text()}
         values |= {"message": text, **params}
         call.entity = f"influencer:{influencer['id']}"
         run = {
@@ -89,9 +108,17 @@ class AiStudioMixin:
             "session": session,
             "request_id": call.request_id,
             "message": text,
-            "context": {"turns": len(turns), "memory": 0, "facts": len(influencer["prices"])},
+            "context": {
+                "turns": len(turns),
+                "memory": [
+                    {"id": m["id"], "level": m["level"], "reason": m["reason"]} for m in chosen
+                ],
+                "facts": len(influencer["prices"]),
+            },
         }
-        task = asyncio.create_task(self._studio_run(wf.key, values, run, facts))
+        area = ("studio", influencer["id"], session)
+        previous = [t["answer"] for t in turns]
+        task = asyncio.create_task(self._studio_run(wf.key, values, run, facts, area, previous))
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
         return ""
@@ -104,17 +131,21 @@ class AiStudioMixin:
         run: dict,
         facts: dialog.Facts | None = None,
         context: dialog.ReplyContext | None = None,
-    ) -> str:
+        previous: list[str] | None = None,
+    ) -> tuple[str, int, assessment.Assessment | None]:
         """Ein Sprachlauf auf ComfyUI 2 mit Nachweis in ``ai_runs``; liefert den Fehler (leer =
-        ok). Während des Laufs ist er in Warteschlange und KI-Status zugeordnet; danach gilt die
-        Engine der KI-Instanz als geladen. Mit ``facts`` (Antwort an einen Menschen): bei
-        ungültiger Einstufung neue Läufe (``[dialog] schema_retries``), danach die Gates."""
+        ok), die Lauf-ID und die typisierte Einstufung. Während des Laufs ist er in Warteschlange
+        und KI-Status zugeordnet; danach gilt die Engine der KI-Instanz als geladen. Mit ``facts``
+        (Antwort an einen Menschen): bei ungültiger Einstufung oder Wiederholung einer früheren
+        Antwort (``previous``) neue Läufe (``[dialog] schema_retries``), danach die Gates."""
         wf = self.manifest.workflows[workflow]
         started = time.monotonic()
         fields: dict = {}
         error = ""
         prompt = ""
         attempts = 0
+        typed: assessment.Assessment | None = None
+        similar = 0.0
 
         def submitted(prompt_id: str) -> None:  # im Worker-Thread
             nonlocal prompt
@@ -135,11 +166,14 @@ class AiStudioMixin:
                 )
                 self._llm_runs.pop(prompt, None)
                 schema = llm.parse_classification(result.classification)
-                if facts is None or assessment.parse(schema)[0] is not None:
+                typed = assessment.parse(schema)[0]
+                threshold = self.cfg.dialog.repeat_similarity
+                similar = memory.repeats(result.answer, previous or [], threshold)
+                if facts is None or (typed is not None and not similar):
                     break
                 if attempts > self.cfg.dialog.schema_retries:
                     break
-                log.info("Einstufung ungültig – neuer Lauf (%d)", attempts + 1)
+                log.info("Einstufung ungültig oder Wiederholung – neuer Lauf (%d)", attempts + 1)
             fields = {
                 "workflow_sha": result.workflow_sha,
                 "model_sha": result.model_sha,
@@ -159,6 +193,8 @@ class AiStudioMixin:
                 gates = dialog.check(
                     result.answer, schema, facts, self.cfg.dialog.payment_terms, context
                 )
+                why = f"Antwort wiederholt eine frühere ({similar:.2f})." if similar else ""
+                gates.append(dialog.Gate("repetition", not similar, why))
                 fields["gates"] = [vars(g) for g in gates]
                 fields["sendable"] = int(dialog.sendable(gates))
         except (llm.LlmError, ComfyError, models.ManifestError, ValueError, OSError) as exc:
@@ -169,7 +205,7 @@ class AiStudioMixin:
         finally:
             self._llm_runs.pop(prompt, None)
         total_ms = round((time.monotonic() - started) * 1000)
-        self.store.add_ai_run(
+        run_id = self.store.add_ai_run(
             kind,
             workflow,
             **run,
@@ -180,7 +216,7 @@ class AiStudioMixin:
         )
         self.hub.push_events(spb.TOPIC_AI_RESULT)
         self._ai_changed()
-        return error
+        return error, run_id, None if error else typed
 
     def _ai_changed(self) -> None:
         self.hub.set_state(spb.TOPIC_AI_STATUS, self._ai_status())
@@ -188,12 +224,23 @@ class AiStudioMixin:
         self.hub.set_state(spb.TOPIC_RESOURCES, self._resources())
 
     async def _studio_run(
-        self, workflow: str, values: dict, run: dict, facts: dialog.Facts
+        self,
+        workflow: str,
+        values: dict,
+        run: dict,
+        facts: dialog.Facts,
+        area: tuple[str, int, int],
+        previous: list[str],
     ) -> None:
-        """Lauf im Hintergrund; danach ``ai_runs`` mit Gates, EVENT und Receipt (auch bei Fehler).
-        Im Studio gibt es keine Kanalidentität: geprüft werden Schema, Minderjährigkeit, Beträge und
-        Zahlungswege."""
-        error = await self._llm_run("studio", workflow, values, run, facts)
+        """Lauf im Hintergrund; danach ``ai_runs`` mit Gates, Gedächtnis-Einträge der Einstufung,
+        EVENT und Receipt (auch bei Fehler). Im Studio gibt es keine Kanalidentität: geprüft werden
+        Schema, Minderjährigkeit, Beträge, Zahlungswege und Wiederholung."""
+        error, run_id, typed = await self._llm_run(
+            "studio", workflow, values, run, facts, previous=previous
+        )
+        if typed is not None and typed.memory:
+            memory.apply_items(self.store, *area, list(typed.memory), source=f"Lauf #{run_id}")
+            self.hub.push_events(spb.TOPIC_MEMORY_CHANGED)
         self.store.finish_command(
             run["request_id"], "failed" if error else "completed", detail=error
         )
@@ -224,7 +271,7 @@ class AiStudioMixin:
     async def _warmup_run(self, workflow: str) -> None:
         values = {"message": WARMUP_MESSAGE, "max_tokens": self.cfg.ai.warmup_tokens}
         started = time.monotonic()
-        error = await self._llm_run("warmup", workflow, values, {"message": WARMUP_MESSAGE})
+        error, _, _ = await self._llm_run("warmup", workflow, values, {"message": WARMUP_MESSAGE})
         self._warmup = {
             "ms": int(time.time() * 1000),
             "s": time.monotonic() - started,
@@ -268,6 +315,51 @@ class AiStudioMixin:
         call.entity = f"influencer:{msg.influencer_id}:session:{session}"
         self.hub.set_state(spb.TOPIC_INFLUENCERS, self._influencers())  # neue Sitzung sichtbar
         return ""
+
+    async def _memory_edit(self, msg: commands_pb2.MemoryEdit, call: _Call) -> str:
+        """Gedächtnis von Hand (Befehl 52): Notiz anlegen, korrigieren (Verlauf bleibt) oder
+        löschen; nur im angegebenen Bereich."""
+        if msg.scope == "studio":
+            if not any(i["id"] == msg.owner_id for i in self.store.influencers()):
+                return "Influencerin unbekannt."
+        elif msg.scope in ("customer", "test"):
+            self.store.customer_by_id(msg.owner_id)
+        else:
+            return f"Bereich {msg.scope or '–'} unbekannt."
+        area = (msg.scope, msg.owner_id, msg.session)
+        if msg.memory_id:
+            old = self.store.memory(msg.memory_id)
+            if (old["scope"], old["owner_id"], old["session"]) != area:
+                return "Erinnerung gehört zu einem anderen Bereich."
+            if msg.delete:
+                self.store.delete_memory(msg.memory_id, origin="operator")
+                call.entity = f"memory:{msg.memory_id}"
+            else:
+                if not msg.text.strip():
+                    return "Text fehlt."
+                new = self.store.replace_memory(
+                    msg.memory_id, msg.text, source="Betreiber", origin="operator"
+                )
+                call.entity = f"memory:{new}"
+        else:
+            if msg.delete or not msg.text.strip():
+                return "Text fehlt."
+            new = self.store.add_memory(
+                *area, msg.level, msg.text, source="Betreiber", origin="operator"
+            )
+            call.entity = f"memory:{new}"
+        self.hub.push_events(spb.TOPIC_MEMORY_CHANGED)
+        return ""
+
+    def read_memory_events(
+        self, after: int, limit: int
+    ) -> tuple[list[tuple[int, int, bytes]], bool]:
+        rows, gap = self.store.memory_events(after, limit)
+        out = []
+        for r in rows:
+            changed = memory_pb2.MemoryChanged(entry=memory_entry(r), change=r["event"])
+            out.append((r["cursor"], _unix_ms(r["committed_at"]), changed.SerializeToString()))
+        return out, gap
 
     def read_ai_results(self, after: int, limit: int) -> tuple[list[tuple[int, int, bytes]], bool]:
         rows, gap = self.store.ai_results(after, limit)

@@ -24,7 +24,7 @@ from darkfluenzer.core import persona
 from darkfluenzer.media import models, pipeline
 from darkfluenzer.nodes import comfy, llm
 from darkfluenzer.store import Store
-from darkfluenzer.v1 import ai_pb2, comfy_pb2, commands_pb2, influencer_pb2
+from darkfluenzer.v1 import ai_pb2, comfy_pb2, commands_pb2, influencer_pb2, memory_pb2
 from darkfluenzer.v1 import stream_pb2 as pb
 from darkfluenzer.web import http as server
 
@@ -255,7 +255,9 @@ def test_studio_chat_over_http_records_runs_events_receipts_and_session(ai):
         assert state.influencers[0].studio_session == 2  # STATE 9 nennt die laufende Sitzung
 
         assert run.sendable and run.attempts == 1 and all(g.ok for g in run.gates)
-        assert [g.name for g in run.gates] == ["schema", "minor", "amounts", "payment_ways"]
+        assert [g.name for g in run.gates] == [
+            "schema", "minor", "amounts", "payment_ways", "repetition"
+        ]  # fmt: skip
         assert "Zahlungswege: Amazon-Gutschein" in run.system_prompt  # Fakten mit Zahlungswegen
 
         # SP4 Schritt 3: ungültige Einstufung -> neuer Lauf; Gates mit Grund, kein Versand
@@ -278,6 +280,48 @@ def test_studio_chat_over_http_records_runs_events_receipts_and_session(ai):
         assert broken.attempts == 2 and not broken.sendable
         assert [g.name for g in broken.gates if not g.ok] == ["schema"]
 
+        # SP4 Schritt 5: Gedächtnis aus der Einstufung, Rückfluss in den nächsten Lauf, Befehl 52
+        fresh = commands_pb2.StudioSessionReset(influencer_id=clara)
+        await send(studio_session_reset=fresh)
+        remember = json.loads(VALID) | {"memory": [{"level": "customer", "text": "Mag Pasta"}]}
+        fake.classifications = [json.dumps(remember)]
+        await chat("Ich esse total gern Pasta")
+        noted = await result()
+        (mem,) = store.memories("studio", clara, noted.session)
+        assert mem["text"] == "Mag Pasta" and mem["source"] == f"Lauf #{noted.run_id}"
+        await chat("Was weißt du über mein Essen? Pasta?")
+        recall = await result()
+        assert f"#{mem['id']} [Kundengedächtnis] Mag Pasta" in recall.system_prompt
+        ctx = json.loads(store.ai_run(recall.run_id)["context"])
+        assert ctx["memory"] == [{"id": mem["id"], "level": "customer", "reason": "Treffer"}]
+        area = {"scope": "studio", "owner_id": clara, "session": noted.session}
+        edit = commands_pb2.MemoryEdit(**area, memory_id=mem["id"], text="Mag Pasta, keine Pilze")
+        assert (await send(memory_edit=edit)).status == commands_pb2.COMMAND_STATUS_ACCEPTED
+        note = commands_pb2.MemoryEdit(**area, level="event", text="Will ein Strandfoto")
+        assert (await send(memory_edit=note)).status == commands_pb2.COMMAND_STATUS_ACCEPTED
+        other = commands_pb2.MemoryEdit(
+            **(area | {"session": 99}), memory_id=mem["id"], delete=True
+        )
+        assert "anderen Bereich" in (await send(memory_edit=other)).detail
+        assert {m["text"] for m in store.memories("studio", clara, noted.session)} == {
+            "Mag Pasta, keine Pilze", "Will ein Strandfoto"}  # fmt: skip
+        csrf_page = await client.get(
+            "/api/v1/memory-page",
+            params={"scope": "studio", "owner": clara, "session": noted.session, "query": "Pilze"},
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert csrf_page.status == 200
+        page = memory_pb2.MemoryPage.FromString(await csrf_page.read())
+        assert [e.status for e in page.entries] == ["replaced", "active", "active"]
+        hit = next(e for e in page.entries if e.text == "Mag Pasta, keine Pilze")
+        assert page.selected[0].memory_id == hit.memory_id and page.selected[0].reason == "Treffer"
+        # Wiederholung: gleiche Antwort wie zuvor -> neuer Lauf; bleibt sie gleich -> Entwurf
+        fake.answers = [recall.answer, recall.answer]
+        await chat("Und sonst?")
+        repeated = await result()
+        assert repeated.attempts == 2 and not repeated.sendable
+        assert [g.name for g in repeated.gates if not g.ok] == ["repetition"]
+
         fake.mode = "error"
         bad = await chat("Fehler")
         failed = await result()
@@ -289,7 +333,7 @@ def test_studio_chat_over_http_records_runs_events_receipts_and_session(ai):
         unknown = commands_pb2.StudioChat(influencer_id=999, text="x")
         assert "unbekannt" in (await send(studio_chat=unknown)).detail
         rows = store.db.execute("SELECT kind, error FROM ai_runs ORDER BY id").fetchall()
-        assert [r["kind"] for r in rows] == ["studio"] * 6 and bool(rows[-1]["error"])
+        assert [r["kind"] for r in rows] == ["studio"] * 9 and bool(rows[-1]["error"])
         assert fake.written and not any(p.exists() for p in fake.written)  # SPEC-018
 
     _run(cfg, scenario)

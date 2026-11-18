@@ -24,7 +24,8 @@ from google.protobuf.message import DecodeError
 
 from ..channels.instagram import InstagramAccount, InstagramError
 from ..config import Config
-from ..core.ai import AiStudioMixin
+from ..core import memory
+from ..core.ai import AiStudioMixin, memory_entry
 from ..core.base import CockpitBase, log
 from ..core.characters import CharactersMixin
 from ..core.cloner import ClonerMixin
@@ -44,6 +45,7 @@ from ..v1 import (
     commands_pb2,
     influencer_pb2,
     media_pb2,
+    memory_pb2,
     order_pb2,
     reference_pb2,
     wallet_pb2,
@@ -410,6 +412,28 @@ async def _reference_page(request: web.Request) -> web.Response:
     return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
 
 
+async def _memory_page(request: web.Request) -> web.Response:
+    """Gedächtnis eines Bereichs (alle Einträge mit Verlauf) und mit ``query`` die Auswahl für den
+    nächsten Lauf (Kontextinspektor, SP4 Schritt 5); Protobuf."""
+    if request.app[GUARD_KEY].csrf_of(request) is None:
+        return web.Response(status=401, text="Keine gültige Sitzung")
+    scope = request.query.get("scope", "")
+    try:
+        owner = int(request.query.get("owner", "0"))
+        session = int(request.query.get("session", "0"))
+    except ValueError:
+        return web.Response(status=400, text="owner/session müssen Zahlen sein")
+    if scope not in ("customer", "studio", "test") or owner <= 0:
+        return web.Response(status=400, text="scope und owner angeben")
+    cockpit = request.app[COCKPIT_KEY]
+    rows = cockpit.store.memories(scope, owner, session, active_only=False)
+    page = memory_pb2.MemoryPage(entries=[memory_entry(r) for r in rows])
+    if query := request.query.get("query", "").strip():
+        for m in memory.select(cockpit.store, cockpit.cfg, scope, owner, session, query):
+            page.selected.add(memory_id=m["id"], reason=m["reason"])
+    return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)
+
+
 async def _provenance_route(request: web.Request) -> web.Response:
     """Herkunft eines Mediums (Protobuf, bei Aufruf; abgeleitete Versionen kommen hinzu)."""
     if request.app[GUARD_KEY].csrf_of(request) is None:
@@ -575,6 +599,11 @@ def create_app(cfg: Config) -> web.Application:
         spb.TOPIC_AI_RESULT, ai_pb2.AiResult.DESCRIPTOR.full_name, cockpit.read_ai_results
     )
     hub.offer_events(
+        spb.TOPIC_MEMORY_CHANGED,
+        memory_pb2.MemoryChanged.DESCRIPTOR.full_name,
+        cockpit.read_memory_events,
+    )
+    hub.offer_events(
         spb.TOPIC_MEDIA_ADDED, media_pb2.MediaItem.DESCRIPTOR.full_name, cockpit.read_media
     )
     hub.offer_events(
@@ -616,6 +645,7 @@ def create_app(cfg: Config) -> web.Application:
     app.router.add_get("/api/v1/media-page", _media_page)
     app.router.add_get("/api/v1/provenance/{media_id}", _provenance_route)
     app.router.add_get("/api/v1/reference-page", _reference_page)
+    app.router.add_get("/api/v1/memory-page", _memory_page)
     app.router.add_get("/api/v1/payment-page", _payment_page)
     app.router.add_get("/api/v1/wallet-qr/{key}", _wallet_qr)
     app.router.add_get("/api/v1/payment-export/{month}", _payment_export)

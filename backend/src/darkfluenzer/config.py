@@ -246,6 +246,10 @@ class AiConfig:
     warmup_tokens: int = 32
     # so viele letzte Läufe zeigt der KI-Status (STATE 11)
     status_runs: int = 5
+    # Gedächtnis (SP4 Schritt 5): Erinnerungen je Ebene im Lauf (Treffer, dann jüngste)
+    memory_hits: dict[str, int] = field(
+        default_factory=lambda: {"customer": 6, "memo": 2, "event": 3, "self": 3}
+    )
 
 
 # Begriffe je Zahlungsweg für das Gate „Zahlungswege“ (SP4 Schritt 3); der erste Begriff ist der
@@ -270,8 +274,11 @@ class DialogConfig:
     payment_terms: dict[str, tuple[str, ...]] = field(
         default_factory=lambda: dict(DEFAULT_PAYMENT_TERMS)
     )
-    # neue Läufe bei ungültiger Einstufung, bevor die Antwort ein Entwurf wird
+    # neue Läufe bei ungültiger Einstufung oder Wiederholung, bevor die Antwort ein Entwurf wird
     schema_retries: int = 1
+    # Wiederholungsprüfung (SP4 Schritt 5): Wortmengen-Überdeckung zu einer früheren Antwort, ab der
+    # neu erzeugt wird (Startwert, im Testbetrieb einstellen)
+    repeat_similarity: float = 0.8
 
 
 @dataclass(frozen=True)
@@ -414,6 +421,17 @@ def _parse_comfy(root: Path, t: dict, name: str) -> ComfyConfig:
         data_dir=_resolve(root, data_dir) if data_dir else None,
         keep_loaded=keep,
     )
+
+
+def _memory_hits(t: dict) -> dict[str, int]:
+    hits = {"customer": 6, "memo": 2, "event": 3, "self": 3}
+    for level, n in t.items():
+        if level not in hits or isinstance(n, bool) or not isinstance(n, int) or n < 0:
+            raise ConfigError(
+                f"Konfiguration: ai.memory.{level} muss eine Ebene mit Zahl ≥ 0 sein."
+            )
+        hits[level] = n
+    return hits
 
 
 def _flag(t: dict, key: str, default: bool, where: str) -> bool:
@@ -730,6 +748,7 @@ def load(root: Path | None = None) -> Config:
         warmup=_flag(ai_section, "warmup", True, "ai"),
         warmup_tokens=int(_positive(ai_section, "warmup_tokens", 32, "ai")),
         status_runs=int(_positive(ai_section, "status_runs", 5, "ai")),
+        memory_hits=_memory_hits(ai_section.get("memory") or {}),
     )
     dialog_section = data.get("dialog", {})
     if not isinstance(dialog_section, dict):
@@ -744,7 +763,12 @@ def load(root: Path | None = None) -> Config:
     retries = dialog_section.get("schema_retries", 1)
     if isinstance(retries, bool) or not isinstance(retries, int) or retries < 0:
         raise ConfigError("Konfiguration: dialog.schema_retries muss eine ganze Zahl ≥ 0 sein.")
-    dialog_cfg = DialogConfig(payment_terms=terms, schema_retries=retries)
+    similar = _positive(dialog_section, "repeat_similarity", 0.8, "dialog")
+    if similar > 1:
+        raise ConfigError("Konfiguration: dialog.repeat_similarity muss zwischen 0 und 1 liegen.")
+    dialog_cfg = DialogConfig(
+        payment_terms=terms, schema_retries=retries, repeat_similarity=similar
+    )
     telegram = _parse_telegram(data.get("telegram_account"), root, path)
     instagram = _parse_instagram(data.get("instagram"), path)
     wallet = _parse_wallet(data.get("wallet"), path)

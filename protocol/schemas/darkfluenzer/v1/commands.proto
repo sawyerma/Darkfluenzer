@@ -255,6 +255,20 @@ message StudioSessionReset {
   uint64 influencer_id = 1;
 }
 
+// Gedächtnis (SP4 Schritt 5): Notiz anlegen (memory_id 0), korrigieren (neuer Text, Verlauf bleibt)
+// oder löschen; Betreiber, protokolliert.
+message MemoryEdit {
+  // customer | studio | test
+  string scope = 1;
+  uint64 owner_id = 2;
+  uint32 session = 3;
+  uint64 memory_id = 4;
+  // nur beim Anlegen: customer | memo | event | self
+  string level = 5;
+  string text = 6;
+  bool delete = 7;
+}
+
 // Inhaltsstufe eines Mediums auf „explizit“ anheben – nie absenken (Regel 13).
 message MediaContentTier {
   uint64 media_id = 1;
@@ -420,6 +434,7 @@ message CommandRequest {
     PromptProfileActivate prompt_profile_activate = 68;
     StudioChat studio_chat = 49;
     StudioSessionReset studio_session_reset = 50;
+    MemoryEdit memory_edit = 52;
   }
 }
 

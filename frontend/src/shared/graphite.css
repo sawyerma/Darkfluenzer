@@ -484,6 +484,14 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-turn { display: flex; flex-direction: column; gap: var(--g-gap-xs); }
 .g-gates { display: flex; align-items: center; gap: var(--g-gap-sm); margin: 0; }
 .g-gates small { color: var(--g-muted); font-size: var(--g-fs-tiny); }
+/* Gedächtnis (SP4 Schritt 5): Eintrag mit Quelle/Zeit/Status, Bearbeiten in der Zeile */
+.g-memory { display: flex; flex-direction: column; gap: var(--g-gap-xs); padding: var(--g-gap-sm) 0; border-bottom: 1px solid var(--g-line); }
+.g-memory[data-status="replaced"], .g-memory[data-status="deleted"] { opacity: var(--g-dim-stale); }
+.g-memory small { color: var(--g-muted); font-size: var(--g-fs-tiny); }
+.g-memory .g-actions { margin-top: 0; }
+.g-memory-text { display: flex; align-items: center; gap: var(--g-gap-sm); font-size: var(--g-fs-body); }
+.g-memory-edit { display: flex; gap: var(--g-gap-sm); align-items: center; }
+.g-memory-edit input { flex: 1 1 auto; }
 .g-schema { font: var(--g-fs-tiny) / var(--g-lh-base) var(--g-font-mono); color: var(--g-text); overflow-wrap: anywhere; }
 .g-pre { margin: 0; padding: var(--g-gap-sm); max-height: var(--g-pre-max-h); overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
   background: var(--g-input); border: 1px solid var(--g-line-input); border-radius: var(--g-r-input); font: var(--g-fs-tiny) / var(--g-lh-base) var(--g-font-mono); color: var(--g-text); }

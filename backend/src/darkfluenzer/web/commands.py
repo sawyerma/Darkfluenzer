@@ -36,7 +36,9 @@ _ASYNC_COMMANDS = frozenset({"render", "comfy_start", "comfy_stop", "studio_chat
 # Ohne Registry-Lock: lesen und ändern keine Registry und wirken sofort, auch während ein langer
 # Registry-Befehl (z. B. Workflow übernehmen) läuft (FABLE-013)
 # KI-Studio: liest nur die Registry, der Lauf selbst geht im Hintergrund (nodes/llm)
-_UNLOCKED_COMMANDS = frozenset({"cancel_job", "pause_queue", "studio_chat", "studio_session_reset"})
+_UNLOCKED_COMMANDS = frozenset(
+    {"cancel_job", "pause_queue", "studio_chat", "studio_session_reset", "memory_edit"}
+)
 
 
 # Befehle, deren Fehler als Ablehnungsgrund an den Betreiber gehen (Eingabe-/Registry-Prüfung)
@@ -109,6 +111,7 @@ class CommandsMixin:
             "prompt_profile_activate": self._prompt_profile_activate,
             "studio_chat": self._studio_chat,
             "studio_session_reset": self._studio_session_reset,
+            "memory_edit": self._memory_edit,
             "media_content_tier": self._media_content_tier,
             "customer_age_mark": self._customer_age_mark,
             "send_ai_notice": self._send_ai_notice,

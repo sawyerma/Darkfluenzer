@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package darkfluenzer.v1;
+
+// Gedächtnis (SP4 Schritt 5, B5.3): Erinnerungen je Bereich mit Quelle, Zeit und Verlauf.
+message MemoryEntry {
+  uint64 memory_id = 1;
+  // customer | studio | test
+  string scope = 2;
+  uint64 owner_id = 3;
+  uint32 session = 4;
+  // customer (Kundengedächtnis) | memo (Gesprächsmemo) | event (Langzeitereignis) | self (eigene Aussage)
+  string level = 5;
+  string text = 6;
+  // Herkunft: „Lauf #N“ (Melody) oder „Betreiber“
+  string source = 7;
+  // ai | operator
+  string origin = 8;
+  // active | replaced | deleted
+  string status = 9;
+  uint64 replaced_by = 10;
+  int64 created_ms = 11;
+  int64 updated_ms = 12;
+}
+
+// Abfrage /api/v1/memory-page: alle Einträge des Bereichs (mit Verlauf) und – mit ?query= – die
+// Auswahl, die für eine Nachricht in den nächsten Lauf ginge (Kontextinspektor).
+message MemoryPage {
+  repeated MemoryEntry entries = 1;
+  repeated MemorySelection selected = 2;
+}
+
+message MemorySelection {
+  uint64 memory_id = 1;
+  // „Treffer“ (FTS5 zur Nachricht) oder „jüngste“
+  string reason = 2;
+}
+
+// EVENT memory.changed
+message MemoryChanged {
+  MemoryEntry entry = 1;
+  // added | replaced | deleted
+  string change = 2;
+}

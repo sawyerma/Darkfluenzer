@@ -33,6 +33,7 @@ enum Topic {
   TOPIC_COMMAND_RECEIPT = 29; // EVENT darkfluenzer.v1.CommandReceipt
   TOPIC_PAYMENT_UPDATED = 30; // EVENT darkfluenzer.v1.PaymentUpdated
   TOPIC_AI_RESULT = 31; // EVENT darkfluenzer.v1.AiResult
+  TOPIC_MEMORY_CHANGED = 32; // EVENT darkfluenzer.v1.MemoryChanged
 }
 
 enum TopicClass {

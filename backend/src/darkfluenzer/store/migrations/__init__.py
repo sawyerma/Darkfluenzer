@@ -588,6 +588,40 @@ ALTER TABLE ai_runs ADD COLUMN gates TEXT NOT NULL DEFAULT '[]';
 ALTER TABLE ai_runs ADD COLUMN sendable INTEGER;
 ALTER TABLE ai_runs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1;
 """,
+    29: """
+-- Gedächtnis (SP4 Schritt 5, B5.3): Ebenen Kundengedächtnis, Gesprächsmemo, Langzeitereignis und
+-- eigene Aussagen der Influencerin; Kurzzeitgedächtnis ist der Verlauf. Bereiche strikt getrennt:
+-- customer (Kundenakte), studio (KI-Studio je Influencerin und Sitzung), test (Kundentest). Jede
+-- Erinnerung mit Quelle und Zeit; eine Korrektur ersetzt mit Verlauf (replaced_by), Löschen setzt
+-- den Status. Abruf über FTS5.
+CREATE TABLE memories (
+    id          INTEGER PRIMARY KEY,
+    scope       TEXT    NOT NULL CHECK (scope IN ('customer', 'studio', 'test')),
+    owner_id    INTEGER NOT NULL,
+    session     INTEGER NOT NULL DEFAULT 0,
+    level       TEXT    NOT NULL CHECK (level IN ('customer', 'memo', 'event', 'self')),
+    text        TEXT    NOT NULL CHECK (length(trim(text)) > 0),
+    source      TEXT    NOT NULL DEFAULT '',
+    origin      TEXT    NOT NULL CHECK (origin IN ('ai', 'operator')),
+    status      TEXT    NOT NULL DEFAULT 'active'
+                CHECK (status IN ('active', 'replaced', 'deleted')),
+    replaced_by INTEGER REFERENCES memories(id),
+    created_at  TEXT    NOT NULL,
+    updated_at  TEXT    NOT NULL
+);
+CREATE INDEX memories_owner ON memories(scope, owner_id, session, status);
+CREATE VIRTUAL TABLE memories_fts USING fts5(text, content='memories', content_rowid='id');
+CREATE TRIGGER memories_fts_insert AFTER INSERT ON memories BEGIN
+    INSERT INTO memories_fts(rowid, text) VALUES (NEW.id, NEW.text);
+END;
+CREATE TRIGGER memories_fts_delete AFTER DELETE ON memories BEGIN
+    INSERT INTO memories_fts(memories_fts, rowid, text) VALUES ('delete', OLD.id, OLD.text);
+END;
+CREATE TRIGGER memories_fts_update AFTER UPDATE OF text ON memories BEGIN
+    INSERT INTO memories_fts(memories_fts, rowid, text) VALUES ('delete', OLD.id, OLD.text);
+    INSERT INTO memories_fts(rowid, text) VALUES (NEW.id, NEW.text);
+END;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

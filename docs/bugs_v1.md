@@ -200,6 +200,19 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP4 Schritt 5 (Gedächtnis, B5.3)
+Commit: siehe git log „SP4 step 5“ / store/memory.py (Migration 29, FTS5), core/memory.py, Befehl 52, EVENT 32,
+  /api/v1/memory-page, MemoryView
+Nachweis Unit/Integration: tests/test_memory.py – FTS-Treffer zuerst, Bereiche/Sitzungen getrennt, Ersetzen mit
+  Verlauf, Löschen, Neustart, Auswahl je Ebene, fremde ID nie ersetzt, Wiederholung, Schemafeld memory;
+  tests/test_ai_studio.py – Einstufung schreibt Gedächtnis (Quelle Lauf #N), nächster Lauf bekommt es (Treffer in
+  ai_runs.context), Befehl 52 inkl. Bereichsschutz, Seitenabfrage mit Kontextinspektor, Wiederholung → neuer Lauf
+Nachweis echt (kurz): ComfyUI 2 – gültige memory-Einträge (Name, Wohnort, Vorliebe); replaces beim Umzug nicht
+  gesetzt (Profilinhalt); Chrome-E2E isoliert (Notiz, Korrektur, Inspektor, Löschen)
+NOT_RUN: Gedächtnistest 100–200 Schritte mit Neustart (Qualifikation)
+Ergebnis: TEIL (Kunden- und Kundentestbereich ab SP4 Schritt 6/8)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP4 Schritt 4 (strukturierte Ergebnisse, E26)
 Commit: siehe git log „SP4 step 4“ / core/assessment.py, core/evaluate.py, app `ai eval`, Testsatz, KiStudio
 Nachweis Unit/Integration: tests/test_assessment.py – Schema-Vertrag streng (sechs Verstöße mit Grund), Folgen nur

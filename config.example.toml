@@ -83,11 +83,20 @@ PYTORCH_ENABLE_MPS_FALLBACK = "1"
 studio_turns = 12
 run_timeout_s = 180
 
+# Gedächtnis (SP4 Schritt 5): Erinnerungen je Ebene im Lauf (Treffer zur Nachricht, dann jüngste)
+[ai.memory]
+customer = 6
+memo = 2
+event = 3
+self = 3
+
 # Gates vor dem Versand einer KI-Antwort (SP4 Schritt 3): neue Läufe bei ungültiger Einstufung;
 # Begriffe je Zahlungsweg (erster = Anzeigename). Genannte, nicht freigegebene Wege blockieren den
 # Versand. Ergänzt bzw. ersetzt die eingebauten Begriffe je Schlüssel.
 [dialog]
 schema_retries = 1
+# Wiederholung: ab dieser Wortmengen-Überdeckung zu einer früheren Antwort wird neu erzeugt
+repeat_similarity = 0.8
 
 [dialog.payment_terms]
 bank = ["Überweisung", "Banküberweisung", "SEPA", "IBAN", "Bankkonto"]

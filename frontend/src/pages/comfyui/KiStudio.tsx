@@ -5,19 +5,20 @@ import type { WorkflowInfo } from "../../core/generated/darkfluenzer/v1/comfy_pb
 import type { Influencer, PersonaVersion } from "../../core/generated/darkfluenzer/v1/influencer_pb";
 import { Topic } from "../../core/generated/darkfluenzer/v1/stream_pb";
 import { useEventTopic, useStateTopic } from "../../core/state";
+import { MemoryView } from "./MemoryView";
 
 // KI-Studio (FRONTEND §3.4, F7.9, Backend SP4): innere Ansichten ändern nur die Mitte. Persona ist
 // das versionierte Promptprofil je Influencerin (SP4 Schritt 2, Befehle 35/68). Chat-Test läuft mit
 // dem registrierten Sprachworkflow auf ComfyUI 2 (SP4 Schritt 1, Befehle 49/50, EVENT 31) und zeigt
-// je Lauf Antwort, Einstufung (E26), Messwerte und den tatsächlich verwendeten Prompt. Gedächtnis
-// (Schritt 5) und Vergleich (neue Modellfreigabe) bleiben gesperrt – keine fingierten Ergebnisse.
+// je Lauf Antwort, Einstufung (E26), Messwerte und den tatsächlich verwendeten Prompt. Gedächtnis der
+// Studio-Sitzung (Schritt 5); Vergleich bleibt bis zu einer neuen Modellfreigabe gesperrt.
 
 type View = "chat" | "persona" | "memory" | "compare";
 
 const VIEWS: readonly [View, string, string][] = [
   ["chat", "Chat-Test", "Sprachworkflow noch nicht eingerichtet (SP4 Schritt 1)."],
   ["persona", "Persona", ""],
-  ["memory", "Gedächtnis", "Gedächtnis folgt mit SP4 Schritt 5."],
+  ["memory", "Gedächtnis", "Gedächtnis braucht den Sprachworkflow (SP4 Schritt 1)."],
   ["compare", "Vergleich", "Vergleich ist bis zu einer weiteren Modellfreigabe gesperrt (B5)."],
 ];
 
@@ -56,7 +57,7 @@ export function KiStudio({ workflow, live }: { workflow?: WorkflowInfo; live: bo
   const influencers = state?.influencers ?? [];
   const [chosen, setChosen] = useState<bigint | null>(null);
   const current = influencers.find((i) => i.influencerId === chosen) ?? influencers[0];
-  const blocked = view === "chat" && workflow ? "" : (VIEWS.find(([v]) => v === view)?.[2] ?? "");
+  const blocked = (view === "chat" || view === "memory") && workflow ? "" : (VIEWS.find(([v]) => v === view)?.[2] ?? "");
   return (
     <div className="g-workmain">
       {workflow ? <h2>{workflow.title}</h2> : null}
@@ -88,7 +89,9 @@ export function KiStudio({ workflow, live }: { workflow?: WorkflowInfo; live: bo
               </select>
             </div>
           ) : null}
-          {view === "chat" && workflow ? (
+          {view === "memory" && workflow ? (
+            <MemoryView key={`${current.influencerId}-${current.studioSession}`} influencer={current} live={live} />
+          ) : view === "chat" && workflow ? (
             <ChatTest key={String(current.influencerId)} influencer={current} workflow={workflow} live={live} version={testVersion} setVersion={setTestVersion} />
           ) : (
             <ProfileEditor

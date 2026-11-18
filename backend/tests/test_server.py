@@ -254,6 +254,7 @@ def test_stream_state_snapshot_event_catchup_gap_and_live(cfg):
             (pb.TOPIC_PAYMENT_UPDATED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_AI_RESULT, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_AI_STATUS, pb.TOPIC_CLASS_STATE),
+            (pb.TOPIC_MEMORY_CHANGED, pb.TOPIC_CLASS_EVENT),
             (pb.TOPIC_WALLET, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_INFLUENCERS, pb.TOPIC_CLASS_STATE),
             (pb.TOPIC_CUSTOMER_UPDATED, pb.TOPIC_CLASS_EVENT),

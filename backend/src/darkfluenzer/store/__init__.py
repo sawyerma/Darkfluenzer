@@ -25,6 +25,7 @@ from .db import (
 )
 from .jobs import JobsMixin
 from .media import MediaMixin
+from .memory import MemoryMixin
 from .messages import MessagesMixin
 from .migrations import MIGRATIONS, REBUILDS
 from .orders import OrdersMixin
@@ -41,6 +42,7 @@ class Store(
     OrdersMixin,
     PaymentsMixin,
     MediaMixin,
+    MemoryMixin,
     JobsMixin,
     CommandsMixin,
     StoreBase,
