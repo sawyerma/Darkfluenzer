@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package darkfluenzer.v1;
+
+// Sprach-KI auf ComfyUI 2 (SP4 Schritt 1, E19, E26): ein Lauf des registrierten Sprachworkflows mit
+// Nachweis (zusammengesetzter Prompt) und Messwerten; gespeichert in ai_runs.
+message AiRun {
+  uint64 run_id = 1;
+  // studio | chat | test | warmup
+  string kind = 2;
+  // auslösender Befehl (KI-Studio: studio_chat)
+  string request_id = 3;
+  uint64 influencer_id = 4;
+  // Versionsnummer des Promptprofils (0 = ohne Profil)
+  uint32 persona_version = 5;
+  // Studio-Sitzung je Influencerin (Befehl 50 beginnt eine neue)
+  uint32 session = 6;
+  string message = 7;
+  string answer = 8;
+  // Rohtext des neutralen Einstufungslaufs (E26) und ob er ein gültiges JSON-Objekt enthält
+  string classification = 9;
+  bool classification_valid = 10;
+  // tatsächlich verwendeter Prompt der Antwort (aus dem Graphen gelesen)
+  string system_prompt = 11;
+  string user_text = 12;
+  // Warteschlange bis Ausführungsbeginn, Ausführung (aus ComfyUI), Gesamtzeit im Backend
+  double wait_s = 13;
+  double duration_s = 14;
+  double total_s = 15;
+  string error = 16;
+  string workflow = 17;
+  // SHA-256 des registrierten API-Graphen und der Modelldatei(en)
+  string workflow_sha = 18;
+  string model_sha = 19;
+  int64 at_ms = 20;
+}
+
+// EVENT ai.result: ein KI-Lauf ist beendet (Antwort oder Fehler)
+message AiResult {
+  AiRun run = 1;
+}

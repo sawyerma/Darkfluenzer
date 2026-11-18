@@ -3,6 +3,7 @@ zurücksetzen ohne Neustart, Migration des bisherigen Persona-Texts, Befehle 35 
 
 from __future__ import annotations
 
+import dataclasses
 import sqlite3
 import uuid
 
@@ -80,7 +81,14 @@ def test_draft_check_knows_blocks_and_takes_model_params_only_from_a_text_workfl
     man = models.load_manifest(cfg.root)
     assert persona.check_draft(man, {"persona": "x", "examples": "y"}, {}) == ""
     assert "Unbekannter Profilblock: foo" in persona.check_draft(man, {"foo": "x"}, {})
-    assert "registriertem Sprachworkflow" in persona.check_draft(man, {}, {"temperature": 0.7})
+    # SP4 Schritt 1: Modellparameter aus dem registrierten Sprachworkflow, nur in dessen Grenzen
+    assert persona.check_draft(man, {}, {"temperature": 0.7, "max_tokens": 300}) == ""
+    assert "außerhalb" in persona.check_draft(man, {}, {"temperature": 3.0})
+    assert "gibt es im Sprachworkflow nicht" in persona.check_draft(man, {}, {"top_k": 40})
+    without = dataclasses.replace(
+        man, workflows={k: w for k, w in man.workflows.items() if w.text is None}
+    )
+    assert "registriertem Sprachworkflow" in persona.check_draft(without, {}, {"temperature": 0.7})
     assert [k for k, _ in persona.PROFILE_BLOCKS][:2] == ["system_prompt", "persona"]
 
 
@@ -110,8 +118,8 @@ def test_profile_commands_save_activate_and_reset(cfg):
         assert store.active_persona(fid)["blocks"] == {"persona": "warm"}
         bad = commands_pb2.ProfileDraft(blocks={"foo": "x"})
         assert "Unbekannter Profilblock" in await send(influencer_update=update(fid, profile=bad))
-        params = commands_pb2.ProfileDraft(blocks={"persona": "warm"}, params={"temperature": 0.7})
-        assert "Sprachworkflow" in await send(influencer_update=update(fid, profile=params))
+        params = commands_pb2.ProfileDraft(blocks={"persona": "warm"}, params={"temperature": 3.0})
+        assert "außerhalb" in await send(influencer_update=update(fid, profile=params))
         draft = commands_pb2.ProfileDraft(
             blocks={"system_prompt": "Du bist Clara.", "persona": "warm, frech"}, note="frecher"
         )

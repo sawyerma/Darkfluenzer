@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import contextlib
 import fcntl
+import hashlib
+import json
 import logging
 import os
 import shutil
@@ -32,6 +34,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..config import Config
+from ..media.models import Manifest
+from . import comfy
 from .comfy import ComfyClient, ComfyError
 
 log = logging.getLogger("darkfluenzer.llm")
@@ -204,3 +208,64 @@ def run_graph(
             raise
     wait_s, duration_s = _timing(entry, submitted)
     return RunResult(prompt_id, _texts(entry), round(wait_s, 3), round(duration_s, 3), graph)
+
+
+@dataclass
+class TextResult:
+    """Ergebnis eines Sprachworkflows: Antwort, Einstufung (E26), zusammengesetzte Prompts (Nachweis
+    je Lauf) und Messwerte; Workflow- und Modellversion für ``ai_runs``."""
+
+    answer: str
+    classification: str
+    system: str
+    user: str
+    prompt_id: str
+    wait_s: float
+    duration_s: float
+    workflow_sha: str
+    model_sha: str
+
+
+def parse_classification(text: str) -> dict | None:
+    """Einstufung als JSON-Objekt (Schema im Profil, SP4 Schritt 4); technische Entnahme des ersten
+    Objekts aus dem Text, keine Sprachdeutung. ``None``, wenn kein gültiges Objekt vorliegt."""
+    start = text.find("{")
+    while start != -1:
+        try:
+            value, _ = json.JSONDecoder().raw_decode(text[start:])
+        except ValueError:
+            start = text.find("{", start + 1)
+            continue
+        return value if isinstance(value, dict) else None
+    return None
+
+
+def generate(
+    cfg: Config, man: Manifest, workflow: str, values: dict, *, timeout_s: float
+) -> TextResult:
+    """``llm.generate(workflow, werte)`` (SP4 Schritt 1): registrierten Sprachworkflow mit den
+    Werten füllen (Typen und Grenzen prüft die Registry), auf ComfyUI 2 ausführen und die
+    Ausgabeknoten getrennt lesen. Kein Job, keine Herkunftsdatei (BUG-095, 098)."""
+    wf = man.workflows.get(workflow)
+    if wf is None or wf.text is None:
+        raise LlmError(f"'{workflow}' ist kein registrierter Sprachworkflow.")
+    if not wf.enabled or wf.status == "GESPERRT":
+        raise LlmError(f"{wf.title} ist deaktiviert oder gesperrt.")
+    raw = (man.root / "workflows" / wf.api).read_bytes()
+    # leerer Block = nicht gesetzt: der Textknoten behält den (leeren) Wert des Graphen
+    given = {k: v for k, v in values.items() if not (isinstance(v, str) and not v.strip())}
+    graph = comfy.apply_params(json.loads(raw), wf, given)
+    result = run_graph(cfg, graph, timeout_s=timeout_s)
+    t = wf.text
+    model = man.engines[wf.engine].files
+    return TextResult(
+        answer=result.texts.get(t.answer, ""),
+        classification=result.texts.get(t.classification, ""),
+        system=result.texts.get(t.system, ""),
+        user=result.texts.get(t.user, ""),
+        prompt_id=result.prompt_id,
+        wait_s=result.wait_s,
+        duration_s=result.duration_s,
+        workflow_sha=hashlib.sha256(raw).hexdigest(),
+        model_sha=",".join(man.files[f].sha256 for f in model),
+    )

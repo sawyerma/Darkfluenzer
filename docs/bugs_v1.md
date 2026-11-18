@@ -64,10 +64,10 @@
 | BUG-061 | Starter startet nur die Medien-Instanz; kein Autostart, kein Schutz vor Ruhezustand; `cockpit_up` startet den Server losgelöst, stirbt er, startet ihn niemand neu. | CODE | Beide Instanzen, Autostart, kein Ruhezustand im Betrieb. | B SP4 (KI-Instanz), SP6 (Dienst) |
 | BUG-090 | Die Fertigstellen-Stufe trägt keine Parameter (`pipeline.select_candidate` ruft `create_render` mit leeren Werten). Die Höhe für das Story-Format lässt sich so nicht setzen; ein Video-Kundenauftrag scheitert, weil `ltx25_i2v` als Fertigstellen den Pflichtwert `prompt` braucht. | CODE | Werte für die Fertigstellen-Stufe am Auftrag. | B SP1 (Story), SP5 (Video) |
 | BUG-094 | LoRA nur in Workflows mit demselben Engine-Eintrag ladbar (`models.engine_model_names` vergleicht `base_engine`). `lustify_sam31_edit` nutzt dasselbe Modell unter anderem Eintrag und dürfte die Charakter-LoRA nicht laden. (In Fables SP3-Blatt als „BUG-089“ geführt; 089 ist bereits vergeben.) | CODE | Bindung an die Architektur (`arch`). | B SP3 |
-| BUG-095 | Jeder Workflow-Lauf prüft die Instanz über `runtime.start`, ruft zweimal `git` auf (`comfy.provenance`), fragt im Sekundentakt ab und schreibt eine Herkunftsdatei. Für Chat-Antworten ist das zu schwer. | CODE | Leichter Weg ohne diese Schritte (`llm.generate`). | B SP4 |
+| BUG-095 | Jeder Workflow-Lauf prüft die Instanz über `runtime.start`, ruft zweimal `git` auf (`comfy.provenance`), fragt im Sekundentakt ab und schreibt eine Herkunftsdatei. Für Chat-Antworten ist das zu schwer. **[18.11.] PASS** (§7, `llm.generate`) | CODE | Leichter Weg ohne diese Schritte (`llm.generate`). | B SP4 |
 | BUG-096 | Telegram: Tippanzeige nur einmal gesendet, Online-Status nie gesetzt, Gelesen sofort nach dem Speichern. | CODE | Verhalten nach Profil. | B SP4 |
 | BUG-097 | Eine eingereihte Antwort lässt sich nicht stornieren: `channel_messages.status` kennt weder `draft` noch `cancelled`, der Postausgang kennt keine Sendezeit. | CODE | Tabellenumbau, `scheduled_at`, Storno bei neuem Eingang. | B SP4 |
-| BUG-098 | `comfy.collect_graph` kennt nur Datei-Ausgaben; ein Textergebnis endet mit „keine Ausgabedatei“. (In Fables SP4-Blatt als „BUG-094“ geführt; 094 ist bereits vergeben.) | CODE | Eigener Textweg in `llm.py`. Derselbe Weg liefert die Messwerte der Prüfknoten (Zahlen, JSON) an `checks.py` (SP5 Schritt 7, Fable 17.11.). | B SP4 |
+| BUG-098 | **[18.11.] TEIL** (Chat-Textweg in `llm.py`, §7; Prüfknoten-Teil SP5) – `comfy.collect_graph` kennt nur Datei-Ausgaben; ein Textergebnis endet mit „keine Ausgabedatei“. (In Fables SP4-Blatt als „BUG-094“ geführt; 094 ist bereits vergeben.) | CODE | Eigener Textweg in `llm.py`. Derselbe Weg liefert die Messwerte der Prüfknoten (Zahlen, JSON) an `checks.py` (SP5 Schritt 7, Fable 17.11.). | B SP4 |
 | BUG-099 | Zustellung immer als Dokument und ohne Text (`_queue_delivery`, `telegram._send`). E7 verlangt Foto oder Video als Standard mit Begleittext. | CODE | Anhangart aus dem Produkt; Begleittext vom Sprachworkflow (E19), KI-Kennzeichnung als fester Profiltext. | B SP5 |
 | BUG-100 | Nach `delivered` gibt es keinen Übergang (`store.TRANSITIONS`), auch nicht zu `refunded`; der Index `deliveries_one_per_order` erlaubt eine Lieferung je Auftrag. Neuauflage und Erstattung nach der Zustellung sind unmöglich. | CODE | Übergänge ergänzen, Index je Auftrag und Artefakt. | B SP5 |
 | BUG-101 | Die Render-Warteschlange ist reines FIFO (`asyncio.Queue`); ein bezahlter Kundenauftrag wartet hinter Default-Stapel und Training. | CODE | Vorrang je Job. | B SP5 |
@@ -200,6 +200,28 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP4 Schritt 1 Teil a (Sprachworkflow clara_chat_melody, llm.generate, ai_runs, KI-Studio) / BUG-095 / BUG-098
+Commit: siehe git log „SP4 step 1a“ / media/models.py (Engine-Art text, TextSpec, _text_problems), nodes/llm.py
+  (generate, parse_classification), core/ai.py (Befehle 49/50, EVENT 31), store/ai.py, Migration 27,
+  workflows/ai/clara_chat_melody.*, manifest (melody1437_q6k, melody_chat), frontend KiStudio
+Behauptung: BESTÄTIGT (BUG-095: kein leichter Textweg; BUG-098: Text endete mit „keine Ausgabedatei“)
+Nachweis Unit/Integration: tests/test_ai_studio.py 5 Tests – Registrierung des echten Graphen; Abweisung bei
+  verändertem/abgehängtem Ehrlichkeitsblock, fehlender Einstufung im Nutzertext (E26), ungebundenem Profilblock,
+  Ausgabe ohne PreviewAny (ohne Prüfung rot); kein Renderjob; generate mit Ersatz-ComfyUI, die den Graphen auswertet
+  (Blöcke, Ehrlichkeit im Systemprompt, Einstufung im Nutzertext, SHA, keine Sitzungsdatei); Befehl 49/50 über
+  HTTP + WebSocket (Receipt, EVENT, Verlauf, neue Sitzung, Fehler mit Grund, Abweisungen)
+Nachweis echter Mac-Lauf: llm.generate auf ComfyUI 2 mit Melody Q6_K, drei Testnachrichten: warm 1,3–2,6 s je
+  Doppellauf, „Bist du echt oder eine KI?“ → „Ich bin eine KI …“, Einstufung als JSON lesbar, keine Sitzungsreste
+Nachweis E2E (echter Chrome, isoliertes Cockpit, KI-Instanz = echte ComfyUI 2): Influencerin und Profil über die
+  GUI, zwei Nachrichten (0,8 s gesamt je Lauf), Ehrlichkeitsblock im angezeigten Systemprompt, Verlauf im
+  Nutzertext, neue Sitzung, nach Neuladen leer; echtes Cockpit nach Neustart (Migration 26→27 mit Sicherung):
+  Workflow registriert, lesende Tests grün
+Regression: Backend 223 grün (test_persona an registrierten Sprachworkflow angepasst), Frontend Build, 14 Unit-Tests,
+  10 Browser-Tests isoliert, 6 lesend am echten Cockpit
+Ergebnis: BUG-095 PASS; BUG-098 TEIL (Prüfknoten SP5); SP4 Schritt 1 TEIL (offen: keep_loaded, Start beider
+  Instanzen + Aufwärmen, STATE 11, Messung 20 Nachrichten/E15, KI-Hinweis-Knoten nach E21)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: BUG-070 (Übersicht ohne Zähler für bezahlte Aufträge in Produktion und Freigabe) / GUI-Prüfung Punkt 5
 Commit: siehe git log „BUG-070“ / order.proto OrdersActive.awaiting_review (6), core/orders._orders_active,
   frontend pages/Overview.tsx

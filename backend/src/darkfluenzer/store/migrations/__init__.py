@@ -546,6 +546,41 @@ INSERT INTO persona_versions (influencer_id, version, blocks, note, created_at)
 UPDATE influencers SET persona_active = (
     SELECT v.id FROM persona_versions v WHERE v.influencer_id = influencers.id AND v.version = 1);
 """,
+    27: """
+-- KI-Läufe (SP4 Schritt 1): je Lauf eines Sprachworkflows Art, Workflow- und Modellversion,
+-- Profilversion, zusammengesetzter Prompt (aus dem Graphen gelesen), Kontextauswahl, Ergebnis und
+-- Messwerte. Gesprächsdaten liegen nur hier in SQLite (Regel 12 e, SPEC-018).
+CREATE TABLE ai_runs (
+    id              INTEGER PRIMARY KEY,
+    kind            TEXT    NOT NULL CHECK (kind IN ('studio', 'chat', 'test', 'warmup')),
+    workflow        TEXT    NOT NULL,
+    workflow_sha    TEXT    NOT NULL DEFAULT '',
+    model_sha       TEXT    NOT NULL DEFAULT '',
+    influencer_id   INTEGER REFERENCES influencers(id),
+    persona_version INTEGER REFERENCES persona_versions(id),
+    customer_id     INTEGER REFERENCES customers(id),
+    session         INTEGER NOT NULL DEFAULT 0,
+    request_id      TEXT    NOT NULL DEFAULT '',
+    message         TEXT    NOT NULL DEFAULT '',
+    context         TEXT    NOT NULL DEFAULT '{}',
+    system_prompt   TEXT    NOT NULL DEFAULT '',
+    user_text       TEXT    NOT NULL DEFAULT '',
+    answer          TEXT    NOT NULL DEFAULT '',
+    classification  TEXT    NOT NULL DEFAULT '',
+    prompt_id       TEXT    NOT NULL DEFAULT '',
+    wait_ms         INTEGER,
+    duration_ms     INTEGER,
+    total_ms        INTEGER,
+    error           TEXT    NOT NULL DEFAULT '',
+    created_at      TEXT    NOT NULL
+);
+CREATE INDEX ai_runs_studio ON ai_runs(influencer_id, session) WHERE kind = 'studio';
+-- laufende Studio-Sitzung je Influencerin (Befehl 50 erhöht sie)
+CREATE TABLE studio_sessions (
+    influencer_id INTEGER PRIMARY KEY REFERENCES influencers(id),
+    session       INTEGER NOT NULL DEFAULT 1 CHECK (session > 0)
+);
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

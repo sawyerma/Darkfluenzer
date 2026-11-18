@@ -74,6 +74,12 @@ stop_timeout_s = 30
 [comfyui_ai.env]
 PYTORCH_ENABLE_MPS_FALLBACK = "1"
 
+# Sprach-KI (SP4 Schritt 1): letzte Wechsel der Studio-Sitzung als Gesprächskontext; Zeitgrenze
+# eines Sprachlaufs auf ComfyUI 2 (inkl. Laden des Modells beim ersten Lauf)
+[ai]
+studio_turns = 12
+run_timeout_s = 180
+
 # Gesichtsprüfung (darkfluenzer identity): kleinere oder unsicherere Gesichter gelten als
 # „nicht prüfbar“.
 [identity]

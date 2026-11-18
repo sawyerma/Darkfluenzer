@@ -32,7 +32,19 @@ IDENTITY_INPUTS = ("reference_dir", "min_face_px", "min_score")
 GATES = ("load", "render", "quality", "license_pass")
 GATE_VALUES = {"OFFEN", "PASS", "FAIL", "GESPERRT"}
 USAGES = {"evaluation", "production"}
-KINDS = {"image", "video"}
+KINDS = {"image", "video", "text"}
+# Sprachworkflows (SP4 Schritt 1, E19, E26): jeder Profilblock und jeder Kontexteingang ist ein
+# eigener Textknoten, der in einen Sprachknoten fließt; Reihenfolge = core.persona.PROFILE_BLOCKS
+PROFILE_INPUTS = (
+    "system_prompt", "persona", "positive_rules", "negative_rules", "strategy", "examples",
+    "classification", "wish_summary", "offer", "delivery", "consolation", "fansly",
+)  # fmt: skip
+CONTEXT_INPUTS = ("context", "memory", "facts", "message")
+SESSION_NODE = "LLMSessionChatNode"
+TEXT_NODE = "PrimitiveStringMultiline"
+PREVIEW_NODE = "PreviewAny"
+# setzt nodes/llm.isolate_sessions je Lauf (SPEC-018)
+SESSION_RUNTIME = ("history_dir", "session_id", "reset_session", "persistent_cache", "max_turns")
 INSTANCES = ("media", "ai")
 STAGING = ".staging"
 _SHA = re.compile(r"^[0-9a-f]{64}$")
@@ -187,6 +199,19 @@ class KeyframeSlot:
 
 
 @dataclass(frozen=True)
+class TextSpec:
+    """Sprachworkflow (SP4 Schritt 1): fester Ehrlichkeitsblock (Regel 12 c) und Ausgabeknoten
+    (PreviewAny) für Antwort, Einstufung (E26), Systemprompt und Nutzertext."""
+
+    honesty_node: str
+    honesty: str  # wortgleich im Graphen; nicht im Cockpit bearbeitbar
+    answer: str
+    classification: str
+    system: str
+    user: str
+
+
+@dataclass(frozen=True)
 class Workflow:
     key: str
     title: str
@@ -216,6 +241,7 @@ class Workflow:
     # -sicherheit setzt das Backend; der Knoten liefert Messwerte (ui.darkfluenzer_checks)
     identity: str = ""
     keyframes: KeyframeSlot | None = None  # weitere Schlüsselbilder (Zeitachse B4)
+    text: TextSpec | None = None  # Sprachworkflow auf ComfyUI 2 (Engine-Art text)
 
     @property
     def training(self) -> bool:
@@ -234,6 +260,10 @@ class Workflow:
         if self.identity:
             found.add((self.identity, "reference_dir"))
         return found
+
+    def session_nodes(self, graph: dict) -> list[str]:
+        """Sprachknoten des Graphen (je Lauf an einen isolierten Sitzungsordner gebunden)."""
+        return [nid for nid, n in graph.items() if n.get("class_type") == SESSION_NODE]
 
 
 CONTENT_TIERS = ("standard", "explizit")
@@ -433,6 +463,27 @@ def _keyframe_slot(t: object, w: str) -> KeyframeSlot | None:
     if not slot.chain:
         raise ManifestError(f"Manifest: {w}.keyframes.chain fehlt.")
     return slot
+
+
+def _text_spec(t: object, params: dict[str, Param], w: str) -> TextSpec | None:
+    if t is None:
+        return None
+    if not isinstance(t, dict):
+        raise ManifestError(f"Manifest: {w}.text muss eine Tabelle sein.")
+    try:
+        spec = TextSpec(**{k: str(v) for k, v in t.items()})
+    except TypeError as exc:
+        raise ManifestError(f"Manifest: {w}.text: {exc}") from exc
+    empty = [k for k, v in vars(spec).items() if not v.strip()]
+    if empty:
+        raise ManifestError(f"Manifest: {w}.text.{empty[0]} fehlt.")
+    missing = [n for n in (*PROFILE_INPUTS, *CONTEXT_INPUTS) if n not in params]
+    if missing:
+        raise ManifestError(f"Manifest: {w}: Profil- bzw. Kontexteingang {missing[0]} fehlt.")
+    wrong = [n for n in (*PROFILE_INPUTS, *CONTEXT_INPUTS) if params[n].type != "str"]
+    if wrong:
+        raise ManifestError(f"Manifest: {w}.params.{wrong[0]} muss Text sein.")
+    return spec
 
 
 def _lora_slot(t: object, params: dict[str, Param], w: str) -> LoraSlot | None:
@@ -646,6 +697,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             lora=_lora_slot(t.get("lora"), params, w),
             identity=str((t.get("identity") or {}).get("node", "")),
             keyframes=_keyframe_slot(t.get("keyframes"), w),
+            text=_text_spec(t.get("text"), params, w),
         )
         for name, prm in params.items():
             if prm.below and prm.below not in params:
@@ -660,6 +712,8 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             raise ManifestError(f"Manifest: {w}.mask_output braucht den Parameter 'image'.")
         if wf.engine not in engines:
             raise ManifestError(f"Manifest: {w}.engine '{wf.engine}' unbekannt.")
+        if (engines[wf.engine].kind == "text") != (wf.text is not None):
+            raise ManifestError(f"Manifest: {w}.text genau dann, wenn die Engine-Art text ist.")
         if wf.status not in GATE_VALUES:
             raise ManifestError(f"Manifest: {w}.status muss {GATE_VALUES} sein.")
         for rel in (wf.ui, wf.api) if require_ui else (wf.api,):
@@ -794,6 +848,8 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
                 problems.append(f"lora -> {wf.lora.node} hat keinen Eingang '{name}' im API-Graph.")
             elif name in wf.lora.through and not isinstance(loader[name], list):
                 problems.append(f"lora.through -> {wf.lora.node}.{name} ist keine Verbindung.")
+    if wf.text:
+        problems += _text_problems(wf, graph)
     for node_id, node in graph.items():
         for name, value in node.get("inputs", {}).items():
             is_model = isinstance(value, str) and value.endswith((".safetensors", ".gguf"))
@@ -804,6 +860,77 @@ def graph_problems(wf: Workflow, graph: dict, model_names: set[str]) -> list[str
                     f"Node {node_id} lädt '{value}', das nicht zur Engine {wf.engine} gehört."
                 )
     return problems
+
+
+def _reaches(graph: dict, start: str) -> set[tuple[str, str]]:
+    """Alle (Knoten, Eingang), in die der Ausgang von ``start`` direkt oder über Zwischenknoten
+    fließt."""
+    found: set[tuple[str, str]] = set()
+    todo, seen = [start], {start}
+    while todo:
+        src = todo.pop()
+        for nid, node in graph.items():
+            for name, value in (node.get("inputs") or {}).items():
+                if isinstance(value, list) and len(value) == 2 and str(value[0]) == src:
+                    found.add((nid, name))
+                    if nid not in seen:
+                        seen.add(nid)
+                        todo.append(nid)
+    return found
+
+
+def _source(graph: dict, node: str, name: str) -> str:
+    value = (graph.get(node) or {}).get("inputs", {}).get(name)
+    return str(value[0]) if isinstance(value, list) and len(value) == 2 else ""
+
+
+def _text_problems(wf: Workflow, graph: dict) -> list[str]:
+    """Sprachworkflow: jeder Profil- und Kontexteingang ist ein eigener Textknoten, der in einen
+    Sprachknoten fließt; Ehrlichkeitsblock wortgleich im Systemprompt der Persona-Antwort;
+    neutraler Einstufungslauf vor der Antwort, deren Nutzertext die Einstufung enthält (E26)."""
+    t = wf.text
+    assert t is not None
+    problems = []
+    sessions = set(wf.session_nodes(graph))
+    for name in (*PROFILE_INPUTS, *CONTEXT_INPUTS):
+        p = wf.params[name]
+        if (graph.get(p.node) or {}).get("class_type") != TEXT_NODE or p.input != "value":
+            problems.append(f"params.{name}: eigener Textknoten ({TEXT_NODE}.value) fehlt.")
+        elif not any(
+            n in sessions and i in ("system_prompt", "user_text")
+            for n, i in _reaches(graph, p.node)
+        ):
+            problems.append(f"params.{name}: Textknoten {p.node} fließt in keinen Sprachknoten.")
+    outputs = {"answer": t.answer, "classification": t.classification, "system": t.system,
+               "user": t.user}  # fmt: skip
+    for role, node in outputs.items():
+        if (graph.get(node) or {}).get("class_type") != PREVIEW_NODE:
+            problems.append(f"text.{role} -> {node} ist kein {PREVIEW_NODE}-Knoten.")
+    persona = _source(graph, t.answer, "source")
+    neutral = _source(graph, t.classification, "source")
+    if persona not in sessions or neutral not in sessions or persona == neutral:
+        problems.append("text: Antwort und Einstufung brauchen je einen eigenen Sprachknoten.")
+        return problems
+    if (persona, "user_text") not in _reaches(graph, neutral):
+        problems.append("text: Einstufung fließt nicht in den Nutzertext der Antwort (E26).")
+    if (neutral, "system_prompt") not in _reaches(graph, wf.params["classification"].node):
+        problems.append("text: Einstufungsblock ist nicht der Systemprompt des Einstufungslaufs.")
+    honesty = graph.get(t.honesty_node) or {}
+    value = honesty.get("inputs", {}).get("value")
+    if honesty.get("class_type") != TEXT_NODE or value != t.honesty:
+        problems.append("text: Ehrlichkeitsblock fehlt oder weicht ab (Regel 12 c).")
+    elif (persona, "system_prompt") not in _reaches(graph, t.honesty_node):
+        problems.append("text: Ehrlichkeitsblock ist nicht mit dem Systemprompt verbunden.")
+    if _source(graph, t.system, "source") != _source(graph, persona, "system_prompt"):
+        problems.append("text.system zeigt nicht den Systemprompt der Antwort.")
+    if _source(graph, t.user, "source") != _source(graph, persona, "user_text"):
+        problems.append("text.user zeigt nicht den Nutzertext der Antwort.")
+    return problems
+
+
+def honesty_text(man: Manifest) -> str:
+    """Ehrlichkeitsblock aus dem registrierten Sprachworkflow (leer ohne Sprachworkflow)."""
+    return next((wf.text.honesty for wf in man.workflows.values() if wf.text), "")
 
 
 # --------------------------------------------------------------------------------- Bearbeiten

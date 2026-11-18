@@ -24,6 +24,7 @@ from google.protobuf.message import DecodeError
 
 from ..channels.instagram import InstagramAccount, InstagramError
 from ..config import Config
+from ..core.ai import AiStudioMixin
 from ..core.base import CockpitBase, log
 from ..core.characters import CharactersMixin
 from ..core.cloner import ClonerMixin
@@ -36,6 +37,7 @@ from ..core.sales import SalesMixin
 from ..nodes import llm
 from ..store import Store, StoreError
 from ..v1 import (
+    ai_pb2,
     channel_pb2,
     character_pb2,
     comfy_pb2,
@@ -80,6 +82,7 @@ MONTH = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 class Cockpit(
     MappersMixin,
     CommandsMixin,
+    AiStudioMixin,
     RenderMixin,
     RegistryMixin,
     OrdersMixin,
@@ -566,6 +569,9 @@ def create_app(cfg: Config) -> web.Application:
     )
     hub.offer_events(
         spb.TOPIC_JOB_COMPLETED, comfy_pb2.JobCompleted.DESCRIPTOR.full_name, cockpit.read_jobs
+    )
+    hub.offer_events(
+        spb.TOPIC_AI_RESULT, ai_pb2.AiResult.DESCRIPTOR.full_name, cockpit.read_ai_results
     )
     hub.offer_events(
         spb.TOPIC_MEDIA_ADDED, media_pb2.MediaItem.DESCRIPTOR.full_name, cockpit.read_media

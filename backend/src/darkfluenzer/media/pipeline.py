@@ -394,6 +394,8 @@ def create_render(
     wf = man.workflows.get(workflow_key)
     if wf is None:
         raise PipelineError(f"Workflow '{workflow_key}' ist nicht registriert.")
+    if wf.text is not None:  # Sprachworkflows laufen über nodes/llm, nie als Renderjob
+        raise PipelineError(f"{wf.title} ist ein Sprachworkflow (KI-Studio), kein Render.")
     for name in inputs:
         if name not in wf.params or not wf.params[name].upload:
             raise PipelineError(f"{workflow_key}: '{name}' ist kein Upload-Parameter.")

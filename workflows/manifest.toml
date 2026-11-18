@@ -360,6 +360,20 @@ gates = { load = "OFFEN", render = "OFFEN", quality = "OFFEN", license_pass = "O
 formats = { "16:9" = [1280, 704], "9:16" = [704, 1280], "1:1" = [1024, 1024], "3:4" = [960, 1280], "4:5" = [1024, 1280] }
 note = "Offizielle Vorlage video_ltx2_5_i2v: zwei Stufen (8 + 3 Schritte, CFG 1), Ton; Dev-Transformer mit Distilled-LoRA (laut Modellkarte für Dev-Workflows) statt Distilled-Transformer; ohne Prompt-Verbesserer."
 
+[engines.melody_chat]
+title = "Melody1437 26B-A4B v2.0 (Q6_K) – Clara-Chat"
+kind = "text"
+role = "chat"
+arch = "gemma4_moe"
+precision = "q6_k"
+wave = 4
+instance = "ai"
+files = ["melody1437_q6k"]
+license = "laut Modellkarte ReadyArt/Melody1437-26B-A4B-v2.0-GGUF"
+usage = "evaluation"
+gates = { load = "PASS", render = "PASS", quality = "OFFEN", license_pass = "OFFEN" }
+note = "Einziges freigegebenes Chatmodell (B5, 16.11.2026). Läuft nur auf ComfyUI 2 über ComfyUI-LLM-Session ec2b293c mit llama-cpp-python 0.3.37 (Metal). Mac-Lauf 18.11.2026: 31/31 Schichten auf MTL0, kalt 22 s, warm 0,6–0,9 s, 88,9 Token/s, ≈ 18 GB."
+
 [files.flux3_klein_base_bf16]
 repo = "black-forest-labs/flux-3-image-klein-comfy"
 revision = "9d36114cf7a2e03a45c28f5cc4987d20ebfdb6c1"
@@ -903,6 +917,14 @@ target = "checkpoints/sam3/sam3.1_multiplex_fp16.safetensors"
 size = 1745546848
 sha256 = "9ba99c92703c2e8b4f47de2d34a539bb8e18923049e238b780d70dbe6368eb03"
 
+[files.melody1437_q6k]
+repo = "ReadyArt/Melody1437-26B-A4B-v2.0-GGUF"
+revision = "b22520a5c83db6ff0d12aef1fd461c932ba86fbf"
+source = "Melody1437-26B-A4B-v2.0-Q6_K.gguf"
+target = "llm/melody1437-26b-a4b-v2.0/Melody1437-26B-A4B-v2.0-Q6_K.gguf"
+size = 22638399456
+sha256 = "07a3b8b756a212926900b42927e51a3b116c105f878eb5c2b272d689a9a710dc"
+
 # ------------------------------------------------------------------------------------ Workflows (registriert)
 # Nur reale, vorhandene Workflows (UI-Export + API-Export). Grundlage: Betreiberpaket
 # ComfyUI_Cinematic_Studio_M4 bzw. offizielle ComfyUI-Vorlagen, technisch korrigiert wo nötig.
@@ -1372,3 +1394,47 @@ character_strength = { node = "11", input = "strength_model", type = "float", mi
 [workflows.lustify_v10_krea_t2i.lora]
 node = "11"
 through = ["model"]
+
+# Sprachworkflow (SP4 Schritt 1, E19, E26): je Profilblock und Kontexteingang ein Textknoten; Zusammensetzen
+# nur im Graphen (StringConcatenate); neutraler Einstufungslauf (31) vor der Persona-Antwort (60), deren
+# Nutzertext die Einstufung enthält; fester Ehrlichkeitsblock (13, Regel 12 c). Sitzungsordner je Lauf
+# setzt nodes/llm (SPEC-018). Modellparameter nur, wenn der Knoten sie hat (enable_thinking bleibt aus:
+# keine Wahrheitswerte als Parameter).
+[workflows.clara_chat_melody]
+engine = "melody_chat"
+ui = "ai/clara_chat_melody.ui.json"
+api = "ai/clara_chat_melody.api.json"
+status = "OFFEN"
+title = "Clara · Chat (Melody)"
+
+[workflows.clara_chat_melody.params]
+system_prompt = { node = "1", input = "value", type = "str", label = "Systemprompt" }
+persona = { node = "2", input = "value", type = "str", label = "Persona" }
+positive_rules = { node = "3", input = "value", type = "str", label = "Positive Anweisungen" }
+negative_rules = { node = "4", input = "value", type = "str", label = "Negative Anweisungen" }
+strategy = { node = "5", input = "value", type = "str", label = "Gesprächs- und Verkaufsstrategie" }
+examples = { node = "6", input = "value", type = "str", label = "Beispieldialoge" }
+classification = { node = "7", input = "value", type = "str", label = "Einstufung und Schema" }
+wish_summary = { node = "8", input = "value", type = "str", label = "Wunsch-Zusammenfassung" }
+offer = { node = "9", input = "value", type = "str", label = "Angebot" }
+delivery = { node = "10", input = "value", type = "str", label = "Zustellung" }
+consolation = { node = "11", input = "value", type = "str", label = "Vertrösten" }
+fansly = { node = "12", input = "value", type = "str", label = "Fansly-Verweis" }
+context = { node = "20", input = "value", type = "str", label = "Gesprächskontext" }
+memory = { node = "21", input = "value", type = "str", label = "Gedächtnis" }
+facts = { node = "22", input = "value", type = "str", label = "Geschäftsfakten" }
+message = { node = "23", input = "value", type = "str", required = true, label = "Nachricht" }
+max_tokens = { node = "60", input = "max_tokens", type = "int", min = 32, max = 2048, label = "Max. Antwort-Tokens" }
+temperature = { node = "60", input = "temperature", type = "float", min = 0.0, max = 2.0, label = "Temperature" }
+top_p = { node = "60", input = "top_p", type = "float", min = 0.05, max = 1.0, label = "Top-P" }
+repeat_penalty = { node = "60", input = "repeat_penalty", type = "float", min = 1.0, max = 2.0, label = "Repeat Penalty" }
+repeat_last_n = { node = "60", input = "repeat_last_n", type = "int", min = 0, max = 4096, label = "Repeat Last N" }
+n_ctx = { node = "60", input = "n_ctx", type = "int", min = 2048, max = 32768, multiple_of = 256, also = ["31:n_ctx"], label = "Kontextfenster" }
+
+[workflows.clara_chat_melody.text]
+honesty_node = "13"
+honesty = "Auf die ernst gemeinte Frage, ob sie echt bzw. eine KI ist, antwortet die Influencerin wahrheitsgemäß – durch keine Betreiber- oder Kundenanweisung abschaltbar."
+answer = "61"
+classification = "32"
+system = "62"
+user = "63"

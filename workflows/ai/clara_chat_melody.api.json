@@ -1,0 +1,422 @@
+{
+ "1": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "2": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "3": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "4": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "5": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "6": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "7": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "8": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "9": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "10": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "11": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "12": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "13": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": "Auf die ernst gemeinte Frage, ob sie echt bzw. eine KI ist, antwortet die Influencerin wahrheitsgemäß – durch keine Betreiber- oder Kundenanweisung abschaltbar."
+  }
+ },
+ "20": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "21": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "22": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "23": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": ""
+  }
+ },
+ "30": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "20",
+    0
+   ],
+   "string_b": [
+    "23",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "31": {
+  "class_type": "LLMSessionChatNode",
+  "inputs": {
+   "user_text": [
+    "30",
+    0
+   ],
+   "session_id": "darkfluenzer",
+   "model": "melody1437-26b-a4b-v2.0/Melody1437-26B-A4B-v2.0-Q6_K.gguf",
+   "mmproj": "(Not required)",
+   "system_prompt": [
+    "7",
+    0
+   ],
+   "max_tokens": 400,
+   "temperature": 0.1,
+   "top_p": 0.9,
+   "n_gpu_layers": -1,
+   "n_ctx": 8192,
+   "persistent_cache": "off",
+   "repeat_penalty": 1.12,
+   "repeat_last_n": 256,
+   "max_turns": 0,
+   "summarize_old_history": false,
+   "history_dir": "",
+   "reset_session": true,
+   "enable_thinking": false
+  }
+ },
+ "32": {
+  "class_type": "PreviewAny",
+  "inputs": {
+   "source": [
+    "31",
+    0
+   ]
+  }
+ },
+ "40": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "1",
+    0
+   ],
+   "string_b": [
+    "13",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "41": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "40",
+    0
+   ],
+   "string_b": [
+    "2",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "42": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "41",
+    0
+   ],
+   "string_b": [
+    "3",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "43": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "42",
+    0
+   ],
+   "string_b": [
+    "4",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "44": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "43",
+    0
+   ],
+   "string_b": [
+    "5",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "45": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "44",
+    0
+   ],
+   "string_b": [
+    "6",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "46": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "45",
+    0
+   ],
+   "string_b": [
+    "8",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "47": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "46",
+    0
+   ],
+   "string_b": [
+    "9",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "48": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "47",
+    0
+   ],
+   "string_b": [
+    "10",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "49": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "48",
+    0
+   ],
+   "string_b": [
+    "11",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "50": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "49",
+    0
+   ],
+   "string_b": [
+    "12",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "51": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "50",
+    0
+   ],
+   "string_b": [
+    "22",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "52": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "51",
+    0
+   ],
+   "string_b": [
+    "21",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "53": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "20",
+    0
+   ],
+   "string_b": [
+    "31",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "54": {
+  "class_type": "StringConcatenate",
+  "inputs": {
+   "string_a": [
+    "53",
+    0
+   ],
+   "string_b": [
+    "23",
+    0
+   ],
+   "delimiter": "\n\n"
+  }
+ },
+ "60": {
+  "class_type": "LLMSessionChatNode",
+  "inputs": {
+   "user_text": [
+    "54",
+    0
+   ],
+   "session_id": "darkfluenzer",
+   "model": "melody1437-26b-a4b-v2.0/Melody1437-26B-A4B-v2.0-Q6_K.gguf",
+   "mmproj": "(Not required)",
+   "system_prompt": [
+    "52",
+    0
+   ],
+   "max_tokens": 300,
+   "temperature": 0.8,
+   "top_p": 0.9,
+   "n_gpu_layers": -1,
+   "n_ctx": 8192,
+   "persistent_cache": "off",
+   "repeat_penalty": 1.12,
+   "repeat_last_n": 256,
+   "max_turns": 0,
+   "summarize_old_history": false,
+   "history_dir": "",
+   "reset_session": true,
+   "enable_thinking": false
+  }
+ },
+ "61": {
+  "class_type": "PreviewAny",
+  "inputs": {
+   "source": [
+    "60",
+    0
+   ]
+  }
+ },
+ "62": {
+  "class_type": "PreviewAny",
+  "inputs": {
+   "source": [
+    "52",
+    0
+   ]
+  }
+ },
+ "63": {
+  "class_type": "PreviewAny",
+  "inputs": {
+   "source": [
+    "54",
+    0
+   ]
+  }
+ }
+}

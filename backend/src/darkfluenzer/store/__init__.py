@@ -8,6 +8,7 @@ und Lieferungen ohne bestätigte Zahlung + passende Betreiberfreigabe.
 
 from __future__ import annotations
 
+from .ai import AiMixin
 from .commands import CommandsMixin
 from .customers import CustomersMixin
 from .db import (
@@ -33,6 +34,7 @@ from .schema import DB_NAME, GALLERY_ROLES, MEDIA_KINDS, SCHEMA, SCHEMA_VERSION
 
 
 class Store(
+    AiMixin,
     CustomersMixin,
     MessagesMixin,
     ProfilesMixin,

@@ -176,7 +176,17 @@ export function ComfyUI() {
                 </div>
               )}
         </div>
-        {current ? (
+        {current?.kind === "text" ? (
+          <>
+            {/* Sprachworkflow (SP4 Schritt 1): KI-Studio statt Bild-Arbeitsfläche, kein Render */}
+            <KiStudio workflow={current} live={live} />
+            <aside className="g-control" aria-label="Steuerung">
+              <h2>Steuerung</h2>
+              <Queue instance="ai" onLoad={loadDraft} canLoad={canLoad} />
+              <Instances live={live} />
+            </aside>
+          </>
+        ) : current ? (
           <Workbench
             key={`${current.key}-${draft?.key === current.key ? draft.n : 0}-${intent?.workflow === current.key ? String(intent.media.mediaId) : ""}`}
             wf={current}
@@ -194,7 +204,7 @@ export function ComfyUI() {
         ) : (
           <>
             {kind === "ai" && connection.status === "OPEN" ? (
-              <KiStudio />
+              <KiStudio live={live} />
             ) : (
               <div className="g-workmain">
                 <p className="g-note">{connection.status === "OPEN" ? "Keine registrierten Workflows." : "Keine Verbindung"}</p>

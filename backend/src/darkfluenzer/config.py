@@ -232,6 +232,16 @@ class ProductionConfig:
 
 
 @dataclass(frozen=True)
+class AiConfig:
+    """Sprach-KI auf ComfyUI 2 (SP4 Schritt 1): Verlauf und Zeitgrenze eines Studio-Laufs."""
+
+    # so viele letzte Wechsel der Studio-Sitzung gehen als Gesprächskontext in den Lauf
+    studio_turns: int = 12
+    # Abbruch eines Sprachlaufs, wenn ComfyUI 2 so lange kein Ergebnis liefert (inkl. Laden)
+    run_timeout_s: float = 180.0
+
+
+@dataclass(frozen=True)
 class IdentityConfig:
     """Gesichtsprüfung (Knoten DarkfluenzerFaceIdentity, SP3 Schritt 7): kleinere oder unsicherere
     Gesichter sind „nicht prüfbar“; das Backend setzt beide Werte als Eingänge des Knotens."""
@@ -252,6 +262,7 @@ class Config:
     telegram: TelegramConfig | None  # None: Abschnitt fehlt (Kanal nicht eingerichtet)
     instagram: InstagramConfig | None  # None: Abschnitt fehlt (Kanal nicht eingerichtet)
     wallet: WalletConfig | None  # None: Abschnitt fehlt (Zahlungseingang nicht eingerichtet)
+    ai: AiConfig = AiConfig()
 
     @property
     def instances(self) -> tuple[ComfyConfig, ...]:
@@ -665,6 +676,13 @@ def load(root: Path | None = None) -> Config:
     )
     if production.candidates_default > production.candidates_max:
         raise ConfigError("Konfiguration: production.candidates_default > candidates_max.")
+    ai_section = data.get("ai", {})
+    if not isinstance(ai_section, dict):
+        raise ConfigError(f"Konfiguration {path}: [ai] muss ein Abschnitt sein.")
+    ai_cfg = AiConfig(
+        studio_turns=int(_positive(ai_section, "studio_turns", 12, "ai")),
+        run_timeout_s=float(_positive(ai_section, "run_timeout_s", 180, "ai")),
+    )
     telegram = _parse_telegram(data.get("telegram_account"), root, path)
     instagram = _parse_instagram(data.get("instagram"), path)
     wallet = _parse_wallet(data.get("wallet"), path)
@@ -681,6 +699,7 @@ def load(root: Path | None = None) -> Config:
         ),
         production=production,
         training=_parse_training(data.get("training") or {}),
+        ai=ai_cfg,
     )
 
 

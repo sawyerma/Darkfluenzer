@@ -28,6 +28,8 @@ message Influencer {
   repeated PersonaVersion persona_versions = 8;
   // aktive Version (0 = noch keine); wirkt ab dem nächsten Lauf
   uint32 persona_active = 9;
+  // laufende Studio-Sitzung im KI-Studio (SP4 Schritt 1, Befehl 50 beginnt eine neue)
+  uint32 studio_session = 10;
 }
 
 // Eine gespeicherte Fassung des Promptprofils einer Influencerin (SP4 Schritt 2, E19).

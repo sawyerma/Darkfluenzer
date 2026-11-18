@@ -240,6 +240,21 @@ message PromptProfileActivate {
   uint32 version = 2;
 }
 
+// KI-Studio (SP4 Schritt 1): Testnachricht an den registrierten Sprachworkflow mit der gewählten
+// Profilversion (0 = aktive); der Verlauf ist die laufende Studio-Sitzung der Influencerin. Endet
+// asynchron mit Receipt und EVENT ai.result.
+message StudioChat {
+  uint64 influencer_id = 1;
+  uint32 version = 2;
+  string text = 3;
+  string workflow = 4;
+}
+
+// KI-Studio: neue Studio-Sitzung (leerer Verlauf); frühere Läufe bleiben in ai_runs.
+message StudioSessionReset {
+  uint64 influencer_id = 1;
+}
+
 // Inhaltsstufe eines Mediums auf „explizit“ anheben – nie absenken (Regel 13).
 message MediaContentTier {
   uint64 media_id = 1;
@@ -403,6 +418,8 @@ message CommandRequest {
     RevealFolder reveal_folder = 65;
     CharacterPhotosAdd character_photos_add = 67;
     PromptProfileActivate prompt_profile_activate = 68;
+    StudioChat studio_chat = 49;
+    StudioSessionReset studio_session_reset = 50;
   }
 }
 

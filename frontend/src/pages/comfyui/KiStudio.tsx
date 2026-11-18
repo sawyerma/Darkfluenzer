@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useCommand } from "../../core/commands";
+import type { AiRun } from "../../core/generated/darkfluenzer/v1/ai_pb";
+import type { WorkflowInfo } from "../../core/generated/darkfluenzer/v1/comfy_pb";
 import type { Influencer, PersonaVersion } from "../../core/generated/darkfluenzer/v1/influencer_pb";
 import { Topic } from "../../core/generated/darkfluenzer/v1/stream_pb";
-import { useStateTopic } from "../../core/state";
+import { useEventTopic, useStateTopic } from "../../core/state";
 
 // KI-Studio (FRONTEND §3.4, F7.9, Backend SP4): innere Ansichten ändern nur die Mitte. Persona ist
-// das versionierte Promptprofil je Influencerin (SP4 Schritt 2, Befehle 35/68); Chat-Test,
-// Gedächtnis und Vergleich brauchen den registrierten Sprachworkflow (SP4 Schritt 1 und 5) und
-// bleiben bis dahin gesperrt – keine fingierten Ergebnisse.
+// das versionierte Promptprofil je Influencerin (SP4 Schritt 2, Befehle 35/68). Chat-Test läuft mit
+// dem registrierten Sprachworkflow auf ComfyUI 2 (SP4 Schritt 1, Befehle 49/50, EVENT 31) und zeigt
+// je Lauf Antwort, Einstufung (E26), Messwerte und den tatsächlich verwendeten Prompt. Gedächtnis
+// (Schritt 5) und Vergleich (neue Modellfreigabe) bleiben gesperrt – keine fingierten Ergebnisse.
 
 type View = "chat" | "persona" | "memory" | "compare";
 
@@ -15,18 +18,29 @@ const VIEWS: readonly [View, string, string][] = [
   ["chat", "Chat-Test", "Sprachworkflow noch nicht eingerichtet (SP4 Schritt 1)."],
   ["persona", "Persona", ""],
   ["memory", "Gedächtnis", "Gedächtnis folgt mit SP4 Schritt 5."],
-  ["compare", "Vergleich", "Vergleich braucht den Sprachworkflow (SP4 Schritt 1)."],
+  ["compare", "Vergleich", "Vergleich ist bis zu einer weiteren Modellfreigabe gesperrt (B5)."],
 ];
+
+const seconds = (s: number) => `${s.toFixed(1).replace(".", ",")} s`;
 
 function versionDate(v: PersonaVersion): string {
   return new Date(Number(v.createdMs)).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
 }
 
-export function KiStudio() {
-  const [view, setView] = useState<View>("persona");
-  const blocked = VIEWS.find(([v]) => v === view)?.[2] ?? "";
+export function KiStudio({ workflow, live }: { workflow?: WorkflowInfo; live: boolean }) {
+  const [view, setView] = useState<View>(workflow ? "chat" : "persona");
+  const [testVersion, setTestVersion] = useState(0);
+  // Befehlszustand über dem Editor: die Rückmeldung bleibt, wenn der Editor nach dem Aktivieren neu startet
+  const profileCmd = useCommand();
+  const state = useStateTopic(Topic.INFLUENCERS)?.value;
+  const influencers = state?.influencers ?? [];
+  const [chosen, setChosen] = useState<bigint | null>(null);
+  const current = influencers.find((i) => i.influencerId === chosen) ?? influencers[0];
+  const blocked = view === "chat" && workflow ? "" : (VIEWS.find(([v]) => v === view)?.[2] ?? "");
   return (
     <div className="g-workmain">
+      {workflow ? <h2>{workflow.title}</h2> : null}
+      {workflow ? <small>{workflow.engineTitle}</small> : null}
       <div className="g-subtabs" role="tablist" aria-label="KI-Studio">
         {VIEWS.map(([v, label]) => (
           <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)}>
@@ -34,39 +48,198 @@ export function KiStudio() {
           </button>
         ))}
       </div>
-      {view === "persona" ? <PersonaView /> : <p className="g-note">{blocked}</p>}
+      {!state ? (
+        <p className="g-note">Lädt …</p>
+      ) : !current ? (
+        <p className="g-note">Noch keine Influencerin angelegt (Nachrichten → Influencerin-Block).</p>
+      ) : blocked ? (
+        <p className="g-note">{blocked}</p>
+      ) : (
+        <>
+          {influencers.length > 1 ? (
+            <div className="g-field">
+              <label htmlFor="ki-figure">Influencerin</label>
+              <select id="ki-figure" value={String(current.influencerId)} onChange={(e) => setChosen(BigInt(e.target.value))}>
+                {influencers.map((i) => (
+                  <option key={String(i.influencerId)} value={String(i.influencerId)}>
+                    {i.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          {view === "chat" && workflow ? (
+            <ChatTest key={String(current.influencerId)} influencer={current} workflow={workflow} live={live} version={testVersion} setVersion={setTestVersion} />
+          ) : (
+            <ProfileEditor
+              key={`${current.influencerId}-${current.personaActive}`}
+              influencer={current}
+              blocks={state.profileBlocks}
+              honesty={state.honestyRule}
+              cmd={profileCmd}
+              onTest={
+                workflow
+                  ? (v) => {
+                      setTestVersion(v);
+                      setView("chat");
+                    }
+                  : undefined
+              }
+            />
+          )}
+        </>
+      )}
     </div>
   );
 }
 
-function PersonaView() {
-  const state = useStateTopic(Topic.INFLUENCERS)?.value;
-  const influencers = state?.influencers ?? [];
-  const [chosen, setChosen] = useState<bigint | null>(null);
-  const current = influencers.find((i) => i.influencerId === chosen) ?? influencers[0];
-  if (!state) return <p className="g-note">Lädt …</p>;
-  if (!current) return <p className="g-note">Noch keine Influencerin angelegt (Nachrichten → Influencerin-Block).</p>;
+/** Chat-Test (SP4 Schritt 1): Nachricht an den Sprachworkflow mit gewählter Profilversion; der
+ *  Verlauf ist die Studio-Sitzung im Backend. Ergebnisse kommen als EVENT 31 (kein Polling). */
+function ChatTest({
+  influencer,
+  workflow,
+  live,
+  version,
+  setVersion,
+}: {
+  influencer: Influencer;
+  workflow: WorkflowInfo;
+  live: boolean;
+  version: number;
+  setVersion: (v: number) => void;
+}) {
+  const cmd = useCommand();
+  const reset = useCommand();
+  const results = useEventTopic(Topic.AI_RESULT);
+  const [text, setText] = useState("");
+  const [pending, setPending] = useState<Record<string, string>>({});
+  const runs = (results?.items ?? []).map((e) => e.value.run).filter((r): r is AiRun => !!r && r.kind === "studio" && r.influencerId === influencer.influencerId);
+  const session = influencer.studioSession; // laufende Sitzung laut Backend (STATE 9)
+  const shown = runs.filter((r) => r.session === session);
+  const done = new Set(runs.map((r) => r.requestId));
+  const waiting = Object.entries(pending).filter(([id]) => !done.has(id));
+  const versions = influencer.personaVersions;
+  const usable = influencer.personaActive > 0 || versions.length > 0;
+
+  async function send(e: FormEvent) {
+    e.preventDefault();
+    const message = text.trim();
+    const res = await cmd.run(
+      { case: "studioChat", value: { influencerId: influencer.influencerId, version, text: message, workflow: workflow.key } },
+      { acceptedOnly: true },
+    );
+    if (res) {
+      setPending((p) => ({ ...p, [res.requestId]: message }));
+      setText("");
+    }
+  }
+
+  async function newSession() {
+    if (await reset.run({ case: "studioSessionReset", value: { influencerId: influencer.influencerId } }, { done: "Neue Sitzung." })) {
+      setPending({});
+    }
+  }
+
   return (
-    <>
-      {influencers.length > 1 ? (
-        <div className="g-field">
-          <label htmlFor="ki-figure">Influencerin</label>
-          <select id="ki-figure" value={String(current.influencerId)} onChange={(e) => setChosen(BigInt(e.target.value))}>
-            {influencers.map((i) => (
-              <option key={String(i.influencerId)} value={String(i.influencerId)}>
-                {i.name}
-              </option>
-            ))}
-          </select>
-        </div>
+    <div className="g-form">
+      <div className="g-field">
+        <label htmlFor="ki-version">Profilversion</label>
+        <select id="ki-version" value={version} onChange={(e) => setVersion(Number(e.target.value))}>
+          <option value={0}>Aktive Version{influencer.personaActive ? ` (${influencer.personaActive})` : ""}</option>
+          {[...versions].reverse().map((v) => (
+            <option key={v.version} value={v.version}>
+              Version {v.version}
+              {v.note ? ` · ${v.note}` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="g-field">
+        <span>Sitzung {session}</span>
+        <button type="button" className="g-button" disabled={!live || reset.pending} onClick={() => void newSession()}>
+          Neue Sitzung
+        </button>
+      </div>
+      <div className="g-stream g-wide" aria-label="Chat-Test">
+        {shown.map((r) => (
+          <div key={String(r.runId)} className="g-turn">
+            <div className="g-bubble" data-dir="in">
+              <p>{r.message}</p>
+            </div>
+            {r.error ? (
+              <p className="g-note g-error">{r.error}</p>
+            ) : (
+              <div className="g-bubble" data-dir="out">
+                <p>{r.answer}</p>
+                <small>
+                  Version {r.personaVersion} · Warteschlange {seconds(r.waitS)} · Lauf {seconds(r.durationS)} · gesamt {seconds(r.totalS)}
+                </small>
+              </div>
+            )}
+            <details className="g-checks">
+              <summary>
+                Einstufung {r.classificationValid ? "gültig" : "ungültig"} · Prompt
+              </summary>
+              <small className="g-line">
+                <span>Einstufung (E26)</span>
+              </small>
+              <pre className="g-pre">{r.classification || "–"}</pre>
+              <small className="g-line">
+                <span>Systemprompt</span>
+              </small>
+              <pre className="g-pre">{r.systemPrompt || "–"}</pre>
+              <small className="g-line">
+                <span>Nutzertext</span>
+              </small>
+              <pre className="g-pre">{r.userText || "–"}</pre>
+              <small title={`Workflow ${r.workflowSha} · Modell ${r.modelSha}`}>
+                {r.workflow} · Graph {r.workflowSha.slice(0, 12)}
+              </small>
+            </details>
+          </div>
+        ))}
+        {waiting.map(([id, message]) => (
+          <div key={id} className="g-turn">
+            <div className="g-bubble" data-dir="in">
+              <p>{message}</p>
+            </div>
+            <p className="g-note">läuft auf ComfyUI 2 …</p>
+          </div>
+        ))}
+        {shown.length === 0 && waiting.length === 0 ? <p className="g-note">Noch keine Testnachricht in dieser Sitzung.</p> : null}
+      </div>
+      <form className="g-compose g-wide" onSubmit={(e) => void send(e)}>
+        <label htmlFor="ki-message" className="g-sr-only">
+          Testnachricht
+        </label>
+        <textarea id="ki-message" rows={2} value={text} placeholder="Testnachricht als Kunde" onChange={(e) => setText(e.target.value)} />
+        <button type="submit" className="g-button g-primary g-block" disabled={!live || cmd.pending || !text.trim() || !usable}>
+          Senden
+        </button>
+      </form>
+      {!usable ? <p className="g-note g-wide">Erst ein Promptprofil speichern (Ansicht Persona).</p> : null}
+      {cmd.notice || reset.notice ? (
+        <p className="g-note g-wide" role="status">
+          {cmd.notice || reset.notice}
+        </p>
       ) : null}
-      <ProfileEditor key={`${current.influencerId}-${current.personaActive}`} influencer={current} blocks={state.profileBlocks} honesty={state.honestyRule} />
-    </>
+    </div>
   );
 }
 
-function ProfileEditor({ influencer, blocks, honesty }: { influencer: Influencer; blocks: readonly { key: string; label: string }[]; honesty: string }) {
-  const cmd = useCommand();
+function ProfileEditor({
+  influencer,
+  blocks,
+  honesty,
+  cmd,
+  onTest,
+}: {
+  influencer: Influencer;
+  blocks: readonly { key: string; label: string }[];
+  honesty: string;
+  cmd: ReturnType<typeof useCommand>;
+  onTest?: (version: number) => void;
+}) {
   const versions = influencer.personaVersions;
   const active = versions.find((v) => v.version === influencer.personaActive);
   const [base, setBase] = useState<PersonaVersion | undefined>(active);
@@ -122,7 +295,7 @@ function ProfileEditor({ influencer, blocks, honesty }: { influencer: Influencer
       ))}
       <div className="g-field g-wide">
         <label>Ehrlichkeitsblock (fest im Sprachworkflow)</label>
-        <small>{honesty}</small>
+        <small>{honesty || "kein registrierter Sprachworkflow"}</small>
       </div>
       <div className="g-field g-wide">
         <label htmlFor="ki-note">Notiz zur Version</label>
@@ -135,7 +308,13 @@ function ProfileEditor({ influencer, blocks, honesty }: { influencer: Influencer
         <button type="button" className="g-button g-primary" disabled={cmd.pending || !changed} onClick={() => void save(true)}>
           Übernehmen und aktivieren
         </button>
-        <button type="button" className="g-button" disabled title="Chat-Test braucht den Sprachworkflow (SP4 Schritt 1)">
+        <button
+          type="button"
+          className="g-button"
+          disabled={!onTest || !base}
+          title={onTest ? "Gespeicherte Version im Chat-Test ausführen" : "Chat-Test braucht den Sprachworkflow (SP4 Schritt 1)"}
+          onClick={() => base && onTest?.(base.version)}
+        >
           Im Test ausführen
         </button>
       </div>

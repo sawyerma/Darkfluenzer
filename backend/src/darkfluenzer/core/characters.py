@@ -7,7 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from ..media import pipeline, training
+from ..media import models, pipeline, training
 from ..v1 import (
     character_pb2,
     commands_pb2,
@@ -18,11 +18,6 @@ from . import persona
 from .base import _Call, _unix_ms, log
 
 # Enden asynchron mit eigener Receipt: Render mit dem Job, ComfyUI mit Start/Stopp
-# Feste, nicht editierbare Persona-Regel (PHASENPLAN_V0 Regel 12 c)
-HONESTY_RULE = (
-    "Auf die ernst gemeinte Frage, ob sie echt bzw. eine KI ist, antwortet die Influencerin "
-    "wahrheitsgemäß – durch keine Betreiber- oder Kundenanweisung abschaltbar."
-)
 
 
 MAX_PRICE_ITEMS = 50
@@ -276,7 +271,8 @@ class CharactersMixin:
     def _influencers(self) -> bytes:
         """STATE influencers: Profile mit Preisliste und die feste Ehrlichkeitsregel."""
         msg = influencer_pb2.Influencers(
-            honesty_rule=HONESTY_RULE, version=self.store.domain_version("influencers")
+            honesty_rule=models.honesty_text(self.manifest),  # fester Knoten (Regel 12 c)
+            version=self.store.domain_version("influencers"),
         )
         for key, label in persona.PROFILE_BLOCKS:
             msg.profile_blocks.add(key=key, label=label)
@@ -288,6 +284,7 @@ class CharactersMixin:
                 persona=row["persona"],
                 ai_notice=row["ai_notice"],
                 revision=row["revision"],
+                studio_session=self.store.studio_session(row["id"]),
             )
             for price in row["prices"]:
                 item.prices.add(**price)
