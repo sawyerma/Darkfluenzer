@@ -633,6 +633,18 @@ flowchart TD
 
 **Abnahmekriterium:** Jede gespeicherte Betreiberaktion führt über **genau einen** definierten Protobuf-Befehl oder Read auf einen Fach-Owner, eine persistierte Revision und ein vorhandenes STATE/EVENT-/Receipt-System. Die alte ComfyUI-Hauptfläche wird mit ihrem technischen Bestand in das **Labor umgezogen**, nicht kopiert. **Kein zweiter Medienkatalog, Trainings- oder Settings-Screen, kein zweiter Render-Button mit eigener Pipeline.** Nach dem DS8-Cutover dürfen alte Render-Routen nicht mehr ausführbar sein; vor dem Cutover darf die neue Flow-Maschine keine zweite Live-Produktionskette bilden. Browser-Regression überprüft Navigation, Doppelclick/Refresh, Reconnect, unveränderte Kunden-/Liefer-Gates und den Klickdemo-Look.
 
+### 6.12 Bereinigter Feldvertrag für jedes Studio-Control
+
+**Vorrang vor §6.10 und historischen UI-Schema-Skizzen:** [bereinigte Studio-Protobuf-Feldtabelle](../protocol/contracts/studio/Studio_Protobuf_Feldkatalog.csv), [bereinigte Routingtabelle](../protocol/contracts/studio/Studio_Protobuf_Routing_Vollstaendig.csv) und Backend **§13.17**. Die neu reservierten **COMMAND 159–160 und READ 25–29** sind Paket-SOLL, keine jetzt funktionsfähigen Buttons.
+
+- **Erstellen:** Der Browser darf nur Aufgabe, validierte Figuren-/Medienreferenzen, kreativen strukturierten Inhalt, Rezeptrevision und Ausgabeformat über `StudioProductionIntent` senden. **Kundenauftrag, Teststatus, Priorität, Inhaltsstufe, Zahlungen, Freigaben und externe Anbieterrechte sind niemals vom Frontend bestimmbar**. `source = customer` entsteht nur aus einem berechtigten Backend-Auftragsaufruf.
+- **Dateien / Referenzen:** ein bestehender gesicherter Upload, eine `media_id`, kein `inline_bytes` im Command; unbekannte Inhaltsstufe ist nicht frei als „standard“ setzbar. Studio-Karten zeigen dieselben Medien über IDs/Filter.
+- **Labor / Modelle / Regie:** nur qualifizierte aktive Rezeptversionen, keine frei pro Shot gesetzten `image_model/video_model/lora`-Bypässe, keine manuell klickbare Modellqualifikation. E19-Promptprofile sind auch für Regie-Rollen dieselbe fachliche Versionierung.
+- **Storyboard / Pose / Torentscheidung:** Speichern und Lesen der Pose-Spur und gezieltes SceneRemove nur nach echter Aktivierung des jeweiligen DS-Pakets; ProductionControl benötigt konkreten Schritt, Urteil und ausgewählten Kandidaten. Nur kurze STATE-Zusammenfassungen, vollständige Szenen/Guide-Pässe/NodeRuns per autorisiertem READ.
+- **Sicherheit:** Keine Felder für fremde Personenidentität/Appearance-Transfer, keine Cloud-Fallback-Schalter, kein automatischer ComfyUI-Renderabbruch und keine separat im Studio vergebene Kunden-Freigabe. Nicht implementierte, gestrichene Felder werden aus DOM/Controls entfernt, nicht als zweiter Bedienweg angezeigt.
+
+**Browser-Abnahme:** manipulierte Protobuf-Payload mit `test_order`, `source`, `content_tier`, fremder `media_id`, unqualifiziertem Rezept oder Cloudtransfer muss serverseitig abgewiesen werden; `ACCEPTED` und späterer `COMPLETED` bleiben unterschiedliche Zustände. Kein GUI-PASS ohne echten Backend-Handler, Protobuf-Schema-/Feldtests und Mac-Kurzlauf.
+
 ## Anhang A – Freigegebene Klickreferenz F7
 
 Wörtlich aus dem archivierten `PHASENPLAN_FRONT_V1.md` (F7, Betreiberfreigabe 15./16.11.2026) übernommen. Verweise auf „V0“, „FRONT“ oder Abschnittsnummern beziehen sich auf die Archivfassungen. Bei Widerspruch gilt dieser Plan, insbesondere §1 (sechs Reiter, einheitliche Bedienung je Art) und §3. Die früheren Abschnitte F0–F6 sind durch §1–§4 dieses Plans und den Backend-Plan ersetzt und liegen im Archiv.

@@ -105,3 +105,10 @@ POST /api/v1/studio/read;21;list_looks;StudioReadRequest.list_looks;READ;StudioR
 POST /api/v1/studio/read;22;get_look;StudioReadRequest.get_look;READ;StudioReadResponse.look;NEU_BEI_PAKETBEDARF;Eigentümer und tatsächlichen Aufrufer in DS-Paket prüfen; keine parallele Datenhaltung;DS4
 POST /api/v1/studio/read;23;get_node_run;StudioReadRequest.get_node_run;READ;StudioReadResponse.node_run;NEU_BEI_PAKETBEDARF;Eigentümer und tatsächlichen Aufrufer in DS-Paket prüfen; keine parallele Datenhaltung;DS2/3
 POST /api/v1/studio/read;24;list_provider_usage;StudioReadRequest.list_provider_usage;READ;StudioReadResponse.provider_usage;NEU_BEI_PAKETBEDARF;Eigentümer und tatsächlichen Aufrufer in DS-Paket prüfen; keine parallele Datenhaltung;DS5/DS9
+POST /api/v1/command;159;studio_pose_track_upsert;StudioPoseTrackUpsert;COMMAND;CommandResponse + CommandReceipt;NEU_BEI_PAKETBEDARF;Pose-Editor nutzt eine versionierte Pose-Spur;DS4
+POST /api/v1/command;160;studio_scene_remove;StudioSceneRemove;COMMAND;CommandResponse + CommandReceipt;NEU_BEI_PAKETBEDARF;Szenenrevision und Tombstone im bestehenden Storyboard;DS5
+POST /api/v1/studio/read;25;get_pose_track;StudioReadRequest.get_pose_track;READ;StudioReadResponse.pose_track;NEU_BEI_PAKETBEDARF;Pose-Spur anhand ID und Revision abrufen;DS4
+POST /api/v1/studio/read;26;list_recipes;StudioReadRequest.list_recipes;READ;StudioReadResponse.recipes;NEU_BEI_PAKETBEDARF;Auch inaktive Rezepte aus derselben Registry;DS1
+POST /api/v1/studio/read;27;list_prompt_templates;StudioReadRequest.list_prompt_templates;READ;StudioReadResponse.prompt_templates;BESTAND_ERWEITERN;E19-Profilmechanik für separate Regie-Scopes;DS5
+POST /api/v1/studio/read;28;list_shot_presets;StudioReadRequest.list_shot_presets;READ;StudioReadResponse.shot_presets;NEU_BEI_PAKETBEDARF;Shot-Presets aus derselben Studio-Registry;DS6b
+POST /api/v1/studio/read;29;list_audio_presets;StudioReadRequest.list_audio_presets;READ;StudioReadResponse.audio_presets;NEU_BEI_PAKETBEDARF;Nur bei aktivem DS9-Audioverfahren;DS9
