@@ -226,8 +226,11 @@ Korrektur: Ausgaben vom Typ input werden übersprungen
 Nachweis: tests/test_video.py::test_long_video_segments_resume_after_failure_and_join mit Ersatz-ComfyUI,
   die wie ComfyUI Eingabe-Vorschauen meldet: vorher rot (2 Medien), danach grün (1 Medium, Ergebnis = fertiges
   Video). Derselbe Lauf belegt Abschnittskette und Prüfkette im Zusammensetzen real: 65 Frames, 9 geprüft,
-  Inhalt neutral, 0 Sprünge (Werte am fertigen Video 108). Altlast: Medien 106/107 aus Job 103 bleiben, bis
-  der Betreiber das Löschen freigibt
+  Inhalt neutral, 0 Sprünge (Werte am fertigen Video 108). Altlast bereinigt 18.11. nach Betreiberfreigabe:
+  106 = Abschnitt 2, 107 = Abschnitt 1 (SHA-256 gleich den Dateien unter darkfluenzer_work/job103), keine Prüfwerte,
+  kein Artefakt, kein Auftrag; einziger Verweis war das falsche Job-Ergebnis → Job 103 auf 108 gesetzt
+  (store.set_job_media), dann Befehl delete_media [106, 107] im laufenden Cockpit: completed, Dateien entfernt,
+  108 und Abschnittsdateien bleiben
 Ergebnis: CODE (Korrektur), Langvideo-Kette TEIL (am Mac belegt)
 Bearbeiter/Datum: Claude, 18.11.2026
 
