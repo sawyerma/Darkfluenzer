@@ -655,6 +655,13 @@ ALTER TABLE channel_messages ADD COLUMN edited_at TEXT;
 ALTER TABLE channel_messages ADD COLUMN original_text TEXT;
 ALTER TABLE channel_messages ADD COLUMN deleted_at TEXT;
 """,
+    32: """
+-- Telegram-Alben (SP1 Schritt 3): Nachrichten eines Albums tragen dieselbe album_id; der Kloner
+-- wertet ein Album erst aus, wenn es ruhig ist (SP1 Schritt 4).
+ALTER TABLE channel_messages ADD COLUMN album_id TEXT;
+CREATE INDEX channel_messages_album ON channel_messages(conversation_id, album_id)
+    WHERE album_id IS NOT NULL;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

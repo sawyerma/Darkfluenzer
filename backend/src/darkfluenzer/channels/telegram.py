@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import bisect
 import contextlib
 import hashlib
 import logging
@@ -45,6 +46,8 @@ LAST = "last:"  # adapter_state: letzte gespeicherte Nachrichten-ID je Chat (Abg
 OWN = "own:"  # adapter_state: Plattform-IDs eigener Teilnachrichten je Chat (SP2 Schritt 6)
 OWN_KEPT = 200  # gemerkte eigene IDs je Chat
 UNKNOWN_SLACK_S = 120  # Verlaufsprüfung beginnt so viel vor der Einreihung der Sendung
+DOWNLOAD_ATTEMPTS = 3  # Anhang laden: Versuche, danach `failed` mit Grund (SP1 Schritt 3)
+DOWNLOAD_RETRY_S = 2.0  # Pause vor dem zweiten Versuch (wächst je Versuch)
 HISTORY_PAGES = 20  # Obergrenze Seiten je Chat beim Abgleich (je bis zu 100 Nachrichten)
 REJECTED_SHOWN = 5  # Testbetrieb: zuletzt verworfene Einzelchat-IDs (nur im Speicher, ohne Inhalt)
 # TDLib-Inhaltsart -> (Anhangart, Feld mit der Datei)
@@ -163,6 +166,10 @@ class TelegramAccount(Channel):
         self._open: dict[int, int] = {}  # Postausgang-ID -> noch unbestätigte Teilnachrichten
         self._tasks: set[asyncio.Task] = set()  # laufende Hintergrundaufgaben (FABLE-005)
         self._sent_at: deque[float] = deque()
+        # Eingang der Reihe nach je Chat (SP1 Schritt 3): Warteschlange (nach Nachrichten-ID) und
+        # höchstens ein Arbeiter je Chat – ein Befehl überholt nie das Foto davor
+        self._chat_queues: dict[int, list[tuple[int, dict, asyncio.Future]]] = {}
+        self._chat_workers: set[int] = set()
         # Testbetrieb: verworfene Einzelchats (ID, Zeit) nur im Speicher, damit der Betreiber die
         # ID seines Testpartners findet – nie in SQLite, nie in TDLib-Dateien, ohne Inhalt/Namen
         self.rejected: deque[tuple[int, int]] = deque(maxlen=REJECTED_SHOWN)
@@ -352,7 +359,7 @@ class TelegramAccount(Channel):
             else:
                 self._unread.pop(update["chat_id"], None)
         elif kind == "updateNewMessage":
-            self._spawn(self._guard(self._message(update["message"])))
+            self._enqueue_message(update["message"])
         elif kind == "updateMessageContent":
             self._edited(update)
         elif kind == "updateDeleteMessages":
@@ -401,6 +408,34 @@ class TelegramAccount(Channel):
         for message_id in gone:
             self.on_change_message(message_id)
 
+    def _enqueue_message(self, msg: dict) -> asyncio.Future:
+        """Nachricht in die Warteschlange ihres Chats (nach Telegram-ID einsortiert); das Future
+        ist erfüllt, sobald sie verarbeitet ist (Speichern, Anhänge, Weiterleitung)."""
+        chat = int(msg["chat_id"])
+        done = asyncio.get_running_loop().create_future()
+        queue = self._chat_queues.setdefault(chat, [])
+        ids = [entry[0] for entry in queue]
+        queue.insert(bisect.bisect_right(ids, int(msg["id"])), (int(msg["id"]), msg, done))
+        if chat not in self._chat_workers:
+            self._chat_workers.add(chat)
+            self._spawn(self._chat_worker(chat))
+        return done
+
+    async def _chat_worker(self, chat: int) -> None:
+        queue = self._chat_queues[chat]
+        try:
+            while queue:
+                _, msg, done = queue.pop(0)
+                try:
+                    await self._guard(self._message(msg))
+                finally:
+                    if not done.done():
+                        done.set_result(None)
+        finally:
+            self._chat_workers.discard(chat)
+            if not queue:
+                self._chat_queues.pop(chat, None)
+
     def _spawn(self, job: Awaitable[None]) -> None:
         """Hintergrundaufgabe mit Referenz bis zum Ende; ohne sie kann der Event-Loop die Aufgabe
         mitten im Lauf einsammeln (FABLE-005)."""
@@ -448,6 +483,7 @@ class TelegramAccount(Channel):
             self._set("READY", login="ready")
             log.info("Telegram angemeldet als Konto %s", self.account)
             await self._guard(self._reconcile())
+            await self._guard(self._resume_pending())
             await self._guard(self._settle_unknown())
             self.wake.set()
             return
@@ -484,8 +520,8 @@ class TelegramAccount(Channel):
             if self.test_mode and chat_id not in self.test_chat_ids:
                 continue
             missed = await self._missed(chat_id, last)
-            for msg in missed:
-                await self._message(msg)
+            # dieselbe Warteschlange wie der Live-Eingang: Reihenfolge je Chat bleibt erhalten
+            await asyncio.gather(*(self._enqueue_message(msg) for msg in missed))
             if missed:
                 log.info("Telegram: %d Nachricht(en) aus Chat %s nachgeholt", len(missed), chat_id)
 
@@ -513,6 +549,35 @@ class TelegramAccount(Channel):
                 break
             start = oldest
         return [found[i] for i in sorted(found)]
+
+    async def _resume_pending(self) -> None:
+        """Nach dem Start: Eingänge, deren Anhänge beim Beenden noch luden (``pending``), neu
+        laden – TDLib-Datei-IDs gelten nur je Sitzung, daher die Nachricht frisch abrufen – und
+        dann erst weiterleiten (ihre Verarbeitung war unterbrochen, SP1 Schritt 3)."""
+        assert self._td is not None
+        for row in self.store.pending_inbound(PLATFORM, self.account):
+            chat, mid = int(row["platform_conversation_id"]), int(row["platform_message_id"])
+            try:
+                fresh = await self._td.call(
+                    {"@type": "getMessage", "chat_id": chat, "message_id": mid},
+                    self._timeout,
+                )  # fmt: skip
+                files = files_of(fresh["content"])
+            except (TdError, TimeoutError, KeyError, ValueError) as exc:
+                files, why = [], f"Nachricht nicht mehr abrufbar: {exc}"[:200]
+            else:
+                why = "Anhang nicht mehr in der Nachricht"
+            saved = []
+            for i, att in enumerate(row["attachments"]):
+                if att.get("status") != "pending":
+                    saved.append(att)
+                elif i < len(files):
+                    saved.append(await self._save(chat, mid, i, files[i]))
+                else:
+                    saved.append(att | {"status": "failed", "note": why})
+            self.store.set_attachments(row["id"], saved)
+            log.info("Telegram: Anhänge von Nachricht %s nach dem Start geladen", row["id"])
+            await self.on_inbound(self.store.inbound_of(row["id"]))
 
     def _remember(self, chat_id: int, message_id: int) -> None:
         key = f"{LAST}{chat_id}"
@@ -571,6 +636,7 @@ class TelegramAccount(Channel):
             if reply.get("@type") == "messageReplyToMessage"
             else None,
             attachments=[_pending(f) for f in files],
+            album_id=str(msg.get("media_album_id") or "") if msg.get("media_album_id") else None,
         )
         self.last_event_ms = int(time.time() * 1000)
         self._remember(chat_id, int(msg["id"]))
@@ -627,26 +693,31 @@ class TelegramAccount(Channel):
 
     async def _save(self, chat_id: int, message_id: int, index: int, f: dict) -> dict:
         """Anhang über TDLib laden, nach local/channels/telegram/<chat>/ kopieren, Hash
-        festhalten."""
+        festhalten; bis zu DOWNLOAD_ATTEMPTS Versuche, danach `failed` mit Grund."""
         att = _pending(f)
         limit = int(self.tg.max_download_mb * 1024 * 1024)
         if f["size"] > limit:
             return att | {"status": "too_large", "note": f"über {self.tg.max_download_mb:.0f} MB"}
         assert self._td is not None
-        try:
-            done = await self._td.call(
-                {
-                    "@type": "downloadFile",
-                    "file_id": f["file_id"],
-                    "priority": 1,
-                    "offset": 0,
-                    "limit": 0,
-                    "synchronous": True,
-                },
-                max(self._timeout, 600.0),
-            )
-        except (TdError, TimeoutError) as exc:
-            return att | {"status": "failed", "note": str(exc)[:200]}
+        for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+            try:
+                done = await self._td.call(
+                    {
+                        "@type": "downloadFile",
+                        "file_id": f["file_id"],
+                        "priority": 1,
+                        "offset": 0,
+                        "limit": 0,
+                        "synchronous": True,
+                    },
+                    max(self._timeout, 600.0),
+                )
+                break
+            except (TdError, TimeoutError) as exc:
+                if attempt == DOWNLOAD_ATTEMPTS:
+                    note = f"nach {attempt} Versuchen: {str(exc)[:180]}"
+                    return att | {"status": "failed", "note": note}
+                await asyncio.sleep(DOWNLOAD_RETRY_S * attempt)
         src = Path(done["local"]["path"])
         suffix = src.suffix or ".bin"
         rel = Path("channels") / PLATFORM / str(chat_id) / f"{message_id}_{index}{suffix}"

@@ -47,6 +47,7 @@ class MessagesMixin:
         display_name: str | None = None,
         reply_to: str | None = None,
         attachments: list[dict] | None = None,
+        album_id: str | None = None,
     ) -> Inbound:
         """Eingang vor der Bestätigung an die Plattform dauerhaft speichern: Ereignis genau
         einmal, Kundenakte/Identität/Konversation, Nachricht – alles in einer Transaktion. Ein
@@ -69,7 +70,7 @@ class MessagesMixin:
             cur = db.execute(
                 "INSERT INTO channel_messages (customer_id, conversation_id, direction,"
                 " platform_message_id, reply_to_platform_id, text, attachments, status, sent_at,"
-                " created_at) VALUES (?,?,'in',?,?,?,?,'received',?,?)"
+                " created_at, album_id) VALUES (?,?,'in',?,?,?,?,'received',?,?,?)"
                 " ON CONFLICT (conversation_id, direction, platform_message_id) DO NOTHING",
                 (
                     customer.id,
@@ -80,6 +81,7 @@ class MessagesMixin:
                     json.dumps(attachments or [], ensure_ascii=False),
                     sent_at,
                     now(),
+                    album_id or None,
                 ),
             )
             if not cur.rowcount:  # gleiche Nachricht über ein anderes Ereignis
@@ -373,6 +375,41 @@ class MessagesMixin:
             (platform, account),
         )
         return [dict(r) | {"attachments": json.loads(r["attachments"])} for r in rows]
+
+    def pending_inbound(self, platform: str, account: str) -> list[dict]:
+        """Eingänge eines Kontos mit noch nicht geladenen Anhängen (``pending``): ihre
+        Verarbeitung wurde unterbrochen (SP1 Schritt 3), älteste zuerst."""
+        rows = self.db.execute(
+            "SELECT m.*, c.platform_conversation_id FROM channel_messages m"
+            " JOIN channel_conversations c ON c.id = m.conversation_id"
+            " JOIN channel_identities i ON i.id = c.identity_id"
+            " WHERE m.direction = 'in' AND i.platform = ? AND i.account = ?"
+            " AND m.attachments LIKE '%\"pending\"%' ORDER BY m.id",
+            (platform, account),
+        )
+        found = [dict(r) | {"attachments": json.loads(r["attachments"])} for r in rows]
+        return [m for m in found if any(a.get("status") == "pending" for a in m["attachments"])]
+
+    def inbound_of(self, message_id: int) -> Inbound:
+        """Gespeicherten Eingang erneut als ``Inbound`` (Verarbeitung nach Wiederaufnahme)."""
+        row = self.db.execute(
+            "SELECT m.customer_id, m.conversation_id, c.identity_id FROM channel_messages m"
+            " JOIN channel_conversations c ON c.id = m.conversation_id WHERE m.id = ?",
+            (message_id,),
+        ).fetchone()
+        if row is None:
+            raise StoreError(f"Nachricht {message_id} unbekannt.")
+        customer = self.customer_by_id(row["customer_id"])
+        return Inbound(customer, row["identity_id"], row["conversation_id"], message_id, False)
+
+    def album_messages(self, conversation_id: int, album_id: str) -> list[dict]:
+        """Alle eingehenden Nachrichten eines Albums in Reihenfolge."""
+        rows = self.db.execute(
+            "SELECT id FROM channel_messages WHERE conversation_id = ? AND album_id = ?"
+            " AND direction = 'in' ORDER BY id",
+            (conversation_id, album_id),
+        )
+        return [self.message(r[0]) for r in rows]
 
     def unknown_outgoing(self, platform: str, account: str) -> list[dict]:
         """Sendungen mit unbekanntem Ergebnis eines Kontos (SP2 Schritt 6, SPEC-009)."""
