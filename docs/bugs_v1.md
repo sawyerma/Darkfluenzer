@@ -116,6 +116,7 @@
 | BUG-108 | `comfy.ui_to_api` bricht bei offiziellen Vorlagen aus älteren Knotenfassungen ab (dynamische Auswahl mit weniger gespeicherten Werten, z. B. `SaveVideo` in `video_ltx2_5_flf2v`: „pop from empty list“), setzt sonst fehlende Werte auf `None`; `check_graph` meldet wachsende Eingänge (`values.a` von `ComfyMathExpression`) als unbekannt, auch im abgenommenen `ltx25_i2v`. | CODE | Standard bzw. erste Option wie im Frontend; Autogrow-Unterreingänge anerkennen. | A (Zeitachse B4) |
 | BUG-109 | Wiederholen und „Wiederholen“ (repeat_job_id) eines Sekunden-Videos (LTX) scheitern: der Job speichert `segment_s = 0`, `video_plan` lehnt jedes `segment_s` ab („Abschnitte gibt es bei diesem Workflow nicht“). Gefunden mit dem Regressionstest zu FABLE-008. | CODE | `segment_s = 0` heißt keine Abschnitte; andere Werte bleiben abgelehnt. | A |
 | BUG-126 | Langvideo: das Zusammensetzen meldet die Vorschau jedes `LoadVideo` (Typ `input`) als Ausgabe; `comfy` übernahm sie als Ergebnis – die Abschnittsvideos landeten als Medien in der Galerie, das Job-Ergebnis zeigte auf das erste Abschnittsvideo statt auf das fertige Video (echter Lauf 18.11., Job 103: Medien 106/107 Abschnitte, 108 fertig). Nummer 126, weil 110–125 als vorläufige Nummern des Auditblatts im Text stehen. | CODE | Ausgaben vom Typ `input` sind nie Ergebnisse. | A |
+| BUG-127 | Testprozess-Leck: Tests, die über Cockpit oder Pipeline rendern, starten die Fake-ComfyUI per `runtime.start` mit eigener Prozessgruppe (`start_new_session`, im Betrieb gewollt); kein Test stoppte sie. 18.11.: 451 verwaiste Prozesse aus elf Testarten. | CODE | Bereinigung je Testprojekt und am Sitzungsende (Prozessgruppe, nur Test-Interpreter + `main.py` + Arbeitsverzeichnis unter pytest). | Test |
 
 ## 4. P3
 
@@ -199,6 +200,26 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: BUG-127 (Testprozess-Leck: verwaiste Fake-ComfyUI)
+Commit: siehe git log „BUG-127“ / backend/tests/conftest.py, backend/tests/test_cleanup.py
+Befund: 453 Prozesse „python main.py --listen 127.0.0.1 --port N“, alle mit Elternprozess 1: 2 produktive
+  (ComfyUI-venv, 8188/8189, Arbeitsverzeichnis local/ComfyUI) und 451 mit dem Test-Interpreter der Backend-venv,
+  Arbeitsverzeichnis …/pytest-of-<user>/(pytest-N|garbage-<uuid>)/test_*/local/fake_comfy; Herkunft elf Tests
+  (z. B. test_order_commands_push_stages_and_retry 60, test_provenance_of_a_rendered_medium 57)
+Bereinigung: jede PID einzeln geprüft (Elternprozess, Interpreter, argv main.py --listen 127.0.0.1, Port ≠
+  8188/8189, Arbeitsverzeichnis unter pytest, vorhandenes main.py = Fake), unmittelbar vor dem Signal erneut;
+  451 × SIGTERM, 0 × SIGKILL nötig, 0 übrig; 8188/8189 unberührt, beide antworten 200
+Ursache: runtime.start startet ComfyUI absichtlich in eigener Prozessgruppe (übersteht Cockpit-Neustarts);
+  Tests stoppten die gestartete Fake-ComfyUI nie
+Korrektur: conftest.reap_fake_comfy beim Abbau jedes Testprojekts und am Sitzungsende (Prozessgruppe, SIGTERM,
+  dann SIGKILL); erkannt nur Test-Interpreter (normierter Pfad – „backend/../local“ und „local“ sind derselbe)
+  + main.py + Arbeitsverzeichnis unter dem pytest-Ordner
+Nachweis: tests/test_cleanup.py::test_a_test_run_leaves_no_fake_comfy_behind (innerer pytest-Lauf mit zwei
+  vorher leckenden Tests): ohne Bereinigung rot (2 zurückgeblieben), mit Bereinigung grün; volle Suite
+  211 grün, danach 0 Test-Fake-ComfyUI
+Ergebnis: PASS (am Mac belegt)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP4 Schritt 2 (Promptprofile, Backend) / SPEC-016 Teil
 Commit: siehe git log „SP4 step 2“ / store.profiles, core.persona, core.characters, Migration 26, Protos
 Behauptung: influencers.persona war ein Textfeld, eine Änderung überschrieb die alte Fassung
