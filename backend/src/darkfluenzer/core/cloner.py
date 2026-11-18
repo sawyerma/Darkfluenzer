@@ -248,7 +248,9 @@ class ClonerMixin:
         parts = [self.manifest.workflows[key].title, f"{jobs} Kandidat(en)"]
         parts += [x for x in (opts.get("format"), opts.get("duration")) if x]
         if self.manifest.workflows[key].lora is not None:
-            parts.append("ohne Charakter-LoRA")  # bis zur Kloner-Methode je Befehl (SP3 8)
+            stages = self.store.stages(order.id)
+            lora = str(stages[0].params.get(pipeline.LORA_KEY) or "") if stages else ""
+            parts.append(f"LoRA {lora}" if lora else "ohne Charakter-LoRA")
         return " · ".join(parts + [opts.get("wish") or "–"])
 
     def _cloner_options(self, key: str, command: str, wish: str, default: dict) -> dict | str:
@@ -427,6 +429,10 @@ class ClonerMixin:
         for name, p in wf.params.items():  # Pflichtwerte ohne Angabe: geprüfter Graph-Standard
             if p.required and not p.upload and name not in values:
                 values[name] = graph[p.node]["inputs"][p.input]
+        # Charakter-LoRA der Figur des Default-Kontakts (SP3 Schritt 8/9), wenn der Workflow sie
+        # laden darf; sonst „ohne Charakter-LoRA“ (Karte)
+        character = figure["character_id"] if figure else None
+        lora = pipeline.active_lora(self.store, self.manifest, character, wf) if character else ""
         numbers: list[str] = []
         for group in groups:
             inputs = {}
@@ -446,6 +452,7 @@ class ClonerMixin:
                 finish_workflow=opts["finish"], finish_values=opts["finish_values"],
                 parent_media_id=parent, source="cloner", origin=msg["id"],
                 video_max_s=self.cfg.production.video_max_s, extra=extra,
+                lora=lora, character_id=character if lora else None,
             )  # fmt: skip
             order_id = self.store.order(order_no).id
             self.store.link_order(msg["id"], order_id)

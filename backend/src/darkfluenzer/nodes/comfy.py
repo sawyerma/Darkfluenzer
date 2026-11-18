@@ -567,10 +567,21 @@ def _git_revision(root: Path, rel: str) -> str:
     return (rev or "uncommitted") + ("+dirty" if dirty else "")
 
 
-def provenance(man: Manifest, wf: Workflow, values: dict) -> dict:
-    """Reproduzierbare Herkunft: Workflow-Revision + Datei-Hash, Modelldateien mit Revision/SHA."""
+def provenance(man: Manifest, wf: Workflow, values: dict, lora: LoraUse | None = None) -> dict:
+    """Reproduzierbare Herkunft: Workflow-Revision + Datei-Hash, Modelldateien mit Revision/SHA,
+    die Charakter-LoRA mit Schlüssel, Datei und SHA (SP3 Schritt 9)."""
     api_path = man.root / "workflows" / wf.api
+    character_lora = (
+        {
+            "key": lora.lora.key, "file": lora.lora.target, "sha256": lora.lora.sha256,
+            "character": lora.lora.character, "trigger": lora.trigger,
+            "strength": values.get("character_strength", lora.lora.strength),
+        }
+        if lora is not None
+        else None
+    )  # fmt: skip
     return {
+        "character_lora": character_lora,
         "workflow": wf.key,
         "workflow_file": f"workflows/{wf.api}",
         "workflow_sha256": hashlib.sha256(api_path.read_bytes()).hexdigest(),
@@ -638,8 +649,9 @@ def run_workflow(
     if on_submit is not None:
         on_submit(prompt_id, graph)
     return collect_workflow(
-        cfg, man, workflow_key, values, prompt_id, dest, stem=stem, timeout_s=timeout_s, t0=t0
-    )
+        cfg, man, workflow_key, values, prompt_id, dest, stem=stem, timeout_s=timeout_s, t0=t0,
+        lora=lora,
+    )  # fmt: skip
 
 
 def collect_workflow(
@@ -653,6 +665,7 @@ def collect_workflow(
     stem: str,
     timeout_s: float | None,
     t0: float | None = None,
+    lora: LoraUse | None = None,
 ) -> RenderResult:
     """Auf einen eingereichten Auftrag warten und seine Ausgaben unter ``dest`` sichern – auch für
     einen vor einem Backend-Neustart eingereichten (dann ist ``t0`` unbekannt)."""
@@ -670,7 +683,7 @@ def collect_workflow(
             workflow=workflow_key,
             engine=wf.engine,
             params=values,
-            provenance=provenance(man, wf, values),
+            provenance=provenance(man, wf, values, lora),
         ),
         allow_empty=wf.training,  # Training liefert die LoRA-Datei (SaveLoRA)
     )

@@ -242,6 +242,9 @@ class Workflow:
     identity: str = ""
     keyframes: KeyframeSlot | None = None  # weitere Schlüsselbilder (Zeitachse B4)
     text: TextSpec | None = None  # Sprachworkflow auf ComfyUI 2 (Engine-Art text)
+    # Vorschlag als Kloner-Methode für diese Befehle (SP3 Schritt 8; Entscheidung des Betreibers
+    # nach dem Vergleich mit echten Vorlagen, übernommen im Default-Kontakt)
+    cloner: tuple[str, ...] = ()
 
     @property
     def training(self) -> bool:
@@ -392,6 +395,18 @@ def _video(t: object, params: dict[str, Param], w: str) -> VideoSpec | None:
     if mode == "seconds" and spec.seconds_max <= 0:
         raise ManifestError(f"Manifest: {w}.video.seconds_max muss größer 0 sein.")
     return spec
+
+
+# Kurzbefehle der Default-Kette (wie core.cloner_text.COMMANDS; Manifest prüft ohne Kern-Import)
+CLONER_COMMANDS = ("clone", "pose", "style", "remix", "animate", "edit")
+
+
+def _cloner_commands(raw: object, where: str) -> tuple[str, ...]:
+    if raw is None:
+        return ()
+    if not isinstance(raw, list) or not all(c in CLONER_COMMANDS for c in raw):
+        raise ManifestError(f"Manifest: {where}.cloner nur aus {', '.join(CLONER_COMMANDS)}.")
+    return tuple(raw)
 
 
 def format_problems(wf: Workflow, formats: dict[str, tuple[int, int]]) -> list[str]:
@@ -698,6 +713,7 @@ def load_manifest(root: Path, *, require_ui: bool = True, text: str | None = Non
             identity=str((t.get("identity") or {}).get("node", "")),
             keyframes=_keyframe_slot(t.get("keyframes"), w),
             text=_text_spec(t.get("text"), params, w),
+            cloner=_cloner_commands(t.get("cloner"), w),
         )
         for name, prm in params.items():
             if prm.below and prm.below not in params:

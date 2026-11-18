@@ -200,6 +200,16 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP3 Schritte 8 und 9 (Kloner-Methode je Befehl, Abnahme mit Figur) / BUG-052 (Teil)
+Commit: siehe git log „SP3 steps 8+9“ / models (cloner), core/cloner (LoRA der Figur), core/cloner_compare + app
+  `cloner compare`, comfy.provenance (character_lora), WorkflowInfo 23, DefaultPanel (Vorschlag)
+Nachweis: tests/test_cloner_compare.py, test_cloner_finish.py (LoRA-Bindung); Regression: Backend 280, Chrome-E2E
+  isoliert 18/18, lesend echt 8/8; echter Neustart mit Wiederanmeldung
+NOT_RUN: Vergleich mit zehn Vorlagen je Befehl und Abnahme der Default-Kette mit Figur (Charakterfotos und trainierte
+  LoRA fehlen – Betreiberangabe; Modellqualifikation)
+Ergebnis: CODE
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP1 Schritte 6, 7, 8, 9, 11 (Chat-Wort), 12 (Optionen, Aufträge, Abschluss, Postausgang, Betriebsart)
 Commit: siehe git log „SP1 steps 6-9, 11, 12“ / core/cloner.py, cloner_text (options, finish_height), core/orders
   (extra, Abbruch meldet Kloner), store (Migration 33, cloner_returns, outbox-Reihenfolge, set_account_mode),

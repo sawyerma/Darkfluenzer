@@ -358,6 +358,32 @@ def _secret(args: argparse.Namespace) -> tuple[dict, int]:
     return {"ok": True, "stored": service, "verified": keychain.secret(service) == value}, 0
 
 
+def _cloner(args: argparse.Namespace) -> tuple[dict, int]:
+    """Vergleich der Kloner-Methoden je Befehl (SP3 Schritt 8): echte Läufe, Bericht als JSON."""
+    from .core import cloner_compare
+
+    cfg = load()
+    setup_logging(cfg)
+    man = models.load_manifest(cfg.root)
+    files = cloner_compare.templates(Path(args.templates).expanduser(), args.limit)
+    store = Store(cfg.local)
+    try:
+        runs = cloner_compare.plan(store, man, args.command, files, args.workflow, args.character)
+    finally:
+        store.close()
+
+    def progress(row: dict) -> None:
+        if not args.json:
+            ident = row["identity"]
+            head = f"{row['workflow']} · {row['template']} · {ident.get('status')}"
+            print(f"{head} auraface={ident.get('auraface')} · {row['seconds']} s", flush=True)
+
+    report = cloner_compare.run(cfg, man, runs, progress=progress)
+    report["command"] = args.command
+    path = cloner_compare.write_report(cfg, args.command, report)
+    return {"ok": True, "report": str(path), "summary": report["summary"]}, 0
+
+
 def _trace(args: argparse.Namespace) -> tuple[dict, int]:
     """Rückverfolgung der Default-Kette (SP1 Schritt 1), nur lesend."""
     from .core import trace
@@ -428,6 +454,14 @@ def main(argv: list[str] | None = None) -> int:
     sec.add_argument("name", nargs="?", default="", help=f"bei set: {', '.join(SECRET_RULES)}")
     sec.add_argument("--replace", action="store_true", help="vorhandenen Eintrag ersetzen")
     sec.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
+    clp = sub.add_parser("cloner", help="Kloner-Methoden je Befehl vergleichen (SP3 Schritt 8)")
+    clp.add_argument("action", choices=["compare"])
+    clp.add_argument("--command", required=True, help="clone | pose | style | remix | edit")
+    clp.add_argument("--templates", required=True, help="Ordner mit echten Vorlagen")
+    clp.add_argument("--workflow", action="append", required=True, help="Kandidat (mehrfach)")
+    clp.add_argument("--character", type=int, help="Figur (aktive LoRA, Referenzsatz)")
+    clp.add_argument("--limit", type=int, default=10, help="höchstens so viele Vorlagen")
+    clp.add_argument("--json", action="store_true", help="maschinenlesbare Ausgabe")
     trp = sub.add_parser("trace", help="Default-Kette einer Nachricht/eines Auftrags (nur lesend)")
     which = trp.add_mutually_exclusive_group(required=True)
     which.add_argument("--message", type=int, help="Nachrichten-ID (Verlauf)")
@@ -461,6 +495,8 @@ def main(argv: list[str] | None = None) -> int:
             payload, code = _secret(args)
         elif args.area == "trace":
             payload, code = _trace(args)
+        elif args.area == "cloner":
+            payload, code = _cloner(args)
         elif args.area in ("up", "restart", "down"):
             cfg = load()
             setup_logging(cfg)

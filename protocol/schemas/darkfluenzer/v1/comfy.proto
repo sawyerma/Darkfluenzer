@@ -174,6 +174,8 @@ message WorkflowInfo {
   double step_s = 21;
   // nimmt weitere Schlüsselbilder zwischen Start- und Endbild (Zeitachse B4)
   bool keyframes = 22;
+  // Vorschlag als Kloner-Methode für diese Befehle (Manifest `cloner`, SP3 Schritt 8)
+  repeated string cloner = 23;
 }
 
 message OutputFormat {

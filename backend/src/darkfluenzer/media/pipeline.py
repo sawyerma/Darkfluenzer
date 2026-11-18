@@ -730,6 +730,7 @@ def _render(
             dest,
             stem=f"{workflow_key}_{stamp}",
             timeout_s=timeout_s,
+            lora=lora,
         )
     else:
         client = comfy.ComfyClient(inst.url)

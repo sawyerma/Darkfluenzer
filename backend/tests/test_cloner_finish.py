@@ -347,3 +347,44 @@ def test_command_37_validates_and_round_trips(cloner_cfg):  # noqa: F811
         assert [(m.key, m.mode) for m in d.account_modes] == [("tg", "test")]
 
     _run(cfg, scenario)
+
+
+def test_cloner_binds_the_active_lora_of_the_figure(cloner_cfg):  # noqa: F811
+    """SP3 Schritte 8/9: der Kloner lädt die aktive LoRA der Figur des Default-Kontakts (nur
+    wenn der Workflow sie laden darf); ohne aktive LoRA „ohne Charakter-LoRA“."""
+    from darkfluenzer.media import models, pipeline
+
+    cfg = cloner_cfg
+
+    async def scenario(client, app, origin):
+        cockpit = app[server.COCKPIT_KEY]
+        store = cockpit.store
+        send, photo = _cloner_setup(cfg, store, auto=True)
+        slug = store.character(1)["slug"]
+        clara = store.save_influencer(0, 0, "Clara", 1, "", "", [])
+        default = store.default_contact()
+        store.update_default_contact(default["revision"], {"influencer": str(clara)}, {})
+        await cockpit._on_inbound(send("1", "remix", "1", [photo]))
+        first = store.order_by_id(store.db.execute("SELECT max(id) FROM orders").fetchone()[0])
+        assert not store.stages(first.id)[0].params.get(pipeline.LORA_KEY)
+        assert any(
+            "ohne Charakter-LoRA" in c
+            for c in _cards(store, store.default_contact()["customer_id"])
+        )
+        lora = models.Lora(
+            key="figur_sdxl", target=f"loras/characters/{slug}/figur_sdxl.safetensors", size=1,
+            sha256="c" * 64, base_engine="lustify_sdxl",
+            base_file=cockpit.manifest.engines["lustify_sdxl"].files[0], dataset="ds",
+            trigger="dfchar", steps=10, rank=16, learning_rate=1e-4, strength=0.8,
+            status="OFFEN", created_at="t", trainer="t", character=slug,
+        )  # fmt: skip
+        cockpit.manifest = models.register_lora(cfg.root, lora)
+        store.set_active_lora(1, "sdxl", "figur_sdxl")
+        await cockpit._on_inbound(send("2", "remix", "2", [photo]))
+        second = store.order_by_id(store.db.execute("SELECT max(id) FROM orders").fetchone()[0])
+        assert store.stages(second.id)[0].params[pipeline.LORA_KEY] == "figur_sdxl"
+        assert any(
+            "LoRA figur_sdxl" in c for c in _cards(store, store.default_contact()["customer_id"])
+        )
+
+    _run(cfg, scenario)

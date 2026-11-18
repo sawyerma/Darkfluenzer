@@ -212,6 +212,7 @@ function DefaultForm({
     options: typeof usable,
     none = "Nicht festgelegt",
     aria?: string,
+    suggest = "",
   ) {
     return (
       <div className={aria ? "g-field g-sub" : "g-field"}>
@@ -220,7 +221,7 @@ function DefaultForm({
           <option value="">{none}</option>
           {options.map((w) => (
             <option key={w.key} value={w.key}>
-              {w.title}
+              {suggest && w.cloner.includes(suggest) ? `${w.title} · Vorschlag` : w.title}
             </option>
           ))}
           {value && !options.some((w) => w.key === value) ? <option value={value}>{value} (nicht verfügbar)</option> : null}
@@ -350,6 +351,8 @@ function DefaultForm({
                 (v) => setProfile(c, { workflow: v }),
                 c === "animate" ? videos : media,
                 base ? `wie ${label}` : `kein Workflow (${label} fehlt)`,
+                undefined,
+                c, // Vorschlag aus dem Manifest (SP3 Schritt 8) in der Auswahl markiert
               )}
               {effective?.formats.length ? (
                 <div className="g-field g-sub">
