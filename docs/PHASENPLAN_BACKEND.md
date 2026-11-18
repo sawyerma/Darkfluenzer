@@ -2,8 +2,8 @@
 
 > **Verbindlicher Studio-Ausbau (18.11.2026):** Abschnitt 13 legt Masterplan 3.2 und die freigegebenen Architektur-/Flussdiagramme als Umsetzungs-Soll fest. Er ergänzt die historischen Etappen A–F und SP0–SP6. Bei Widerspruch zur älteren Studio-/ComfyUI-Organisation gilt für die **noch nicht implementierte neue Studio-Architektur** Abschnitt 13; E1–E26 und die bisherigen Sicherheits-/Lieferregeln werden nicht aufgehoben. Umsetzung **nicht** allein durch Aufnahme dieses Plans nachgewiesen. Zugehöriges Frontend: **PHASENPLAN_FRONTEND.md §6**.
 
-**Stand:** 17.11.2026 – sechs Sammelpakete SP1–SP6 in Code-Tiefe (Code-Vergleiche von Fable), Änderungsblätter, Korrektur nach den Prüfberichten von ChatGPT und Fable · **Status:** **freigegeben** durch den Betreiber am 17.11.2026, verbindlich. Umsetzung ab SP0 Schritt 1 in der Reihenfolge von §6, Priorität CODE FIRST (§6).
-**Prüfbasis:** Code auf `main` ab `7a49b6a`, Planstand nach `d120562` mit Korrektur; echte Läufe vom 16./17.11. auf dem Mac (§5).
+**Stand:** 18.11.2026 – historische SP0–SP6-Funktionsverträge und neuer verbindlicher Studio-Ausbau DS0–DS10. **Neue Umsetzungsreihenfolge: §13.10**, nicht die historische §6-Liste. Planfreigabe ist kein Implementierungs-PASS.
+**Prüfbasis:** Historische Mac-Läufe 16.–18.11.; Git-Quellprüfung 18.11. bis `9b559d9`. `store/schema.py` deklariert `SCHEMA_VERSION = 44`; tatsächliche DB-Version auf dem Mac ist durch DS0 zu erfassen. Eigentümer liegen heute unter `web/`, `core/`, `store/`; alte Monolithpfade im SP-Text sind historische Verweise.
 **Verbindlich sind genau drei Dateien:** diese, `docs/PHASENPLAN_FRONTEND.md` und `docs/bugs_v1.md` (Befundregister).
 **Archiv (nicht verbindlich):** `docs/archiv/` mit `PHASENPLAN_V0.md`, `PHASENPLAN_BACK_V1.md`, `PHASENPLAN_FRONT_V1.md`, `ki_modelle.md`, `bugs_v1_20261117_vor_neufassung.md`. Code-Kommentare mit Verweisen auf V0/V1-Abschnitte beziehen sich auf diese Archivfassungen.
 **Quellen dieser Fassung:** die bisherigen Pläne, die Konsolidierungen und Prüfberichte von ChatGPT und Fable, die Betreiberantworten E1–E18 vom 17.11.2026, die Entscheidungen E24–E26 und zu E16/E17 vom 18.11.2026 und der Code. **[17.11., Planlogik]** Korrigiert nach der Logikprüfung des Auditors (Fable) und dem verbindlichen Betreiberauftrag „Phasenpläne korrigieren“: Kanalkonten-Datenmodell vor SP4 (§6 Etappe C), Gegenprüfung nach Regel 4 auch beim Default (SP3 Schritt 7, SP5 Schritt 7), Befehl 40 statt 66 (§10), Statusbegriffe nach §2.3, Videofreigabe (E23), Testweg vorgezogen (Etappe D), KI-Hinweis als fester Text (E20), Rechtsfreigabe vor dem ersten öffentlichen Kundenkontakt (E21), kurzes Training für die Kettenabnahme (E22) und Abläufe für die gefundenen Lücken (Zahlung nach Ablauf, Instagram-Fenster, ungeklärte Nachrichten, Betriebsartwechsel, Freigabewörter, Lieferzeit, Training, Sperren, Löschung); Wahlpunkte E24–E26 (am 18.11. entschieden). Code-Befunde des Auditors stehen in `docs/bugs_fable_v1.md` (FABLE-001 ff.).
@@ -30,7 +30,7 @@ Clara wirkt menschlich (Tempo, Tippen, Vertrösten), bleibt ehrlich (KI-Hinweis,
 4. Das Backend übersetzt den Wunsch in einen Prompt und erzeugt mit Claras LoRA. Die automatische Prüfung bewertet die Kandidaten und wählt den besten.
 5. Die gekennzeichnete Zustellkopie geht an den Kunden, Clara schreibt dazu.
 
-Video läuft genauso: erst das Bild, dann die Animation. Der Betreiber gibt die Höchstlänge je Produkt vor.
+**Videos mit synthetischer Figur:** freigegebenes Start-/Charakterbild, dann qualifizierte Animation. **Figurenlose** Filme/Werbespots können getrennt qualifizierte Video-Rezepte ohne Charakter-Startbild nutzen. Regel 4 gilt uneingeschränkt. Der Betreiber begrenzt die Produktdauer.
 
 **Default (Betreiber als Admin):** Der Chat des Defaults hat drei Betriebsarten (E12):
 - **Produktion:** Der Betreiber schickt Claras Konto per Telegram Bilder oder Videos mit Befehl oder freier Anweisung. Die KI wählt Workflow und Prompt. Das Ergebnis kommt in denselben Chat zurück, Bilder und Videos als Datei in voller Qualität, auf Wunsch im Story-Format 9:16. Mehrere Bilder in einer Nachricht laufen als Stapel.
@@ -73,6 +73,15 @@ Video läuft genauso: erst das Bild, dann die Animation. Der Betreiber gibt die 
 | E24 | **[18.11., Betreiberentscheidung] Zahlung nach Angebotsablauf:** keine automatische Neuzuordnung. Der Auftrag bleibt `cancelled`, der Eingang „nicht zugeordnet“ mit Meldung ans Handy; der Betreiber ordnet ihn einem neuen Angebot zu oder erstattet. | entschieden 18.11. |
 | E25 | **[18.11., Betreiberentscheidung] Training und bezahlte Aufträge:** ein laufendes LoRA-Training pausiert bei einem bezahlten Kundenauftrag automatisch am nächsten vollständigen Checkpoint und wird danach verlustfrei fortgesetzt (SP3 Schritt 3, SP5 Schritt 5). Vor der Aktivierung mit Abbruch-, Wiederaufnahme- und Regressionstests abgesichert. | entschieden 18.11. |
 | E26 | **[18.11., Betreiberentscheidung] Getrennter Einstufungslauf:** vor der Persona-Antwort ein neutraler Einstufungslauf ohne Persona (Minderjährigkeit, expliziter Wunsch, Kaufbereitschaft, Wunsch, Absicht) innerhalb von ComfyUI 2. Beide Läufe werden über denselben registrierten Workflow orchestriert (im Graphen, eine Einreichung); keine zusätzliche Sprachlogik in Python. Abnahme mit Manipulationsversuchen (SP4 Schritt 4). | entschieden 18.11. |
+| E27 | Eine Darkfluenzer-App, eine GUI, eine SQLite; Studio als abgegrenztes, später auslagerbares Modul (§13). | **entschieden** (Masterplan 3.2) |
+| E28 | KI erzeugt nur validierte typisierte Szenen-/Kreativobjekte, niemals ausführbaren Blender-Code. | **offen als formale Entscheidung**; Architektur-Soll |
+| E29 | PLAN/DRAFT/MASTER/FINAL nach geeignetem Rezept, keine unnötigen Pflichtstufen. | **offen**; Architektur-Soll |
+| E30 | Freigegebenes Bildtor nur für figurengebundene Videoverfahren (Regel 3). | **offen**; Architektur-Soll |
+| E31 | Kontrollsignale, revisionsgebundene GuideBundle-Prüfung und messbarer Abgleich. | **offen**; Architektur-Soll |
+| E32 | Ein Executor, faire Prioritäten, nur zulässige Engine-Stapelung. | **offen**; Architektur-Soll |
+| E33 | Externe Anbieter nur nach ausdrücklicher Kosten-/Daten-/Providerfreigabe; keine Kundeninhalte in der Cloud. | **offen**, Cloud AUS, FREE ONLY bleibt |
+
+**Nummernprüfung:** E28–E33 sind nicht als Betreiberfreigabe zu werten; DS0 gleicht sie mit dem aktuellen Entscheidungsregister ab.
 
 ---
 
@@ -84,16 +93,16 @@ Wörtlich aus dem archivierten `PHASENPLAN_V0.md` §2 übernommen. Regel 12 ist 
 
 1. **Leichte Tendenz zu besserem Bild, aber in angemessener Zeit** (Betreiberentscheidung 15.11.2026): Modell, Identitätsmethode, Modellvariante (z. B. Turbo/Raw, 3B/7B) und Auflösungsweg entscheiden reale A/B-Tests mit den Charakterbildern des Betreibers auf diesem Mac. Unter den Varianten, die das je Ausgabeart gemessene und vom Betreiber bestätigte Zeitbudget einhalten (festgelegt in B2/B4), gewinnt die beste Bildqualität; ist eine Variante deutlich besser, aber langsamer, entscheidet der Betreiber. Ranglisten und Herstellerangaben sind nur Kandidatenquellen.
 2. **Identität hat Vorrang:** gleiches Gesicht, gleiche Figur/Anmutung über alle Stufen. LoRA ist Mittel, nicht Ziel; die messbar stabilste Methode oder Kombination gewinnt. „Identität gesperrt“ = Auftrag nutzt verbindlich dieses Profil; Abweichungen werden zurückgewiesen, keine Garantie.
-3. **Explizite Bearbeitung nur abgeleitet** (maskiert vom freigegebenen Bild; im Bearbeitungsschritt 0 Pixel außerhalb der Maske, automatisch geprüft). **Video nur vom freigegebenen Foto** bzw. bei Bewegungsübertragung mit dem freigegebenen Charakterbild als Identitätsreferenz.
+3. **Explizite Bearbeitung nur abgeleitet** (maskiert vom freigegebenen Bild; außerhalb der Maske 0 geänderte Pixel, automatisch geprüft). **Video mit eigener synthetischer Figur** verwendet ein freigegebenes Charakter-/Startbild als verbindliche Identitätsreferenz. **Figurenloses Video** benötigt ein eigenes qualifiziertes Rezept und geeignete Prüftore; keine Ausweitung des Face-Swap-Verbots nach Regel 4.
 4. **Face-Swap ausschließlich auf eigenen, synthetisch erzeugten Bildern.** Nie auf fremden Referenzfotos/-videos; fremde Vorlagen liefern nur Pose, Komposition, Licht, Stil bzw. Bewegung. Gesichtszüge abgebildeter Personen werden nie Teil eines Charakterprofils; kein Ersetzen realer Personen in fremden Videos.
 5. **Vollständige Reproduzierbarkeit** jedes Bildes/Videos (§9.3).
-6. **Lokal, dokumentiert, nativ:** keine Cloud-Generierung, **kein Docker**, keine Electron-Pflicht, keine Parallelarchitektur; jede Modelldatei mit Quelle, Revision, SHA-256 und Nutzungsbedingungen im Manifest. Lizenzbedingungen sind **kein Auswahlkriterium** (Betreiberentscheidung 15.11.2026). Modelle werden nur nach ausdrücklicher Betreiberbestätigung gelöscht; ein Downloadplan ist keine Löschfreigabe.
+6. **Lokal, dokumentiert, nativ – FREE ONLY als aktiver Standard:** keine Cloud-Generierung im Kunden-/Standardpfad, **kein Docker**, keine Electron-Pflicht, keine Parallelarchitektur. Optionale kostenpflichtige Cloud-Adapter sind **nur geplant (E33 offen)** und bis zu einer ausdrücklichen Freigabe von Anbieter, Datenklasse und Kosten AUS; kein stiller Fallback. Kundendaten/-briefs gehen niemals an externe KI (Regel 12e). Jede lokale Modelldatei mit Quelle, Revision, SHA-256 und Nutzungsbedingungen im Manifest; Lizenzbedingungen sind kein Modellqualitätskriterium, aber zu dokumentieren. Löschen nur nach Betreiberfreigabe.
 7. **Präzision je Komponente** (Generierungsmodell, Encoder, VAE/Decoder, Adapter, Hilfsmodelle): beste verfügbare kompatible Originalpräzision; FP32-Komponenten bleiben FP32 (z. B. RelayVSR-Decoder); Umwandlung aus quantisierten Dateien gewinnt keine Genauigkeit zurück; Speicherformat und Rechendatentyp dokumentiert. Dokumentierte Ausnahme: mflux trainiert mit 8-Bit-Basis.
-8. **Ein Cockpit:** die bestehende React-Oberfläche (**[17.11.]** sechs Hauptreiter **Übersicht · Nachrichten · ComfyUI · Dateien · Wallet · Einstellungen**, Graphite, ein Stylesheet); Gestaltung und Bedienlogik nach der freigegebenen Klickreferenz (`docs/design/Darkfluenzer_Cockpit_Interaktiv.html`, FRONTEND Anhang A). React spricht nur mit dem Python-Backend; **nie direkt mit Plattform- oder ComfyUI-APIs**.
+8. **Ein Cockpit – Zielnavigation:** **Übersicht · Nachrichten · Studio · Dateien · Wallet · Einstellungen**, Graphite, ein Stylesheet. Der bestehende Reiter `ComfyUI` wird in DS1/DS2/3 zu `Studio` umgebaut; technische Workflows bleiben unter **Studio → Labor**. Die neue Studio-Klickdemo ist dort verbindlich, die ältere F7-Referenz für die fünf übrigen Reiter. React spricht nur mit dem Python-Backend, niemals direkt mit Plattform-/Provider-/ComfyUI-APIs. Der aktuelle Code darf bis zur Umsetzung noch `ComfyUI` heißen.
 9. **Zwei ComfyUI-Instanzen** (§3.2) mit getrennten Warteschlangen und gemeinsamer Ressourcensteuerung; keine dritte KI-Engine.
 10. **Eigene Kanal-Adapter im Python-Backend** (Betreiberentscheidung 15.11.2026): Instagram und Telegram verbindlich, weitere Kanäle später über dieselbe Adapter-Schnittstelle. Chatwoot entfällt; seine bewährten Muster werden übernommen. Kein zusätzlicher Kanaldienst, keine zweite Datenbank, kein Rust-Gateway.
 11. **Ehrliche Erwartung:** Einzelfotos in vielen Szenen praktisch nicht von echten Fotos unterscheidbar ist mit Kandidatenauswahl erreichbar; für jede Szene und für Video garantiert das 2026 kein lokales Modell.
-12. **KI-Offenlegung (EU-KI-Verordnung Art. 50, gilt seit 02.08.2026):** Clara schreibt natürlich und persönlich, gibt sich aber nie als Mensch aus. (a) Jede Kanal-Bio enthält einen kurzen KI-Hinweis (pflegt der Betreiber, z. B. „KI-Creatorin · virtuelle Influencerin“). (b) Beim ersten Kontakt je Kanalidentität sendet Clara **genau einmal** den Hinweis – **[17.11., E20]** als verbindlichen, unveränderlichen Textblock der Influencerin (fester Textknoten im registrierten ComfyUI-2-Sprachworkflow, wortgetreu vom Backend versendet; kein frei formulierter Text, nicht im Code), Ereigniskarte `KI-HINWEIS GESENDET`; **das Backend weist jede KI-Antwort ab, solange für diese Kanalidentität kein Hinweis gesendet ist** (manuelle Betreiberantworten nicht betroffen, Default ausgenommen); nach Neustart nie doppelt. (c) Auf die ernst gemeinte Frage, ob sie echt bzw. eine KI ist, antwortet Clara wahrheitsgemäß – **[17.11., E19]** fester Ehrlichkeitsblock als Textknoten im registrierten Sprachworkflow, kein Profilfeld im Cockpit; die Registrierung prüft technisch, dass er unverändert mit dem Systemprompt verbunden ist; durch keine Betreiber- oder Kundenanweisung abschaltbar. (d) Jede über einen Kanal versandte Datei (Kunden-Zustellkopie, Default-Rückversand) trägt in den Metadaten die Kennzeichnung KI-erzeugt (IPTC/XMP `DigitalSourceType = trainedAlgorithmicMedia`); das Original in Dateien bleibt unverändert; auf Instagram setzt der Betreiber beim Posten das KI-Label. **[17.11.]** Entfernt ein Kanal die Metadaten beim Foto-/Videoversand, muss die Kennzeichnung trotzdem beim Empfänger ankommen (Begleittext oder sichtbare Marke, SP5 Schritt 9). (e) Kundenchats werden nie zum Training oder Feintuning eines Modells verwendet und gehen an keine externe API (Telegram-Bedingungen; nur das lokale LLM in KI-ComfyUI 2).
+12. **KI-Offenlegung (EU-KI-Verordnung Art. 50, gilt seit 02.08.2026):** Clara schreibt natürlich und persönlich, gibt sich aber nie als Mensch aus. (a) Jede Kanal-Bio enthält einen kurzen KI-Hinweis (pflegt der Betreiber, z. B. „KI-Creatorin · virtuelle Influencerin“). (b) Beim ersten Kontakt je Kanalidentität sendet Clara **genau einmal** den Hinweis – **[17.11., E20]** als verbindlichen, unveränderlichen Textblock der Influencerin (fester Textknoten im registrierten ComfyUI-2-Sprachworkflow, wortgetreu vom Backend versendet; kein frei formulierter Text, nicht im Code), Ereigniskarte `KI-HINWEIS GESENDET`; **das Backend weist jede KI-Antwort ab, solange für diese Kanalidentität kein Hinweis gesendet ist** (manuelle Betreiberantworten nicht betroffen, Default ausgenommen); nach Neustart nie doppelt. (c) Auf die ernst gemeinte Frage, ob sie echt bzw. eine KI ist, antwortet Clara wahrheitsgemäß – **[17.11., E19]** fester Ehrlichkeitsblock als Textknoten im registrierten Sprachworkflow, kein Profilfeld im Cockpit; die Registrierung prüft technisch, dass er unverändert mit dem Systemprompt verbunden ist; durch keine Betreiber- oder Kundenanweisung abschaltbar. (d) Jede über einen Kanal versandte Datei (Kunden-Zustellkopie, Default-Rückversand) trägt in den Metadaten die Kennzeichnung KI-erzeugt (IPTC/XMP `DigitalSourceType = trainedAlgorithmicMedia`); das Original in Dateien bleibt unverändert; auf Instagram setzt der Betreiber beim Posten das KI-Label. **[17.11.]** Entfernt ein Kanal die Metadaten beim Foto-/Videoversand, muss die Kennzeichnung trotzdem beim Empfänger ankommen (Begleittext oder sichtbare Marke, SP5 Schritt 9). (e) Kundenchats werden nie zum Training/Feintuning verwendet. **Kundenidentitäten, Texte, Memos, Referenzen und kundenbezogene CreativeBriefs werden niemals an externe Text-/Medien-KI gegeben; Kundenproduktionen bleiben `LOCAL_ONLY`.** Die notwendige Übermittlung einer Nachricht an ihren vom Betreiber gewählten Plattformkanal ist davon getrennt; der Kundendialog nutzt das lokale ComfyUI-2-LLM.
 13. **Inhaltsaufteilung (Betreiberentscheidung 15.11.2026, [17.11.] angepasst):** Über **Instagram und Telegram** gehen an Kunden ausschließlich **nicht explizite** Inhalte (Lifestyle, Mode, Reise, Sport, Strand, Bikini) sowie die Kundengespräche. **Explizite Inhalte** gibt es nur über eine **Adult-Abo-Plattform**, die fotorealistische, vollständig synthetische KI-Personen ausdrücklich erlaubt; **[17.11.]** Plattform ist **Fansly** (Eignung für synthetische Personen in SP6 Schritt 8 prüfen), explizite Wünsche im Chat beantwortet Clara mit dem Verweis dorthin; Upload durch den Betreiber, Bezahlung und Altersprüfung übernimmt die Plattform. Technisch trägt jedes Artefakt eine **Inhaltsstufe** `standard`/`explizit` (aus Workflow bzw. Auftrag gesetzt, vom Betreiber nur anhebbar; unbekannt gilt als `explizit`); `approval.py` lässt an Kunden über jeden Kanal nur `standard` zu und über Instagram an niemanden `explizit`; nur der Default-Nutzer erhält über Telegram alle eigenen Produktionsergebnisse. Eine automatische Inhaltsprüfung in den Medien-Workflows auf ComfyUI 1 ergänzt die Stufe, sobald ein Prüfmodell qualifiziert ist (SP5 Schritt 7, E16); bei Widerspruch Sperre. **[17.11.]** Keine Altersfrage (E2); Hinweise auf Minderjährigkeit → Akte gesperrt, keine Angebote, kein Flirt.
 
 ### 2.2 Entwicklungsregeln
@@ -133,53 +142,40 @@ Wörtlich aus V0 §2.1, ergänzt um die Betreiberregeln vom 14.–17.11.:
 
 ## 3. Architektur
 
-### 3.1 Komponenten
+### 3.1 Komponenten – aktueller Ist-Code und zukünftige Modulgrenze
 
-```mermaid
+**Ist am 18.11.2026:** Backend besitzt `web/http.py`, `web/commands.py`, `web/stream.py`, `core/*`, `store/db.py`, `store/schema.py`, `store/migrations/*`, `media/*` und `channels/*`. **`SCHEMA_VERSION = 44` ist der Wert im Quellcode**, nicht eine bestätigte Mac-Datenbankmigration. Namen wie `server.py`/`store.py` in historischen SP-Nachweisen sind kein aktueller Owner. **`studio/ProductionService` ist SOLL ab DS2/3.**
+
+~~~mermaid
 flowchart LR
-  subgraph Kanaele["Kanäle (Claras eigene Konten)"]
-    TG["Telegram-Konto<br/>TDLib"]
-    IG["Instagram-Creator-Konto<br/>Meta-API"]
-  end
-  subgraph BE["Python-Backend · eine SQLite"]
-    AD["Kanaladapter<br/>channels/telegram.py · instagram.py"]
-    ST[("SQLite<br/>store.py")]
-    WE{"Weiche<br/>server._on_inbound"}
-    KL["Kloner<br/>cloner.py · server._cloner*"]
-    DI["Dialog<br/>Kontext · Gedächtnis · Gates"]
-    AN["Angebot · Zahlung<br/>store.create_offer · payments/*"]
-    PR["Produktion<br/>pipeline.py · comfy.py"]
-    QA["Automatische Prüfung<br/>Identität · Inhaltsstufe · Technik"]
-    FG["Liefer-Gate<br/>approval.py + SQLite-Trigger"]
-    PA["Postausgang · Zustellkopie<br/>aimeta.py"]
-    CMD["Befehlsjournal<br/>server.py /api/v1/command"]
-    SR["stream.py<br/>STATE · EVENT"]
-  end
-  TG --> AD
-  IG --> AD
-  AD --> ST --> WE
-  WE -- "Default-Absender" --> KL
-  WE -- "Kunde" --> DI
-  DI --> AN --> PR
-  KL --> PR
-  PR --> QA --> FG --> PA --> AD
-  DI <-- "Promptprofil · Kontext · Fakten → Antwort + Schema" --> C2["ComfyUI 2 · KI · 8189<br/>Melody · gesamte Sprachintelligenz (E19)"]
-  KL <-- "freie Anweisung" --> C2
-  PR <-- "Bild · Video · Training" --> C1["ComfyUI 1 · Medien · 8188"]
-  ST --> SR
-  SR -- "ein WebSocket · Protobuf" --> UI["React-Cockpit<br/>6 Reiter"]
-  UI -- "Protobuf-Befehle" --> CMD --> ST
-```
+  CHANNELS["Kanäle: Telegram/Instagram"] --> WEB["web/: HTTP / Protobuf / STATE / EVENT"]
+  UI["React: eine GUI mit Studio"] <-->|"Protobuf"| WEB
+  WEB --> CUSTOMER["core/: Kunde / Chat / Verkauf / Default"]
+  CUSTOMER --> CLIENT["ProductionClient: geplant"]
+  WEB --> CLIENT
+  CLIENT --> STUDIO["studio/ProductionService: geplant"]
+  STUDIO --> FLOW["Flow-Maschine: geplant"]
+  FLOW --> MEDIA["media/ + ComfyUI 8188"]
+  FLOW --> AI["ComfyUI 8189"]
+  FLOW --> BLENDER["Blender DS6b optional"]
+  STUDIO --> HANDOFF["Koordinierte Übergabe: geplant"]
+  HANDOFF --> GATE["approval.py + Kunden-Gate"]
+  GATE --> CHANNELS
+  CUSTOMER --> DB[("SQLite: store/, Schema 44 im Code")]
+  STUDIO --> DB
+  DB --> WEB
+~~~
 
-| Bereich | Owner (Datei) | Grenze |
-|---|---|---|
-| HTTP, WebSocket, Befehle | `server.py`, `stream.py`, `protocol/schemas/darkfluenzer/v1/*.proto` | ein Same-Origin-WebSocket `/ws/v1/stream`, Befehle per Protobuf über `/api/v1/command`, kein fachliches Browser-Polling |
-| Persistenz | `store.py`, Migrationen (Stand 17) | genau eine fachliche SQLite; Ereignisjournal `events` unveränderlich |
-| Medien | `pipeline.py`, `comfy.py`, `models.py`, `workflows/manifest.toml` | Graphen nur in der Registry; Medien über ID und SHA-256 |
-| Kanäle | `channels/telegram.py`, `tdjson.py`, `instagram.py` | nur verifizierte Plattform-IDs; Default und Kunden getrennt |
-| Sprach-KI | Workflows auf ComfyUI 2 (`clara_chat_melody`, `default_instruction_melody`); Promptprofile in SQLite (`persona_versions`); `llm.py` nur Transport und Typisierung | keine sprachliche Entscheidungslogik in Python (E19); das Backend reicht Profilblöcke, Kontext und Fakten unverändert an die Workflow-Eingänge |
-| Betrieb | `runtime.py`, `app.py` (CLI), `launcher/Darkfluenzer.swift`, Schlüsselbund | Swift-Starter startet nur, keine zweite GUI |
-| Cockpit | `frontend/src/core/{realtime,state,commands,channels}.ts`, `pages/*.tsx` | siehe FRONTEND |
+| Fachgebiet | Tatsächlicher Owner / künftige Grenze |
+|---|---|
+| Transport/Commands/Stream | `web/` und `protocol/schemas/darkfluenzer/v1/*.proto` |
+| SQLite/Migrationen | `store/db.py`, `store/schema.py`, `store/migrations/`, `store/*.py`; eine DB |
+| Kunden, Default, Sales, Lieferung | `core/chat.py`, `core/dialog.py`, `core/sales.py`, `core/delivery.py`, `core/cloner.py`, `approval.py`; später ausschließlich Kundenmodul |
+| Medien und Charaktere | `core/render.py`, `core/registry.py`, `core/characters.py`, `media/`, `workflows/manifest.toml`; fachlich Studio |
+| KI | ComfyUI 2 (8189) über vorhandene `core/ai.py`/`store/ai.py`; Kundengespräch lokal (E19) |
+| Frontend | `frontend/src/App.tsx`, `frontend/src/pages/`, `frontend/src/shared/graphite.css`; Studio-Ziel laut Frontend §6 |
+
+**Migration:** Keine zweite Datenbank, Medienablage oder Renderengine. Bestehende Pfade bis zur nachgewiesenen DS8-Parität sicher erhalten; danach alte ausführende Renderzweige gemäß NO LEGACY entfernen.
 
 ### 3.2 Zwei ComfyUI-Instanzen und Ressourcen
 
@@ -205,7 +201,7 @@ React-Bedienung → Protobuf-Befehl (request_id, Scope, erwartete Revision)
 ### 3.4 Datenmodell und Zustände (Kurzfassung)
 
 - `influencers`/`characters` → Fotos, Datensätze, LoRA-Versionen, Persona; `customers` → `channel_identities` → `channel_conversations` → `channel_messages` (Anhänge, Status); `orders` → `order_stages` → `jobs` → `media` → Freigaben → Zustellungen → Zahlungen.
-- **Default** ist `customers.kind = internal`, kein Kunde, nie in Verkaufszahlen.
+- **Default** ist `customers.kind = internal`, kein Kunde, nie in Verkaufszahlen. **Dies allein befreit nie von Zahlung.** SPEC-008: Testauftrag nur bei allen fünf Bedingungen: unveränderliches `orders.test = 1`, interne Default-Akte, ursprüngliche Angebots-/Lieferkonversation, verifizierte zugehörige Kanalidentität und Konto-Betriebsart `test`; beim Versand muss zusätzlich die Zustellnachricht dieser Konversation zugeordnet sein.
 - **Kundenauftrag (Code):** `draft → offered → accepted → paid → producing → review → approved → delivered`, Endzustände `cancelled`, `refunded`. **[17.11., Planlogik] Geplant (SP5):** `offered → payment_review` (Zahlungsnachweis eingegangen: Gutscheincode, begonnene PayPal-Zahlung; die Angebotsfrist ruht) `→ paid` oder zurück nach `offered` mit Restfrist; `approved → awaiting_contact` (Instagram-Fenster zu, Zustellung geparkt) `→ delivered`, sobald der Kunde wieder schreibt. **Betreiber-/Kloner-Auftrag (Code):** `producing → review → approved`, `cancelled`. **Geplant (SP5):** abgelaufenes Angebot → `cancelled` mit Grund „abgelaufen“ (Übergang vorhanden); scheitert die automatische Prüfung bis zur Obergrenze, bleibt der Auftrag in `review` mit Meldung an den Betreiber; Nachlauf über die neuen Übergänge `delivered → producing` (Neuauflage) und `delivered → refunded`; Testaufträge sind Aufträge der internen Akte, für die allein die Zahlung entfällt. Bezahlte Aufträge tragen `order_id` von der Anlage bis zur Zustellung. Der Medienwunsch gehört zur Konversation; Angebot und Auftrag verweisen auf ihn.
 - **Job:** `queued → running → done | failed | cancelled`; Pause der Warteschlange ist dauerhaft (SQLite). Nach Absturz wird anhand der gespeicherten `prompt_id` abgeholt statt neu gerendert.
 - **Zustellung:** `queued → sending → sent | failed | unknown`; `unknown` wird abgeglichen, nie blind wiederholt.
@@ -278,7 +274,9 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 
 ---
 
-## 5. Ist-Stand (17.11.2026)
+## 5. Historischer Ist-Stand (17.11.2026; Code-Delta 18.11.)
+
+**Die folgende Tabelle ist ein datierter 17.11.-Schnappschuss, keine heutige Arbeitsliste.** Im Git-Code 18.11. verifiziert: `SCHEMA_VERSION = 44`, Module `web/`, `core/`, `store/`; §7.3 dokumentiert SP4-Melody und Bildlastmessung (Video-E15 weiterhin offen), §7.5 SP5-Entwicklung einschließlich Migrationen 38–44. Der neue Studio-Code ist noch SOLL. DS0 ermittelt Registry, reale Datenbank, Mac-Läufe und offene Nachweise erneut.
 
 | Bereich | Stand | Beleg | Offen |
 |---|---|---|---|
@@ -314,7 +312,9 @@ Der Betreiber schickte von seinem privaten Telegram (Default 571334304) ein Foto
 
 ---
 
-## 6. Reihenfolge (verbindlich, Betreiberentscheidung 17.11.2026)
+## 6. Historische SP-/Etappenfolge 17.11. (Funktionsinventar; neue Reihenfolge §13.10)
+
+**Für neue Entwicklung ausschließlich DS0–DS10 nach §13.10.** Nachstehende Etappen-/SP-Abschnitte dokumentieren noch benötigte oder bereits implementierte Fachfunktionen und ihre ursprüngliche Reihenfolge, nicht eine zweite parallele Entwicklung. Offene Etappe E nach DS8, finale Etappe F nach DS10; Sicherheits-, Backup- und Rechtsgates sofort.
 
 Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, Inhalt §7). Umgesetzt wird in sechs Etappen. Innerhalb einer Etappe gilt die genannte Reihenfolge. **[17.11., CODE FIRST]** Die Umsetzung der nächsten Etappe beginnt, sobald der Implementierungsstand der vorigen erreicht ist (§2.3); die Abnahme einer Etappe bleibt offen, bis ihre vorgeschriebenen realen Tests bestanden sind. Fehlende Charakterfotos, ein ausstehendes Langtraining oder die offene Engine-Wahl (E14) blockieren die Umsetzung späterer Etappen nicht. SP0 steht ganz vorn, weil es die Datenbanksicherung und die Aufteilung von `server.py` enthält. **[17.11., Planlogik]** Regel: Die Zeile „Braucht“ jedes Pakets muss durch die Etappenfolge erfüllt sein (Prüftabelle §6.2). **Stand 17.11.:** SP0 abgeschlossen (PASS), SP3 weit fortgeschritten (Schritte 1–7 CODE/TEIL), Etappe A nicht abgenommen. **Stand 18.11.:** Etappe A Implementierungsstand TEIL (zwei E17-Funktionen BLOCKIERT, Modellqualifikation ausstehend), weiter mit Etappe B nach CODE FIRST.
 
@@ -438,7 +438,9 @@ Die Sammelpakete SP0 bis SP6 bleiben inhaltlich unverändert (Übersicht §6.1, 
 
 ---
 
-## 7. Pakete
+## 7. Historische SP-Pakete (Funktionsverträge bleiben, Studio-Umsetzung nach §13.10)
+
+**Alte Modulnamen und Statuszahlen hier sind historische Belege.** Vor jedem neuen Codepaket DS0-Inventory und heutige Protobuf-/Schema-/Registry-Revision abgleichen. Keine neue parallele Renderkette.
 
 ### 7.0 SP0 Struktur und Laufzeit-Fundament
 
@@ -1063,7 +1065,7 @@ Ersetzt D1, D2, D3 und C6. Grundlage: Code-Vergleich von Fable (17.11.) mit `run
 - **Charakter (SP3):** `characters.slug`, `trigger`, `class_word`, Probe-Prompts; `character_loras` (genau eine aktive LoRA je Figur und Architektur); `media_checks` (Prüfwerte je Medium); LoRA-Einträge und lokale Schalter in der nicht versionierten `local/registry.toml`. **Nachricht:** `album_id` (SP1). **Gutschein:** `original_text` (SP2). **Kanalkonten:** `channel_accounts` mit Default-Identität, Betriebsart und `customer_transport` (`tdlib`/`business_bot`) je Konto (SP2). **Kanalkonten:** `channel_accounts` (S1) mit Zuordnung Konto → Influencerin → Charakter (C5.1); Kundenakte → Influencerin, mehrere Identitäten je Akte. **Medienwunsch** an der Konversation.
 - **Neue Spalten:** Influencerin je Akte und Kanalkonto, `channel_conversations.mode` (`auto`/`draft`/`manual`) und Kaufbereitschaft je Konversation, stabile ID je Preisposition, Zahlungswege je Influencerin, Trigger und Klasse je Charakter, Influencerin und LoRA-Version je Auftrag, `scheduled_at` je ausgehender Nachricht.
 - **Neue Zustände:** Nachricht `draft` und `cancelled` mit `scheduled_at` (Tabellenumbau, SP4); Auftrag „abgelaufen“, „reklamiert“, „abgeschlossen“, „wartet auf Betreiber“.
-- **Default und Test:** Betriebsart und Chat-Wörter am Default-Kontakt, Ausgabeprofil je Befehl; Testkonversation der internen Akte; Testaufträge sind Aufträge der internen Akte (Zahlungsausnahme nur für `kind = internal`); Prüfwerte je Kandidat (`media_checks`), Freigeber `system`.
+- **Default und Test:** Betriebsart und Chat-Wörter am Default-Kontakt, Ausgabeprofil je Befehl; eigene Testkonversation; **Zahlungsausnahme ausschließlich bei allen fünf SPEC-008-Bedingungen** (`orders.test`, interne Default-Akte, Angebots-/Zustellkonversation, verifizierte zugehörige Identität, Konto-Modus `test`) und passendem Zustellziel. `approval.check_gate` und beide Liefer-Trigger prüfen sie. Prüfwerte (`media_checks`), Freigeber `system`.
 - **SP0:** Zählertabelle für Medien-ID und laufende Nummer; Index `events(entity, event, id)`.
 - **Verkauf (SP5):** feste ID, Art, Workflow, Kandidatenzahl, Höchstlänge und Zusatzleistungen je Preisposition; Zahlungswege und Angebotsgültigkeit je Influencerin; `offer_payments`; `payment_waivers` (unveränderlich); `orders.test` (unveränderlich); `jobs.priority`; Übergänge `delivered → producing|refunded`; Liefer-Index je Auftrag und Artefakt.
 
@@ -1075,7 +1077,9 @@ Nur Modelle aus `workflows/manifest.toml` mit Quelle, Revision, SHA-256 und Abla
 
 Engine-Gates im Code: `load`, `render`, `quality`, `license_pass`. `license_pass` bedeutet: Quelle und Nutzungsbedingungen sind im Manifest dokumentiert; der Betreiber setzt das Gate über die Registry (Regel 6: kein Auswahlkriterium). Kundenproduktion verlangt alle vier Gates (BUG-022).
 
-### 9.2 Registrierte Workflows (17.11.2026)
+### 9.2 Historische Workflowliste (17.11.2026; aktuelle Registry neu in DS0 lesen)
+
+**Nicht als heutigen PASS-/Modellkatalog verwenden.** Der Stand 18.11. enthält weitere Sprach-/Prüf- und Videopfade. DS0 liest Manifest, Modelldatei-/Graphhash, Workflowstatus und echte Mac-Nachweise und erstellt daraus die aktuelle Aufgaben-/Rezeptmatrix.
 
 Status `PASS` = ein echter Lauf mit Registrierungsprüfung; das ist **keine** Freigabe für Kundenaufträge (die Engine-Gates stehen auf `evaluation`).
 
@@ -1095,7 +1099,7 @@ Jedes Medium trägt Graph-Snapshot, Workflow-Version, alle Parameter (Prompt, Ne
 
 ## 10. Vertragsnummern
 
-Frei laut `stream.proto` und `commands.proto` am 17.11.2026: Befehle 31–33, 36 und ab 49 (48 = `default_sender_assign`); STATE ab 11; EVENT ab 31. Vor Vergabe erneut prüfen, nie eine Nummer wiederverwenden.
+**Historische Reservierungsübersicht vom 17.11., keine aktuellen freien Nummern.** DS0 liest alle aktuellen `protocol/schemas/darkfluenzer/v1/*.proto`, protokolliert belegte und `reserved` COMMAND-/STATE-/EVENT-Nummern und erstellt eine aktuelle Vergabeliste. Vor **jedem DS-Paket** neue Nummern eindeutig reservieren, Proto-Compiler/Abwärtskompatibilität testen; niemals frei vermuten oder wiederverwenden.
 
 | Paket | STATE | EVENT | Befehle |
 |---|---|---|---|
@@ -1124,7 +1128,7 @@ Frei laut `stream.proto` und `commands.proto` am 17.11.2026: Befehle 31–33, 36
 
 ## 12. Vom Betreiber zu liefern
 
-Charakterfotos in `local/characters/clara/photos/` (mindestens 15, besser 25–40, nur diese Person), Claras SIM und Telegram-Konto, Meta-App und Tunnel, PayPal-Geschäftskonto, Preisliste und Zahlungswege je Influencerin, Höchstlänge je Videoprodukt, Klickprototyp des KI-Studios (falls vorhanden), Antworten zu E10, E14, E15, E16; nach Claras Fotos die Wahl der Kloner-Methode je Befehl (SP3 Schritt 8) und die Freigabe eines Bildmodells für B5.6.
+**Noch abhängig vom realen Betreiberstand (DS0 abgleichen):** echte Clara-Fotos/LoRA-Training, erforderliche Kanal-/PayPal-/Meta-Konten, Preisliste/Zahlungswege je Influencerin, Video-Produkte/Höchstdauer und offene E10/E14/E15-Entscheidungen. **E16/E17 als Kalibrierregel entschieden**, reale Messung DS10. Die verbindliche klickbare Studio-HTML liegt bereits unter `docs/design/Darkfluenzer_Studio_Klickdemo.html`; kein neuer Prototyp nötig. E28–E33 formal offen, Cloud AUS. Fehlende externe Konten oder langes Training blockieren CODE FIRST nicht.
 
 ---
 
@@ -1309,6 +1313,8 @@ flowchart TD
   RH --> Q
 ~~~
 
+**Pflicht für SQLite-Trigger in DS2/3-b:** `deliveries_gate` (INSERT) und `deliveries_send_gate` (Sendestatus) prüfen **ohne Funktions-/Serviceaufruf** nur Kundentabellen einschließlich `production_handoffs`: `status = ready`, passender Auftrag/Kunde/Export, **gleicher SHA-256 und gleiche Auftrags-/Studio-/Freigaberevision**, keine Widerrufrevision, letzte gültige Freigabe, Zahlung oder vollständig geprüfte SPEC-008-Ausnahme. Abweichung löst `RAISE(ABORT)` aus. Trigger dürfen keine Studio-Media-/Jobtabellen lesen und **können keine Dateibytes hashen**; deshalb prüft `approval.check_gate` beim echten Dispatch zusätzlich aktuellen ProductionService-Status, Freigabe und tatsächlich gesendete Bytes. Nach Widerruf neue, eigene revisionsgebundene Übergabe statt Wiederaktivierung alter Daten.
+
 **Sicherheitspflichten:** Ein späterer Widerruf kann keinen alten READY-Snapshot wieder legitimieren. Im Versandmoment werden letzte Freigabe, Test-/Zahlungsberechtigung, Kundensperre, Inhaltsstufe, aktuelle Handoff-/Studio-Revision, Kanalvorgaben und Datei-Hash geprüft; UNKNOWN sperrt. Versandnetzwerk und SQLite sind **keine** gemeinsame atomare Transaktion: Provider-Annahme kann bei Timeout unklar sein; anhand stabiler Idempotenz-/Receipt-Schlüssel abgleichen, niemals blind doppelt senden. Der Versand darf nicht allein durch das Markieren eines Studio-Laufs als COMPLETED ausgelöst werden.
 
 **Pflichttests:** approve→revoke→send, tier_raise→send, Hashänderung, Refund kurz vor Dispatch, neue Order-Revision, verspätete/doppelte Events, Testauftrag ohne Echtgeld, konkurrierende Freigabe/Sperre, Crash vor/nach Sende-Reservierung, Reconnect, UNKNOWN/Retry und identischer Hash in mehreren Galeriekontexten.
@@ -1424,7 +1430,7 @@ flowchart TD
 
 **Vorrang:** bezahlter Kundenauftrag > Default > Betreiber-Cockpit > Modellvergleich > Training; Fairness/Jobalter und Kundenfrist berücksichtigen. **Engine-Stapelung** (Startbilder zusammen, dann Videos) ausschließlich innerhalb zulässiger Prioritäts- und RAM-Fenster. Melody und Medienjobs teilen physisches Unified Memory trotz zwei Prozessen. E15-Videolast bleibt gesonderte Qualifikation; ein nicht funktionierendes Modell-Entladen darf nicht als freier Speicher gerechnet werden.
 
-**KI-Rollen:** Gespräch/Kundengedächtnis nach E19 **lokal auf ComfyUI 2**; Drehbuch und Regie lokal oder explizit freigegebene Anthropic-/OpenAI-API. KI erzeugt ausschließlich **typisierte, validierte** CreativeBrief-, Drehbuch-, Storyboard-, SceneSpec- oder ReviewNote-Objekte, niemals frei ausgeführten Blender-Python-/SQL-/Shell-Code. Kundendaten und freie Chatlogs gehen nicht automatisch an externe Text-KI.
+**KI-Rollen:** Gespräch/Kundengedächtnis nach E19 **ausschließlich lokal auf ComfyUI 2**. Drehbuch und Regie lokal, externe Anthropic/OpenAI-Adapter **nur nach ausdrücklicher E33-Freigabe und ausschließlich für nicht kundenbezogene Eigenproduktionen**. Für `source = customer` gilt durch alle Nodes `LOCAL_ONLY`; **nie** Kunden-Chattexte, -Memos, -Referenzen, -Identitäten oder -CreativeBriefs an externe KI. KI liefert ausschließlich typisierte, validierte CreativeBrief-/Script-/Storyboard-/SceneSpec-/ReviewNote-Objekte, **niemals ausführbaren Blender-/Python-/Shell-Code**.
 
 **Provider-Policy:** LOCAL_ONLY ist Default. Externe Cloudkonten standardmäßig AUS; Keychain (keine Schlüssel im SQLite-/Frontend-/Protobuf-Payload), benannte Accounts, echte Modelldiscovery, Verbindungstest, Kosten vor Start, Monats-/Run-/Node-Limits, Nutzung und Fehler im Beleg. Kein stiller Fallback. Higgsfield nur als echte autorisierte API-Engine; Artlist nur bei belegter geeigneter API, sonst manueller Dateiimport. Externe Modellnamen, Features und Kosten nur nach aktueller Provider-Prüfung behaupten. Explizite Inhaltsstufen verbleiben lokal nach aktueller Policy; E19-Kundendialog bleibt unverändert, bis separat entschieden.
 
@@ -1432,7 +1438,7 @@ flowchart TD
 
 **DS6 Filmkern:** bestehende Wan-/LTX-/Langvideo-/Keyframe-Schritte als Adapter; Szenen/Shot-ID, Master-/Start-/Endframe, FPS/Dauer, Übergang, Timeline, Video-Checks, Frame-Sampling, begrenzte Korrektur, lokale importierte Audio-Datei und deterministischer FFmpeg-Export. Gleiches GuideBundle-Eingabeformat kann aus hochgeladenem Referenzvideo stammen. Keine Blender-Pflicht bei normalem Foto/I2V. 4K als **native Ausgabe**, **Upscale** und **gemessene 4K-Qualität** unterscheiden.
 
-**DS6b Blender:** KI gibt eine validierte **SceneSpec** (Meter, Kamera/Actor-IDs, Keyframes, Objektgrößen, Bewegungs-/Kamerawege, FPS, Lookreferenzen), keine ausführbaren Skripte. Der eigene feste, versionierte Builder baut headless Blender-Blocking und exportiert **GuideBundle** mit synchronem Video, Pose, Depth, Mask, optional Normalen, Trackdaten, Framezahl/FPS/Hashes und .blend. Erst qualifiziertes Video-Control-Rezept darf den Guide verwenden. Vergleich von Guide und KI-Video auf Timing, Position, Kamera/Framing, Identität, sichtbare Fehler; unbekannte Grenzwerte ≠ PASS. Bei fehlerhafter Silhouette zuerst Proxy-Geometrie korrigieren, nicht blind Prompts wiederholen. Dieselbe Geometrie mit mehreren Looks/Charakterreferenzen wiederverwenden.
+**DS6b Blender:** DS6b-1 liefert SceneSpec, Kamera-/Actor-Blocking, getrennte Kameraspuren und GuideBundle ohne Videomodellpflicht; DS6b-2 liefert Pose/Rig/FULL_REFERENCE und ControlVideo nur nach nachgewiesener M4-Kompatibilität. KI gibt eine validierte **SceneSpec** (Meter, Kamera/Actor-IDs, Keyframes, Objektgrößen, Bewegungs-/Kamerawege, FPS, Lookreferenzen), keine ausführbaren Skripte. Der eigene feste, versionierte Builder baut headless Blender-Blocking und exportiert **GuideBundle** mit synchronem Video, Pose, Depth, Mask, optional Normalen, Trackdaten, Framezahl/FPS/Hashes und .blend. Erst qualifiziertes Video-Control-Rezept darf den Guide verwenden. Vergleich von Guide und KI-Video auf Timing, Position, Kamera/Framing, Identität, sichtbare Fehler; unbekannte Grenzwerte ≠ PASS. Bei fehlerhafter Silhouette zuerst Proxy-Geometrie korrigieren, nicht blind Prompts wiederholen. Dieselbe Geometrie mit mehreren Looks/Charakterreferenzen wiederverwenden.
 
 ~~~mermaid
 flowchart TD
@@ -1546,7 +1552,7 @@ Eine technische Änderung (Graph/Sampler/LoRA-Stärke/Control-Einstellung) wird 
 | F03 Posefoto → Figur | Pose/Depth aus Nutzerfoto → synthetischer Charakter | DS4 |
 | F04 Referenzvideo → Figurenanimation | Bewegung/Guide → Zielfigur im Clip | DS6/DS6b, M4-Kandidat |
 | F05 Strichfigur → Figur | Skizze/Skelett → Pose/Control → Charakterbild | DS4 |
-| F06 Character Replacement | Bild/Video und Maske → kontrollierter Charakter-/Szenenersatz | DS4/DS6 |
+| F06 Synthetischer Charakter-/Szenenersatz | **Nur eigenes synthetisches Bild/Video:** Ersetzen/Bearbeiten per Maske. **Fremde Fotos/Videos:** ausschließlich Pose, Kamera, Bewegung und Komposition extrahieren und daraus die eigene synthetische Figur **neu erzeugen**; nie reale Menschen im Quellmaterial ersetzen (Regel 4). | DS4/DS6 |
 | F07 Form → Identität → Material → Film | Proxy/Clay → passende LoRA → Look/Master → Animation | DS4/DS5/DS6 |
 | F08 Blender → kontrolliertes Video | SceneSpec → GuideBundle → kontrolliertes Video → Vergleich | DS6b, Modellqualifikation DS10 |
 | F09 Werbefilm | Produkt/Objekte, Kamerarigs, Timing → Shots/Varianten/Export | DS6b/DS9 |
@@ -1583,14 +1589,19 @@ flowchart LR
 | **DS2/3-a** | typisierte Tabellen/Flow-Ausführung mit Input → GenerateImage → Export | echter Drei-Schritt-Mac-Lauf; persistierte NodeRuns; Commit |
 | **DS2/3-b** | transaktionaler Koordinator, Handoff-/Revocation/Gate-Parität; Altlieferweg bleibt aktiv bis bestanden | Hash-/Refund-/Revoke-/Race-/Test-Gates, echter kontrollierter Integrationslauf; Commit |
 | **DS2/3-c** | fünf Studio-Unteransichten, lesbare Kette, Receipts/STATE/EVENT | Chrome-E2E Studio → echtes Bild → Ereignis/Datei; Commit; Gesamtpaket erst danach PASS |
-| **DS8** | Kloner, Kunden-/Operatorproduktion auf EINEN Executor; Altpfade als Adapter, nicht parallele Render-Engine | drei Quellen, Default/Betreiber real, Kunden-Test isoliert; Idempotenz/Gate/Restart |
+| **DS8** | Kloner, Kunden- und Betreiberproduktion auf EINEN Executor; **alte aktive Renderzweige nach Paritäts- und Echtlaufnachweis entfernen** (NO LEGACY), historische Daten lesbar lassen | Drei Quellen, Regression je Pfad, kurzer Mac-Lauf, Testauftrag-Gate, Idempotenz und Crash/Receipt-Recovery; sichere Umschaltung vor Legacy-Löschung |
 | **DS4** | Referenzrollen, Skizze, Pose/Depth/Mask, Charakterblatt, LookPreset und Bildreparatur | echte geeignete Pose/Skizze → Bild; unqualifizierte Verfahren TEIL |
 | **DS5** | lokale KI-Regie, Script/Scene-Schemas, optional externe Textprovider (aus); revisionsabhängige Reruns | echtes lokales Drei-Szenen-Storyboard, Szene 2 selektiv neu |
 | **DS6** | Szenen/Clips, I2V/Keyframes, Audioimport, Timeline, FFmpeg-Schnitt/Export | kurzer echter 2–3-Shot-Film, geänderter Shot allein neu |
-| **DS6b** | SceneSpec → fester Blender-Builder → synchronisierte Guide-/Control-Pässe | kurze reale Blender-Kamerafahrt; ControlVideo nur nach Mac-Eignung |
+| **DS6b-1 (verbindlich)** | SceneSpec, fester Blender-Builder, Proxy-Blocking und `CAMERA_LAYOUT`, zwei getrennte Kameratracks, Playblast und synchronisierte Guides | echte kurze Blender-Kamerafahrt auf Mac; auch ohne ControlVideo-Engine abschließbar |
+| **DS6b-2 (qualifikationsabhängig)** | Körperpose/Rig/FULL_REFERENCE, Video-Control und Abweichungsvergleich | nur nach echtem kompatiblem M4-ControlVideo-Lauf; andernfalls TEIL/NOT_RUN und DS7 weiter |
 | **DS7** | typgeprüfte Flowrevisionen/Subflows, derselbe Executor | Node-Editor ändert F02, neue Version echter Durchlauf |
 | **DS9** | optionale Higgsfield-/Artlist-/Audio-/Blender-Zusätze nach tatsächlicher Providerfreigabe | je aktivem Modul eigener echter API-/Mac-/Kostenbeleg; sonst NOT_CONFIGURED |
 | **DS10** | LoRA-Training, Schwellenkalibrierung, 4K/Langvideo, E15, Alt-NOT_RUN, Recovery/Dauerbetrieb | belegte Qualifikationsmatrix, keine globale PASS-Abkürzung |
+
+**DS8-Abbaukriterium (NO LEGACY):** Für jede Aufrufquelle muss die in DS0 aufgenommene Fachzustands-/Receipt-/Outbox-Parität reproduziert, ein echter kurzer geeigneter Mac-/Kanal-Lauf bestanden und ein Neustart ohne duplizierte Jobs/Sendungen geprüft sein. Laufende Alt-Jobs werden beendet oder sicher übernommen. Dann Dispatcher, CLI-Umwege und doppelte Tests im selben DS8-Paket entfernen; alte Medien-/Ereignisdaten bleiben lesbar.
+
+**Drei Meilensteine ohne Mehrstunden-Stop-Gate:** G-DS1 = echtes Bild, Qualitäts-/Laufzeitwerte, nur belegte Modellauswahl; G-DS8 = zehn **isolierte** E2E-/Idempotenzfälle über die drei Aufrufquellen plus kurzer echter Mac-Pfad, nicht zehn lange Bildrender; G-DS6 = kurzer Mehrshot-/Ton-/Exportlauf. **15-s-Film, 4K, Langvideo und vollständige Qualitätsqualifikation erst DS10**. Bei offenen Qualitätsdaten Status TEIL statt CODE-FIRST-Blockade; sicherheitskritische Gate-Migration nur nach Tests umschalten.
 
 **Claras Training:** nach Vorliegen der Charakterfotos parallel im Ressourcenfenster beginnen; kein mehrstündiger Blocker für DS0/DS1/CODE FIRST. Die zwei vorhandenen Bildarchitekturen und trainierte LoRA-Versionen getrennt behandeln.
 
@@ -1654,7 +1665,7 @@ flowchart LR
 ### 13.13 Entscheidungskatalog und Übernahmevorgabe
 
 - **E27**: verbindlich gewollt – eine Darkfluenzer-App mit integriertem, intern abgegrenztem Studio und einer SQLite; auslagerungsfähiger ProductionService.
-- **E28–E33 (neue technische Planung, vor verbindlicher Vergabe gegen E-ID-Stand prüfen):** nur typisierte KI-Ausgaben; PLAN/DRAFT/MASTER/FINAL wo sinnvoll; Startbild-Pflicht je qualifiziertem I2V-Rezept; versionierte Kontrollsignale mit messbarem Abgleich; ein Executor mit Prioritäts-/Fairness-gerechter Engine-Stapelung; lokale Defaults und Cloud nur nach Opt-in/Kosten- und Datengate. **Nicht als separat unterschriebene Altentscheidungen darstellen.**
+- **E28–E33 sind jetzt in §1.2 ausdrücklich als OFFEN aufgenommen**, nicht als erteilte Cloud-, Provider-, Kosten- oder Datenfreigabe. E27 ist entschieden. Lokale Produktivwege bleiben Standard; E33 benötigt gesonderte Zustimmung vor Nutzung.
 - E1–E26, bestehende Inhalte und Sicherheits-/Kundengates bleiben gültig. **FREE ONLY** gilt für den kostenfreien lokalen Kern; optionale bezahlte Cloudadapter sind eine **vorgesehene ausdrückliche Ausnahme**, nicht ohne Betreiberaktivierung produktiv. **E19** gilt für Kundendialog weiterhin unverändert.
 - **Nur zwei verbindliche Pläne:** dieser Backend-Plan und PHASENPLAN_FRONTEND.md. bugs_v1.md als separates Fehlerregister. Die hochgeladene Masterdatei bleibt einmalige Übernahmereferenz und wird nicht als vierter Plan ins Repository kopiert.
 - **Implementierung ist noch offen:** nach dieser Dokumentübernahme startet der Hauptentwickler DS0, nicht ein unkontrollierter paralleler Blender-/Flow-Editor-Bau. Niemals den Planstand mit Git-/Mac-Implementierungs-PASS verwechseln.
