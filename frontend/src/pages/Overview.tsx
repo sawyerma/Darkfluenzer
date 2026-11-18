@@ -47,13 +47,13 @@ export function Overview() {
           <small>{deciding.length ? `Kandidatenauswahl: ${deciding.map((o) => o.orderNo).join(", ")}` : orders ? "keine Entscheidung offen" : "keine Daten"}</small>
         </div>
       </div>
-      <div className="g-section">
-        <h2>Aktuelle Kunden · anklicken zum Öffnen</h2>
+      <div className="g-listpanel">
+        <h2 className="g-listtitle">Aktuelle Kunden · anklicken zum Öffnen</h2>
         {recent.map((c) => (
           <button
             key={String(c.customerId)}
             type="button"
-            className="g-line g-row"
+            className="g-listrow g-row"
             onClick={() => {
               openRegister(c.customerId);
               window.location.hash = "#nachrichten";

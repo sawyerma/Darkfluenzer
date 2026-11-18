@@ -105,8 +105,8 @@ export function Messages() {
   const note = customers.loaded ? "" : customers.error || (live ? "Lädt …" : "Keine Verbindung");
 
   return (
-    <section className="g-panel">
-      <h1>Nachrichten</h1>
+    <section className="g-panel g-flush">
+      <h1 className="g-sr-only">Nachrichten</h1>
       <div className="g-inbox">
         <CustomerList list={list} activeId={current?.customerId} note={note} live={live} />
         {current ? (

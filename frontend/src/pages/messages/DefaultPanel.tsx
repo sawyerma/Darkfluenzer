@@ -92,7 +92,12 @@ function DefaultForm({
           disabled={!ch?.account}
           onChange={(e) => set(e.target.value)}
         />
-        {ch?.account ? null : <small>{channelNote(ch, platform) || `${PLATFORM_LABEL[platform]}-Konto unbekannt`}</small>}
+        {ch?.account ? null : (
+          // kurz: nur der Zustand; was fehlt, steht im Tooltip (keine Konfigurationsprosa, F7.4)
+          <small title={channelNote(ch, platform) || undefined}>
+            {channelNote(ch, platform).split(" · ")[0] || `${PLATFORM_LABEL[platform]}-Konto unbekannt`}
+          </small>
+        )}
       </div>
     );
   }

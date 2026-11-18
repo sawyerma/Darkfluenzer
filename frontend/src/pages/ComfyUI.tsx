@@ -88,8 +88,8 @@ export function ComfyUI() {
   }
 
   return (
-    <section className="g-panel">
-      <h1>ComfyUI</h1>
+    <section className="g-panel g-flush">
+      <h1 className="g-sr-only">ComfyUI</h1>
       <div className="g-subtabs" role="tablist" aria-label="Workflow-Art">
         {KINDS.filter(([k]) => k !== "ai" || hasAi).map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)}>

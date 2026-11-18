@@ -47,7 +47,7 @@ export function App() {
         <span className="g-brand" aria-hidden="true">
           C
         </span>
-        <strong>Darkfluenzer</strong>
+        <span className="g-sr-only">Darkfluenzer</span>
         <nav className="g-tabs" aria-label="Bereiche">
           {VIEWS.map((v) => (
             <a key={v.id} href={`#${v.id}`} aria-current={v === view ? "page" : undefined}>

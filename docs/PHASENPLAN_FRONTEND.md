@@ -180,6 +180,11 @@ Konten, Adressen, Netz/Asset, Betrag mit EUR-Kurs und Quelle, Eingänge, nicht z
 | **B5.6** | Referenzanalyse §3.3 | eigenes Bild → Prompt → echte Generierung |
 | **SP6 Betrieb, Recht, Abnahme** | Frontend-Teil nach §4.4 (Betriebsanzeige, erneutes Neuladen nach Schemawechsel, Auskunft und Löschung je Akte, Pflichttexte, Release-Kennung) | ein Browser-Lauf über die ganze Kette; Screenshots aller sechs Reiter gegen die Referenz; Betreiberabnahme nach der Probephase |
 
+### 4.0a GUI-Abgleich mit F7 (Betreiberauftrag 18.11.2026)
+
+- **Paket 1 (18.11.):** App-Rahmen wie die Referenz (`docs/design/Darkfluenzer_Cockpit_Interaktiv.html`): eine abgerundete Fläche mit Kopfzeile, pinkes C (42 px), Reitergruppe als Kapsel, kein Schriftzug; Unterregister und Filter als Knopfreihe; Nachrichten und ComfyUI randlos mit drei Spalten (25 % · 1fr · 32 %), durchgehenden Trennlinien, Spaltenköpfen und rechter Steuerung auf eigener Fläche; Hauptaktion pink; Übersicht mit Kennzahlkarten (37 px) und Kundenliste als Listenfeld; Kanalstatus unter der Kundenliste einklappbar; Einrichtungsprosa nur im Tooltip. Nachweis: Screenshots aller Reiter gegen die Referenz (Chrome), Build, Unit-Tests, Browser-Smoke.
+- **Folgepakete (Prüfbericht des Betreibers 18.11.):** sechs Reiter mit Einstellungen, Wallet nur aktivierte Zahlungswege (E6), Kanalverwaltung getrennt von der Kundenliste, Default-Steuerung gruppiert und einklappbar, Übersicht mit Betriebs-, Produktions- und Freigabezuständen, ComfyUI übersichtlich gegliedert, Nachweisstatus statt bloßem PASS.
+
 ### 4.0 SP0 Struktur (Frontend-Teil)
 
 - `Messages.tsx` und `ComfyUI.tsx` werden in Komponenten je Block geteilt (Kundenliste, Verlauf, je ein Block der rechten Spalte, Workflowliste, Formular, Warteschlange).

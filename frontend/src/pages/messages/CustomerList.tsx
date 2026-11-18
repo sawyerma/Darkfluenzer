@@ -71,7 +71,6 @@ export function CustomerList({
         <h2>Kunden</h2>
         <span className="g-value">{count === 1 ? "1 Akte" : `${count} Akten`}</span>
       </div>
-      <ChannelLines channels={channels?.value.channels} stale={!live || (channels?.staleSince ?? null) !== null} />
       <input
         className="g-input"
         type="search"
@@ -105,6 +104,7 @@ export function CustomerList({
       ) : count === 0 ? (
         <p className="g-note">Noch keine Kunden.</p>
       ) : null}
+      <ChannelLines channels={channels?.value.channels} stale={!live || (channels?.staleSince ?? null) !== null} />
     </div>
   );
 }

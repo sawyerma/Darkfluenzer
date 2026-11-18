@@ -93,11 +93,23 @@ function AccountControls({ ch }: { ch: ChannelStatus }) {
   );
 }
 
-/** Kanalstatus (STATE channels) kompakt in der linken Spalte. */
+/** Kanalstatus (STATE channels) unter der Kundenliste (F7.2: links Kunden, Suche, Liste): einklappbar,
+ *  geöffnet, solange ein Kanal eine Anmeldung oder Aufmerksamkeit braucht. */
 export function ChannelLines({ channels, stale }: { channels: readonly ChannelStatus[] | undefined; stale: boolean }) {
   if (!channels) return <small>Kanalstatus: keine Daten</small>;
+  const attention = channels.some((ch) => ch.state === "LOGIN" || ch.state === "ERROR");
   return (
-    <div>
+    <details className="g-channelbox" open={attention || undefined}>
+      <summary className="g-between">
+        <span>Kanäle</span>
+        <span className="g-value">
+          {channels.map((ch) => (
+            <span key={ch.platform} className="g-ptag" data-platform={ch.platform} data-off={ch.state !== "READY" || undefined}>
+              {PLATFORM_LABEL[ch.platform] ?? ch.platform}
+            </span>
+          ))}
+        </span>
+      </summary>
       {channels.map((ch) => {
         const step = ch.state === "LOGIN" ? LOGIN_STEP[ch.loginState] : undefined;
         const [label, tone] = step
@@ -134,6 +146,6 @@ export function ChannelLines({ channels, stale }: { channels: readonly ChannelSt
           </div>
         );
       })}
-    </div>
+    </details>
   );
 }
