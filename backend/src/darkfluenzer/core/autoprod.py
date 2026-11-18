@@ -253,3 +253,50 @@ class AutoProductionMixin:
             self.store.notify_default(text)
         self._orders_changed()
         self._message_changed(0)
+
+    # ------------------------------------------------------------------ Systemfreigabe (Schritt 8)
+
+    async def _system_approve(self, order_id: int) -> None:
+        """Auftrag in Prüfung mit Freigabeart „System“: freigeben, wenn die vier Prüfungen des
+        fertigen Ergebnisses bestehen und die Schwellen qualifiziert sind; Videos (E23), nicht
+        qualifizierte Schwellen und Fehlschläge gehen an den Betreiber (Karte genau einmal)."""
+        order = self.store.order_by_id(order_id)
+        if order.source != "customer" or order.status != "review":
+            return
+        offer = self.store.offer(order.id)
+        _product, figure = self._order_figure(offer or {})
+        if figure is None or figure.get("approval_mode") != "system":
+            return  # Freigabeart Betreiber
+        if order.kind == "video":
+            self._production_notice(
+                order, f"FREIGABE DURCH BETREIBER · {order.order_no} · Video (E23)"
+            )
+            return
+        if missing := selection.unqualified(self.cfg.selection):
+            labels = ", ".join(selection.LABELS[n] for n in missing)
+            self._production_notice(
+                order, f"FREIGABE DURCH BETREIBER · {order.order_no} · Prüfung nicht qualifiziert "
+                f"({labels})",
+            )  # fmt: skip
+            return
+        result = self._order_result(order)
+        if result is None:
+            return
+        verdict = selection.judge(self.cfg.selection, result["id"],
+                                  self.store.media_checks(result["id"]))  # fmt: skip
+        found = self.store.selection_of(result["id"])
+        if found is None or found["order_id"] != order.id:
+            self.store.record_selection(
+                order.id, self.store.stages(order.id)[-1].workflow,
+                [(result["id"], verdict.passed, verdict.score if verdict.passed else None,
+                  list(verdict.reasons))], qualified=True,
+            )  # fmt: skip
+        if not verdict.passed or result["content_tier"] != "standard":
+            why = "; ".join(verdict.reasons) or "Inhaltsstufe nicht standard"
+            self._production_notice(
+                order, f"FREIGABE DURCH BETREIBER · {order.order_no} · Prüfung: {why}"
+            )
+            return
+        checks = {k: v for k, v in verdict.values.items()} | {"score": verdict.score}
+        if reason := await self._approve(order, result, "System", checks):
+            self._production_notice(order, f"SYSTEMFREIGABE GESPERRT · {order.order_no} · {reason}")

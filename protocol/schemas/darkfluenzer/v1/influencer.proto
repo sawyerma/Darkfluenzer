@@ -60,6 +60,8 @@ message Influencer {
   uint32 offer_cooldown_min = 18;
   // Bildautomatik: Produktion startet nach Zahlung bzw. Testfreigabe (SP5 Schritt 6)
   bool image_auto = 19;
+  // Freigabeart (SP5 Schritt 8): operator | system (nach vier bestandenen Prüfungen)
+  string approval_mode = 20;
 }
 
 // Eine gespeicherte Fassung des Promptprofils einer Influencerin (SP4 Schritt 2, E19).

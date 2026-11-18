@@ -1003,6 +1003,29 @@ CREATE TABLE selection_results (
 CREATE INDEX selection_results_media ON selection_results(media_id);
 CREATE INDEX selection_results_workflow ON selection_results(workflow);
 """,
+    43: """
+-- Systemfreigabe (SP5 Schritt 8, SPEC-013): Freigabeart je Influencerin (Betreiber oder System);
+-- eine Freigabe durch das System braucht die vier bestandenen Prüfwerte genau dieses Inhalts
+-- (gleicher SHA wie das freigegebene Artefakt), Inhaltsstufe standard und kein Video (E23).
+ALTER TABLE influencers ADD COLUMN approval_mode TEXT NOT NULL DEFAULT 'operator'
+    CHECK (approval_mode IN ('operator', 'system'));
+ALTER TABLE approvals ADD COLUMN checks TEXT;
+CREATE TRIGGER approvals_system_gate BEFORE INSERT ON approvals
+WHEN NEW.operator = 'System' AND NEW.decision = 'approved' AND (
+    NEW.checks IS NULL
+    OR json_extract(NEW.checks, '$.identity') IS NULL
+    OR json_extract(NEW.checks, '$.content') IS NULL
+    OR json_extract(NEW.checks, '$.technical') IS NULL
+    OR json_extract(NEW.checks, '$.quality') IS NULL
+    OR NOT EXISTS (SELECT 1 FROM selection_results r JOIN media m ON m.id = r.media_id
+                   WHERE r.order_id = NEW.order_id AND m.sha256 = NEW.artifact_sha256
+                   AND r.qualified = 1 AND r.passed = 1)
+    OR EXISTS (SELECT 1 FROM media m WHERE m.sha256 = NEW.artifact_sha256
+               AND (m.content_tier IS NULL OR m.content_tier != 'standard'))
+    OR EXISTS (SELECT 1 FROM orders o WHERE o.id = NEW.order_id AND o.kind = 'video'))
+BEGIN SELECT RAISE(ABORT, 'approval: Systemfreigabe ohne vier bestandene Prüfwerte dieses Inhalts');
+END;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

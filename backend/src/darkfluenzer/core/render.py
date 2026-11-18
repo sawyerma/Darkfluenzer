@@ -139,6 +139,7 @@ class RenderMixin:
                 order_id = self.store.stage(stage_id).order_id
                 await self._cloner_delivery(order_id)
                 self._auto_select(order_id)  # Kundenauftrag: Auswahl aus den Prüfwerten
+                await self._system_approve(order_id)  # Freigabeart System (SP5 Schritt 8)
         finally:  # Anzeige folgt dem Journal auch nach einem Fehler in der Nachbearbeitung
             self._orders_changed()
             self.hub.push_events(spb.TOPIC_JOB_COMPLETED)

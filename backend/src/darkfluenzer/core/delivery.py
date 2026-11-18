@@ -232,6 +232,15 @@ class DeliveryMixin:
             return "Freigeben lässt sich nur das fertige Ergebnis dieses Auftrags."
         if result["content_tier"] != "standard":
             return "Inhaltsstufe nicht standard – an Kunden nicht zustellbar (Regel 13)."
+        reason = await self._approve(order, result, "Betreiber")
+        if not reason:
+            call.entity = f"order:{order.order_no}"
+        return reason
+
+    async def _approve(self, order, result: dict, approver: str, checks: dict | None = None) -> str:
+        """Freigabe als Funktion mit Freigeber (SP5 Schritt 8): Master aus dem Ergebnis, Freigabe
+        (System nur mit den vier Prüfwerten, Trigger), dann Zustellung bzw. Parken bei
+        geschlossenem Antwortfenster. Leer = freigegeben."""
         if reason := self._send_ready(order):
             return reason
         src = self.cfg.local / result["path"]
@@ -243,7 +252,7 @@ class DeliveryMixin:
             art = self.store.artifact_at(master) or self.store.add_artifact(
                 order.order_no, "master", master, job_id=result["job_id"], sha256=result["sha256"]
             )  # Hash eben in _place_copy geprüft (FABLE-003); gleicher Inhalt: derselbe Master
-            self.store.record_approval(order.order_no, art.id, "approved", "Betreiber")
+            self.store.record_approval(order.order_no, art.id, "approved", approver, checks)
         order = self.store.order(order.order_no)
         if self._window_closed(order):  # Instagram-Fenster zu: Zustellung parkt (SP5 Schritt 9)
             self.store.transition(order.order_no, "awaiting_contact", by="Antwortfenster")
@@ -255,8 +264,10 @@ class DeliveryMixin:
             return ""
         if reason := await self._deliver(order, art):
             return reason
-        self._card(order, f"FREIGEGEBEN · {order.order_no} · Zustellung im Postausgang")
-        call.entity = f"order:{order.order_no}"
+        who = "durch das System" if approver == "System" else "durch den Betreiber"
+        self._card(
+            order, f"FREIGEGEBEN {who.upper()} · {order.order_no} · Zustellung im Postausgang"
+        )
         self._message_changed(0)
         return ""
 

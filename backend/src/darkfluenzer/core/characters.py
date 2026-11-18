@@ -289,6 +289,7 @@ class CharactersMixin:
                 text_ai=bool(row["text_ai"]),
                 auto_replies=bool(row["auto_replies"]),
                 image_auto=bool(row["image_auto"]),
+                approval_mode=row["approval_mode"],
                 behavior=self._behavior(row).values(),
                 behavior_version=self.store.behavior_of(row["id"])[0],
                 payment_ways=row["payment_ways"],
@@ -391,6 +392,9 @@ class CharactersMixin:
             list(msg.payment_ways) or ["amazon"],
             msg.offer_valid_min,
             msg.offer_cooldown_min,
+        )
+        self.store.set_influencer_approval_mode(  # SP5 Schritt 8
+            influencer_id, msg.approval_mode or "operator"
         )
         active = self.store.active_persona(influencer_id)
         blocks = dict(active["blocks"]) if active else {}

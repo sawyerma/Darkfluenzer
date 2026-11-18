@@ -47,6 +47,15 @@ class OrdersMixin:
             raise StoreError(f"Auftrag {order_no} unbekannt.")
         return _order(row)
 
+    def approved_by(self, order_id: int) -> str:
+        """Wer zuletzt freigegeben hat (Betreiber, System, …); leer = noch niemand."""
+        row = self.db.execute(
+            "SELECT operator FROM approvals WHERE order_id = ? AND decision = 'approved'"
+            " ORDER BY id DESC LIMIT 1",
+            (order_id,),
+        ).fetchone()
+        return row[0] if row else ""
+
     def order_reason(self, order_id: int) -> str | None:
         """Grund des aktuellen Status (z. B. „abgelaufen“, SP5 Schritt 2)."""
         row = self.db.execute("SELECT status_reason FROM orders WHERE id = ?", (order_id,))
@@ -435,8 +444,12 @@ class OrdersMixin:
             job_id=row["job_id"],
         )
 
-    def record_approval(self, order_no: str, artifact_id: int, decision: str, operator: str) -> int:
-        """Betreiberentscheidung (nie vom LLM). Freigabe setzt Auftrag auf approved."""
+    def record_approval(
+        self, order_no: str, artifact_id: int, decision: str, operator: str,
+        checks: dict | None = None,
+    ) -> int:  # fmt: skip
+        """Entscheidung des Betreibers oder des Systems (nie vom LLM; System nur mit den vier
+        bestandenen Prüfwerten ``checks``, Trigger). Freigabe setzt Auftrag auf approved."""
         with self.tx() as db:
             order = self.order(order_no)
             art = self.artifact(artifact_id)
@@ -446,9 +459,10 @@ class OrdersMixin:
                 raise StoreError(f"{order_no}: Entscheidung nur im Status review ({order.status}).")
             cur = db.execute(
                 "INSERT INTO approvals (order_id, artifact_id, artifact_sha256, decision, operator,"
-                " decided_at) VALUES (?,?,?,?,?,?)",
-                (order.id, art.id, art.sha256, decision, operator, now()),
-            )
+                " decided_at, checks) VALUES (?,?,?,?,?,?,?)",
+                (order.id, art.id, art.sha256, decision, operator, now(),
+                 json.dumps(checks, ensure_ascii=False) if checks is not None else None),
+            )  # fmt: skip
             self._event("approval", cur.lastrowid, decision, order_no=order_no, artifact=art.id)
             if decision == "approved":
                 self.transition(order_no, "approved", approval_id=cur.lastrowid)

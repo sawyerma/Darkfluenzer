@@ -203,6 +203,19 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP5 Schritt 8 (Systemfreigabe)
+Commit: siehe git log „SP5 step 8“ / Migration 43 (approval_mode, approvals.checks, Trigger
+  approvals_system_gate), approval.check_gate (CUSTOMER_LOCKED), core/delivery (_approve),
+  core/autoprod (_system_approve), core/render, core/orders (approved_by, nach Auswahl),
+  store (record_approval mit checks, approved_by, set_influencer_approval_mode), Protokoll,
+  InfluencerBlock, Stream
+Nachweis: test_system_approval (Freigabeart, Freigabe mit Prüfwerten und Zustellung, Trigger
+  weist System ohne bestandene Prüfung ab, gesperrte Akte; Video und nicht qualifiziert → Betreiber),
+  volle Suite 320 grün; Chrome-E2E isoliert 29/29 zweimal, lesend echt 10/10; echte Migration 42→43
+NOT_RUN: echte Systemfreigabe (Schwellen aus Kalibrierung fehlen)
+Ergebnis: CODE (Integration isoliert belegt), Lauf NOT_RUN
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP5 Schritt 7 (automatische Prüfung und Auswahl) mit BUG-130
 Commit: siehe git log „SP5 step 7“ / config ([selection], SelectionRule mit source), core/selection.py
   (neu), core/autoprod (_auto_select), core/orders (regenerate_candidates, Urteil am Kandidaten),

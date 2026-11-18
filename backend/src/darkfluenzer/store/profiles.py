@@ -51,6 +51,16 @@ class ProfilesMixin:
             raise StoreError(f"Produkt {product_id} unbekannt.")
         return _product(row) | {"influencer_id": row["influencer_id"], "status": row["status"]}
 
+    def set_influencer_approval_mode(self, influencer_id: int, mode: str) -> None:
+        """Freigabeart (SP5 Schritt 8): operator oder system."""
+        if mode not in ("operator", "system"):
+            raise StoreError(f"Freigabeart {mode!r} unbekannt (operator, system).")
+        with self.tx() as db:
+            db.execute(
+                "UPDATE influencers SET approval_mode = ? WHERE id = ?", (mode, influencer_id)
+            )
+            self.bump("influencers")
+
     def set_influencer_sales(
         self,
         influencer_id: int,

@@ -53,6 +53,11 @@ def check_gate(
 
     if order.customer_no != customer_no:
         reasons.append("CUSTOMER_MISMATCH: Auftrag gehört nicht zu diesem Kunden")
+    locked = store.db.execute(
+        "SELECT 1 FROM customers WHERE id = ? AND age_mark = 'under_18'", (order.customer_id,)
+    ).fetchone()
+    if locked:  # hartes Gate (SP5 Schritt 8): gesperrte Akte, auch nicht per Freigabe
+        reasons.append("CUSTOMER_LOCKED: Akte gesperrt (minderjährig vermutet)")
     if order.status != "approved":
         reasons.append(f"ORDER_STATUS: {order.status} (erwartet approved)")
 

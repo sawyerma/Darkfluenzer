@@ -147,6 +147,8 @@ function InfluencerForm({ influencer, mediaTitle, videoTitle, cmd }: Props & { c
   const [autoReplies, setAutoReplies] = useState(influencer?.autoReplies ?? false);
   // Bildautomatik: Produktion startet nach Zahlung bzw. Testfreigabe (SP5 Schritt 6)
   const [imageAuto, setImageAuto] = useState(influencer?.imageAuto ?? false);
+  // Freigabeart (SP5 Schritt 8): Betreiber oder System nach vier bestandenen Prüfungen
+  const [approvalMode, setApprovalMode] = useState(influencer?.approvalMode || "operator");
   const [rows, setRows] = useState<Row[]>(() =>
     (influencer?.prices ?? []).map((p) => ({
       id: p.id,
@@ -200,6 +202,7 @@ function InfluencerForm({ influencer, mediaTitle, videoTitle, cmd }: Props & { c
           textAi,
           autoReplies,
           imageAuto,
+          approvalMode,
           prices: rows.map((r) => ({
             id: r.id,
             product: r.product.trim(),
@@ -251,6 +254,13 @@ function InfluencerForm({ influencer, mediaTitle, videoTitle, cmd }: Props & { c
           <input type="checkbox" checked={imageAuto} onChange={(e) => setImageAuto(e.target.checked)} />
           Bildautomatik (Produktion nach Zahlung)
         </label>
+        <div className="g-field">
+          <label htmlFor={`inf-approval-${label}`}>Freigabeart</label>
+          <select id={`inf-approval-${label}`} value={approvalMode} onChange={(e) => setApprovalMode(e.target.value)}>
+            <option value="operator">Betreiber gibt frei</option>
+            <option value="system">System nach bestandener Prüfung (Bilder)</option>
+          </select>
+        </div>
         <div className="g-field">
           <span>Ehrlichkeitsregel (fest)</span>
           <small>{state?.honestyRule ?? "–"}</small>

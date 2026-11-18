@@ -26,6 +26,7 @@ test("Influencerin: Video-Produkt anlegen, Lieferbarkeit und Zahlungswege nach N
   await block.getByLabel(`Kandidaten ${name}`).fill("2");
   await block.getByLabel(`Lieferzeit max. min ${name}`).fill("30");
   await block.getByLabel("Sperrzeit nach Ablehnung (Minuten, leer = keine)").fill("20");
+  await block.getByLabel("Freigabeart").selectOption("system");
   const auto = block.getByLabel("Bildautomatik (Produktion nach Zahlung)");
   const wasAuto = await auto.isChecked();
   await auto.setChecked(!wasAuto);
@@ -47,6 +48,11 @@ test("Influencerin: Video-Produkt anlegen, Lieferbarkeit und Zahlungswege nach N
   await expect(row.getByLabel(`Lieferzeit max. min ${name}`)).toHaveValue("30");
   await expect(block.getByLabel("Sperrzeit nach Ablehnung (Minuten, leer = keine)")).toHaveValue("20");
   await expect(block.getByLabel("Bildautomatik (Produktion nach Zahlung)")).toBeChecked({ checked: !wasAuto });
+  await expect(block.getByLabel("Freigabeart")).toHaveValue("system");
+  await block.getByLabel("Freigabeart").selectOption("operator"); // Startwert für andere Tests
+  await block.getByRole("button", { name: "Profil speichern" }).click();
+  await block.getByRole("button", { name: /speichern$/ }).click();
+  await expect(block.getByRole("alert")).toHaveText(/Profil gespeichert/);
   await row.screenshot({ path: "test-results/sp5-produkt.png" });
   expect(errors).toEqual([]);
 });

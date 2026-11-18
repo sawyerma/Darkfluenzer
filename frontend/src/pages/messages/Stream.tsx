@@ -89,6 +89,7 @@ function CustomerOrder({ order }: { order: ActiveOrder }) {
             </Row> : null}
           {order.statusReason ? <Row label="Grund">{order.statusReason}</Row> : null}
           {offer.wish ? <Row label="Wunsch">{offer.wish}</Row> : null}
+          {order.approvedBy ? <Row label="Freigegeben durch">{order.approvedBy}</Row> : null}
           {offer.productionStartedMs ? <Row label="Produktion seit">{shortTime(offer.productionStartedMs)}</Row> : null}
           {payments.map((p) => (
             <Row key={p.way} label={METHOD_LABEL[p.way] ?? p.way}>

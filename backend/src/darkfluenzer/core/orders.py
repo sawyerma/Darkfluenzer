@@ -342,6 +342,7 @@ def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
     item.request, item.status = order.request, order.status
     item.status_reason = store.order_reason(order.id) or ""
     item.test = order.test
+    item.approved_by = store.approved_by(order.id)
     for st in store.stages(order.id):
         stage = item.stages.add(
             seq=st.seq,
@@ -499,7 +500,9 @@ class OrdersMixin:
         call.recorded = True
         log.info("Auftrag %s: Medium %s ausgewählt", msg.order_no, msg.media_id)
         if not jobs:  # ohne Fertigstellen: das Gewählte geht ggf. an den Default-Nutzer
-            await self._cloner_delivery(self.store.order(msg.order_no).id, selected=msg.media_id)
+            order_id = self.store.order(msg.order_no).id
+            await self._cloner_delivery(order_id, selected=msg.media_id)
+            await self._system_approve(order_id)  # Freigabeart System (SP5 Schritt 8)
         self._enqueue(jobs)
         self._orders_changed()
         return ""

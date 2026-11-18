@@ -266,6 +266,8 @@ message InfluencerUpdate {
   uint32 offer_cooldown_min = 13;
   // Bildautomatik (SP5 Schritt 6)
   bool image_auto = 14;
+  // Freigabeart (SP5 Schritt 8): operator | system; leer = operator
+  string approval_mode = 15;
 }
 
 message ProfileDraft {
