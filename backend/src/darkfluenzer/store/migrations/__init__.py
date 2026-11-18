@@ -581,6 +581,13 @@ CREATE TABLE studio_sessions (
     session       INTEGER NOT NULL DEFAULT 1 CHECK (session > 0)
 );
 """,
+    28: """
+-- Gates vor dem Versand (SP4 Schritt 3): Ergebnis je Gate als JSON, ob die Antwort gesendet werden
+-- dürfte (NULL = nicht geprüft, z. B. Aufwärmlauf) und wie viele Läufe sie brauchte.
+ALTER TABLE ai_runs ADD COLUMN gates TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE ai_runs ADD COLUMN sendable INTEGER;
+ALTER TABLE ai_runs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1;
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

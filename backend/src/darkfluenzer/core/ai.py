@@ -8,6 +8,7 @@ Verlauf der Studio-Sitzung und Geschäftsfakten aus SQLite (Daten, keine Sprachl
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 
 from ..media import models
@@ -15,14 +16,11 @@ from ..nodes import llm
 from ..nodes.comfy import ComfyError
 from ..v1 import ai_pb2, commands_pb2
 from ..v1 import stream_pb2 as spb
+from . import dialog
 from .base import _Call, _unix_ms, log
 
 # technische Eingabe des Aufwärmlaufs (kein Kundentext); die Antwort wird nur gemessen
 WARMUP_MESSAGE = "Hallo"
-
-
-def _euro(cents: int) -> str:
-    return f"{cents / 100:.2f}".replace(".", ",") + " €"
 
 
 class AiStudioMixin:
@@ -42,18 +40,6 @@ class AiStudioMixin:
         return next(
             (v for v in self.store.persona_versions(influencer_id) if v["version"] == version), None
         )
-
-    def _facts(self, influencer: dict) -> str:
-        """Geschäftsfakten aus SQLite: Preisliste der Influencerin (Zahlen, keine Formulierung)."""
-        lines = []
-        for p in influencer["prices"]:
-            hd = (
-                f", HD-Aufschlag {_euro(p['hd_surcharge_cents'])}"
-                if p["hd_surcharge_cents"]
-                else ""
-            )
-            lines.append(f"{p['product']}: {_euro(p['price_cents'])}{hd}")
-        return "\n".join(lines)
 
     async def _studio_chat(self, msg: commands_pb2.StudioChat, call: _Call) -> str:
         text = msg.text.strip()
@@ -78,7 +64,8 @@ class AiStudioMixin:
         context = "\n".join(f"Kunde: {t['message']}\n{name}: {t['answer']}" for t in turns)
         params = {k: v for k, v in persona["params"].items() if k in wf.params}
         values = {k: persona["blocks"].get(k, "") for k in models.PROFILE_INPUTS}
-        values |= {"context": context, "memory": "", "facts": self._facts(influencer)}
+        facts = dialog.facts_for(self.cfg, influencer)  # Preise und freigegebene Zahlungswege
+        values |= {"context": context, "memory": "", "facts": facts.text()}
         values |= {"message": text, **params}
         call.entity = f"influencer:{influencer['id']}"
         run = {
@@ -89,20 +76,30 @@ class AiStudioMixin:
             "message": text,
             "context": {"turns": len(turns), "memory": 0, "facts": len(influencer["prices"])},
         }
-        task = asyncio.create_task(self._studio_run(wf.key, values, run))
+        task = asyncio.create_task(self._studio_run(wf.key, values, run, facts))
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
         return ""
 
-    async def _llm_run(self, kind: str, workflow: str, values: dict, run: dict) -> str:
+    async def _llm_run(
+        self,
+        kind: str,
+        workflow: str,
+        values: dict,
+        run: dict,
+        facts: dialog.Facts | None = None,
+        context: dialog.ReplyContext | None = None,
+    ) -> str:
         """Ein Sprachlauf auf ComfyUI 2 mit Nachweis in ``ai_runs``; liefert den Fehler (leer =
         ok). Während des Laufs ist er in Warteschlange und KI-Status zugeordnet; danach gilt die
-        Engine der KI-Instanz als geladen."""
+        Engine der KI-Instanz als geladen. Mit ``facts`` (Antwort an einen Menschen): bei
+        ungültiger Einstufung neue Läufe (``[dialog] schema_retries``), danach die Gates."""
         wf = self.manifest.workflows[workflow]
         started = time.monotonic()
         fields: dict = {}
         error = ""
         prompt = ""
+        attempts = 0
 
         def submitted(prompt_id: str) -> None:  # im Worker-Thread
             nonlocal prompt
@@ -110,15 +107,24 @@ class AiStudioMixin:
             self._llm_runs[prompt_id] = wf.title
 
         try:
-            result = await asyncio.to_thread(
-                llm.generate,
-                self.cfg,
-                self.manifest,
-                workflow,
-                values,
-                timeout_s=self.cfg.ai.run_timeout_s,
-                on_submit=submitted,
-            )
+            while True:
+                attempts += 1
+                result = await asyncio.to_thread(
+                    llm.generate,
+                    self.cfg,
+                    self.manifest,
+                    workflow,
+                    values,
+                    timeout_s=self.cfg.ai.run_timeout_s,
+                    on_submit=submitted,
+                )
+                self._llm_runs.pop(prompt, None)
+                schema = llm.parse_classification(result.classification)
+                if facts is None or schema is not None:
+                    break
+                if attempts > self.cfg.dialog.schema_retries:
+                    break
+                log.info("Einstufung ungültig – neuer Lauf (%d)", attempts + 1)
             fields = {
                 "workflow_sha": result.workflow_sha,
                 "model_sha": result.model_sha,
@@ -134,6 +140,12 @@ class AiStudioMixin:
                 lane.engine = wf.engine  # Modell geladen (Zulassung, STATE resources/ai.status)
             if not result.answer.strip():
                 error = "Leere Antwort aus dem Sprachworkflow."
+            elif facts is not None:
+                gates = dialog.check(
+                    result.answer, schema, facts, self.cfg.dialog.payment_terms, context
+                )
+                fields["gates"] = [vars(g) for g in gates]
+                fields["sendable"] = int(dialog.sendable(gates))
         except (llm.LlmError, ComfyError, models.ManifestError, ValueError, OSError) as exc:
             error = str(exc) or type(exc).__name__
         except Exception as exc:  # Ergebnis muss immer festgehalten werden
@@ -142,7 +154,15 @@ class AiStudioMixin:
         finally:
             self._llm_runs.pop(prompt, None)
         total_ms = round((time.monotonic() - started) * 1000)
-        self.store.add_ai_run(kind, workflow, **run, **fields, total_ms=total_ms, error=error)
+        self.store.add_ai_run(
+            kind,
+            workflow,
+            **run,
+            **fields,
+            total_ms=total_ms,
+            error=error,
+            attempts=max(attempts, 1),
+        )
         self.hub.push_events(spb.TOPIC_AI_RESULT)
         self._ai_changed()
         return error
@@ -152,9 +172,13 @@ class AiStudioMixin:
         self.hub.set_state(spb.TOPIC_JOBS_ACTIVE, self._jobs_active())
         self.hub.set_state(spb.TOPIC_RESOURCES, self._resources())
 
-    async def _studio_run(self, workflow: str, values: dict, run: dict) -> None:
-        """Lauf im Hintergrund; danach ``ai_runs``, EVENT und Receipt (auch bei Fehler)."""
-        error = await self._llm_run("studio", workflow, values, run)
+    async def _studio_run(
+        self, workflow: str, values: dict, run: dict, facts: dialog.Facts
+    ) -> None:
+        """Lauf im Hintergrund; danach ``ai_runs`` mit Gates, EVENT und Receipt (auch bei Fehler).
+        Im Studio gibt es keine Kanalidentität: geprüft werden Schema, Minderjährigkeit, Beträge und
+        Zahlungswege."""
+        error = await self._llm_run("studio", workflow, values, run, facts)
         self.store.finish_command(
             run["request_id"], "failed" if error else "completed", detail=error
         )
@@ -255,6 +279,9 @@ class AiStudioMixin:
                 workflow_sha=r["workflow_sha"],
                 model_sha=r["model_sha"],
                 at_ms=_unix_ms(r["created_at"]),
+                gates=[ai_pb2.GateCheck(**g) for g in json.loads(r["gates"] or "[]")],
+                sendable=bool(r["sendable"]),
+                attempts=r["attempts"],
             )
             out.append(
                 (

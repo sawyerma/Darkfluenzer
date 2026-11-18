@@ -74,8 +74,11 @@ test("KI-Studio: Profil anlegen, Testnachrichten an Melody, Verlauf und neue Sit
   await expect(answer).toBeVisible({ timeout: 180_000 });
   await expect(answer.locator("p")).not.toHaveText("");
   await expect(answer.locator("small")).toContainText(/Version \d+ · Warteschlange .* · Lauf .* · gesamt/);
+  // Gates (SP4 Schritt 3): jede Antwort ist bewertet – würde gesendet oder Entwurf mit Grund
+  await expect(turns.first().locator(".g-gates .g-badge")).toHaveText(/^(WÜRDE GESENDET|ENTWURF)$/);
   await turns.first().locator("details > summary").click();
   await expect(turns.first().locator(".g-pre").nth(1)).toContainText("wahrheitsgemäß"); // Ehrlichkeitsblock im Prompt
+  await expect(turns.first().locator(".g-pre").nth(1)).toContainText("Zahlungswege: Amazon-Gutschein"); // Fakten
   await send("Und was machst du heute?");
   await expect(turns.nth(1).locator('.g-bubble[data-dir="out"]')).toBeVisible({ timeout: 180_000 });
   await turns.nth(1).locator("details > summary").click();

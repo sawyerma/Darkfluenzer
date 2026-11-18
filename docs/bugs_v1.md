@@ -200,6 +200,17 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP4 Schritt 3 (Gates statt sprachlicher Regelprüfung, SPEC-017)
+Commit: siehe git log „SP4 step 3“ / core/dialog.py, core/ai._llm_run, config [dialog], Migration 28, KiStudio
+Nachweis Unit: tests/test_dialog.py – Beträge in allen Schreibweisen nur aus der Preisliste, Zahlungswege nur
+  freigegebene (ganzes Wort), Schema, Minderjährigkeit, sechs Kundenkontext-Gates, Fakten aus der Konfiguration
+Nachweis Integration: tests/test_ai_studio.py – ungültige Einstufung → zweiter Lauf; 30 € + Überweisung →
+  ENTWURF mit beiden Gründen; zweimal ungültig → ENTWURF (schema); HTTP + WebSocket
+Nachweis echt (kurz): ComfyUI 2, Fakten mit Zahlungswegen – nur Amazon-Gutschein genannt, Preise richtig,
+  Gates bestanden; Chrome-E2E isoliert mit echter ComfyUI 2 (Gate-Abzeichen je Antwort)
+Ergebnis: TEIL (Kundenkontext-Gates CODE bis SP4 Schritt 6; Lieferzeit-Fakten SP5 Schritt 2)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP4 Schritt 1 Teil c (Messung 20 Nachrichten, E15)
 Lauf 18.11.2026 (echter Mac, ComfyUI 2 Melody Q6_K, ohne Datenbank, Profil „MESSTEST“): 20 zusammenhängende deutsche
   Testnachrichten mit Verlauf (12 Wechsel), je Nachricht Einstufung + Antwort in einer Einreichung

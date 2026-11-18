@@ -13,8 +13,9 @@ class AiMixin:
     def add_ai_run(self, kind: str, workflow: str, **fields: object) -> int:
         """Lauf festhalten (Ergebnis oder Fehler) und im Journal melden (EVENT ai.result)."""
         cols = {"kind": kind, "workflow": workflow, **fields, "created_at": now()}
-        if isinstance(cols.get("context"), dict):
-            cols["context"] = json.dumps(cols["context"], ensure_ascii=False)
+        for key in ("context", "gates"):
+            if isinstance(cols.get(key), dict | list):
+                cols[key] = json.dumps(cols[key], ensure_ascii=False)
         with self.tx() as db:
             run_id = db.execute(
                 f"INSERT INTO ai_runs ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",

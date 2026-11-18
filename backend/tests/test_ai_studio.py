@@ -40,6 +40,8 @@ class GraphAi(FakeAi):
     def __init__(self, port: int) -> None:
         super().__init__(port)
         self.graphs: list[dict] = []
+        self.answers: list[str] = []  # nächste Antworten der Persona (sonst „Antwort[…]“)
+        self.classifications: list[str] = []  # nächste Einstufungen (sonst gültiges JSON)
 
     def run(self, pid: str, graph: dict) -> None:
         self.graphs.append(graph)
@@ -71,7 +73,14 @@ class GraphAi(FakeAi):
                 path.write_text(json.dumps({"turns": [user]}))
                 self.written.append(path)
                 last = user.strip().splitlines()[-1]
-                out = '{"purchase_readiness": 1}' if system.startswith(MARK) else f"Antwort[{last}]"
+                if system.startswith(MARK):
+                    out = (
+                        self.classifications.pop(0)
+                        if self.classifications
+                        else '{"purchase_readiness": 1}'
+                    )
+                else:
+                    out = self.answers.pop(0) if self.answers else f"Antwort[{last}]"
             elif kind == models.PREVIEW_NODE:
                 out = arg("source")
             else:
@@ -248,6 +257,25 @@ def test_studio_chat_over_http_records_runs_events_receipts_and_session(ai):
         state = influencer_pb2.Influencers.FromString(app[server.COCKPIT_KEY]._influencers())
         assert state.influencers[0].studio_session == 2  # STATE 9 nennt die laufende Sitzung
 
+        assert run.sendable and run.attempts == 1 and all(g.ok for g in run.gates)
+        assert [g.name for g in run.gates] == ["schema", "minor", "amounts", "payment_ways"]
+        assert "Zahlungswege: Amazon-Gutschein" in run.system_prompt  # Fakten mit Zahlungswegen
+
+        # SP4 Schritt 3: ungültige Einstufung -> neuer Lauf; Gates mit Grund, kein Versand
+        fake.classifications = ["kein JSON", '{"purchase_readiness": 2}']
+        fake.answers = ["Klar, 30,00 € per Überweisung an mich."] * 2  # beide Läufe
+        await chat("Was kostet es?")
+        gated = await result()
+        assert gated.attempts == 2 and not gated.sendable
+        reasons = {g.name: g.reason for g in gated.gates if not g.ok}
+        assert reasons == {"amounts": "30,00 € steht nicht in den Fakten",
+                           "payment_ways": "Zahlungsweg Überweisung nicht freigegeben"}  # fmt: skip
+        fake.classifications = ["kaputt", "immer noch kaputt"]
+        await chat("Und jetzt?")
+        broken = await result()
+        assert broken.attempts == 2 and not broken.sendable
+        assert [g.name for g in broken.gates if not g.ok] == ["schema"]
+
         fake.mode = "error"
         bad = await chat("Fehler")
         failed = await result()
@@ -259,7 +287,7 @@ def test_studio_chat_over_http_records_runs_events_receipts_and_session(ai):
         unknown = commands_pb2.StudioChat(influencer_id=999, text="x")
         assert "unbekannt" in (await send(studio_chat=unknown)).detail
         rows = store.db.execute("SELECT kind, error FROM ai_runs ORDER BY id").fetchall()
-        assert [r["kind"] for r in rows] == ["studio"] * 4 and bool(rows[-1]["error"])
+        assert [r["kind"] for r in rows] == ["studio"] * 6 and bool(rows[-1]["error"])
         assert fake.written and not any(p.exists() for p in fake.written)  # SPEC-018
 
     _run(cfg, scenario)

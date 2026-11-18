@@ -23,6 +23,19 @@ const VIEWS: readonly [View, string, string][] = [
 
 const seconds = (s: number) => `${s.toFixed(1).replace(".", ",")} s`;
 
+const GATE_LABEL: Record<string, string> = {
+  schema: "Einstufung",
+  minor: "Alter",
+  amounts: "Beträge",
+  payment_ways: "Zahlungswege",
+  ai_notice: "KI-Hinweis",
+  locked: "Sperre",
+  operator: "Betreiber",
+  automation: "Automatik",
+  window: "Antwortfenster",
+  text_limit: "Textlänge",
+};
+
 function versionDate(v: PersonaVersion): string {
   return new Date(Number(v.createdMs)).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
 }
@@ -173,9 +186,26 @@ function ChatTest({
                 <p>{r.answer}</p>
                 <small>
                   Version {r.personaVersion} · Warteschlange {seconds(r.waitS)} · Lauf {seconds(r.durationS)} · gesamt {seconds(r.totalS)}
+                  {r.attempts > 1 ? ` · ${r.attempts} Läufe (Einstufung ungültig)` : ""}
                 </small>
               </div>
             )}
+            {r.gates.length ? (
+              // Gates vor dem Versand (SP4 Schritt 3): im Studio wird nie gesendet, nur bewertet
+              <p className="g-gates">
+                <span className="g-badge" data-tone={r.sendable ? "ok" : "warn"}>
+                  {r.sendable ? "WÜRDE GESENDET" : "ENTWURF"}
+                </span>
+                <small>
+                  {r.sendable
+                    ? `Gates bestanden: ${r.gates.map((g) => GATE_LABEL[g.name] ?? g.name).join(", ")}`
+                    : r.gates
+                        .filter((g) => !g.ok)
+                        .map((g) => g.reason)
+                        .join(" · ")}
+                </small>
+              </p>
+            ) : null}
             <details className="g-checks">
               <summary>
                 Einstufung {r.classificationValid ? "gültig" : "ungültig"} · Prompt

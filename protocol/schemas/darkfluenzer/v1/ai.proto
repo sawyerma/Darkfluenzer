@@ -33,6 +33,18 @@ message AiRun {
   string workflow_sha = 18;
   string model_sha = 19;
   int64 at_ms = 20;
+  // Gates vor dem Versand (SP4 Schritt 3): je Gate bestanden oder mit Grund; sendable = alle bestanden
+  repeated GateCheck gates = 21;
+  bool sendable = 22;
+  // Läufe für diese Antwort (> 1: Einstufung war ungültig, neuer Lauf)
+  uint32 attempts = 23;
+}
+
+message GateCheck {
+  // schema | minor | amounts | payment_ways | ai_notice | locked | operator | automation | window | text_limit
+  string name = 1;
+  bool ok = 2;
+  string reason = 3;
 }
 
 // EVENT ai.result: ein KI-Lauf ist beendet (Antwort oder Fehler)

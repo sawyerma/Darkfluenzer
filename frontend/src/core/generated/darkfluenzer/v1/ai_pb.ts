@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/ai.proto.
  */
 export const file_darkfluenzer_v1_ai: GenFile = /*@__PURE__*/
-  fileDesc("ChhkYXJrZmx1ZW56ZXIvdjEvYWkucHJvdG8SD2RhcmtmbHVlbnplci52MSKJAwoFQWlSdW4SDgoGcnVuX2lkGAEgASgEEgwKBGtpbmQYAiABKAkSEgoKcmVxdWVzdF9pZBgDIAEoCRIVCg1pbmZsdWVuY2VyX2lkGAQgASgEEhcKD3BlcnNvbmFfdmVyc2lvbhgFIAEoDRIPCgdzZXNzaW9uGAYgASgNEg8KB21lc3NhZ2UYByABKAkSDgoGYW5zd2VyGAggASgJEhYKDmNsYXNzaWZpY2F0aW9uGAkgASgJEhwKFGNsYXNzaWZpY2F0aW9uX3ZhbGlkGAogASgIEhUKDXN5c3RlbV9wcm9tcHQYCyABKAkSEQoJdXNlcl90ZXh0GAwgASgJEg4KBndhaXRfcxgNIAEoARISCgpkdXJhdGlvbl9zGA4gASgBEg8KB3RvdGFsX3MYDyABKAESDQoFZXJyb3IYECABKAkSEAoId29ya2Zsb3cYESABKAkSFAoMd29ya2Zsb3dfc2hhGBIgASgJEhEKCW1vZGVsX3NoYRgTIAEoCRINCgVhdF9tcxgUIAEoAyIvCghBaVJlc3VsdBIjCgNydW4YASABKAsyFi5kYXJrZmx1ZW56ZXIudjEuQWlSdW4ivAEKCEFpU3RhdHVzEhIKCmNvbmZpZ3VyZWQYASABKAgSDgoGZW5naW5lGAIgASgJEhMKC2tlZXBfbG9hZGVkGAMgASgIEg8KB3J1bm5pbmcYBCABKA0SEQoJd2FybXVwX21zGAUgASgDEhAKCHdhcm11cF9zGAYgASgBEhQKDHdhcm11cF9lcnJvchgHIAEoCRIrCgZyZWNlbnQYCCADKAsyGy5kYXJrZmx1ZW56ZXIudjEuQWlSdW5CcmllZiJuCgpBaVJ1bkJyaWVmEg4KBnJ1bl9pZBgBIAEoBBIMCgRraW5kGAIgASgJEhIKCmR1cmF0aW9uX3MYAyABKAESDwoHdG90YWxfcxgEIAEoARIOCgZmYWlsZWQYBSABKAgSDQoFYXRfbXMYBiABKANiBnByb3RvMw");
+  fileDesc("ChhkYXJrZmx1ZW56ZXIvdjEvYWkucHJvdG8SD2RhcmtmbHVlbnplci52MSLYAwoFQWlSdW4SDgoGcnVuX2lkGAEgASgEEgwKBGtpbmQYAiABKAkSEgoKcmVxdWVzdF9pZBgDIAEoCRIVCg1pbmZsdWVuY2VyX2lkGAQgASgEEhcKD3BlcnNvbmFfdmVyc2lvbhgFIAEoDRIPCgdzZXNzaW9uGAYgASgNEg8KB21lc3NhZ2UYByABKAkSDgoGYW5zd2VyGAggASgJEhYKDmNsYXNzaWZpY2F0aW9uGAkgASgJEhwKFGNsYXNzaWZpY2F0aW9uX3ZhbGlkGAogASgIEhUKDXN5c3RlbV9wcm9tcHQYCyABKAkSEQoJdXNlcl90ZXh0GAwgASgJEg4KBndhaXRfcxgNIAEoARISCgpkdXJhdGlvbl9zGA4gASgBEg8KB3RvdGFsX3MYDyABKAESDQoFZXJyb3IYECABKAkSEAoId29ya2Zsb3cYESABKAkSFAoMd29ya2Zsb3dfc2hhGBIgASgJEhEKCW1vZGVsX3NoYRgTIAEoCRINCgVhdF9tcxgUIAEoAxIpCgVnYXRlcxgVIAMoCzIaLmRhcmtmbHVlbnplci52MS5HYXRlQ2hlY2sSEAoIc2VuZGFibGUYFiABKAgSEAoIYXR0ZW1wdHMYFyABKA0iNQoJR2F0ZUNoZWNrEgwKBG5hbWUYASABKAkSCgoCb2sYAiABKAgSDgoGcmVhc29uGAMgASgJIi8KCEFpUmVzdWx0EiMKA3J1bhgBIAEoCzIWLmRhcmtmbHVlbnplci52MS5BaVJ1biK8AQoIQWlTdGF0dXMSEgoKY29uZmlndXJlZBgBIAEoCBIOCgZlbmdpbmUYAiABKAkSEwoLa2VlcF9sb2FkZWQYAyABKAgSDwoHcnVubmluZxgEIAEoDRIRCgl3YXJtdXBfbXMYBSABKAMSEAoId2FybXVwX3MYBiABKAESFAoMd2FybXVwX2Vycm9yGAcgASgJEisKBnJlY2VudBgIIAMoCzIbLmRhcmtmbHVlbnplci52MS5BaVJ1bkJyaWVmIm4KCkFpUnVuQnJpZWYSDgoGcnVuX2lkGAEgASgEEgwKBGtpbmQYAiABKAkSEgoKZHVyYXRpb25fcxgDIAEoARIPCgd0b3RhbF9zGAQgASgBEg4KBmZhaWxlZBgFIAEoCBINCgVhdF9tcxgGIAEoA2IGcHJvdG8z");
 
 /**
  * Sprach-KI auf ComfyUI 2 (SP4 Schritt 1, E19, E26): ein Lauf des registrierten Sprachworkflows mit
@@ -134,6 +134,25 @@ export type AiRun = Message<"darkfluenzer.v1.AiRun"> & {
    * @generated from field: int64 at_ms = 20;
    */
   atMs: bigint;
+
+  /**
+   * Gates vor dem Versand (SP4 Schritt 3): je Gate bestanden oder mit Grund; sendable = alle bestanden
+   *
+   * @generated from field: repeated darkfluenzer.v1.GateCheck gates = 21;
+   */
+  gates: GateCheck[];
+
+  /**
+   * @generated from field: bool sendable = 22;
+   */
+  sendable: boolean;
+
+  /**
+   * Läufe für diese Antwort (> 1: Einstufung war ungültig, neuer Lauf)
+   *
+   * @generated from field: uint32 attempts = 23;
+   */
+  attempts: number;
 };
 
 /**
@@ -142,6 +161,35 @@ export type AiRun = Message<"darkfluenzer.v1.AiRun"> & {
  */
 export const AiRunSchema: GenMessage<AiRun> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_ai, 0);
+
+/**
+ * @generated from message darkfluenzer.v1.GateCheck
+ */
+export type GateCheck = Message<"darkfluenzer.v1.GateCheck"> & {
+  /**
+   * schema | minor | amounts | payment_ways | ai_notice | locked | operator | automation | window | text_limit
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: bool ok = 2;
+   */
+  ok: boolean;
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.GateCheck.
+ * Use `create(GateCheckSchema)` to create a new message.
+ */
+export const GateCheckSchema: GenMessage<GateCheck> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_ai, 1);
 
 /**
  * EVENT ai.result: ein KI-Lauf ist beendet (Antwort oder Fehler)
@@ -160,7 +208,7 @@ export type AiResult = Message<"darkfluenzer.v1.AiResult"> & {
  * Use `create(AiResultSchema)` to create a new message.
  */
 export const AiResultSchema: GenMessage<AiResult> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_ai, 1);
+  messageDesc(file_darkfluenzer_v1_ai, 2);
 
 /**
  * STATE ai.status (SP4 Schritt 1): Sprach-KI auf ComfyUI 2 – geladene Engine, ob die Instanz
@@ -227,7 +275,7 @@ export type AiStatus = Message<"darkfluenzer.v1.AiStatus"> & {
  * Use `create(AiStatusSchema)` to create a new message.
  */
 export const AiStatusSchema: GenMessage<AiStatus> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_ai, 2);
+  messageDesc(file_darkfluenzer_v1_ai, 3);
 
 /**
  * @generated from message darkfluenzer.v1.AiRunBrief
@@ -269,5 +317,5 @@ export type AiRunBrief = Message<"darkfluenzer.v1.AiRunBrief"> & {
  * Use `create(AiRunBriefSchema)` to create a new message.
  */
 export const AiRunBriefSchema: GenMessage<AiRunBrief> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_ai, 3);
+  messageDesc(file_darkfluenzer_v1_ai, 4);
 

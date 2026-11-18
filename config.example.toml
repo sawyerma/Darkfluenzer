@@ -83,6 +83,15 @@ PYTORCH_ENABLE_MPS_FALLBACK = "1"
 studio_turns = 12
 run_timeout_s = 180
 
+# Gates vor dem Versand einer KI-Antwort (SP4 Schritt 3): neue Läufe bei ungültiger Einstufung;
+# Begriffe je Zahlungsweg (erster = Anzeigename). Genannte, nicht freigegebene Wege blockieren den
+# Versand. Ergänzt bzw. ersetzt die eingebauten Begriffe je Schlüssel.
+[dialog]
+schema_retries = 1
+
+[dialog.payment_terms]
+bank = ["Überweisung", "Banküberweisung", "SEPA", "IBAN", "Bankkonto"]
+
 # Gesichtsprüfung (darkfluenzer identity): kleinere oder unsicherere Gesichter gelten als
 # „nicht prüfbar“.
 [identity]

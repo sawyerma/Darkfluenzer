@@ -8,7 +8,7 @@ import logging.handlers
 import os
 import re
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -248,6 +248,32 @@ class AiConfig:
     status_runs: int = 5
 
 
+# Begriffe je Zahlungsweg für das Gate „Zahlungswege“ (SP4 Schritt 3); der erste Begriff ist der
+# Anzeigename im Faktenblock. Wege ohne Anschluss (z. B. bank) stehen nur hier, damit eine Nennung
+# im Antworttext auffällt.
+DEFAULT_PAYMENT_TERMS: dict[str, tuple[str, ...]] = {
+    "amazon": ("Amazon-Gutschein", "Amazon", "Gutschein"),
+    "paypal": ("PayPal",),
+    "btc": ("Bitcoin", "BTC"),
+    "usdt": ("USDT", "Tether"),
+    "usdc": ("USDC",),
+    "bank": ("Überweisung", "Banküberweisung", "SEPA", "IBAN", "Bankkonto"),
+    "card": ("Kreditkarte", "Visa", "Mastercard"),
+    "cash": ("Bargeld",),
+}
+
+
+@dataclass(frozen=True)
+class DialogConfig:
+    """Gates vor dem Versand einer KI-Antwort (SP4 Schritt 3)."""
+
+    payment_terms: dict[str, tuple[str, ...]] = field(
+        default_factory=lambda: dict(DEFAULT_PAYMENT_TERMS)
+    )
+    # neue Läufe bei ungültiger Einstufung, bevor die Antwort ein Entwurf wird
+    schema_retries: int = 1
+
+
 @dataclass(frozen=True)
 class IdentityConfig:
     """Gesichtsprüfung (Knoten DarkfluenzerFaceIdentity, SP3 Schritt 7): kleinere oder unsicherere
@@ -270,6 +296,7 @@ class Config:
     instagram: InstagramConfig | None  # None: Abschnitt fehlt (Kanal nicht eingerichtet)
     wallet: WalletConfig | None  # None: Abschnitt fehlt (Zahlungseingang nicht eingerichtet)
     ai: AiConfig = AiConfig()
+    dialog: DialogConfig = DialogConfig()
 
     @property
     def instances(self) -> tuple[ComfyConfig, ...]:
@@ -704,6 +731,20 @@ def load(root: Path | None = None) -> Config:
         warmup_tokens=int(_positive(ai_section, "warmup_tokens", 32, "ai")),
         status_runs=int(_positive(ai_section, "status_runs", 5, "ai")),
     )
+    dialog_section = data.get("dialog", {})
+    if not isinstance(dialog_section, dict):
+        raise ConfigError(f"Konfiguration {path}: [dialog] muss ein Abschnitt sein.")
+    terms = dict(DEFAULT_PAYMENT_TERMS)
+    for way, words in (dialog_section.get("payment_terms") or {}).items():
+        if not isinstance(words, list) or not all(isinstance(w, str) and w.strip() for w in words):
+            raise ConfigError(
+                f"Konfiguration: dialog.payment_terms.{way} muss eine Liste von Begriffen sein."
+            )
+        terms[way] = tuple(w.strip() for w in words)
+    retries = dialog_section.get("schema_retries", 1)
+    if isinstance(retries, bool) or not isinstance(retries, int) or retries < 0:
+        raise ConfigError("Konfiguration: dialog.schema_retries muss eine ganze Zahl ≥ 0 sein.")
+    dialog_cfg = DialogConfig(payment_terms=terms, schema_retries=retries)
     telegram = _parse_telegram(data.get("telegram_account"), root, path)
     instagram = _parse_instagram(data.get("instagram"), path)
     wallet = _parse_wallet(data.get("wallet"), path)
@@ -721,6 +762,7 @@ def load(root: Path | None = None) -> Config:
         production=production,
         training=_parse_training(data.get("training") or {}),
         ai=ai_cfg,
+        dialog=dialog_cfg,
     )
 
 
