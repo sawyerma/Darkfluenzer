@@ -207,6 +207,7 @@ Dateien: `core/commands.ts`, `core/state.ts`, `core/realtime.ts`, `pages/*.tsx`,
 - **Ereignislisten (`state.ts`, BUG-071):** Obergrenze je Topic; ältere Einträge kommen über die Seitenabfragen. `applyEvent` kopiert die Liste nicht mehr je Ereignis; die Benachrichtigung wird gebündelt.
 - **Kundenliste und Übersicht:** folgen EVENT 26 bei jedem Eingang; Zähler „wartet auf Produktion“ und „wartet auf Freigabe“ (BUG-048, 070).
 - **Kanalstatus je Konto;** Figur-Filter in der Kundenliste (die Daten liefert SP2).
+  - **Umgesetzt 18.11.2026 (C5.1):** Figur-Filter („Influencerin filtern“) und Figurenmarke je Akte mit Farbplatz; Kanalzeile unter der Kundenliste je Plattform („bereit/gesamt“). Chrome-E2E isoliert `tests/figures.spec.ts`.
   - **Umgesetzt 18.11.2026 (Kanalstatus je Konto, SP2 Schritt 4):** jedes Telegram-Konto hat eine eigene Karte mit eigenem Zustand; Anmeldung (39), Automatik und Abmelden (40) senden das Kürzel des Kontos. Chrome-E2E isoliert mit zwei Telegram-Konten (`tests/settings.spec.ts`), Smoke für mehrere Konten angepasst. Figur-Filter offen.
 - **Kleinere Punkte:** Ganzzahlprüfung (BUG-025), mitlaufende Fristen (BUG-026), Video in der Auftragskarte (BUG-027), Wallet-Maskierung und Bestätigungen (BUG-032, 033). Das Neuladen nach Schemawechsel (BUG-076) kommt mit SP6.
 - **Reiter Einstellungen** nach §3.7, zusätzlich Kanalkonten anlegen, zuordnen und entfernen; Schalter „Kundenkanal über Privatkonto oder Bot“ je Konto (der Bot-Weg kommt später).

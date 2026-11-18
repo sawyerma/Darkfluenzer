@@ -136,7 +136,26 @@ class CustomersMixin:
             " ORDER BY c.kind = 'internal' DESC, coalesce(lm.id, 0) DESC, c.id DESC",
             (customer_id, customer_id),
         )
-        return [dict(r) for r in rows]
+        figures = self.customer_figures()
+        empty = {"influencer_id": 0, "influencer_name": "", "account_key": ""}
+        return [dict(r) | figures.get(r["id"], empty) for r in rows]
+
+    def customer_figures(self) -> dict[int, dict]:
+        """Influencerin und Kanalkonto je Akte ab dem ersten Eingang (C5.1): über die erste
+        Identität und ihr Konto; nie die erste Influencerin."""
+        rows = self.db.execute(
+            "SELECT ci.customer_id, a.key, a.influencer_id, f.name FROM channel_identities ci"
+            " JOIN channel_accounts a ON a.platform = ci.platform"
+            " AND a.platform_account_id = ci.account"
+            " LEFT JOIN influencers f ON f.id = a.influencer_id ORDER BY ci.id"
+        )
+        out: dict[int, dict] = {}
+        for r in rows:
+            out.setdefault(
+                r[0],
+                {"influencer_id": r[2] or 0, "influencer_name": r[3] or "", "account_key": r[1]},
+            )
+        return out
 
     AGE_MARKS = ("unclear", "under_18", "self_declared_adult")
 

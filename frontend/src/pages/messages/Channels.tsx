@@ -199,17 +199,23 @@ export function ChannelLines({ channels, stale }: { channels: readonly ChannelSt
   return (
     <div className="g-channelbox g-between">
       <span className="g-value">
-        {shown.map((ch) => (
-          <span
-            key={ch.platform}
-            className="g-ptag"
-            data-platform={ch.platform}
-            data-off={ch.state !== "READY" || stale || undefined}
-            title={`${PLATFORM_LABEL[ch.platform] ?? ch.platform}: ${channelBadge(ch)[0]}`}
-          >
-            {PLATFORM_LABEL[ch.platform] ?? ch.platform}
-          </span>
-        ))}
+        {/* je Plattform eine Marke; mehrere Konten (SP2 Schritt 4) als „bereit/gesamt“ */}
+        {SUPPORTED.filter((p) => shown.some((ch) => ch.platform === p)).map((platform) => {
+          const accounts = shown.filter((ch) => ch.platform === platform);
+          const ready = accounts.filter((ch) => ch.state === "READY").length;
+          const label = PLATFORM_LABEL[platform] ?? platform;
+          return (
+            <span
+              key={platform}
+              className="g-ptag"
+              data-platform={platform}
+              data-off={ready === 0 || stale || undefined}
+              title={accounts.map((ch) => `${label}${ch.key ? ` ${ch.key}` : ""}: ${channelBadge(ch)[0]}`).join("\n")}
+            >
+              {accounts.length > 1 ? `${label} ${ready}/${accounts.length}` : label}
+            </span>
+          );
+        })}
       </span>
       <a className="g-link" href="#einstellungen">
         {attention ? "Anmeldung nötig" : "Kanäle verwalten"}

@@ -48,7 +48,7 @@
 | BUG-016 | **[18.11.] CODE** (Abgleich über SQLite, Verlauf und Send-Updates, Befehl 66; Mac-Lauf mit echtem Zeitablauf offen) – Versand mit Status `unknown` bleibt hängen; Instagram klärt ihn nur im Speicher, nach Neustart entsteht fälschlich „ÜBERGABE AN BETREIBER“. | CODE | Abgleich dauerhaft über Verlauf/Echo, nie blind zweimal senden, eigene Nachricht nie als Übergabe. | B SP2 |
 | BUG-017 | **[18.11.] CODE** (Textteil: Satzgrenzen; Handy-Lauf offen) – Instagram lehnt Bilder über 8 MB ab; keine Zustellkopie; Texte über 1000 Byte nicht geteilt: `instagram._parts` lehnt Text über `max_text_bytes` ganz ab. | CODE | Zustellkopie je Kanalgrenze, nie unter 1K; Text teilen; genau einmal zugestellt. | B SP5 (Datei), SP4 (Text) |
 | BUG-019 | Angebot wählt das Produkt über den Listenindex. | CODE | Stabile ID je Preisposition, Revisionsprüfung. | B SP5 |
-| BUG-020 | Kundenakte nimmt `influencers[0]` statt der Influencerin des Kontos. | CODE | Influencerin je Kanalkonto und Akte. | B SP4 (C5.1) |
+| BUG-020 | **[18.11.] CODE** (Influencerin je Konto und Akte, Filter, Schalter; zwei echte Konten offen) – Kundenakte nimmt `influencers[0]` statt der Influencerin des Kontos. | CODE | Influencerin je Kanalkonto und Akte. | B SP4 (C5.1) |
 | BUG-021 | **[18.11.] CODE** (erneut nur nach `failed`, Test rot→grün) – KI-Hinweis nach fehlgeschlagenem oder ungeklärtem Versand nicht fortsetzbar. | CODE: `queue_ai_notice` sperrt, sobald eine Hinweisnachricht verknüpft ist, auch wenn sie fehlgeschlagen ist | Erneuter Versuch möglich, nie doppelt. | B SP2 |
 | BUG-022 | Alle Engines `evaluation`, Rollen leer; Kundenaufträge prüfen Engine-Freigabe nicht (`_not_startable` prüft nur aktiviert, gesperrt, Dateien). | CODE | Kundenproduktion nur auf freigegebenen Engines (`usage = production`, alle Gates nach Backend §9.1) mit der LoRA der Figur, auch bei manipuliertem Befehl; `_not_startable` prüft das bei Kundenaufträgen. | B SP5 |
 | BUG-023 | Krea als `standard` eingestuft ohne Nachweis. | HYPOTHESE | Graph und Testbilder prüfen; Stufe nur mit Beleg. | B SP5 |
@@ -200,6 +200,16 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: C5.1 (Influencerin vollständig) / BUG-020
+Commit: siehe git log „C5.1“ / store/customers (customer_figures), CustomerSummary 12–15, customer-page Filter,
+  CustomerList (Figur, Filter), Channels (Kanalzeile je Plattform), graphite.css (--g-figure-*, .g-ftag)
+Nachweis: test_accounts (zwei Figuren ohne Vermischung, Filter), Chrome-E2E isoliert tests/figures.spec.ts
+NOT_RUN: zwei echte Konten (zweites Konto anlegen mit SP2 9b)
+Beobachtung: ein voller Backend-Lauf mit einem Fehler (Test nicht protokolliert), danach 8 volle Läufe grün –
+  vermutlich zeitabhängiger Test; bei Wiederauftreten mit -rf festhalten
+Ergebnis: TEIL
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP4 Schritt 4 Rest (freie Default-Anweisungen, B5.4a)
 Commit: siehe git log „free default instructions“ / workflows/ai/default_instruction_melody.*, models
   (InstructionSpec), llm.instruct, core/instruction.py, core/cloner (_cloner_instruction), Migration 37,

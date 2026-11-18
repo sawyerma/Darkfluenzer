@@ -480,8 +480,15 @@ async def _customer_page(request: web.Request) -> web.Response:
     if request.app[GUARD_KEY].csrf_of(request) is None:
         return web.Response(status=401, text="Keine gültige Sitzung")
     store = request.app[COCKPIT_KEY].store
+    try:  # serverseitiger Filter nach Influencerin (C5.1, FRONTEND §3.2)
+        figure = int(request.query.get("influencer", "0"))
+    except ValueError:
+        return web.Response(status=400, text="influencer muss eine Zahl sein")
+    rows = store.customers_overview()
+    if figure:
+        rows = [r for r in rows if r["influencer_id"] == figure or r["kind"] == "internal"]
     page = channel_pb2.CustomerPage(
-        customers=[_customer_summary(r) for r in store.customers_overview()],
+        customers=[_customer_summary(r) for r in rows],
         version=store.domain_version("customers"),
     )
     return web.Response(body=page.SerializeToString(), content_type=PROTOBUF)

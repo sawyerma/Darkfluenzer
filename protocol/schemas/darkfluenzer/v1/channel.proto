@@ -70,6 +70,11 @@ message CustomerSummary {
   string age_mark = 11;
   // Plattformkennungen der verknüpften Konten (Handle und Nutzer-ID) für die Suche (F7.2)
   repeated string handles = 10;
+  // Influencerin und Kanalkonto der Akte (C5.1); slot = Farbe der Figur (1–6, Token im Stylesheet)
+  uint64 influencer_id = 12;
+  string influencer_name = 13;
+  uint32 influencer_slot = 14;
+  string account = 15;
 }
 
 // EVENT customers.updated: geänderte Kundenakte (neu, gelesen, umbenannt …)

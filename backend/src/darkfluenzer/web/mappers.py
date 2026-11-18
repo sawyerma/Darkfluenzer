@@ -233,7 +233,16 @@ def _customer_summary(row: dict) -> channel_pb2.CustomerSummary:
         handles=sorted(
             {v for pair in (row["handles"] or "").split("\x1e") for v in pair.split("\x1f") if v}
         ),
+        influencer_id=row.get("influencer_id") or 0,
+        influencer_name=row.get("influencer_name") or "",
+        influencer_slot=figure_slot(row.get("influencer_id") or 0),
+        account=row.get("account_key") or "",
     )
+
+
+def figure_slot(influencer_id: int) -> int:
+    """Farbe der Figur: fester Platz 1–6 aus der ID (Token im Stylesheet, keine Farbwerte)."""
+    return (influencer_id - 1) % 6 + 1 if influencer_id else 0
 
 
 def _conversation_item(row: dict, store: Store) -> channel_pb2.ConversationItem:

@@ -41,6 +41,13 @@
 
   /* Marke: pinkes C, identisch zum App-Icon (launcher/make_icon.swift) */
   --g-brand: #ed2287;
+  /* Figuren (C5.1): feste Farbplätze 1–6 je Influencerin */
+  --g-figure-1: #ed2287;
+  --g-figure-2: #3b82f6;
+  --g-figure-3: #22c55e;
+  --g-figure-4: #f59e0b;
+  --g-figure-5: #a855f7;
+  --g-figure-6: #14b8a6;
   /* F7-Referenz (docs/design/Darkfluenzer_Cockpit_Interaktiv.html): Seite, Rahmen, Spalten, Register */
   --g-page: #111111;
   --g-frame: #1c1c1f;
@@ -609,6 +616,14 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-channelbox > summary::-webkit-details-marker { display: none; }
 .g-channelbox[open] > summary { color: var(--g-text-strong); }
 .g-ptag[data-off] { opacity: var(--g-dim-stale); }
+.g-ftag { padding: var(--g-pad-tag); border: 1px solid var(--g-line); border-radius: var(--g-r-thumb);
+  font-size: var(--g-fs-tiny); color: var(--g-text); white-space: nowrap; }
+.g-ftag[data-slot="1"] { border-color: var(--g-figure-1); }
+.g-ftag[data-slot="2"] { border-color: var(--g-figure-2); }
+.g-ftag[data-slot="3"] { border-color: var(--g-figure-3); }
+.g-ftag[data-slot="4"] { border-color: var(--g-figure-4); }
+.g-ftag[data-slot="5"] { border-color: var(--g-figure-5); }
+.g-ftag[data-slot="6"] { border-color: var(--g-figure-6); }
 .g-chathead h2 { margin: 0; font-size: var(--g-fs-h1); line-height: var(--g-lh-h1); }
 .g-chathead small { color: var(--g-muted); font-size: var(--g-fs-small); }
 .g-channels { display: flex; flex-wrap: wrap; gap: var(--g-gap-sm); padding-bottom: var(--g-gap-md); border-bottom: 1px solid var(--g-line); }

@@ -175,3 +175,46 @@ def test_login_and_logout_reach_the_named_telegram_account(cfg):
         assert cockpit._adapter("telegram", "888") is None
 
     _run(cfg, scenario)
+
+
+def test_two_figures_on_two_accounts_without_mixing(cfg):
+    """C5.1: jede Akte trägt Konto und Influencerin ab dem ersten Eingang; die Kundenliste ist
+    serverseitig nach Influencerin filterbar; Farbplatz je Figur."""
+    from test_server import _csrf
+
+    from darkfluenzer.web.mappers import figure_slot
+
+    async def scenario(client, app, origin):
+        store = app[server.COCKPIT_KEY].store
+        clara = store.save_influencer(0, 0, "Clara", None, "", "", [])
+        lucy = store.save_influencer(0, 0, "Lucy", None, "", "", [])
+        for key, account, figure in (("tg-clara", "111", clara), ("tg-lucy", "222", lucy)):
+            store.import_channel_account(
+                {"key": key, "platform": "telegram", "influencer_id": figure}
+            )
+            store.set_account_platform_id(key, account)
+
+        def inbound(account, sender, event):
+            return store.record_inbound(
+                "telegram", account, event, sender_id=sender, conversation_id=sender,
+                platform_message_id=event, text="Hi", sent_at="2026-11-18T10:00:00+00:00",
+            )  # fmt: skip
+
+        a = inbound("111", "42", "e1")
+        b = inbound("222", "43", "e2")
+        rows = {r["id"]: r for r in store.customers_overview()}
+        assert (rows[a.customer.id]["influencer_name"], rows[a.customer.id]["account_key"]) == (
+            "Clara", "tg-clara",
+        )  # fmt: skip
+        assert rows[b.customer.id]["influencer_name"] == "Lucy"
+        await _csrf(client)
+        page = channel_pb2.CustomerPage.FromString(
+            await (await client.get(f"/api/v1/customer-page?influencer={lucy}")).read()
+        )
+        names = {c.customer_id: c for c in page.customers if c.kind == "customer"}
+        assert list(names) == [b.customer.id]  # nur die eigene
+        assert names[b.customer.id].influencer_slot == figure_slot(lucy) != figure_slot(clara)
+        assert names[b.customer.id].account == "tg-lucy"
+        assert (await client.get("/api/v1/customer-page?influencer=x")).status == 400
+
+    _run(cfg, scenario)

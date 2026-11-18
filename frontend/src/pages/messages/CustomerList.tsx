@@ -27,6 +27,11 @@ function CustomerRow({ c, active }: { c: CustomerSummary; active: boolean }) {
         <small className="g-ellipsis">{desc}</small>
       </span>
       <span className="g-contact-side">
+        {c.influencerName ? (
+          <span className="g-ftag" data-slot={c.influencerSlot} title={c.account ? `Konto ${c.account}` : undefined}>
+            {c.influencerName}
+          </span>
+        ) : null}
         {tag ? (
           <span className="g-ptag" data-platform={single}>
             {tag}
@@ -57,11 +62,15 @@ export function CustomerList({
 }) {
   const [query, setQuery] = useState("");
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [figure, setFigure] = useState("");
   const channels = useStateTopic(Topic.CHANNELS);
+  const influencers = useStateTopic(Topic.INFLUENCERS)?.value.influencers ?? [];
   const q = query.trim().toLowerCase();
   const shown = list.filter(
     (c) =>
       (!unreadOnly || c.unread > 0) &&
+      // Filter nach Influencerin (C5.1); der Default bleibt immer sichtbar
+      (!figure || c.kind === "internal" || String(c.influencerId) === figure) &&
       (!q || [c.displayName, c.customerNo, ...c.handles].some((v) => v.toLowerCase().includes(q))),
   );
   const count = list.filter((c) => c.kind === "customer").length;
@@ -79,6 +88,16 @@ export function CustomerList({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
+      {influencers.length > 1 ? (
+        <select className="g-input" aria-label="Influencerin filtern" value={figure} onChange={(e) => setFigure(e.target.value)}>
+          <option value="">Alle Influencerinnen</option>
+          {influencers.map((i) => (
+            <option key={String(i.influencerId)} value={String(i.influencerId)}>
+              {i.name}
+            </option>
+          ))}
+        </select>
+      ) : null}
       <div className="g-subtabs" role="tablist" aria-label="Filter">
         {([false, true] as const).map((only) => (
           <button
