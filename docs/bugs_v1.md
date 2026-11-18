@@ -200,6 +200,18 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP4 Schritt 1 Teil c (Messung 20 Nachrichten, E15)
+Lauf 18.11.2026 (echter Mac, ComfyUI 2 Melody Q6_K, ohne Datenbank, Profil „MESSTEST“): 20 zusammenhängende deutsche
+  Testnachrichten mit Verlauf (12 Wechsel), je Nachricht Einstufung + Antwort in einer Einreichung
+Ergebnis warm: p50 2,3 s · p95 3,1 s · max 3,2 s; Einstufung 19/19 gültig, kein JSON in der Antwort
+Ergebnis bei Bildrender (LUSTIFY SDXL direkt auf ComfyUI 1, 75,6 s, Ausgabedatei danach gelöscht): 9 Nachrichten
+  p50 8,4 s · p95 9,9 s · max 9,9 s; Einstufung 9/9 gültig
+Fachlich: Ehrlichkeitsfrage wahrheitsgemäß, Preise aus den Fakten richtig; erfunden: Lieferzeit und Zahlungsweg
+  „Überweisung“ (Fakten enthielten beides nicht) → Fakten um Zahlungswege/Lieferzeit, Gates Schritt 3
+Befund: /free entlädt Melody nicht (RSS 23,9 GB vor und nach); „kalt“ nur nach Neustart von ComfyUI 2 (22 s)
+Nicht gelaufen: Messung bei Videorender (lange Läufe derzeit nicht freigegeben) → E15 offen
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP4 Schritt 1 Teil b (keep_loaded, beide Instanzen, Aufwärmlauf, STATE 11) / BUG-061 / BUG-085
 Commit: siehe git log „SP4 step 1b“ / config.ComfyConfig.keep_loaded, core/render._admit + _jobs_active,
   core/ai (_llm_run, maybe_warmup, _ai_status), nodes/llm (on_submit), app._comfy_start_all, KiStatus.tsx

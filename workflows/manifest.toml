@@ -372,7 +372,7 @@ files = ["melody1437_q6k"]
 license = "laut Modellkarte ReadyArt/Melody1437-26B-A4B-v2.0-GGUF"
 usage = "evaluation"
 gates = { load = "PASS", render = "PASS", quality = "OFFEN", license_pass = "OFFEN" }
-note = "Einziges freigegebenes Chatmodell (B5, 16.11.2026). Läuft nur auf ComfyUI 2 über ComfyUI-LLM-Session ec2b293c mit llama-cpp-python 0.3.37 (Metal). Mac-Lauf 18.11.2026: 31/31 Schichten auf MTL0, kalt 22 s, warm 0,6–0,9 s, 88,9 Token/s, ≈ 18 GB."
+note = "Einziges freigegebenes Chatmodell (B5, 16.11.2026). Läuft nur auf ComfyUI 2 über ComfyUI-LLM-Session ec2b293c mit llama-cpp-python 0.3.37 (Metal). Mac-Lauf 18.11.2026: 31/31 Schichten auf MTL0, kalt 22 s, warm 0,6–0,9 s, 88,9 Token/s, ≈ 18 GB. Messung clara_chat_melody 18.11. (Einstufung + Antwort je Nachricht): warm p50 2,3 s / p95 3,1 s, bei laufendem SDXL-Bildrender p50 8,4 s / p95 9,9 s; /free entlädt Melody nicht (Knoten hält das per mmap geladene Modell, RSS 23,9 GB)."
 
 [files.flux3_klein_base_bf16]
 repo = "black-forest-labs/flux-3-image-klein-comfy"
@@ -1404,7 +1404,7 @@ through = ["model"]
 engine = "melody_chat"
 ui = "ai/clara_chat_melody.ui.json"
 api = "ai/clara_chat_melody.api.json"
-status = "OFFEN"
+status = "PASS"
 title = "Clara · Chat (Melody)"
 
 [workflows.clara_chat_melody.params]
