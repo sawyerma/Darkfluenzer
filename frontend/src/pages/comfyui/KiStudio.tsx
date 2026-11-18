@@ -49,7 +49,10 @@ function versionDate(v: PersonaVersion): string {
 }
 
 export function KiStudio({ workflow, live }: { workflow?: WorkflowInfo; live: boolean }) {
-  const [view, setView] = useState<View>(workflow ? "chat" : "persona");
+  // Startreiter aus dem Workflow-Zustand abgeleitet, solange der Betreiber keinen gewählt hat (der
+  // Zustand kann nach dem ersten Rendern eintreffen – sonst blieb „Persona“ hängen)
+  const [picked, setView] = useState<View | null>(null);
+  const view: View = picked ?? (workflow ? "chat" : "persona");
   const [testVersion, setTestVersion] = useState(0);
   // Befehlszustand über dem Editor: die Rückmeldung bleibt, wenn der Editor nach dem Aktivieren neu startet
   const profileCmd = useCommand();

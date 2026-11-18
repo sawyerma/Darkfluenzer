@@ -19,6 +19,9 @@ message StageJob {
   string error = 6;
   // Inhaltsstufe des Kandidaten (Regel 13): standard | explizit; leer = unbekannt
   string content_tier = 7;
+  // Automatische Prüfung (SP5 Schritt 7): „bestanden · Wert“, „nicht bestanden: Gründe“ oder
+  // „Prüfung nicht qualifiziert, Freigabe durch Betreiber“; leer = noch nicht bewertet
+  string selection = 8;
 }
 
 message OrderStage {

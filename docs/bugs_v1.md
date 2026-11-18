@@ -119,6 +119,7 @@
 | BUG-127 | Testprozess-Leck: Tests, die über Cockpit oder Pipeline rendern, starten die Fake-ComfyUI per `runtime.start` mit eigener Prozessgruppe (`start_new_session`, im Betrieb gewollt); kein Test stoppte sie. 18.11.: 451 verwaiste Prozesse aus elf Testarten. | CODE | Bereinigung je Testprojekt und am Sitzungsende (Prozessgruppe, nur Test-Interpreter + `main.py` + Arbeitsverzeichnis unter pytest). | Test |
 | BUG-128 | Telegram-Versand von Dateien: `inputMessageDocument.document` ist in TDLib 1.8.70 ein `inputDocument`; der Code gab `inputFileLocal` direkt hinein – TDLib parst das ohne Fehler, ohne Datei (bloßes Feld `path` auf falscher Ebene), der echte Versand (Zustellung, Kloner-Rückgabe) schlägt fehl. Gefunden beim Abgleich mit `td_api.tl` (SP5 Schritt 9). | CODE | Datei in `inputDocument`/`inputPhoto`/`inputVideo`; Parser-Prüfung mit frischem, nicht angemeldetem TDLib-Client. | D (SP5 9) |
 | BUG-129 | Videoauftrag (Bild-Kandidaten + Animation) bekommt die Art `image`: `create_order` setzt die Art aus der Engine des Kandidaten-Workflows und überschreibt `video`; Folge: Zustellung als Foto, „Animation neu“ fehlt. Gefunden mit dem Browser-Test zu SP5 Schritt 9. | CODE | Art aus dem Endergebnis (Fertigstellen-Workflow Video → `video`). | D (SP5 9) |
+| BUG-130 | KI-Studio legte den Startreiter beim ersten Rendern fest (`useState(workflow ? "chat" : "persona")`); traf der Workflow-Zustand danach ein, blieb „Persona“ statt „Chat-Test“ stehen. Folge: nach Neuladen zeitweise falscher Reiter, Browser-Test KI-Studio schwankend (3 von 7 Läufen rot). Gefunden beim Gesamtlauf zu SP5 Schritt 7. | CODE | Reiter abgeleitet, solange der Betreiber keinen gewählt hat; danach 3/3 Läufe grün. | D |
 
 ## 4. P3
 
@@ -202,6 +203,19 @@ ID · Commit und Datei/Funktion · Behauptung (BESTÄTIGT, TEILWEISE, WIDERLEGT,
 ## 7. Prüfprotokoll (ab 17.11.2026)
 
 ```text
+ID: SP5 Schritt 7 (automatische Prüfung und Auswahl) mit BUG-130
+Commit: siehe git log „SP5 step 7“ / config ([selection], SelectionRule mit source), core/selection.py
+  (neu), core/autoprod (_auto_select), core/orders (regenerate_candidates, Urteil am Kandidaten),
+  core/render (nach jedem Job), core/registry (Kennzahl je Workflow), Migration 42
+  (selection_results), order/comfy.proto, Candidates, Workbench, KiStudio (BUG-130)
+Nachweis: test_selection (Regeln/Frames/Auswahl, Konfiguration, Auswahl/Neuauflage/Obergrenze/
+  nicht qualifiziert), volle Suite 318 grün; Chrome-E2E isoliert 29/29 (neu selection.spec.ts),
+  KI-Studio 3/3 nach BUG-130, lesend echt 10/10; echte Migration 41→42, Telegram angemeldet
+NOT_RUN: echte Schwellen (E16/E17: nur aus beschrifteten, validierten Referenzdaten – fehlen; bis
+  dahin wählt der Betreiber), Auswahl an echten Kundenkandidaten
+Ergebnis: CODE (Entscheidung und Integration isoliert belegt), Schwellen offen (Qualifikation)
+Bearbeiter/Datum: Claude, 18.11.2026
+
 ID: SP5 Schritt 9 (Zustellung) mit BUG-128 und BUG-129
 Commit: siehe git log „SP5 step 9“ / channels/telegram (_content: Foto, Video, Dokument, Timer),
   config ([telegram] max_photo_mb/max_file_mb/self_destruct_s), core/delivery (_delivery_kind,

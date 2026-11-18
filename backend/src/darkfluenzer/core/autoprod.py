@@ -19,10 +19,10 @@ from ..media import models, pipeline
 from ..media.pipeline import PipelineError
 from ..nodes.comfy import ComfyError
 from ..store import StoreError
-from . import eta
+from . import eta, selection
 from .base import log
 from .chat import OFFER_TEXT
-from .orders import create_order
+from .orders import create_order, regenerate_candidates, select_candidate
 
 
 class AutoProductionMixin:
@@ -193,3 +193,63 @@ class AutoProductionMixin:
             self._card(order, f"VERZUG · {order.order_no} · Zwischennachricht gesendet")
             self._wake(order)
             self._message_changed(message_id)
+
+    # ------------------------------------------------------------------ Auswahl (SP5 Schritt 7)
+
+    def _auto_select(self, order_id: int) -> None:
+        """Kandidatenstufe eines Kundenauftrags fertig: mit qualifizierten Schwellen wählt das
+        Backend den besten bestandenen Kandidaten (weiter mit Fertigstellen bzw. Prüfung), ohne
+        bestandenen eine neue Kandidatenstufe bis zur Obergrenze, danach Meldung; ohne
+        qualifizierte Schwellen wählt der Betreiber (Karte genau einmal)."""
+        order = self.store.order_by_id(order_id)
+        if order.source != "customer" or order.status != "producing":
+            return
+        stages = self.store.stages(order.id)
+        stage = stages[-1] if stages else None
+        if stage is None or stage.kind != "candidates" or stage.status != "waiting":
+            return
+        jobs = [j for j in self.store.stage_jobs(stage.id) if j["status"] == "done"]
+        candidates = [(j["media_id"], self.store.media_checks(j["media_id"])) for j in jobs
+                      if j["media_id"]]  # fmt: skip
+        if self.store.selection_of(candidates[0][0]) if candidates else True:
+            return  # schon bewertet (Neustart, doppelte Benachrichtigung)
+        cfg = self.cfg.selection
+        missing = selection.unqualified(cfg)
+        if missing:
+            self.store.record_selection(
+                order.id, stage.workflow, [(m, False, None, []) for m, _rows in candidates],
+                qualified=False,
+            )  # fmt: skip
+            labels = ", ".join(selection.LABELS[n] for n in missing)
+            self._production_notice(
+                order, f"AUSWAHL DURCH BETREIBER · {order.order_no} · Prüfung nicht qualifiziert "
+                f"({labels})",
+            )  # fmt: skip
+            self._orders_changed()
+            return
+        best, verdicts = selection.choose(cfg, candidates)
+        self.store.record_selection(
+            order.id, stage.workflow,
+            [(v.media_id, v.passed, v.score if v.passed else None, list(v.reasons))
+             for v in verdicts], qualified=True,
+        )  # fmt: skip
+        if best is not None:
+            new_jobs = select_candidate(
+                self.cfg, self.store, self.manifest, order.order_no, best.media_id, None
+            )
+            self._enqueue(new_jobs)
+            self._card(order, f"AUTOMATISCH AUSGEWÄHLT · {order.order_no} · Wert "
+                       f"{best.score:.2f}".replace(".", ","))  # fmt: skip
+        elif sum(st.kind == "candidates" for st in stages) <= cfg.regenerate_max:
+            new_jobs = regenerate_candidates(
+                self.store, self.manifest, order.order_no,
+                video_max_s=self.cfg.production.video_max_s,
+            )  # fmt: skip
+            self._enqueue(new_jobs)
+            self._card(order, f"KEIN KANDIDAT BESTANDEN · {order.order_no} · neue Kandidaten")
+        else:
+            text = f"KEIN KANDIDAT BESTANDEN · {order.order_no} · Obergrenze erreicht – Betreiber"
+            self._card(order, text)
+            self.store.notify_default(text)
+        self._orders_changed()
+        self._message_changed(0)

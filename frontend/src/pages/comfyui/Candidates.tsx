@@ -133,6 +133,7 @@ export function Candidates({
                           <small>
                             Seed {String(j.seed)}
                             {j.mediaId ? ` · ${j.contentTier === "standard" ? "standard" : "explizit"}` : ""}
+                            {j.selection ? ` · ${j.selection}` : ""}
                           </small>
                           {stage.status === "waiting" && j.mediaId ? (
                             <button

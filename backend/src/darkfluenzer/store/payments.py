@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 
 from .db import (
@@ -142,6 +143,35 @@ class PaymentsMixin:
         if row is None or row["decision"] != "approved":
             return None
         return self.artifact(row["artifact_id"])
+
+    def record_selection(
+        self, order_id: int, workflow: str, results: list[tuple[int, bool, float | None, list]],
+        *, qualified: bool,
+    ) -> None:  # fmt: skip
+        """Urteile je Kandidat (SP5 Schritt 7): (Medium, bestanden, Gesamtwert, Gründe)."""
+        with self.tx() as db:
+            for media_id, passed, score, reasons in results:
+                db.execute(
+                    "INSERT INTO selection_results (order_id, media_id, workflow, qualified,"
+                    " passed, score, reasons, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                    (order_id, media_id, workflow, int(qualified), int(passed), score,
+                     json.dumps(reasons, ensure_ascii=False), now()),
+                )  # fmt: skip
+
+    def selection_of(self, media_id: int) -> dict | None:
+        row = self.db.execute(
+            "SELECT * FROM selection_results WHERE media_id = ? ORDER BY id DESC LIMIT 1",
+            (media_id,),
+        ).fetchone()
+        return dict(row) | {"reasons": json.loads(row["reasons"])} if row else None
+
+    def selection_stats(self) -> dict[str, tuple[int, int]]:
+        """Je Workflow (bestanden, bewertet) aus qualifizierten Urteilen."""
+        rows = self.db.execute(
+            "SELECT workflow, sum(passed), count(*) FROM selection_results WHERE qualified = 1"
+            " GROUP BY workflow"
+        )
+        return {r[0]: (int(r[1] or 0), int(r[2])) for r in rows}
 
     def mark_production_started(self, order_id: int) -> None:
         with self.tx() as db:

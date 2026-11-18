@@ -70,6 +70,8 @@ class RegistryMixin:
     def _step_seconds(self) -> dict[str, float]:
         """Sekunden je Schritt der Trainingsworkflows (Loop-Thread: SQLite), SP3 Schritt 3."""
         runs = self.cfg.production.estimate_runs
+        # Kennzahlen der automatischen Prüfung (SP5 Schritt 7), ebenfalls im Loop-Thread gelesen
+        self._selection_stats = self.store.selection_stats()
         return {
             key: self.store.seconds_per_step(key, runs)
             for key, wf in self.manifest.workflows.items()
@@ -109,6 +111,8 @@ class RegistryMixin:
                 keyframes=wf.keyframes is not None,
                 cloner=list(wf.cloner),
                 instruction=wf.instruction is not None,
+                selection_passed=self.__dict__.get("_selection_stats", {}).get(key, (0, 0))[0],
+                selection_total=self.__dict__.get("_selection_stats", {}).get(key, (0, 0))[1],
             )
             if wf.lora is not None:  # ladbare Charakter-LoRAs (SP3 Schritt 4/5)
                 names = models.engine_model_names(

@@ -985,6 +985,24 @@ ALTER TABLE offers ADD COLUMN wish_source TEXT NOT NULL DEFAULT '';
 ALTER TABLE offers ADD COLUMN production_started_at TEXT;
 ALTER TABLE offers ADD COLUMN delay_notice_at TEXT;
 """,
+    42: """
+-- Automatische Prüfung und Auswahl (SP5 Schritt 7): Urteil je Kandidat gegen die Schwellen aus
+-- der Konfiguration (bestanden, Gesamtwert, Gründe) bzw. „nicht qualifiziert“; Grundlage der
+-- Kennzahlen je Workflow und der Anzeige am Kandidaten.
+CREATE TABLE selection_results (
+    id         INTEGER PRIMARY KEY,
+    order_id   INTEGER NOT NULL REFERENCES orders(id),
+    media_id   INTEGER NOT NULL REFERENCES media(id),
+    workflow   TEXT    NOT NULL,
+    qualified  INTEGER NOT NULL CHECK (qualified IN (0, 1)),
+    passed     INTEGER NOT NULL CHECK (passed IN (0, 1)),
+    score      REAL,
+    reasons    TEXT    NOT NULL DEFAULT '[]',
+    created_at TEXT    NOT NULL
+);
+CREATE INDEX selection_results_media ON selection_results(media_id);
+CREATE INDEX selection_results_workflow ON selection_results(workflow);
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

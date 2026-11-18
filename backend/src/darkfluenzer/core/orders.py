@@ -295,6 +295,47 @@ def retry_stage(
     return jobs
 
 
+def regenerate_candidates(
+    store: Store, man: Manifest, order_no: str, *, video_max_s: float | None = None
+) -> list[int]:
+    """Kein Kandidat bestand die Prüfung (SP5 Schritt 7): neue Kandidatenstufe mit neuen Seeds
+    und denselben Werten; die alte Stufe gilt als fehlgeschlagen. Keine Schleife im Graphen."""
+    order = store.order(order_no)
+    stage = [st for st in store.stages(order.id) if st.kind == "candidates"][-1]
+    wf = man.workflows.get(stage.workflow)
+    if wf is None:
+        raise PipelineError(f"Workflow '{stage.workflow}' ist nicht mehr registriert.")
+    old_jobs = [store.job(j["id"]) for j in store.stage_jobs(stage.id)]
+    template = old_jobs[0]
+    uploads = {n for n, p in wf.params.items() if p.upload}
+    values = {
+        n: v
+        for n, v in template["params"].items()
+        if (n in wf.params or n in VIDEO_KEYS) and n not in uploads
+    }
+    seed = wf.params.get("seed")
+    top = int(seed.max) if seed and seed.max is not None else 2**32 - 1
+    base = max((int(j["params"].get("seed", 0)) for j in old_jobs), default=0) + 1
+    with store.tx():
+        store.set_stage(stage.id, "failed", error="kein Kandidat bestand die Prüfung")
+        new = store.add_stage(order.id, "candidates", stage.workflow, stage.params, stage.count)
+        jobs = [
+            create_render(
+                store,
+                man,
+                stage.workflow,
+                {**values, "seed": (base + i) % (top + 1)} if seed else dict(values),
+                {n: v for n, v in template["params"].items() if n in uploads},
+                parent_media_id=template["parent_media_id"],
+                stage_id=new.id,
+                video_max_s=video_max_s,
+                lora=str(template["params"].get(LORA_KEY) or ""),
+            )  # fmt: skip
+            for i in range(stage.count)
+        ]
+    return jobs
+
+
 def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
     """Auftrag mit Stufen, Jobs und Kandidaten (STATE orders.active, Systemkarte)."""
     item.order_no, item.source, item.kind = order.order_no, order.source, order.kind
@@ -323,6 +364,7 @@ def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
                 path=j["path"] or "",
                 error=j["error"] or "",
                 content_tier=j["content_tier"] or "",
+                selection=_selection_text(store, j["media_id"]),
             )
         if st.status == "done" and st.selected_media_id:
             media = store.media_by_id(st.selected_media_id)
@@ -373,6 +415,18 @@ def _fill_order(item: order_pb2.ActiveOrder, store: Store, order) -> None:
             at_ms=_unix_ms(d["sent_at"] or d["created_at"]),
             path=atts[0]["path"] if atts else "",
         )
+
+
+def _selection_text(store: Store, media_id: int | None) -> str:
+    """Urteil der automatischen Prüfung am Kandidaten (SP5 Schritt 7)."""
+    found = store.selection_of(media_id) if media_id else None
+    if found is None:
+        return ""
+    if not found["qualified"]:
+        return "Prüfung nicht qualifiziert, Freigabe durch Betreiber"
+    if found["passed"]:
+        return f"bestanden · {found['score']:.2f}".replace(".", ",")
+    return "nicht bestanden: " + "; ".join(found["reasons"])
 
 
 class OrdersMixin:

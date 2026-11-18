@@ -178,6 +178,9 @@ message WorkflowInfo {
   repeated string cloner = 23;
   // freie Default-Anweisungen (SP4 Schritt 4): Sprachworkflow ohne Personaprofil
   bool instruction = 24;
+  // Kennzahlen der automatischen Prüfung (SP5 Schritt 7): bestandene und bewertete Kandidaten
+  uint32 selection_passed = 25;
+  uint32 selection_total = 26;
 }
 
 message OutputFormat {

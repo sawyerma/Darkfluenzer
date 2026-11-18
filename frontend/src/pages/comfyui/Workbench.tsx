@@ -363,6 +363,7 @@ export function Workbench({
             {wf.modelsReady ? "Modelle bereit" : `fehlt ${wf.missingGb.toFixed(1)} GB`}
             {wf.usage === "production" ? "" : " · nur Evaluation"}
             {wf.editorChanged ? " · im Editor geändert" : ""}
+            {wf.selectionTotal ? ` · Prüfung bestanden ${wf.selectionPassed}/${wf.selectionTotal}` : ""}
           </small>
           <label className="g-switch">
             <input

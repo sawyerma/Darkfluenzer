@@ -318,6 +318,36 @@ class DialogConfig:
 
 
 @dataclass(frozen=True)
+class SelectionRule:
+    """Schwelle einer Prüfung (SP5 Schritt 7): Wert ``value`` der Prüfung ``check`` gegen
+    ``min``/``max`` bzw. erlaubte Werte. ``source`` nennt die Kalibrierung an beschrifteten,
+    unabhängig validierten Referenzdaten (E16/E17); ohne Quelle gilt die Regel als nicht
+    qualifiziert."""
+
+    check: str
+    value: str
+    min: float | None = None
+    max: float | None = None
+    allowed: tuple[str, ...] = ()
+    source: str = ""
+
+
+@dataclass(frozen=True)
+class SelectionConfig:
+    """Automatische Auswahl (SP5 Schritt 7): Regeln für identity, content, technical, quality;
+    Gesamtwert = Gewicht × Identitätswert + Gewicht × Qualitätswert; neue Kandidatenstufen ohne
+    bestandenen Kandidaten bis ``regenerate_max``."""
+
+    rules: dict[str, SelectionRule] = field(default_factory=dict)
+    weight_identity: float = 0.5
+    weight_quality: float = 0.5
+    regenerate_max: int = 2
+
+
+SELECTION_RULES = ("identity", "content", "technical", "quality")
+
+
+@dataclass(frozen=True)
 class IdentityConfig:
     """Gesichtsprüfung (Knoten DarkfluenzerFaceIdentity, SP3 Schritt 7): kleinere oder unsicherere
     Gesichter sind „nicht prüfbar“; das Backend setzt beide Werte als Eingänge des Knotens."""
@@ -343,6 +373,7 @@ class Config:
     cloner: ClonerConfig = ClonerConfig()
     # Startwerte des Verhaltensprofils (SP4 Schritt 7); das Profil der Influencerin geht vor
     behavior: dict = field(default_factory=dict)
+    selection: SelectionConfig = SelectionConfig()
 
     @property
     def instances(self) -> tuple[ComfyConfig, ...]:
@@ -518,6 +549,41 @@ def _parse_telegram(tg: object, root: Path, path: Path) -> TelegramConfig | None
         max_photo_mb=_positive(tg, "max_photo_mb", 10, w),
         max_file_mb=_positive(tg, "max_file_mb", 2000, w),
         self_destruct_s=_self_destruct(tg, w),
+    )
+
+
+def _parse_selection(raw: object, path: Path) -> SelectionConfig:
+    """[selection] mit [selection.rules.<identity|content|technical|quality>]."""
+    if raw is None:
+        return SelectionConfig()
+    if not isinstance(raw, dict):
+        raise ConfigError(f"Konfiguration {path}: [selection] muss ein Abschnitt sein.")
+    rules = {}
+    for name, r in (raw.get("rules") or {}).items():
+        if name not in SELECTION_RULES or not isinstance(r, dict):
+            raise ConfigError(
+                f"Konfiguration: selection.rules.{name} unbekannt (erlaubt: {SELECTION_RULES})."
+            )
+        if not isinstance(r.get("check"), str) or not isinstance(r.get("value"), str):
+            raise ConfigError(f"Konfiguration: selection.rules.{name} braucht check und value.")
+        bounds = {k: r.get(k) for k in ("min", "max")}
+        if any(v is not None and (isinstance(v, bool) or not isinstance(v, int | float))
+               for v in bounds.values()):  # fmt: skip
+            raise ConfigError(f"Konfiguration: selection.rules.{name}: min/max nur Zahlen.")
+        allowed = r.get("allowed") or []
+        if not isinstance(allowed, list) or not all(isinstance(a, str) for a in allowed):
+            raise ConfigError(f"Konfiguration: selection.rules.{name}.allowed: Liste von Texten.")
+        if bounds["min"] is None and bounds["max"] is None and not allowed:
+            raise ConfigError(f"Konfiguration: selection.rules.{name} ohne Schwelle.")
+        rules[name] = SelectionRule(
+            r["check"], r["value"], bounds["min"], bounds["max"], tuple(allowed),
+            str(r.get("source") or "").strip(),
+        )  # fmt: skip
+    return SelectionConfig(
+        rules=rules,
+        weight_identity=float(_positive(raw, "weight_identity", 0.5, "selection")),
+        weight_quality=float(_positive(raw, "weight_quality", 0.5, "selection")),
+        regenerate_max=int(raw.get("regenerate_max", 2)),
     )
 
 
@@ -858,6 +924,7 @@ def load(root: Path | None = None) -> Config:
         dialog=dialog_cfg,
         cloner=cloner_cfg,
         behavior=dict(beh),
+        selection=_parse_selection(data.get("selection"), path),
     )
 
 

@@ -136,7 +136,9 @@ class RenderMixin:
         try:
             orders.advance_order(self.store, job_id)  # Stufe vollständig? (SQLite im Loop)
             if (stage_id := self.store.job(job_id).get("stage_id")) is not None:
-                await self._cloner_delivery(self.store.stage(stage_id).order_id)
+                order_id = self.store.stage(stage_id).order_id
+                await self._cloner_delivery(order_id)
+                self._auto_select(order_id)  # Kundenauftrag: Auswahl aus den Prüfwerten
         finally:  # Anzeige folgt dem Journal auch nach einem Fehler in der Nachbearbeitung
             self._orders_changed()
             self.hub.push_events(spb.TOPIC_JOB_COMPLETED)
