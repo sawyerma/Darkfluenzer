@@ -208,13 +208,16 @@ def _order_chain(db: sqlite3.Connection, t: _Trace, order_id: int, conv: int | N
         return
     returns = _rows(
         db,
-        "SELECT id, status, text, attachments FROM channel_messages WHERE conversation_id = ?"
-        " AND direction = 'out' AND text LIKE ? ORDER BY id",
-        (conv, f"{order['order_no']}%"),
+        "SELECT r.media_id, r.message_id, m.status FROM cloner_returns r"
+        " LEFT JOIN channel_messages m ON m.id = r.message_id WHERE r.order_id = ?",
+        (order_id,),
     )
     sent = [r for r in returns if r["status"] == "sent"]
-    expected = bool(media_paths) and order["status"] not in ("producing",)
-    listed = " | ".join(f"#{r['id']} {r['status']}: {r['text'][:40]}" for r in returns)
+    expected = bool(media_paths) and order["status"] not in ("producing", "cancelled")
+    listed = " | ".join(
+        f"Medium {r['media_id']} → #{r['message_id'] or '–'} {r['status'] or 'offen'}"
+        for r in returns
+    )
     t.add("Rückversand", bool(sent) if expected else None, listed or "nichts gesendet")
 
 

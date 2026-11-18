@@ -662,6 +662,25 @@ ALTER TABLE channel_messages ADD COLUMN album_id TEXT;
 CREATE INDEX channel_messages_album ON channel_messages(conversation_id, album_id)
     WHERE album_id IS NOT NULL;
 """,
+    33: """
+-- Default-Kette (SP1 Schritte 6, 7, 8, 11): Kandidaten je Bild (NULL = Konfiguration), Chat-Wort
+-- für den Abbruch, Ausgabeprofil je Befehl (Format, Dauer, Fertigstellen) und Rückversand je
+-- Auftrag und Medium genau einmal.
+ALTER TABLE default_contact ADD COLUMN candidates INTEGER
+    CHECK (candidates IS NULL OR candidates BETWEEN 1 AND 12);
+ALTER TABLE default_contact ADD COLUMN cancel_word TEXT NOT NULL DEFAULT '';
+ALTER TABLE default_commands ADD COLUMN format TEXT NOT NULL DEFAULT '';
+ALTER TABLE default_commands ADD COLUMN duration_s REAL NOT NULL DEFAULT 0
+    CHECK (duration_s >= 0);
+ALTER TABLE default_commands ADD COLUMN finish TEXT NOT NULL DEFAULT '';
+CREATE TABLE cloner_returns (
+    order_id   INTEGER NOT NULL REFERENCES orders(id),
+    media_id   INTEGER NOT NULL REFERENCES media(id),
+    message_id INTEGER REFERENCES channel_messages(id),
+    created_at TEXT    NOT NULL,
+    PRIMARY KEY (order_id, media_id)
+);
+""",
 }
 
 # Schritte mit Tabellenneubau: Fremdschlüssel währenddessen aus, danach vollständig geprüft

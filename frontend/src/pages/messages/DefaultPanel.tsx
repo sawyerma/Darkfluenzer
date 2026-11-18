@@ -14,6 +14,16 @@ type Run = ReturnType<typeof useCommand>["run"];
 // Kurzbefehle des Default-Nutzers (V0 §8.1, FL-6), Reihenfolge wie im Backend (cloner.COMMANDS)
 const COMMANDS = ["clone", "pose", "style", "remix", "animate", "edit"] as const;
 
+// Betriebsart je Kanalkonto (SP1 Schritt 12): Produktion = Befehle, Test = Kundentest, Aus = nur anzeigen
+const MODES: [string, string][] = [
+  ["production", "Produktion"],
+  ["test", "Test"],
+  ["off", "Aus"],
+];
+
+type Profile = { workflow: string; format: string; duration: string; finish: string };
+const EMPTY: Profile = { workflow: "", format: "", duration: "", finish: "" };
+
 // Gruppen der Default-Steuerung (F7.4 „Identität & Dialog“, „KI & Medien“; Befehle FL-6), einklappbar
 type FoldId = "identity" | "media" | "commands";
 type Folds = Record<FoldId, boolean>;
@@ -80,31 +90,51 @@ function DefaultForm({
   const [influencer, setInfluencer] = useState(contact.influencer);
   const [workflow, setWorkflow] = useState(contact.mediaWorkflow);
   const [video, setVideo] = useState(contact.videoWorkflow);
-  const saved = Object.fromEntries(contact.commandWorkflows.map((c) => [c.command, c.workflow]));
-  const [commands, setCommands] = useState<Record<string, string>>(saved);
+  // Workflow und Ausgabeprofil je Befehl (FL-6, SP1 Schritt 6)
+  const saved: Record<string, Profile> = Object.fromEntries(
+    contact.commandWorkflows.map((c) => [
+      c.command,
+      { workflow: c.workflow, format: c.format, duration: c.durationS ? String(c.durationS) : "", finish: c.finish },
+    ]),
+  );
+  const [profiles, setProfiles] = useState<Record<string, Profile>>(saved);
+  const commands = Object.fromEntries(COMMANDS.map((c) => [c, profiles[c]?.workflow ?? ""]));
+  const setProfile = (c: string, patch: Partial<Profile>) => setProfiles((m) => ({ ...m, [c]: { ...(m[c] ?? EMPTY), ...patch } }));
+  const [candidates, setCandidates] = useState(contact.clonerCandidates ? String(contact.clonerCandidates) : "");
+  const [cancelWord, setCancelWord] = useState(contact.cancelWord);
+  const savedModes = Object.fromEntries(contact.accountModes.map((m) => [m.key, m.mode]));
+  const [modes, setModes] = useState<Record<string, string>>(savedModes);
   const registry = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
   const influencers = useStateTopic(Topic.INFLUENCERS)?.value.influencers ?? [];
   const usable = registry.filter((w) => w.enabled && w.modelsReady && w.instance !== "ai" && !w.training);
   const media = usable.filter((w) => w.kind === "image");
   // animate: Foto -> Video, also ein Video-Workflow mit Eingangsbild
   const videos = usable.filter((w) => w.kind === "video" && w.params.some((x) => x.upload && x.name === "image"));
+  // Fertigstellen: Bild-Workflows mit Eingang „image“ in der Rolle Ausgabe/Hochskalieren (z. B. Instagram-Format)
+  const finishers = media.filter((w) => ["output", "upscale"].includes(w.role) && w.params.some((x) => x.upload && x.name === "image"));
   const changedIdentity =
     telegram.trim() !== contact.telegramSenderId ||
     instagram.trim() !== contact.instagramSenderId ||
-    processCommands !== contact.processCommands;
+    processCommands !== contact.processCommands ||
+    cancelWord.trim() !== contact.cancelWord ||
+    Object.entries(modes).some(([k, m]) => m !== savedModes[k]);
   const changedMedia =
     autoOrders !== contact.autoOrders ||
     approval !== contact.approvalMode ||
     influencer.trim() !== contact.influencer ||
     workflow !== contact.mediaWorkflow ||
-    video !== contact.videoWorkflow;
-  const changedCommands = COMMANDS.some((c) => (commands[c] ?? "") !== (saved[c] ?? ""));
+    video !== contact.videoWorkflow ||
+    (Number(candidates) || 0) !== contact.clonerCandidates;
+  const same = (a: Profile | undefined, b: Profile | undefined) => JSON.stringify(a ?? EMPTY) === JSON.stringify(b ?? EMPTY);
+  const changedCommands = COMMANDS.some((c) => !same(profiles[c], saved[c]));
   const changed = changedIdentity || changedMedia || changedCommands;
 
   // Zustand je Gruppe aus dem aktuellen Formular; Rückfall wie im Backend (cloner: Workflow des
   // Befehls, sonst Video- bzw. Medien-Workflow)
   const senders = [telegram.trim() && "Telegram", instagram.trim() && "Instagram"].filter(Boolean);
-  const identityHint = [senders.length ? senders.join(" + ") : "kein Absender", processCommands ? "" : "Befehle aus"]
+  const modeLabel = Object.fromEntries(MODES);
+  const notProduction = Object.values(modes).filter((m) => m !== "production").map((m) => modeLabel[m] ?? m);
+  const identityHint = [senders.length ? senders.join(" + ") : "kein Absender", processCommands ? "" : "Befehle aus", ...new Set(notProduction)]
     .filter(Boolean)
     .join(" · ");
   const titleOf = (key: string) => registry.find((w) => w.key === key)?.title ?? key;
@@ -134,7 +164,15 @@ function DefaultForm({
           influencer: influencer.trim(),
           mediaWorkflow: workflow,
           videoWorkflow: video,
-          commandWorkflows: COMMANDS.filter((c) => commands[c]).map((c) => ({ command: c, workflow: commands[c] })),
+          commandWorkflows: COMMANDS.filter((c) => !same(profiles[c], undefined)).map((c) => {
+            const p = profiles[c] ?? EMPTY;
+            return { command: c, workflow: p.workflow, format: p.format, durationS: Number(p.duration) || 0, finish: p.finish };
+          }),
+          clonerCandidates: Number(candidates) || 0,
+          cancelWord: cancelWord.trim(),
+          accountModes: Object.entries(modes)
+            .filter(([k, m]) => m !== savedModes[k])
+            .map(([key, mode]) => ({ key, mode })),
         },
       },
       { done: "Einstellungen übernommen." },
@@ -173,11 +211,12 @@ function DefaultForm({
     set: (v: string) => void,
     options: typeof usable,
     none = "Nicht festgelegt",
+    aria?: string,
   ) {
     return (
-      <div className="g-field">
+      <div className={aria ? "g-field g-sub" : "g-field"}>
         <label htmlFor={id}>{label}</label>
-        <select id={id} value={value} onChange={(e) => set(e.target.value)}>
+        <select id={id} aria-label={aria} value={value} onChange={(e) => set(e.target.value)}>
           <option value="">{none}</option>
           {options.map((w) => (
             <option key={w.key} value={w.key}>
@@ -211,6 +250,28 @@ function DefaultForm({
           <input type="checkbox" checked={processCommands} onChange={(e) => setProcessCommands(e.target.checked)} />
           Interne Befehle verarbeiten
         </label>
+        {contact.accountModes.map((m) => {
+          const ch = channels.find((c) => c.key === m.key);
+          const id = `df-mode-${m.key}`;
+          return (
+            <div key={m.key} className="g-field">
+              <label htmlFor={id}>
+                Betriebsart {PLATFORM_LABEL[ch?.platform ?? ""] ?? ""} · {m.key}
+              </label>
+              <select id={id} value={modes[m.key] ?? m.mode} onChange={(e) => setModes((x) => ({ ...x, [m.key]: e.target.value }))}>
+                {MODES.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        })}
+        <div className="g-field">
+          <label htmlFor="df-cancel">Chat-Wort Abbrechen</label>
+          <input id="df-cancel" value={cancelWord} placeholder="aus" onChange={(e) => setCancelWord(e.target.value)} />
+        </div>
       </Fold>
       <Fold
         id="media"
@@ -247,6 +308,19 @@ function DefaultForm({
             ))}
           </select>
         </div>
+        <div className="g-field">
+          <label htmlFor="df-candidates">Kandidaten je Bild</label>
+          <input
+            id="df-candidates"
+            type="number"
+            min={1}
+            max={12}
+            step={1}
+            value={candidates}
+            placeholder={`Vorgabe ${contact.clonerCandidatesDefault}`}
+            onChange={(e) => setCandidates(e.target.value)}
+          />
+        </div>
         <label className="g-switch">
           <input type="checkbox" checked={autoOrders} onChange={(e) => setAutoOrders(e.target.checked)} />
           Automatische Produktionsaufträge
@@ -264,15 +338,48 @@ function DefaultForm({
         {COMMANDS.map((c) => {
           const base = c === "animate" ? video : workflow;
           const label = c === "animate" ? "Video-Workflow" : "Medien-Workflow";
+          const p = profiles[c] ?? EMPTY;
+          // Ausgabeprofil (SP1 Schritt 6): Formate der Engine des wirksamen Workflows
+          const effective = registry.find((w) => w.key === (p.workflow || base));
           return (
             <div key={c} className="g-cmd">
               {choice(
                 `df-cmd-${c}`,
                 c,
-                commands[c] ?? "",
-                (v) => setCommands((m) => ({ ...m, [c]: v })),
+                p.workflow,
+                (v) => setProfile(c, { workflow: v }),
                 c === "animate" ? videos : media,
                 base ? `wie ${label}` : `kein Workflow (${label} fehlt)`,
+              )}
+              {effective?.formats.length ? (
+                <div className="g-field g-sub">
+                  <label htmlFor={`df-fmt-${c}`}>Format</label>
+                  <select id={`df-fmt-${c}`} aria-label={`Format ${c}`} value={p.format} onChange={(e) => setProfile(c, { format: e.target.value })}>
+                    <option value="">wie Vorlage</option>
+                    {effective.formats.map((f) => (
+                      <option key={f.name} value={f.name}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              {c === "animate" ? (
+                <div className="g-field g-sub">
+                  <label htmlFor="df-dur-animate">Dauer s</label>
+                  <input
+                    id="df-dur-animate"
+                    aria-label="Dauer animate (s)"
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={p.duration}
+                    placeholder="Standard"
+                    onChange={(e) => setProfile(c, { duration: e.target.value })}
+                  />
+                </div>
+              ) : (
+                choice(`df-fin-${c}`, "Ausgabe", p.finish, (v) => setProfile(c, { finish: v }), finishers, "ohne Fertigstellen", `Fertigstellen ${c}`)
               )}
             </div>
           );

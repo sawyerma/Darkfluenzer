@@ -169,12 +169,31 @@ message DefaultContact {
   string video_workflow = 10;
   // Workflow je Befehl (FL-6); fehlt ein Befehl, gilt media_workflow bzw. video_workflow
   repeated CommandWorkflow command_workflows = 11;
+  // Kandidaten je Bild der Default-Kette (SP1 Schritt 7); 0 = Vorgabe aus der Konfiguration
+  uint32 cloner_candidates = 12;
+  uint32 cloner_candidates_default = 13;
+  // Chat-Wort: bricht den laufenden Auftrag dieses Chats ab (SP1 Schritt 11); leer = aus
+  string cancel_word = 14;
+  // Betriebsart je Kanalkonto (SP1 Schritt 12)
+  repeated AccountMode account_modes = 15;
 }
 
 message CommandWorkflow {
   // clone | pose | style | remix | animate | edit
   string command = 1;
   string workflow = 2;
+  // Ausgabeprofil des Befehls (SP1 Schritt 6): Formatname der Engine (z. B. 9:16), Dauer in
+  // Sekunden (nur Video), Fertigstellen-Workflow (z. B. output_instagram); Wunsch im Chat geht vor
+  string format = 3;
+  double duration_s = 4;
+  string finish = 5;
+}
+
+// Betriebsart eines Kanalkontos für seine Default-Identität (SP1 Schritt 12)
+message AccountMode {
+  string key = 1;
+  // production | test | off
+  string mode = 2;
 }
 
 // HTTP GET /api/v1/conversation-page?customer=ID[&before=ITEM]: Verlauf (neueste zuerst

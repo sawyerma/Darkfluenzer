@@ -535,8 +535,21 @@ async def _conversation_page(request: web.Request) -> web.Response:
                 revision=d["revision"],
                 video_workflow=d["video_workflow"],
                 command_workflows=[
-                    channel_pb2.CommandWorkflow(command=c, workflow=w)
-                    for c, w in sorted(d["command_workflows"].items())
+                    channel_pb2.CommandWorkflow(
+                        command=c,
+                        workflow=d["command_workflows"].get(c, ""),
+                        format=d["command_profiles"].get(c, {}).get("format", ""),
+                        duration_s=d["command_profiles"].get(c, {}).get("duration_s", 0),
+                        finish=d["command_profiles"].get(c, {}).get("finish", ""),
+                    )
+                    for c in sorted(set(d["command_workflows"]) | set(d["command_profiles"]))
+                ],
+                cloner_candidates=d["candidates"] or 0,
+                cloner_candidates_default=cockpit.cfg.production.cloner_candidates,
+                cancel_word=d["cancel_word"],
+                account_modes=[
+                    channel_pb2.AccountMode(key=a["key"], mode=a["operating_mode"])
+                    for a in store.channel_accounts()
                 ],
             )
         )

@@ -190,14 +190,31 @@ class MessagesMixin:
         for key, kind in ((msg.media_workflow, "image"), (msg.video_workflow, "video")):
             if reason := self._cloner_workflow_reason(key, kind):
                 return reason
-        commands: dict[str, str] = {}
-        for cw in msg.command_workflows:  # FL-6: Workflow je Befehl
+        commands: dict[str, dict] = {}
+        for cw in msg.command_workflows:  # FL-6: Workflow je Befehl, SP1 6: Ausgabeprofil
             if cw.command not in cloner.COMMANDS or cw.command in commands:
                 return f"Befehl '{cw.command}' unbekannt oder doppelt."
             kind = "video" if cw.command == "animate" else "image"
             if reason := self._cloner_workflow_reason(cw.workflow, kind):
                 return f"{cw.command}: {reason}"
-            commands[cw.command] = cw.workflow
+            base = cw.workflow or (msg.video_workflow if kind == "video" else msg.media_workflow)
+            if reason := self._profile_reason(cw, base, kind):
+                return f"{cw.command}: {reason}"
+            commands[cw.command] = {
+                "workflow": cw.workflow, "format": cw.format.strip(),
+                "duration_s": cw.duration_s, "finish": cw.finish,
+            }  # fmt: skip
+        if msg.cloner_candidates > self.cfg.production.candidates_max:
+            return f"Kandidaten je Bild höchstens {self.cfg.production.candidates_max}."
+        word = msg.cancel_word.strip()
+        if word and (len(word) > 30 or " " in word or word.lower() in cloner.COMMANDS):
+            return "Chat-Wort: ein Wort (höchstens 30 Zeichen), kein Befehl."
+        known = {a["key"] for a in self.store.channel_accounts()}
+        for am in msg.account_modes:
+            if am.key not in known:
+                return f"Kanalkonto {am.key} unbekannt."
+            if am.mode not in ("production", "test", "off"):
+                return f"Betriebsart {am.mode!r} unbekannt."
         senders = {}
         if msg.telegram_sender_id.strip() != current["sender_ids"].get("telegram", ""):
             senders[("telegram", self._default_identity_account("telegram"))] = (
@@ -216,11 +233,43 @@ class MessagesMixin:
                 "influencer": msg.influencer.strip(),
                 "media_workflow": msg.media_workflow,
                 "video_workflow": msg.video_workflow,
+                "candidates": msg.cloner_candidates or None,
+                "cancel_word": word,
             },
             senders,
             commands,
         )
+        for am in msg.account_modes:  # Betriebsart je Konto (SP1 Schritt 12)
+            self.store.set_account_mode(am.key, am.mode)
+        if msg.account_modes:
+            self._channels_changed()
         self.hub.push_events(spb.TOPIC_CUSTOMER_UPDATED)
+        return ""
+
+    def _profile_reason(self, cw, base: str, kind: str) -> str:
+        """Ausgabeprofil eines Befehls prüfen (SP1 Schritt 6): Format der Engine des wirksamen
+        Workflows, Dauer nur bei Video bis zur Obergrenze, Fertigstellen nur mit Bild-Eingang."""
+        if cw.format.strip():
+            wf = self.manifest.workflows.get(base)
+            if wf is None:
+                return "Format braucht einen Workflow."
+            formats = self.manifest.engines[wf.engine].formats
+            if cw.format.strip() not in formats:
+                return f"Format {cw.format} gibt es bei {wf.title} nicht ({', '.join(formats)})."
+        if cw.duration_s:
+            if kind != "video":
+                return "Dauer nur bei Video (animate)."
+            if not 0 < cw.duration_s <= self.cfg.production.video_max_s:
+                return f"Dauer 0 bis {self.cfg.production.video_max_s:.0f} s."
+        if cw.finish:
+            fw = self.manifest.workflows.get(cw.finish)
+            ok = (
+                fw is not None and kind == "image" and not fw.training
+                and "image" in fw.params and fw.params["image"].upload
+                and self.manifest.engines[fw.engine].kind == "image"
+            )  # fmt: skip
+            if not ok:
+                return f"Fertigstellen mit '{cw.finish}' ist nicht möglich."
         return ""
 
     async def _default_sender_assign(

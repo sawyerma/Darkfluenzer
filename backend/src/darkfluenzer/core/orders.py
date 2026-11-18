@@ -52,6 +52,7 @@ def create_order(
     character_id: int | None = None,
     keyframes: list[dict] | None = None,
     keyframes_max: int = 0,
+    extra: dict | None = None,
 ) -> tuple[str, list[int]]:
     """Auftrag des Betreibers: Stufe 1 rendert ``count`` Kandidaten mit fortlaufenden Seeds und
     wartet dann auf die Auswahl; optional wird der ausgewählte Kandidat mit ``finish_workflow``
@@ -109,6 +110,7 @@ def create_order(
         "finish_values": dict(finish_values or {}),
         "origin": origin,
         **({LORA_KEY: lora} if lora else {}),
+        **(extra or {}),  # z. B. Influencerin/Charakter/Befehl der Default-Kette (SP1 Schritt 7)
     }
     kind = man.engines[wf.engine].kind
     with store.tx():
@@ -435,6 +437,7 @@ class OrdersMixin:
         if order.source != "customer" and "cancelled" in OPERATOR_TRANSITIONS.get(order.status, ()):
             self.store.transition(order.order_no, "cancelled", reason="Betreiber")
         self._card(order, f"ABGEBROCHEN · {order.order_no} · {len(jobs)} Job(s)")
+        await self._cloner_delivery(order.id)  # Kloner: Karte und Antwort „abgebrochen“
         log.info("Auftrag %s abgebrochen (%d Jobs)", order.order_no, len(jobs))
         self._orders_changed()
         return ""

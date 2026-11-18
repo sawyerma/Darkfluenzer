@@ -742,10 +742,14 @@ class TelegramAccount(Channel):
         while True:
             await self.wake.wait()
             self.wake.clear()
-            for item in self.store.outbox(PLATFORM, self.account) if self.state == "READY" else []:
+            # nach jeder Sendung neu lesen: eine neue Sendung an den Default geht vor (SP1 9)
+            while self.state == "READY" and (items := self.store.outbox(PLATFORM, self.account)):
+                item = items[0]
                 await self._pace(item)
                 if self.state != "READY":
                     break
+                if self.store.message(item["id"])["status"] != "queued":
+                    continue  # während der Wartezeit anders entschieden
                 await self._send(item)
                 if self.task_error:  # Postausgang läuft wieder: Meldung der Aufsicht erledigt
                     self.task_error = ""
@@ -761,6 +765,8 @@ class TelegramAccount(Channel):
                 self._sent_at.popleft()
                 continue
             await asyncio.sleep(wait)
+        if item.get("customer_kind") == "internal":
+            return  # Default: ohne Antwortverzögerung und ohne Tippanzeige (SP1 Schritt 9)
         await asyncio.sleep(random.uniform(self.tg.reply_delay_min_s, self.tg.reply_delay_max_s))
         assert self._td is not None
         chat = int(item["platform_conversation_id"])

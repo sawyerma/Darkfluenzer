@@ -96,11 +96,12 @@ def test_album_with_caption_waits_until_quiet(cloner_cfg):  # noqa: F811
         assert store.db.execute("SELECT count(*) FROM orders").fetchone()[0] == 0
         for n in (2, 3):
             await cockpit._on_inbound(_photo_msg(store, send, photo, str(n), str(n), album="B7"))
-        for _ in range(100):
-            if store.db.execute("SELECT count(*) FROM orders").fetchone()[0]:
+        for _ in range(200):
+            if store.db.execute("SELECT count(*) FROM orders").fetchone()[0] == 3:
                 break
             await asyncio.sleep(0.02)
-        assert store.db.execute("SELECT count(*) FROM orders").fetchone()[0] >= 1
+        # ein Bild-Eingang: je Albumbild ein Auftrag (Stapel, SP1 Schritt 7)
+        assert store.db.execute("SELECT count(*) FROM orders").fetchone()[0] == 3
         linked = store.db.execute(
             "SELECT count(*) FROM channel_messages WHERE album_id = 'B7' AND order_id IS NOT NULL"
         ).fetchone()[0]
@@ -135,7 +136,7 @@ def test_every_exit_has_card_and_answer(cloner_cfg, monkeypatch):  # noqa: F811
         def boom(*_a, **_k):
             raise RuntimeError("Graph kaputt")
 
-        monkeypatch.setattr(cockpit, "_cloner_order", boom)
+        monkeypatch.setattr(cockpit, "_cloner_orders", boom)
         await cockpit._on_inbound(send("3", "clone", "3", [photo]))
         items = _items(store, cust)
         assert "· FEHLGESCHLAGEN\nGraph kaputt" in items[-2]["text"]

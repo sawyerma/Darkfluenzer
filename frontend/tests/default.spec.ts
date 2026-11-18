@@ -39,7 +39,9 @@ test("Default-Steuerung: Gruppen, Zustand im Kopf, Befehle einklappbar, Änderun
 
   await commands.locator("summary").click();
   await expect(commands).toHaveAttribute("open", "");
-  await expect(commands.locator(".g-cmd label")).toHaveText(["clone", "pose", "style", "remix", "animate", "edit"]);
+  // je Befehl die Zeile mit dem Befehlsnamen, darunter das Ausgabeprofil (SP1 Schritt 6)
+  await expect(commands.locator(".g-cmd > .g-field:not(.g-sub) > label")).toHaveText(["clone", "pose", "style", "remix", "animate", "edit"]);
+  await expect(commands.getByLabel("Dauer animate (s)")).toBeVisible();
 
   // Änderung markiert nur die betroffene Gruppe und gibt den Knopf frei; Rücknahme hebt beides auf
   const save = aside.getByRole("button", { name: "Einstellungen übernehmen" });

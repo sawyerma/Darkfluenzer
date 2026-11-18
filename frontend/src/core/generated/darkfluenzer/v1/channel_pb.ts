@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file darkfluenzer/v1/channel.proto.
  */
 export const file_darkfluenzer_v1_channel: GenFile = /*@__PURE__*/
-  fileDesc("Ch1kYXJrZmx1ZW56ZXIvdjEvY2hhbm5lbC5wcm90bxIPZGFya2ZsdWVuemVyLnYxIi4KDFJlamVjdGVkQ2hhdBIPCgdjaGF0X2lkGAEgASgDEg0KBWF0X21zGAIgASgDIpUDCg1DaGFubmVsU3RhdHVzEhAKCHBsYXRmb3JtGAEgASgJEg8KB2FjY291bnQYAiABKAkSDQoFc3RhdGUYAyABKAkSDQoFZXJyb3IYBCABKAkSFQoNbGFzdF9ldmVudF9tcxgFIAEoAxIPCgdtaXNzaW5nGAYgASgJEhMKC2xvZ2luX3N0YXRlGAcgASgJEhIKCmxvZ2luX2hpbnQYCCABKAkSEQoJdGVzdF9tb2RlGAkgASgIEhIKCmF1dG9tYXRpb24YCiABKAgSFgoOZmxvb2RfdW50aWxfbXMYCyABKAMSNQoOcmVqZWN0ZWRfY2hhdHMYDCADKAsyHS5kYXJrZmx1ZW56ZXIudjEuUmVqZWN0ZWRDaGF0EgsKA2tleRgNIAEoCRIVCg1pbmZsdWVuY2VyX2lkGA4gASgEEhIKCmluZmx1ZW5jZXIYDyABKAkSFgoOb3BlcmF0aW5nX21vZGUYECABKAkSEQoJdHJhbnNwb3J0GBEgASgJEhkKEWRlZmF1bHRfc2VuZGVyX2lkGBIgASgJIk0KCENoYW5uZWxzEjAKCGNoYW5uZWxzGAEgAygLMh4uZGFya2ZsdWVuemVyLnYxLkNoYW5uZWxTdGF0dXMSDwoHdmVyc2lvbhgCIAEoBCLgAQoPQ3VzdG9tZXJTdW1tYXJ5EhMKC2N1c3RvbWVyX2lkGAEgASgEEhMKC2N1c3RvbWVyX25vGAIgASgJEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRIMCgRraW5kGAQgASgJEhEKCXBsYXRmb3JtcxgFIAMoCRIRCglsYXN0X3RleHQYBiABKAkSFQoNbGFzdF9wbGF0Zm9ybRgHIAEoCRIPCgdsYXN0X21zGAggASgDEg4KBnVucmVhZBgJIAEoDRIQCghhZ2VfbWFyaxgLIAEoCRIPCgdoYW5kbGVzGAogAygJIkUKD0N1c3RvbWVyVXBkYXRlZBIyCghjdXN0b21lchgBIAEoCzIgLmRhcmtmbHVlbnplci52MS5DdXN0b21lclN1bW1hcnkiVAoMQ3VzdG9tZXJQYWdlEjMKCWN1c3RvbWVycxgBIAMoCzIgLmRhcmtmbHVlbnplci52MS5DdXN0b21lclN1bW1hcnkSDwoHdmVyc2lvbhgCIAEoBCJ5ChFNZXNzYWdlQXR0YWNobWVudBIMCgRraW5kGAEgASgJEgwKBHBhdGgYAiABKAkSDAoEbWltZRgDIAEoCRIMCgRzaXplGAQgASgEEg4KBnNoYTI1NhgFIAEoCRIOCgZzdGF0dXMYBiABKAkSDAoEbm90ZRgHIAEoCSKSAwoQQ29udmVyc2F0aW9uSXRlbRIPCgdpdGVtX2lkGAEgASgEEhMKC2N1c3RvbWVyX2lkGAIgASgEEhAKCHBsYXRmb3JtGAMgASgJEhEKCWRpcmVjdGlvbhgEIAEoCRIMCgR0ZXh0GAUgASgJEjcKC2F0dGFjaG1lbnRzGAYgAygLMiIuZGFya2ZsdWVuemVyLnYxLk1lc3NhZ2VBdHRhY2htZW50Eg4KBnN0YXR1cxgHIAEoCRINCgVhdF9tcxgIIAEoAxIOCgZzZW5kZXIYCSABKAkSDQoFZXJyb3IYCiABKAkSDAoEcmVhZBgLIAEoCBIXCg9jb252ZXJzYXRpb25faWQYDCABKAQSKwoFb3JkZXIYDSABKAsyHC5kYXJrZmx1ZW56ZXIudjEuQWN0aXZlT3JkZXISFgoOYXdhaXRpbmdfc3RhcnQYDiABKAgSFAoMZWRpdGVkX2F0X21zGA8gASgDEhUKDW9yaWdpbmFsX3RleHQYECABKAkSFQoNZGVsZXRlZF9hdF9tcxgRIAEoAyJEChFDb252ZXJzYXRpb25FdmVudBIvCgRpdGVtGAEgASgLMiEuZGFya2ZsdWVuemVyLnYxLkNvbnZlcnNhdGlvbkl0ZW0i9AEKD0NoYW5uZWxJZGVudGl0eRITCgtpZGVudGl0eV9pZBgBIAEoBBIQCghwbGF0Zm9ybRgCIAEoCRIPCgdhY2NvdW50GAMgASgJEhgKEHBsYXRmb3JtX3VzZXJfaWQYBCABKAkSDgoGaGFuZGxlGAUgASgJEhAKCHZlcmlmaWVkGAYgASgIEhcKD2NvbnZlcnNhdGlvbl9pZBgHIAEoBBIQCghyZXZpc2lvbhgIIAEoBBIRCglhaV9ub3RpY2UYCSABKAkSFwoPd2luZG93X3VudGlsX21zGAogASgDEhYKDmh1bWFuX3VudGlsX21zGAsgASgDIrcCCg5EZWZhdWx0Q29udGFjdBITCgtjdXN0b21lcl9pZBgBIAEoBBIaChJ0ZWxlZ3JhbV9zZW5kZXJfaWQYAiABKAkSGwoTaW5zdGFncmFtX3NlbmRlcl9pZBgDIAEoCRIYChBwcm9jZXNzX2NvbW1hbmRzGAQgASgIEhMKC2F1dG9fb3JkZXJzGAUgASgIEhUKDWFwcHJvdmFsX21vZGUYBiABKAkSEgoKaW5mbHVlbmNlchgHIAEoCRIWCg5tZWRpYV93b3JrZmxvdxgIIAEoCRIQCghyZXZpc2lvbhgJIAEoBBIWCg52aWRlb193b3JrZmxvdxgKIAEoCRI7ChFjb21tYW5kX3dvcmtmbG93cxgLIAMoCzIgLmRhcmtmbHVlbnplci52MS5Db21tYW5kV29ya2Zsb3ciNAoPQ29tbWFuZFdvcmtmbG93Eg8KB2NvbW1hbmQYASABKAkSEAoId29ya2Zsb3cYAiABKAkihwIKEENvbnZlcnNhdGlvblBhZ2USMgoIY3VzdG9tZXIYASABKAsyIC5kYXJrZmx1ZW56ZXIudjEuQ3VzdG9tZXJTdW1tYXJ5EjAKBWl0ZW1zGAIgAygLMiEuZGFya2ZsdWVuemVyLnYxLkNvbnZlcnNhdGlvbkl0ZW0SDAoEbW9yZRgDIAEoCBI0CgppZGVudGl0aWVzGAQgAygLMiAuZGFya2ZsdWVuemVyLnYxLkNoYW5uZWxJZGVudGl0eRI4Cg9kZWZhdWx0X2NvbnRhY3QYBSABKAsyHy5kYXJrZmx1ZW56ZXIudjEuRGVmYXVsdENvbnRhY3QSDwoHdmVyc2lvbhgGIAEoBGIGcHJvdG8z", [file_darkfluenzer_v1_order]);
+  fileDesc("Ch1kYXJrZmx1ZW56ZXIvdjEvY2hhbm5lbC5wcm90bxIPZGFya2ZsdWVuemVyLnYxIi4KDFJlamVjdGVkQ2hhdBIPCgdjaGF0X2lkGAEgASgDEg0KBWF0X21zGAIgASgDIpUDCg1DaGFubmVsU3RhdHVzEhAKCHBsYXRmb3JtGAEgASgJEg8KB2FjY291bnQYAiABKAkSDQoFc3RhdGUYAyABKAkSDQoFZXJyb3IYBCABKAkSFQoNbGFzdF9ldmVudF9tcxgFIAEoAxIPCgdtaXNzaW5nGAYgASgJEhMKC2xvZ2luX3N0YXRlGAcgASgJEhIKCmxvZ2luX2hpbnQYCCABKAkSEQoJdGVzdF9tb2RlGAkgASgIEhIKCmF1dG9tYXRpb24YCiABKAgSFgoOZmxvb2RfdW50aWxfbXMYCyABKAMSNQoOcmVqZWN0ZWRfY2hhdHMYDCADKAsyHS5kYXJrZmx1ZW56ZXIudjEuUmVqZWN0ZWRDaGF0EgsKA2tleRgNIAEoCRIVCg1pbmZsdWVuY2VyX2lkGA4gASgEEhIKCmluZmx1ZW5jZXIYDyABKAkSFgoOb3BlcmF0aW5nX21vZGUYECABKAkSEQoJdHJhbnNwb3J0GBEgASgJEhkKEWRlZmF1bHRfc2VuZGVyX2lkGBIgASgJIk0KCENoYW5uZWxzEjAKCGNoYW5uZWxzGAEgAygLMh4uZGFya2ZsdWVuemVyLnYxLkNoYW5uZWxTdGF0dXMSDwoHdmVyc2lvbhgCIAEoBCLgAQoPQ3VzdG9tZXJTdW1tYXJ5EhMKC2N1c3RvbWVyX2lkGAEgASgEEhMKC2N1c3RvbWVyX25vGAIgASgJEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRIMCgRraW5kGAQgASgJEhEKCXBsYXRmb3JtcxgFIAMoCRIRCglsYXN0X3RleHQYBiABKAkSFQoNbGFzdF9wbGF0Zm9ybRgHIAEoCRIPCgdsYXN0X21zGAggASgDEg4KBnVucmVhZBgJIAEoDRIQCghhZ2VfbWFyaxgLIAEoCRIPCgdoYW5kbGVzGAogAygJIkUKD0N1c3RvbWVyVXBkYXRlZBIyCghjdXN0b21lchgBIAEoCzIgLmRhcmtmbHVlbnplci52MS5DdXN0b21lclN1bW1hcnkiVAoMQ3VzdG9tZXJQYWdlEjMKCWN1c3RvbWVycxgBIAMoCzIgLmRhcmtmbHVlbnplci52MS5DdXN0b21lclN1bW1hcnkSDwoHdmVyc2lvbhgCIAEoBCJ5ChFNZXNzYWdlQXR0YWNobWVudBIMCgRraW5kGAEgASgJEgwKBHBhdGgYAiABKAkSDAoEbWltZRgDIAEoCRIMCgRzaXplGAQgASgEEg4KBnNoYTI1NhgFIAEoCRIOCgZzdGF0dXMYBiABKAkSDAoEbm90ZRgHIAEoCSKSAwoQQ29udmVyc2F0aW9uSXRlbRIPCgdpdGVtX2lkGAEgASgEEhMKC2N1c3RvbWVyX2lkGAIgASgEEhAKCHBsYXRmb3JtGAMgASgJEhEKCWRpcmVjdGlvbhgEIAEoCRIMCgR0ZXh0GAUgASgJEjcKC2F0dGFjaG1lbnRzGAYgAygLMiIuZGFya2ZsdWVuemVyLnYxLk1lc3NhZ2VBdHRhY2htZW50Eg4KBnN0YXR1cxgHIAEoCRINCgVhdF9tcxgIIAEoAxIOCgZzZW5kZXIYCSABKAkSDQoFZXJyb3IYCiABKAkSDAoEcmVhZBgLIAEoCBIXCg9jb252ZXJzYXRpb25faWQYDCABKAQSKwoFb3JkZXIYDSABKAsyHC5kYXJrZmx1ZW56ZXIudjEuQWN0aXZlT3JkZXISFgoOYXdhaXRpbmdfc3RhcnQYDiABKAgSFAoMZWRpdGVkX2F0X21zGA8gASgDEhUKDW9yaWdpbmFsX3RleHQYECABKAkSFQoNZGVsZXRlZF9hdF9tcxgRIAEoAyJEChFDb252ZXJzYXRpb25FdmVudBIvCgRpdGVtGAEgASgLMiEuZGFya2ZsdWVuemVyLnYxLkNvbnZlcnNhdGlvbkl0ZW0i9AEKD0NoYW5uZWxJZGVudGl0eRITCgtpZGVudGl0eV9pZBgBIAEoBBIQCghwbGF0Zm9ybRgCIAEoCRIPCgdhY2NvdW50GAMgASgJEhgKEHBsYXRmb3JtX3VzZXJfaWQYBCABKAkSDgoGaGFuZGxlGAUgASgJEhAKCHZlcmlmaWVkGAYgASgIEhcKD2NvbnZlcnNhdGlvbl9pZBgHIAEoBBIQCghyZXZpc2lvbhgIIAEoBBIRCglhaV9ub3RpY2UYCSABKAkSFwoPd2luZG93X3VudGlsX21zGAogASgDEhYKDmh1bWFuX3VudGlsX21zGAsgASgDIr8DCg5EZWZhdWx0Q29udGFjdBITCgtjdXN0b21lcl9pZBgBIAEoBBIaChJ0ZWxlZ3JhbV9zZW5kZXJfaWQYAiABKAkSGwoTaW5zdGFncmFtX3NlbmRlcl9pZBgDIAEoCRIYChBwcm9jZXNzX2NvbW1hbmRzGAQgASgIEhMKC2F1dG9fb3JkZXJzGAUgASgIEhUKDWFwcHJvdmFsX21vZGUYBiABKAkSEgoKaW5mbHVlbmNlchgHIAEoCRIWCg5tZWRpYV93b3JrZmxvdxgIIAEoCRIQCghyZXZpc2lvbhgJIAEoBBIWCg52aWRlb193b3JrZmxvdxgKIAEoCRI7ChFjb21tYW5kX3dvcmtmbG93cxgLIAMoCzIgLmRhcmtmbHVlbnplci52MS5Db21tYW5kV29ya2Zsb3cSGQoRY2xvbmVyX2NhbmRpZGF0ZXMYDCABKA0SIQoZY2xvbmVyX2NhbmRpZGF0ZXNfZGVmYXVsdBgNIAEoDRITCgtjYW5jZWxfd29yZBgOIAEoCRIzCg1hY2NvdW50X21vZGVzGA8gAygLMhwuZGFya2ZsdWVuemVyLnYxLkFjY291bnRNb2RlImgKD0NvbW1hbmRXb3JrZmxvdxIPCgdjb21tYW5kGAEgASgJEhAKCHdvcmtmbG93GAIgASgJEg4KBmZvcm1hdBgDIAEoCRISCgpkdXJhdGlvbl9zGAQgASgBEg4KBmZpbmlzaBgFIAEoCSIoCgtBY2NvdW50TW9kZRILCgNrZXkYASABKAkSDAoEbW9kZRgCIAEoCSKHAgoQQ29udmVyc2F0aW9uUGFnZRIyCghjdXN0b21lchgBIAEoCzIgLmRhcmtmbHVlbnplci52MS5DdXN0b21lclN1bW1hcnkSMAoFaXRlbXMYAiADKAsyIS5kYXJrZmx1ZW56ZXIudjEuQ29udmVyc2F0aW9uSXRlbRIMCgRtb3JlGAMgASgIEjQKCmlkZW50aXRpZXMYBCADKAsyIC5kYXJrZmx1ZW56ZXIudjEuQ2hhbm5lbElkZW50aXR5EjgKD2RlZmF1bHRfY29udGFjdBgFIAEoCzIfLmRhcmtmbHVlbnplci52MS5EZWZhdWx0Q29udGFjdBIPCgd2ZXJzaW9uGAYgASgEYgZwcm90bzM", [file_darkfluenzer_v1_order]);
 
 /**
  * Testbetrieb: zuletzt verworfener Einzelchat (nur ID und Zeit, nur im Speicher des Backends),
@@ -642,6 +642,32 @@ export type DefaultContact = Message<"darkfluenzer.v1.DefaultContact"> & {
    * @generated from field: repeated darkfluenzer.v1.CommandWorkflow command_workflows = 11;
    */
   commandWorkflows: CommandWorkflow[];
+
+  /**
+   * Kandidaten je Bild der Default-Kette (SP1 Schritt 7); 0 = Vorgabe aus der Konfiguration
+   *
+   * @generated from field: uint32 cloner_candidates = 12;
+   */
+  clonerCandidates: number;
+
+  /**
+   * @generated from field: uint32 cloner_candidates_default = 13;
+   */
+  clonerCandidatesDefault: number;
+
+  /**
+   * Chat-Wort: bricht den laufenden Auftrag dieses Chats ab (SP1 Schritt 11); leer = aus
+   *
+   * @generated from field: string cancel_word = 14;
+   */
+  cancelWord: string;
+
+  /**
+   * Betriebsart je Kanalkonto (SP1 Schritt 12)
+   *
+   * @generated from field: repeated darkfluenzer.v1.AccountMode account_modes = 15;
+   */
+  accountModes: AccountMode[];
 };
 
 /**
@@ -666,6 +692,24 @@ export type CommandWorkflow = Message<"darkfluenzer.v1.CommandWorkflow"> & {
    * @generated from field: string workflow = 2;
    */
   workflow: string;
+
+  /**
+   * Ausgabeprofil des Befehls (SP1 Schritt 6): Formatname der Engine (z. B. 9:16), Dauer in
+   * Sekunden (nur Video), Fertigstellen-Workflow (z. B. output_instagram); Wunsch im Chat geht vor
+   *
+   * @generated from field: string format = 3;
+   */
+  format: string;
+
+  /**
+   * @generated from field: double duration_s = 4;
+   */
+  durationS: number;
+
+  /**
+   * @generated from field: string finish = 5;
+   */
+  finish: string;
 };
 
 /**
@@ -674,6 +718,32 @@ export type CommandWorkflow = Message<"darkfluenzer.v1.CommandWorkflow"> & {
  */
 export const CommandWorkflowSchema: GenMessage<CommandWorkflow> = /*@__PURE__*/
   messageDesc(file_darkfluenzer_v1_channel, 11);
+
+/**
+ * Betriebsart eines Kanalkontos für seine Default-Identität (SP1 Schritt 12)
+ *
+ * @generated from message darkfluenzer.v1.AccountMode
+ */
+export type AccountMode = Message<"darkfluenzer.v1.AccountMode"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * production | test | off
+   *
+   * @generated from field: string mode = 2;
+   */
+  mode: string;
+};
+
+/**
+ * Describes the message darkfluenzer.v1.AccountMode.
+ * Use `create(AccountModeSchema)` to create a new message.
+ */
+export const AccountModeSchema: GenMessage<AccountMode> = /*@__PURE__*/
+  messageDesc(file_darkfluenzer_v1_channel, 12);
 
 /**
  * HTTP GET /api/v1/conversation-page?customer=ID[&before=ITEM]: Verlauf (neueste zuerst
@@ -720,5 +790,5 @@ export type ConversationPage = Message<"darkfluenzer.v1.ConversationPage"> & {
  * Use `create(ConversationPageSchema)` to create a new message.
  */
 export const ConversationPageSchema: GenMessage<ConversationPage> = /*@__PURE__*/
-  messageDesc(file_darkfluenzer_v1_channel, 12);
+  messageDesc(file_darkfluenzer_v1_channel, 13);
 

@@ -278,6 +278,58 @@ class OrdersMixin:
                 self.bump("orders")
             return bool(n)
 
+    def claim_cloner_return(self, order_id: int, media_id: int) -> bool:
+        """Rückversand eines Mediums an den Default genau einmal (SP1 Schritt 8): True, wenn
+        dieser Aufruf ihn beansprucht."""
+        with self.tx() as db:
+            return bool(
+                db.execute(
+                    "INSERT INTO cloner_returns (order_id, media_id, created_at) VALUES (?,?,?)"
+                    " ON CONFLICT DO NOTHING",
+                    (order_id, media_id, now()),
+                ).rowcount
+            )
+
+    def set_cloner_return_message(self, order_id: int, media_id: int, message_id: int) -> None:
+        with self.tx() as db:
+            db.execute(
+                "UPDATE cloner_returns SET message_id = ? WHERE order_id = ? AND media_id = ?",
+                (message_id, order_id, media_id),
+            )
+
+    def cloner_returns(self, order_id: int) -> list[dict]:
+        rows = self.db.execute(
+            "SELECT r.*, m.status AS message_status FROM cloner_returns r"
+            " LEFT JOIN channel_messages m ON m.id = r.message_id WHERE r.order_id = ?"
+            " ORDER BY r.rowid",
+            (order_id,),
+        )
+        return [dict(r) for r in rows]
+
+    def cloner_orders_running(self, conversation_id: int) -> list[str]:
+        """Kloner-Aufträge aus diesem Chat mit wartenden oder laufenden Jobs (Chat-Wort)."""
+        rows = self.db.execute(
+            "SELECT DISTINCT o.order_no FROM orders o JOIN channel_messages m ON m.order_id = o.id"
+            " JOIN order_stages s ON s.order_id = o.id JOIN jobs j ON j.stage_id = s.id"
+            " WHERE o.source = 'cloner' AND m.conversation_id = ?"
+            " AND j.status IN ('queued', 'running') ORDER BY o.id",
+            (conversation_id,),
+        )
+        return [r[0] for r in rows]
+
+    def mark_cloner_outcome(self, order_id: int, state: str) -> bool:
+        """Ende eines Kloner-Auftrags (fehlgeschlagen, abgebrochen) genau einmal melden."""
+        with self.tx() as db:
+            seen = db.execute(
+                "SELECT 1 FROM events WHERE entity = 'order' AND entity_id = ?"
+                " AND event = 'cloner_outcome'",
+                (order_id,),
+            ).fetchone()
+            if seen:
+                return False
+            self._event("order", order_id, "cloner_outcome", state=state)
+            return True
+
     def pending_sent_deliveries(self) -> list[tuple[int, str]]:
         """Abgleich nach Neustart: Nachricht gesendet, Zustellung noch offen."""
         rows = self.db.execute(

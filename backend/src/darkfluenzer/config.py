@@ -236,6 +236,10 @@ class ProductionConfig:
     priority: tuple[str, ...]
     # weitere Schlüsselbilder je Videoauftrag (Zeitachse B4), ohne Start- und Endbild
     keyframes_max: int = 8
+    # Default-Kette (SP1 Schritt 7): Kandidaten je Bild bzw. je Video, solange der Default-Kontakt
+    # keinen eigenen Wert hat; Workflows ohne Seed immer 1
+    cloner_candidates: int = 1
+    video_candidates_default: int = 1
 
 
 @dataclass(frozen=True)
@@ -758,6 +762,8 @@ def load(root: Path | None = None) -> Config:
         stall_notice_s=float(_positive(prod, "stall_notice_s", 900, "production")),
         estimate_runs=int(_positive(prod, "estimate_runs", 5, "production")),
         keyframes_max=int(_positive(prod, "keyframes_max", 8, "production")),
+        cloner_candidates=int(_positive(prod, "cloner_candidates", 1, "production")),
+        video_candidates_default=int(_positive(prod, "video_candidates_default", 1, "production")),
         priority=_priority(prod),
     )
     if production.candidates_default > production.candidates_max:

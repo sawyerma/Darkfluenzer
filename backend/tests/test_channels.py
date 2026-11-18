@@ -209,7 +209,7 @@ def test_cloner_switch_creates_one_internal_order(cloner_cfg):
         card = conv.items[1]  # Karte trägt den Auftrag mit Stufe und Kandidaten (F4)
         assert card.order.order_no == "DF-O-000001" and not card.awaiting_start
         assert [st.kind for st in card.order.stages] == ["candidates"]
-        assert len(card.order.stages[0].jobs) == cfg.production.candidates_default
+        assert len(card.order.stages[0].jobs) == cfg.production.cloner_candidates  # SP1 7
         # jedes Auftragsereignis liefert die Karte erneut (Push statt Abfrage)
         events, _ = store.message_events(0, 100)
         before = [e["message_id"] for e in events].count(card.item_id)
@@ -234,7 +234,7 @@ def test_cloner_waits_for_operator_start(cloner_cfg):
         cockpit = app[server.COCKPIT_KEY]
         store = cockpit.store
         send, photo = _cloner_setup(cfg, store, auto=False)
-        first = send("1", "clone 9:16", "1", [photo])
+        first = send("1", "clone Strand", "1", [photo])  # Verfeinern: kein Format (SP1 Schritt 6)
         await cockpit._on_inbound(first)
         assert store.db.execute("SELECT count(*) FROM orders").fetchone()[0] == 0
         csrf = await _csrf(client)

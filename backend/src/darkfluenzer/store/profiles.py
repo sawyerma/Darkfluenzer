@@ -311,8 +311,21 @@ class ProfilesMixin:
                     (row["customer_id"],),
                 )
             }
-            commands = dict(db.execute("SELECT command, workflow FROM default_commands"))
-            return dict(row) | {"sender_ids": ids, "command_workflows": commands}
+            rows = db.execute(
+                "SELECT command, workflow, format, duration_s, finish FROM default_commands"
+            ).fetchall()
+            commands = {r["command"]: r["workflow"] for r in rows if r["workflow"]}
+            profiles = {
+                r["command"]: {
+                    "format": r["format"], "duration_s": r["duration_s"], "finish": r["finish"]
+                }
+                for r in rows
+            }  # fmt: skip
+            return dict(row) | {
+                "sender_ids": ids,
+                "command_workflows": commands,
+                "command_profiles": profiles,  # Ausgabeprofil je Befehl (SP1 Schritt 6)
+            }
 
     def update_default_contact(
         self, revision: int, fields: dict, sender_ids: dict, commands: dict | None = None
@@ -326,6 +339,8 @@ class ProfilesMixin:
             "influencer",
             "media_workflow",
             "video_workflow",
+            "candidates",
+            "cancel_word",
         }
         unknown = set(fields) - allowed
         if unknown:
@@ -348,9 +363,17 @@ class ProfilesMixin:
                 )
             if commands is not None:  # vollständige Zuordnung ersetzt die bisherige
                 db.execute("DELETE FROM default_commands")
+                rows = []
+                for c, value in commands.items():  # Workflow oder {workflow, format, …}
+                    v = value if isinstance(value, dict) else {"workflow": value}
+                    row = (c, v.get("workflow", ""), v.get("format", ""),
+                           float(v.get("duration_s") or 0), v.get("finish", ""))  # fmt: skip
+                    if any(row[1:]):
+                        rows.append(row)
                 db.executemany(
-                    "INSERT INTO default_commands (command, workflow) VALUES (?,?)",
-                    [(c, w) for c, w in commands.items() if w],
+                    "INSERT INTO default_commands (command, workflow, format, duration_s, finish)"
+                    " VALUES (?,?,?,?,?)",
+                    rows,
                 )
             cid = current["customer_id"]
             for (platform, account), sender in sender_ids.items():

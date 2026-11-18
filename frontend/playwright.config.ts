@@ -15,6 +15,8 @@ export default defineConfig({
   testDir: "tests",
   testMatch: "*.spec.ts",
   reporter: "line",
+  // schreibende Läufe gegen einen Testserver nacheinander (gemeinsamer Default, CAS)
+  workers: process.env.DF_E2E_WRITE ? 1 : undefined,
   // echter Chrome (GUI-Auftrag 18.11.: Browser-E2E in Chrome)
   use: { baseURL: url, channel: "chrome" },
   webServer: {

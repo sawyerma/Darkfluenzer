@@ -7,6 +7,8 @@ mit genau einer Rückfrage statt zu raten.
 
 from __future__ import annotations
 
+import re
+
 COMMANDS = ("clone", "pose", "style", "remix", "animate", "edit")
 ASK_COMMAND = (
     "Bitte beginne mit einem Befehl: clone, pose, style, remix, animate oder edit "
@@ -29,6 +31,7 @@ TEMPLATES = {
 }
 ASK_REFERENCE = "Bitte schick das Referenzbild mit dem Befehl oder antworte mit dem Befehl darauf."
 COMMANDS_OFF = "Befehle sind aus (Cockpit → Nachrichten → Default → Befehle verarbeiten)."
+TEST_MODE = "Kundentest noch nicht verfügbar (Betriebsart Test)."
 # Ausgänge eines Kloner-Auftrags (SP1 Schritt 5): jeder schreibt Karte und Chat-Antwort
 STATES = {
     "started": "GESTARTET",
@@ -84,3 +87,32 @@ def edit_parts(wish: str) -> tuple[str, str]:
     """„edit dress: rotes Kleid“ -> (Bereich, Änderung); ohne Doppelpunkt nur die Änderung."""
     region, sep, change = wish.partition(":")
     return (region.strip(), change.strip()) if sep else ("", wish.strip())
+
+
+# Optionen im Wunsch (SP1 Schritt 6): Formatname der Engine und Dauer („8s“, „5 sek“)
+_FORMAT = re.compile(r"(?<![\w:])(\d{1,2}:\d{1,2})(?![\w:])")
+_DURATION = re.compile(
+    r"(?<![\w.,])(\d{1,3}(?:[.,]\d)?)\s*(?:s|sek|sekunden|sec|seconds)(?!\w)", re.IGNORECASE
+)
+
+
+def options(wish: str) -> tuple[str, float | None, str]:
+    """Format (z. B. ``9:16``) und Dauer (Sekunden) aus dem Wunsch lösen; der Rest bleibt Wunsch.
+    Ob das Format zur Engine passt, prüft der Aufrufer."""
+    fmt, duration, rest = "", None, wish
+    if m := _FORMAT.search(rest):
+        fmt, rest = m.group(1), rest[: m.start()] + " " + rest[m.end() :]
+    if m := _DURATION.search(rest):
+        duration = float(m.group(1).replace(",", "."))
+        rest = rest[: m.start()] + " " + rest[m.end() :]
+    rest = re.sub(r"\s+([,;.])", r"\1", " ".join(rest.split()))
+    rest = re.sub(r"([,;])\s*(?=[,;]|$)", "", rest).strip(" ,;")
+    return fmt, duration, rest
+
+
+def finish_height(choices: tuple[str, ...], size: tuple[int, int]) -> int | None:
+    """Höhe der Instagram-Ausgabe (1080 breit) zum Format: die nächste erlaubte Wahl (BUG-090)."""
+    if not choices:
+        return None
+    want = 1080 * size[1] / size[0]
+    return int(min(choices, key=lambda c: abs(int(c) - want)))

@@ -85,6 +85,27 @@ class AccountsMixin:
             self._event("channel_account", acc["id"], "bound", account=platform_account_id)
             self.bump("channels")
 
+    def set_account_mode(self, key: str, mode: str) -> None:
+        """Betriebsart des Kontos für seine Default-Identität (SP1 Schritt 12): production,
+        test oder off."""
+        if mode not in MODES:
+            raise StoreError(f"Betriebsart {mode!r} unbekannt (erlaubt: {', '.join(MODES)}).")
+        acc = self.channel_account(key)
+        if acc["operating_mode"] == mode:
+            return
+        with self.tx() as db:
+            db.execute(
+                "UPDATE channel_accounts SET operating_mode = ?, updated_at = ? WHERE key = ?",
+                (mode, now(), key),
+            )
+            self._event("channel_account", acc["id"], "mode", mode=mode)
+            self.bump("channels")
+
+    def account_mode(self, platform: str, account: str) -> str:
+        """Betriebsart des Kontos einer Plattform-Konto-ID; ohne Konto ``production``."""
+        acc = self.account_for(platform, account)
+        return acc["operating_mode"] if acc else "production"
+
     def assign_account_influencer(self, key: str, influencer_id: int | None) -> None:
         acc = self.channel_account(key)
         if (

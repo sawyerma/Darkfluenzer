@@ -365,13 +365,16 @@ class MessagesMixin:
                     self.add_system_card(notice[0], "KI-HINWEIS GESENDET")
 
     def outbox(self, platform: str, account: str) -> list[dict]:
-        """Wartende ausgehende Nachrichten eines Kanals in Eingangsreihenfolge."""
+        """Wartende ausgehende Nachrichten eines Kanals: Sendungen an den Default zuerst
+        (SP1 Schritt 9), sonst in Eingangsreihenfolge."""
         rows = self.db.execute(
-            "SELECT m.*, c.platform_conversation_id FROM channel_messages m"
+            "SELECT m.*, c.platform_conversation_id, cu.kind AS customer_kind"
+            " FROM channel_messages m"
             " JOIN channel_conversations c ON c.id = m.conversation_id"
             " JOIN channel_identities i ON i.id = c.identity_id"
+            " JOIN customers cu ON cu.id = m.customer_id"
             " WHERE m.direction = 'out' AND m.status = 'queued' AND i.platform = ?"
-            " AND i.account = ? ORDER BY m.id",
+            " AND i.account = ? ORDER BY cu.kind = 'internal' DESC, m.id",
             (platform, account),
         )
         return [dict(r) | {"attachments": json.loads(r["attachments"])} for r in rows]

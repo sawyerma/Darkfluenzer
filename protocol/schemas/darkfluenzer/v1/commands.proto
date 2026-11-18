@@ -389,8 +389,14 @@ message DefaultContactUpdate {
   string media_workflow = 8;
   // Video-Workflow für `animate` (Foto -> Video, V0 §8); leer: animate nicht möglich
   string video_workflow = 9;
-  // vollständige Befehl→Workflow-Zuordnung (FL-6); ersetzt die bisherige
+  // vollständige Befehl→Workflow-Zuordnung (FL-6); ersetzt die bisherige; mit Ausgabeprofil
+  // (Format, Dauer, Fertigstellen; SP1 Schritt 6)
   repeated CommandWorkflow command_workflows = 10;
+  // SP1 Schritte 7, 11, 12: Kandidaten je Bild (0 = Vorgabe), Chat-Wort für den Abbruch,
+  // Betriebsart je Kanalkonto
+  uint32 cloner_candidates = 11;
+  string cancel_word = 12;
+  repeated AccountMode account_modes = 13;
 }
 
 // Kanalidentität einer Kundenakte als Absender des Default-Kontakts festlegen (Befehl 48, F7.4):

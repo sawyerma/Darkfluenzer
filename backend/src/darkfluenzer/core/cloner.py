@@ -20,10 +20,18 @@ from .base import _Call, _document_attachment, log
 
 def _upload_param(wf: models.Workflow) -> str:
     """Eingangsbild eines Workflows für den Kloner: ``image`` bzw. die Vorlage (``reference``)."""
-    for name in ("image", "reference"):
-        if name in wf.params and wf.params[name].upload:
-            return name
-    return next((n for n, p in wf.params.items() if p.upload), "")
+    slots = _slots(wf)
+    return slots[0] if slots else ""
+
+
+def _slots(wf: models.Workflow) -> list[str]:
+    """Bild-Eingänge für Referenzen (ohne Masken), ``image``/``reference`` zuerst."""
+    names = [n for n, p in wf.params.items() if p.upload and not p.tier_exempt]
+    return sorted(names, key=lambda n: (n not in ("image", "reference"), list(wf.params).index(n)))
+
+
+def _masks(wf: models.Workflow) -> list[str]:
+    return [n for n, p in wf.params.items() if p.upload and p.tier_exempt and p.required]
 
 
 def _marked_copy(local: Path, src: Path) -> dict:
@@ -39,8 +47,11 @@ def _marked_copy(local: Path, src: Path) -> dict:
 class ClonerMixin:
     """Kloner der Default-Kette: Plan, Auftrag, Rückversand; Teil von ``Cockpit``."""
 
-    async def _reply_internal(self, conversation_id: int, text: str, files: list[str] = ()) -> None:
-        """Rückfrage bzw. Ergebnis an den Default-Nutzer in denselben Chat (Postausgang)."""
+    async def _reply_internal(
+        self, conversation_id: int, text: str, files: list[str] = (), *, block_card: bool = True
+    ) -> tuple[int, list[str]]:
+        """Rückfrage bzw. Ergebnis an den Default-Nutzer in denselben Chat (Postausgang); liefert
+        Nachricht und gesperrte Dateien."""
         default = self.store.default_contact()
         platform, account = self.store.conversation_account(conversation_id)
         attachments, blocked = [], []
@@ -57,7 +68,7 @@ class ClonerMixin:
             except (aimeta.AiMetaError, OSError) as exc:
                 text += f"\n{src.name}: nicht gesendet ({exc})"
                 continue
-        if blocked:
+        if blocked and block_card:
             label = {"instagram": "Instagram", "whatsapp": "WhatsApp"}.get(platform, platform)
             self.store.add_system_card(
                 conversation_id,
@@ -75,6 +86,7 @@ class ClonerMixin:
         if adapter is not None:
             adapter.wake.set()
         self._message_changed(message_id)
+        return message_id, blocked
 
     async def _cloner_entry(self, inbound) -> None:
         """Nachricht des Default-Kontakts in die Kloner-Weiche (SP1 Schritt 5): jede Ausnahme
@@ -142,10 +154,21 @@ class ClonerMixin:
     async def _cloner(self, inbound) -> None:
         default = self.store.default_contact()
         msg = self.store.message(inbound.message_id)
-        parsed = cloner.parse(msg["text"])
         conv = inbound.conversation_id
+        mode = self.store.account_mode(msg["platform"], msg["account"])
+        if mode == "off":
+            return  # Betriebsart aus: nur anzeigen (SP1 Schritt 12)
+        if mode == "test":
+            if self._notice_due(conv, "test"):
+                await self._reply_internal(conv, cloner.TEST_MODE)
+            return
+        word = (default.get("cancel_word") or "").strip().lower()
+        if word and msg["text"].strip().lower() == word:  # Chat-Wort (SP1 Schritt 11)
+            await self._cloner_cancel_chat(conv, msg)
+            return
+        parsed = cloner.parse(msg["text"])
         if not default["process_commands"]:
-            if parsed is not None and self._commands_off_due(conv):
+            if parsed is not None and self._notice_due(conv, "off"):
                 await self._reply_internal(conv, cloner.COMMANDS_OFF)
             return  # nur anzeigen
         if parsed is None:
@@ -154,37 +177,118 @@ class ClonerMixin:
             return
         command, wish = parsed
         plan = self._cloner_plan(msg, default, command)
-        if isinstance(plan, str):
+        opts = (
+            self._cloner_options(plan[0], command, wish, default)
+            if isinstance(plan, tuple)
+            else plan
+        )
+        if isinstance(plan, str) or isinstance(opts, str):
+            reason = plan if isinstance(plan, str) else opts
             await self._cloner_state(
-                conv, "rejected", command, msg["platform"], plan,
-                reply=plan if plan in (cloner.ASK_REFERENCE, cloner.ASK_OWN) else None,
+                conv, "rejected", command, msg["platform"], reason,
+                reply=reason if reason in (cloner.ASK_REFERENCE, cloner.ASK_OWN) else None,
             )  # fmt: skip
             return
         if not default["auto_orders"]:
             title = self.manifest.workflows[plan[0]].title
             await self._cloner_state(
                 conv, "waiting_start", command, msg["platform"],
-                f"{title} · {wish or '–'}", origin_message_id=inbound.message_id,
+                f"{title} · {opts['wish'] or '–'}", origin_message_id=inbound.message_id,
             )  # fmt: skip
             return
-        order_no = await self._cloner_order(msg, command, wish, *plan)
-        order = self.store.order(order_no)
-        await self._cloner_state(
-            conv, "started", command, msg["platform"], self._cloner_summary(plan[0], wish, order),
-            order_no=order_no, order_id=order.id,
-        )  # fmt: skip
+        numbers = await self._cloner_orders(msg, command, plan[0], plan[1], opts)
+        await self._cloner_started(conv, command, msg["platform"], plan[0], numbers, opts)
 
-    def _commands_off_due(self, conversation_id: int) -> bool:
-        """„Befehle sind aus“ höchstens einmal je ``cloner.notice_interval_s`` und Chat."""
-        last = self._commands_off_at.get(conversation_id)
+    async def _cloner_started(
+        self,
+        conv: int,
+        command: str,
+        platform: str,
+        key: str,
+        numbers: list[str],
+        opts: dict,
+        *,
+        card_id: int | None = None,
+    ) -> None:
+        """Karte je Auftrag (zeigt seine Stufe), eine Chat-Antwort für den ganzen Stapel."""
+        for n, order_no in enumerate(numbers):
+            order = self.store.order(order_no)
+            summary = self._cloner_summary(key, opts, order)
+            if n == 0 and card_id is not None:  # wartende Karte wird zur ersten Auftragskarte
+                self.store.start_card(
+                    card_id, order.id, cloner.card(command, platform, f"{order_no} · {summary}",
+                                                   "started"),
+                )  # fmt: skip
+                self._message_changed(card_id)
+                continue
+            self.store.add_system_card(
+                conv, cloner.card(command, platform, f"{order_no} · {summary}", "started"),
+                order_id=order.id,
+            )  # fmt: skip
+        self._message_changed(0)
+        first = self.store.order(numbers[0])
+        label = numbers[0] if len(numbers) == 1 else f"{numbers[0]} … {numbers[-1]}"
+        stack = f" · {len(numbers)} Aufträge" if len(numbers) > 1 else ""
+        await self._reply_internal(
+            conv, cloner.reply("started", self._cloner_summary(key, opts, first) + stack, label)
+        )
+
+    def _notice_due(self, conversation_id: int, kind: str) -> bool:
+        """Hinweis („Befehle sind aus“, Kundentest) höchstens einmal je
+        ``cloner.notice_interval_s`` und Chat."""
+        key = (conversation_id, kind)
+        last = self._commands_off_at.get(key)
         if last is not None and time.monotonic() - last < self.cfg.cloner.notice_interval_s:
             return False
-        self._commands_off_at[conversation_id] = time.monotonic()
+        self._commands_off_at[key] = time.monotonic()
         return True
 
-    def _cloner_summary(self, key: str, wish: str, order) -> str:
+    def _cloner_summary(self, key: str, opts: dict, order) -> str:
         jobs = sum(len(self.store.stage_jobs(st.id)) for st in self.store.stages(order.id))
-        return f"{self.manifest.workflows[key].title} · {jobs} Kandidat(en) · {wish or '–'}"
+        parts = [self.manifest.workflows[key].title, f"{jobs} Kandidat(en)"]
+        parts += [x for x in (opts.get("format"), opts.get("duration")) if x]
+        if self.manifest.workflows[key].lora is not None:
+            parts.append("ohne Charakter-LoRA")  # bis zur Kloner-Methode je Befehl (SP3 8)
+        return " · ".join(parts + [opts.get("wish") or "–"])
+
+    def _cloner_options(self, key: str, command: str, wish: str, default: dict) -> dict | str:
+        """Optionen aus dem Wunsch (SP1 Schritt 6): Formatname der Engine setzt Breite und Höhe,
+        eine Dauer ``duration_s`` (nur Video); sonst gilt das Ausgabeprofil des Befehls im
+        Default-Kontakt. Fertigstellen bekommt eigene Werte (Instagram-Höhe zum Format)."""
+        wf = self.manifest.workflows[key]
+        eng = self.manifest.engines[wf.engine]
+        fmt, duration, rest = cloner.options(wish)
+        profile = default.get("command_profiles", {}).get(command, {})
+        values: dict = {}
+        sized = "width" in wf.params and "height" in wf.params
+        if fmt:
+            if fmt not in eng.formats:
+                names = ", ".join(eng.formats) or "keine"
+                return f"Format {fmt} gibt es bei {wf.title} nicht ({names})."
+            if not sized:
+                return f"{wf.title} übernimmt die Größe der Vorlage – kein Format möglich."
+        else:
+            fmt = profile.get("format", "") if profile.get("format") in eng.formats else ""
+        if fmt and sized:
+            values["width"], values["height"] = eng.formats[fmt]
+        if duration is not None and eng.kind != "video":
+            return "Eine Dauer gibt es nur bei Video (animate)."
+        duration = duration or (profile.get("duration_s") or None if eng.kind == "video" else None)
+        if duration:
+            if not 0 < duration <= self.cfg.production.video_max_s:
+                return f"Dauer 0 bis {self.cfg.production.video_max_s:.0f} s."
+            values["duration_s"] = float(duration)
+        finish = profile.get("finish", "") if eng.kind == "image" else ""
+        finish_values: dict = {}
+        if finish and fmt and (fw := self.manifest.workflows.get(finish)) is not None:
+            height = fw.params.get("height")
+            size = eng.formats[fmt]
+            if height is not None and (h := cloner.finish_height(height.choices, size)):
+                finish_values["height"] = h
+        return {
+            "values": values, "finish": finish, "finish_values": finish_values, "wish": rest,
+            "format": fmt, "duration": f"{duration:g} s" if duration else "",
+        }  # fmt: skip
 
     def _cloner_workflow_reason(self, key: str, kind: str) -> str:
         """Leer, wenn ``key`` leer ist oder ein registrierter Workflow der Art ``kind`` ist, der
@@ -257,8 +361,15 @@ class ClonerMixin:
             return f"{wf.title}: ComfyUI-Instanz nicht eingerichtet."
         if reason := self._not_startable(wf):
             return f"{wf.title}: {reason}"
-        if _upload_param(wf) and not refs:
+        if masks := _masks(wf):
+            return f"{wf.title} braucht eine Maske ({', '.join(masks)}) – nicht über den Chat."
+        slots = _slots(wf)
+        if slots and not refs:
             return cloner.ASK_REFERENCE
+        if any(str(r.get("kind")) in ("video", "animation") for r in refs):
+            return "Video als Referenz ist noch nicht möglich (Zeitachse B4)."
+        if len(slots) > 1 and len(refs) != len(slots):
+            return f"{wf.title} braucht genau {len(slots)} Bilder ({', '.join(slots)})."
         if command == "edit" and not self._own_reference(refs, replied):
             return cloner.ASK_OWN
         return key, refs
@@ -272,53 +383,81 @@ class ClonerMixin:
             self.store.media_by_sha(r.get("sha256", "")) is not None for r in refs
         )
 
-    async def _cloner_order(
-        self, msg: dict, command: str, wish: str, key: str, refs: list[dict]
-    ) -> str:
-        """Kloner-Auftrag (Quelle ``cloner``) mit Kandidaten anlegen und einreihen."""
+    def _cloner_candidates(self, wf: models.Workflow) -> int:
+        """Kandidaten (SP1 Schritt 7): ohne Seed 1, Video ``production.video_candidates_default``,
+        sonst der Wert des Default-Kontakts bzw. ``production.cloner_candidates``."""
+        if "seed" not in wf.params:
+            return 1
+        if self.manifest.engines[wf.engine].kind == "video":
+            return self.cfg.production.video_candidates_default
+        own = self.store.default_contact().get("candidates")
+        return int(own or self.cfg.production.cloner_candidates)
+
+    async def _cloner_orders(
+        self, msg: dict, command: str, key: str, refs: list[dict], opts: dict
+    ) -> list[str]:
+        """Kloner-Aufträge anlegen und einreihen (SP1 Schritt 7): bei einem Bild-Eingang je
+        Referenz ein Auftrag (Stapel), bei mehreren Eingängen alle Bilder gemeinsam; eigenes
+        Medium als Ausgangsmedium; Influencerin und Charakter des Default-Kontakts am Auftrag."""
         wf = self.manifest.workflows[key]
-        upload = _upload_param(wf)
-        inputs = {}
-        if upload:
-            ref = self.cfg.local / refs[0]["path"]
-            inputs[upload] = await asyncio.to_thread(
-                pipeline.store_input, self.cfg, ref.read_bytes(), ref.name
-            )
-            # Vorlagen kommen auch aus dem Kloner-Eingang (FRONT, C1)
-            await self._register_reference(inputs[upload], f"{msg['platform']}:{msg['id']}")
-        values: dict = {}
+        slots = _slots(wf)
+        groups = [[r] for r in refs] if len(slots) == 1 else [refs]
+        if not slots:
+            groups = [[]]
+        default = self.store.default_contact()
+        figure = next(
+            (f for f in self.store.influencers() if str(f["id"]) == default["influencer"]), None
+        )
+        extra = {
+            "influencer": figure["id"] if figure else None,
+            "character": figure["character_id"] if figure else None,
+            "command": command,
+        }
+        wish = opts["wish"]
+        values: dict = dict(opts["values"])
         if command == "edit" and "region" in wf.params:
             region, wish = cloner.edit_parts(wish)
             if region:
                 values["region"] = region
-        text = cloner.prompt(command, wish, templated=bool(upload and wf.params[upload].reference))
+        templated = any(wf.params[n].reference for n in slots)
+        text = cloner.prompt(command, wish, templated=templated)
         if text and "prompt" in wf.params:
             values["prompt"] = text
         graph = comfy.load_graph(self.manifest, wf)
         for name, p in wf.params.items():  # Pflichtwerte ohne Angabe: geprüfter Graph-Standard
             if p.required and not p.upload and name not in values:
                 values[name] = graph[p.node]["inputs"][p.input]
-        order_no, jobs = orders.create_order(
-            self.store,
-            self.manifest,
-            key,
-            values,
-            inputs,
-            count=self.cfg.production.candidates_default,
-            source="cloner",
-            origin=msg["id"],
-            video_max_s=self.cfg.production.video_max_s,
-        )
-        order_id = self.store.order(order_no).id
-        self.store.link_order(msg["id"], order_id)
-        for source in {r["message_id"] for r in refs if r.get("message_id")} - {msg["id"]}:
-            self.store.link_order(source, order_id)  # Referenz gehört jetzt diesem Auftrag
-        log.info(
-            "Kloner: %s %s → %s (%d Kandidaten)", command, msg["platform"], order_no, len(jobs)
-        )
-        self._enqueue(jobs)
+        numbers: list[str] = []
+        for group in groups:
+            inputs = {}
+            for slot, ref in zip(slots, group, strict=False):
+                src = self.cfg.local / ref["path"]
+                inputs[slot] = await asyncio.to_thread(
+                    pipeline.store_input, self.cfg, src.read_bytes(), src.name
+                )
+                # Vorlagen kommen auch aus dem Kloner-Eingang (FRONT, C1)
+                await self._register_reference(inputs[slot], f"{msg['platform']}:{msg['id']}")
+            parent = None
+            if group and (own := self.store.media_by_sha(group[0].get("sha256", ""))):
+                parent = own["id"]  # eigenes Medium als Ausgangsmedium
+            order_no, jobs = orders.create_order(
+                self.store, self.manifest, key, values, inputs,
+                count=self._cloner_candidates(wf),
+                finish_workflow=opts["finish"], finish_values=opts["finish_values"],
+                parent_media_id=parent, source="cloner", origin=msg["id"],
+                video_max_s=self.cfg.production.video_max_s, extra=extra,
+            )  # fmt: skip
+            order_id = self.store.order(order_no).id
+            self.store.link_order(msg["id"], order_id)
+            for source in {r["message_id"] for r in group if r.get("message_id")} - {msg["id"]}:
+                self.store.link_order(source, order_id)  # Referenz gehört jetzt diesem Auftrag
+            log.info(
+                "Kloner: %s %s → %s (%d Kandidaten)", command, msg["platform"], order_no, len(jobs)
+            )
+            self._enqueue(jobs)
+            numbers.append(order_no)
         self._orders_changed()
-        return order_no
+        return numbers
 
     async def _start_cloner_order(self, msg: commands_pb2.StartClonerOrder, call: _Call) -> str:
         """Wartenden Kloner-Auftrag starten (Automatische Produktionsaufträge aus)."""
@@ -333,21 +472,18 @@ class ClonerMixin:
         if parsed is None:
             return "Ursprungsnachricht enthält keinen Befehl."
         command, wish = parsed
-        plan = self._cloner_plan(origin, self.store.default_contact(), command)
+        default = self.store.default_contact()
+        plan = self._cloner_plan(origin, default, command)
         if isinstance(plan, str):
             return plan
-        order_no = await self._cloner_order(origin, command, wish, *plan)
-        order = self.store.order(order_no)
-        summary = self._cloner_summary(plan[0], wish, order)
-        self.store.start_card(
-            card["id"],
-            order.id,
-            cloner.card(command, origin["platform"], f"{order_no} · {summary}", "started"),
-        )
-        self._message_changed(card["id"])
-        await self._reply_internal(
-            card["conversation_id"], cloner.reply("started", summary, order_no)
-        )
+        opts = self._cloner_options(plan[0], command, wish, default)
+        if isinstance(opts, str):
+            return opts
+        numbers = await self._cloner_orders(origin, command, plan[0], plan[1], opts)
+        await self._cloner_started(
+            card["conversation_id"], command, origin["platform"], plan[0], numbers, opts,
+            card_id=card["id"],
+        )  # fmt: skip
         return ""
 
     async def _stall_notice(self, job_id: int, quiet_s: float) -> None:
@@ -369,34 +505,97 @@ class ClonerMixin:
         )
 
     async def _cloner_delivery(self, order_id: int, selected: int | None = None) -> None:
-        """Rückversand eines Kloner-Auftrags je Freigabemodus (V0 §8.1): direkt die Kandidaten,
-        nach Auswahl das gewählte bzw. fertiggestellte Ergebnis, „nur Cockpit“ nichts."""
+        """Abschluss und Rückversand eines Kloner-Auftrags (SP1 Schritt 8): genau ein Ergebnis
+        wird automatisch gewählt (danach ggf. Fertigstellen); Modus Direkt mit mehreren sendet
+        alle und schließt die Stufe ohne Auswahl; sonst das gewählte bzw. fertiggestellte
+        Ergebnis. Rückversand je Medium genau einmal; Fehlschlag/Abbruch mit Grund."""
         order = self.store.order_by_id(order_id)
-        if order.source != "cloner":
-            return
         stages = self.store.stages(order_id)
         origin = stages[0].params.get("origin") if stages else None
-        mode = self.store.default_contact()["approval_mode"]
-        if not origin or mode == "cockpit_only":
+        if order.source != "cloner" or not origin:
             return
-        conv = self.store.message(int(origin))["conversation_id"]
+        source = self.store.message(int(origin))
+        conv, platform = source["conversation_id"], source["platform"]
+        command = str(stages[0].params.get("command") or "")
+        command = command or (cloner.parse(source["text"]) or ("auftrag", ""))[0]
         last = stages[-1]
-        files: list[str] = []
-        if (
-            mode == "direct"
-            and last.kind == "candidates"
-            and last.status == "waiting"
-            or (
-                mode == "cockpit"
-                and selected is None
-                and last.kind == "finish"
-                and last.status == "done"
-            )
-        ):
-            files = [j["path"] for j in self.store.stage_jobs(last.id) if j["path"]]
-        elif mode == "cockpit" and selected is not None and len(stages) == 1:
-            media = self.store.media_by_id(selected)
-            files = [media["path"]] if media else []
-        for n, path in enumerate(files, 1):
-            label = f"{order.order_no} · Nr. {n}" if len(files) > 1 else order.order_no
-            await self._reply_internal(conv, label, [path])
+        if order.status == "cancelled" or last.status == "failed":
+            state = "cancelled" if order.status == "cancelled" else "failed"
+            if self.store.mark_cloner_outcome(order_id, state):
+                why = "" if state == "cancelled" else (last.error or "kein Ergebnis")
+                await self._cloner_state(
+                    conv, state, command, platform, why or "vom Betreiber", order_no=order.order_no
+                )
+            return
+        mode = self.store.default_contact()["approval_mode"]
+        if last.kind == "candidates" and last.status == "waiting":
+            done = [
+                j for j in self.store.stage_jobs(last.id) if j["status"] == "done" and j["path"]
+            ]
+            if len(done) == 1:  # genau ein Ergebnis: automatisch gewählt
+                jobs = orders.select_candidate(
+                    self.cfg, self.store, self.manifest, order.order_no, done[0]["media_id"], None
+                )
+                self._enqueue(jobs)
+                self._orders_changed()
+                if jobs:
+                    return  # Fertigstellen läuft; Rückversand danach
+                selected = done[0]["media_id"]
+            elif mode == "direct":  # alle senden, Stufe ohne Auswahl schließen, Auftrag zur Prüfung
+                with self.store.tx():
+                    self.store.set_stage(last.id, "done")
+                    self.store.transition(order.order_no, "review")
+                self._orders_changed()
+                files = [(j["media_id"], j["path"]) for j in done]
+                await self._cloner_return(order, conv, command, platform, files)
+                return
+            else:
+                return  # wartet auf die Auswahl im Cockpit
+            last = self.store.stages(order_id)[-1]
+        if mode == "cockpit_only":
+            return
+        files: list[tuple[int, str]] = []
+        if last.kind == "finish" and last.status == "done":
+            done = self.store.stage_jobs(last.id)
+            files = [
+                (j["media_id"], j["path"]) for j in done if j["status"] == "done" and j["path"]
+            ]
+        elif selected is not None and (media := self.store.media_by_id(selected)):
+            files = [(selected, media["path"])]
+        await self._cloner_return(order, conv, command, platform, files)
+
+    async def _cloner_return(
+        self, order, conv: int, command: str, platform: str, files: list[tuple[int, str]]
+    ) -> None:
+        """Dateien an den Default, je Auftrag und Medium genau einmal (``cloner_returns``)."""
+        fresh = [(m, p) for m, p in files if self.store.claim_cloner_return(order.id, m)]
+        if not fresh:
+            return
+        blocked_all: list[str] = []
+        for n, (media_id, path) in enumerate(fresh, 1):
+            label = f"{order.order_no} · Nr. {n}" if len(fresh) > 1 else order.order_no
+            message_id, blocked = await self._reply_internal(conv, label, [path], block_card=False)
+            self.store.set_cloner_return_message(order.id, media_id, message_id)
+            blocked_all += blocked
+        sent = len(fresh) - len(blocked_all)
+        if blocked_all:
+            await self._cloner_state(
+                conv, "return_blocked", command, platform,
+                f"{', '.join(blocked_all)} · Inhaltsstufe explizit – über "
+                f"{platform} nie (Regel 13)", order_no=order.order_no,
+            )  # fmt: skip
+        if sent:
+            await self._cloner_state(
+                conv, "returned", command, platform, f"{sent} Datei(en) im Chat",
+                order_no=order.order_no, reply="",
+            )  # fmt: skip
+
+    async def _cloner_cancel_chat(self, conv: int, msg: dict) -> None:
+        """Chat-Wort (SP1 Schritt 11): laufende Kloner-Aufträge dieses Chats abbrechen."""
+        running = self.store.cloner_orders_running(conv)
+        if not running:
+            await self._reply_internal(conv, "Nichts zum Abbrechen.")
+            return
+        for order_no in running:
+            call = _Call(f"chat-{msg['id']}-{order_no}", "", "order_cancel")
+            await self._order_cancel(commands_pb2.OrderCancel(order_no=order_no), call)
