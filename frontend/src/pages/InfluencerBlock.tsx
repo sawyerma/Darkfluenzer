@@ -61,9 +61,12 @@ export function InfluencerBlock({ influencer, mediaTitle, videoTitle }: { influe
   }
 
   return (
-    <details className="g-expert">
-      <summary>Influencerin · {label} · gilt für alle Kunden</summary>
-      <form className="g-form" onSubmit={save}>
+    <details className="g-fold">
+      <summary>
+        <span>Influencerin</span>
+        <span className="g-fold-hint">{label} · gilt für alle Kunden</span>
+      </summary>
+      <form className="g-form g-fold-body" onSubmit={save}>
         <div className="g-control-part g-wide">
           <h3>Profil</h3>
           <div className="g-field">
@@ -114,14 +117,19 @@ export function InfluencerBlock({ influencer, mediaTitle, videoTitle }: { influe
         <div className="g-control-part g-wide">
           <h3>Modelle und Fähigkeiten</h3>
           <dl className="g-params">
-            <dt>Text-KI</dt>
-            <dd>nicht angeschlossen (KI-Instanz folgt)</dd>
-            <dt>Foto</dt>
-            <dd>{mediaTitle || "–"}</dd>
-            <dt>Video</dt>
-            <dd>{videoTitle || "–"}</dd>
-            <dt>Stimme</dt>
-            <dd>nicht angeschlossen</dd>
+            {(
+              [
+                ["Text-KI", "nicht angeschlossen (KI-Instanz folgt)"],
+                ["Foto", mediaTitle || "–"],
+                ["Video", videoTitle || "–"],
+                ["Stimme", "nicht angeschlossen"],
+              ] as const
+            ).map(([dt, dd]) => (
+              <div key={dt}>
+                <dt>{dt}</dt>
+                <dd>{dd}</dd>
+              </div>
+            ))}
           </dl>
         </div>
         {confirm ? (

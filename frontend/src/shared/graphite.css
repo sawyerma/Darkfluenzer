@@ -29,6 +29,7 @@
   --g-warn: #a16207;
   --g-bad: #b91c1c;
   --g-bad-text: #f0a5ac;
+  --g-warn-text: #f2c46d;
   --g-input: #262626;
   --g-line-input: #565656;
   --g-backdrop: #000a;
@@ -109,6 +110,7 @@
   --g-col-side: 290px;
   --g-progress-w: 96px;
   --g-params-label: 92px;
+  --g-cmd-label: 64px;
   --g-tile-min: 180px;
   --g-tile-x: 24px;
   --g-tile-check: 18px;
@@ -309,6 +311,28 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--g-focus); outli
 .g-control-part { display: flex; flex-direction: column; gap: var(--g-gap-sm); padding-top: var(--g-gap-md); border-top: 1px solid var(--g-line); }
 .g-control-part .g-actions { margin-top: 0; }
 .g-control .g-form { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: var(--g-gap-md); }
+/* Einklappbare Gruppe (F7 details · summary · .detailcontent): Kopf mit Zustand auch im geschlossenen Zustand */
+.g-fold { background: var(--g-worktab); border: 1px solid var(--g-worktab-line); border-radius: var(--g-r-input); min-width: 0; }
+.g-fold > summary {
+  display: flex; align-items: center; gap: var(--g-gap-sm); padding: var(--g-pad-row); cursor: pointer; list-style: none;
+  color: var(--g-text-strong); font-size: var(--g-fs-small); font-weight: var(--g-fw-semibold);
+}
+.g-fold > summary::-webkit-details-marker { display: none; }
+.g-fold > summary::before { content: "▸"; color: var(--g-muted); }
+.g-fold[open] > summary::before { content: "▾"; }
+.g-fold > summary:focus-visible { outline: 2px solid var(--g-focus); outline-offset: -2px; border-radius: var(--g-r-input); }
+.g-fold-hint {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--g-muted); font-size: var(--g-fs-tiny); font-weight: normal;
+}
+.g-fold-hint[data-tone="warn"] { color: var(--g-warn-text); }
+.g-fold-changed { color: var(--g-brand); font-size: var(--g-fs-tiny); }
+.g-fold-body { display: flex; flex-direction: column; gap: var(--g-gap-sm); padding: 0 12px 13px; }
+.g-fold > .g-form.g-fold-body { display: grid; margin-top: 0; }
+.g-fold-body > .g-control-part:first-child { border-top: 0; padding-top: 0; }
+/* Befehl je Zeile: Name links, Workflow rechts */
+.g-cmd .g-field { display: grid; grid-template-columns: var(--g-cmd-label) minmax(0, 1fr); align-items: center; gap: var(--g-gap-sm); }
+.g-cmd .g-field label { font-family: var(--g-font-mono); color: var(--g-text); }
 .g-cards { display: grid; gap: 16px; margin-top: 28px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 /* Kennzahlkarte (F7-Referenz .metric) */
 .g-card.g-kpi { gap: 0; padding: 25px; min-height: 170px; background: var(--g-metric); border-color: var(--g-metric-line); border-radius: var(--g-r-metric); }

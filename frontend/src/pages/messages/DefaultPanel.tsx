@@ -1,6 +1,6 @@
 import { APPROVAL } from "./common";
 import type { ChannelStatus, DefaultContact } from "../../core/generated/darkfluenzer/v1/channel_pb";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { InfluencerBlock } from "../InfluencerBlock";
 import { PLATFORM_LABEL } from "../../core/channels";
 import { Row } from "./CustomerPanel";
@@ -14,6 +14,46 @@ type Run = ReturnType<typeof useCommand>["run"];
 // Kurzbefehle des Default-Nutzers (V0 §8.1, FL-6), Reihenfolge wie im Backend (cloner.COMMANDS)
 const COMMANDS = ["clone", "pose", "style", "remix", "animate", "edit"] as const;
 
+// Gruppen der Default-Steuerung (F7.4 „Identität & Dialog“, „KI & Medien“; Befehle FL-6), einklappbar
+type FoldId = "identity" | "media" | "commands";
+type Folds = Record<FoldId, boolean>;
+const FOLDS_OPEN: Folds = { identity: true, media: true, commands: false };
+
+/** Einklappbare Gruppe (F7 details): Kopf mit Zustand, damit auch geschlossen sichtbar ist, was
+ *  fehlt (SP1: ausgeschaltete Schalter und fehlende Workflows sichtbar). */
+function Fold({
+  id,
+  title,
+  hint,
+  warn,
+  changed,
+  folds,
+  toggle,
+  children,
+}: {
+  id: FoldId;
+  title: string;
+  hint: string;
+  warn: boolean;
+  changed: boolean;
+  folds: Folds;
+  toggle: (id: FoldId, open: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <details className="g-fold g-wide" open={folds[id]} onToggle={(e) => toggle(id, e.currentTarget.open)}>
+      <summary>
+        <span>{title}</span>
+        {changed ? <span className="g-fold-changed">geändert</span> : null}
+        <span className="g-fold-hint" data-tone={warn ? "warn" : undefined}>
+          {hint}
+        </span>
+      </summary>
+      <div className="g-fold-body">{children}</div>
+    </details>
+  );
+}
+
 /** Operator-Felder des Default-Kontakts (F7.4, V0 §8.1); CAS über die gelesene Revision. */
 function DefaultForm({
   contact,
@@ -21,12 +61,16 @@ function DefaultForm({
   pending,
   channels,
   live,
+  folds,
+  toggle,
 }: {
   contact: DefaultContact;
   run: Run;
   pending: boolean;
   channels: readonly ChannelStatus[];
   live: boolean;
+  folds: Folds;
+  toggle: (id: FoldId, open: boolean) => void;
 }) {
   const [telegram, setTelegram] = useState(contact.telegramSenderId);
   const [instagram, setInstagram] = useState(contact.instagramSenderId);
@@ -44,16 +88,36 @@ function DefaultForm({
   const media = usable.filter((w) => w.kind === "image");
   // animate: Foto -> Video, also ein Video-Workflow mit Eingangsbild
   const videos = usable.filter((w) => w.kind === "video" && w.params.some((x) => x.upload && x.name === "image"));
-  const changed =
+  const changedIdentity =
     telegram.trim() !== contact.telegramSenderId ||
     instagram.trim() !== contact.instagramSenderId ||
-    processCommands !== contact.processCommands ||
+    processCommands !== contact.processCommands;
+  const changedMedia =
     autoOrders !== contact.autoOrders ||
     approval !== contact.approvalMode ||
     influencer.trim() !== contact.influencer ||
     workflow !== contact.mediaWorkflow ||
-    video !== contact.videoWorkflow ||
-    COMMANDS.some((c) => (commands[c] ?? "") !== (saved[c] ?? ""));
+    video !== contact.videoWorkflow;
+  const changedCommands = COMMANDS.some((c) => (commands[c] ?? "") !== (saved[c] ?? ""));
+  const changed = changedIdentity || changedMedia || changedCommands;
+
+  // Zustand je Gruppe aus dem aktuellen Formular; Rückfall wie im Backend (cloner: Workflow des
+  // Befehls, sonst Video- bzw. Medien-Workflow)
+  const senders = [telegram.trim() && "Telegram", instagram.trim() && "Instagram"].filter(Boolean);
+  const identityHint = [senders.length ? senders.join(" + ") : "kein Absender", processCommands ? "" : "Befehle aus"]
+    .filter(Boolean)
+    .join(" · ");
+  const titleOf = (key: string) => registry.find((w) => w.key === key)?.title ?? key;
+  const mediaHint = workflow
+    ? [titleOf(workflow), autoOrders ? "" : "Start im Cockpit"].filter(Boolean).join(" · ")
+    : "Medien-Workflow fehlt";
+  const own = COMMANDS.filter((c) => commands[c]).length;
+  const missing = COMMANDS.filter((c) => !commands[c] && !(c === "animate" ? video : workflow));
+  const commandsHint = missing.length
+    ? `${missing.length} ohne Workflow`
+    : own
+      ? `${own} eigene · ${COMMANDS.length - own} Standard`
+      : "alle Standard";
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -128,8 +192,15 @@ function DefaultForm({
 
   return (
     <form className="g-form" onSubmit={submit}>
-      <div className="g-control-part g-wide">
-        <h3>Identität &amp; Dialog</h3>
+      <Fold
+        id="identity"
+        title="Identität & Dialog"
+        hint={identityHint}
+        warn={!senders.length || !processCommands}
+        changed={changedIdentity}
+        folds={folds}
+        toggle={toggle}
+      >
         <dl className="g-params">
           <Row label="Kontakt">Default</Row>
           <Row label="Aufgabe">Eigener Absender</Row>
@@ -140,9 +211,16 @@ function DefaultForm({
           <input type="checkbox" checked={processCommands} onChange={(e) => setProcessCommands(e.target.checked)} />
           Interne Befehle verarbeiten
         </label>
-      </div>
-      <div className="g-control-part g-wide">
-        <h3>KI &amp; Medien</h3>
+      </Fold>
+      <Fold
+        id="media"
+        title="KI & Medien"
+        hint={mediaHint}
+        warn={!workflow}
+        changed={changedMedia}
+        folds={folds}
+        toggle={toggle}
+      >
         <div className="g-field">
           <label htmlFor="df-influencer">Influencerin</label>
           <select id="df-influencer" value={influencer} onChange={(e) => setInfluencer(e.target.value)}>
@@ -173,23 +251,33 @@ function DefaultForm({
           <input type="checkbox" checked={autoOrders} onChange={(e) => setAutoOrders(e.target.checked)} />
           Automatische Produktionsaufträge
         </label>
-      </div>
-      <div className="g-control-part g-wide">
-        <h3>Befehle</h3>
-        {COMMANDS.map((c) =>
-          choice(
-            `df-cmd-${c}`,
-            c,
-            commands[c] ?? "",
-            (v) => setCommands((m) => ({ ...m, [c]: v })),
-            c === "animate" ? videos : media,
-            c === "animate" ? "wie Video-Workflow" : "wie Medien-Workflow",
-          ),
-        )}
-      </div>
-      <div className="g-control-part g-wide">
-        <h3>Einstellungen</h3>
-      </div>
+      </Fold>
+      <Fold
+        id="commands"
+        title="Befehle"
+        hint={commandsHint}
+        warn={missing.length > 0}
+        changed={changedCommands}
+        folds={folds}
+        toggle={toggle}
+      >
+        {COMMANDS.map((c) => {
+          const base = c === "animate" ? video : workflow;
+          const label = c === "animate" ? "Video-Workflow" : "Medien-Workflow";
+          return (
+            <div key={c} className="g-cmd">
+              {choice(
+                `df-cmd-${c}`,
+                c,
+                commands[c] ?? "",
+                (v) => setCommands((m) => ({ ...m, [c]: v })),
+                c === "animate" ? videos : media,
+                base ? `wie ${label}` : `kein Workflow (${label} fehlt)`,
+              )}
+            </div>
+          );
+        })}
+      </Fold>
       <button type="submit" className="g-button g-primary g-block g-wide" disabled={!live || pending || !changed}>
         Einstellungen übernehmen
       </button>
@@ -209,6 +297,9 @@ export function DefaultPanel({
   live: boolean;
 }) {
   const cmd = useCommand();
+  // Auf-/Zu-Zustand überlebt das Neuladen des Formulars bei neuer Revision (key)
+  const [folds, setFolds] = useState<Folds>(FOLDS_OPEN);
+  const toggle = (id: FoldId, open: boolean) => setFolds((f) => (f[id] === open ? f : { ...f, [id]: open }));
   const influencers = useStateTopic(Topic.INFLUENCERS)?.value.influencers ?? [];
   const current = influencers.find((x) => String(x.influencerId) === contact?.influencer);
   const workflows = useStateTopic(Topic.COMFY_WORKFLOWS)?.value.workflows ?? [];
@@ -222,7 +313,16 @@ export function DefaultPanel({
       {contact ? (
         <>
           {/* neue Revision (eigene oder fremde Änderung): Formular zeigt den gespeicherten Stand */}
-          <DefaultForm key={String(contact.revision)} contact={contact} run={cmd.run} pending={cmd.pending} channels={channels} live={live} />
+          <DefaultForm
+            key={String(contact.revision)}
+            contact={contact}
+            run={cmd.run}
+            pending={cmd.pending}
+            channels={channels}
+            live={live}
+            folds={folds}
+            toggle={toggle}
+          />
           <InfluencerBlock
             key={`${current?.influencerId ?? "neu"}-${current?.revision ?? 0}`}
             influencer={current}

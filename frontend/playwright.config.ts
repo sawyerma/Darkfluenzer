@@ -8,13 +8,15 @@ const server = /^\[server\]$([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(config)?.[1] ?? 
 const host = /^host\s*=\s*"([^"]+)"/m.exec(server)?.[1];
 const port = /^port\s*=\s*(\d+)/m.exec(server)?.[1];
 if (!host || !port) throw new Error("local/config.toml: [server] host/port fehlen");
-const url = `http://${host}:${port}`;
+// DF_BASE_URL: isolierter Testserver (eigener DARKFLUENZER_ROOT) für schreibende Tests
+const url = process.env.DF_BASE_URL ?? `http://${host}:${port}`;
 
 export default defineConfig({
   testDir: "tests",
   testMatch: "*.spec.ts",
   reporter: "line",
-  use: { baseURL: url },
+  // echter Chrome (GUI-Auftrag 18.11.: Browser-E2E in Chrome)
+  use: { baseURL: url, channel: "chrome" },
   webServer: {
     command: "../local/.venv/bin/python -m darkfluenzer serve",
     url: `${url}/`,
